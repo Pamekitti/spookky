@@ -1,0 +1,2481 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Spookky Workspace</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe id="codex-visualization" sandbox="allow-scripts" referrerpolicy="no-referrer" title="Spookky Workspace" data-srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Spookky Workspace&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 10px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+.cursor-interaction {
+  cursor: var(--cursor-interaction, pointer);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: var(--cursor-interaction, pointer);
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: var(--cursor-interaction, pointer);
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover,
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, var(--font-size-normal));
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+
+  .form-range::-webkit-slider-runnable-track {
+    height: 44px;
+  }
+
+  .form-range::-moz-range-track {
+    height: 44px;
+  }
+
+  .form-range::-webkit-slider-thumb {
+    margin-top: 12px;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;script type=&quot;application/json&quot; id=&quot;codex-visualization-widget-state&quot;&gt;__CODEX_VISUALIZATION_WIDGET_STATE__&lt;/script&gt;
+&lt;script&gt;(() =&gt; {
+  const root = document.documentElement;
+  const mediaQuery = globalThis.matchMedia(&quot;(prefers-color-scheme: dark)&quot;);
+  const apply = Reflect.apply;
+  const isArray = Array.isArray;
+  const hasOwn = Object.hasOwn;
+  const parentWindow = globalThis.parent;
+  const stringify = JSON.stringify;
+  const parse = JSON.parse;
+  const encode = TextEncoder.prototype.encode.bind(new TextEncoder());
+  const initialStateElement = document.getElementById(
+    &quot;codex-visualization-widget-state&quot;,
+  );
+  const initialGlobals = parse(initialStateElement?.textContent ?? &quot;{}&quot;);
+  initialStateElement?.remove();
+  /** @type {Record&lt;string, unknown&gt; | null} */
+  let state = initialGlobals.widgetState ?? null;
+  const statePersistence = initialGlobals.statePersistence ?? &quot;none&quot;;
+  let nextStateRequestId = 0;
+  /** @type {Map&lt;number, { resolve: () =&gt; void; reject: (error: Error) =&gt; void; timeout: ReturnType&lt;typeof globalThis.setTimeout&gt;; serializedState: string }&gt;} */
+  const pendingStateWrites = new Map();
+  const persistenceError = () =&gt;
+    Object.assign(
+      new Error(&quot;The host could not persist the widget state update&quot;),
+      {
+        code: -32000,
+        data: { code: &quot;widget_state_persistence_failed&quot;, retryable: false },
+      },
+    );
+  /**
+   * @param {object} prototype
+   * @param {string} property
+   */
+  const getPrototypeGetter = (prototype, property) =&gt; {
+    // oxlint-disable-next-line typescript/unbound-method -- invoked through captured Reflect.apply
+    const getter = Object.getOwnPropertyDescriptor(prototype, property)?.get;
+    if (getter == null) {
+      throw new Error(`Missing ${property} getter`);
+    }
+    return getter;
+  };
+  const getMessageData = getPrototypeGetter(MessageEvent.prototype, &quot;data&quot;);
+  const getMessagePorts = getPrototypeGetter(MessageEvent.prototype, &quot;ports&quot;);
+  const getMessageSource = getPrototypeGetter(MessageEvent.prototype, &quot;source&quot;);
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const addHostMessageListener = MessagePort.prototype.addEventListener;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const postHostMessage = MessagePort.prototype.postMessage;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const startHostPort = MessagePort.prototype.start;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const stopMessagePropagation = Event.prototype.stopImmediatePropagation;
+  /** @type {MessagePort | null} */
+  let hostPort = null;
+  const postToHost = (type, payload) =&gt; {
+    if (hostPort != null) {
+      apply(postHostMessage, hostPort, [{ type, ...payload }]);
+    }
+  };
+  const openExternal = ({ href }) =&gt; {
+    if (globalThis.navigator.userActivation?.isActive === true) {
+      postToHost(&quot;open-external&quot;, { href });
+    }
+  };
+  const sendFollowUpMessage = ({ context, prompt, title }) =&gt; {
+    if (globalThis.navigator.userActivation?.isActive === true) {
+      postToHost(&quot;follow-up&quot;, { context, prompt, title });
+    }
+    return Promise.resolve();
+  };
+  /**
+   * @param {Record&lt;string, unknown&gt; | ((previous: Record&lt;string, unknown&gt; | null) =&gt; Record&lt;string, unknown&gt;)} next
+   * @returns {Promise&lt;void&gt;}
+   */
+  const setWidgetState = async (next) =&gt; {
+    const nextState = typeof next === &quot;function&quot; ? next(state) : next;
+    if (
+      nextState == null ||
+      typeof nextState !== &quot;object&quot; ||
+      isArray(nextState)
+    ) {
+      throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+    }
+    const inputState = stringify(
+      nextState,
+      (_key, /** @type {unknown} */ value) =&gt; {
+        if (
+          typeof value === &quot;undefined&quot; ||
+          typeof value === &quot;function&quot; ||
+          typeof value === &quot;symbol&quot; ||
+          (typeof value === &quot;number&quot; &amp;&amp; !Number.isFinite(value))
+        ) {
+          throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+        }
+        return value;
+      },
+    );
+    const parsedState = parse(inputState);
+    if (
+      parsedState == null ||
+      typeof parsedState !== &quot;object&quot; ||
+      isArray(parsedState)
+    ) {
+      throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+    }
+    const storedState = {
+      modelContent: null,
+      privateContent: null,
+      ...parsedState,
+    };
+    const serializedState = stringify(storedState);
+    if (encode(serializedState).length &gt; 16 * 1024) {
+      throw new TypeError(
+        &quot;Widget state must be a JSON object of at most 16 KiB&quot;,
+      );
+    }
+    if (
+      hasOwn(storedState, &quot;imageIds&quot;) &amp;&amp;
+      (!isArray(storedState.imageIds) ||
+        storedState.imageIds.some(
+          (/** @type {unknown} */ id) =&gt; typeof id !== &quot;string&quot;,
+        ))
+    ) {
+      throw new TypeError(&quot;Widget state imageIds must be an array of strings&quot;);
+    }
+    if (storedState.imageIds?.length &gt; 0) {
+      throw Object.assign(
+        new TypeError(&quot;Visualization state does not support image attachments&quot;),
+        { code: -32602, data: { code: &quot;images_unsupported&quot; } },
+      );
+    }
+    state = storedState;
+    globalThis.openai.widgetState = state;
+    globalThis.dispatchEvent(
+      new CustomEvent(&quot;openai:set_globals&quot;, {
+        detail: { globals: { widgetState: state } },
+      }),
+    );
+    if (statePersistence === &quot;none&quot;) {
+      throw persistenceError();
+    }
+    const id = ++nextStateRequestId;
+    return new Promise((resolve, reject) =&gt; {
+      const timeout = globalThis.setTimeout(() =&gt; {
+        pendingStateWrites.delete(id);
+        reject(persistenceError());
+      }, 30_000);
+      pendingStateWrites.set(id, { resolve, reject, timeout, serializedState });
+      postToHost(&quot;widget-state-write&quot;, { id, state: serializedState });
+    });
+  };
+  const syncTheme = () =&gt; {
+    const theme = mediaQuery.matches ? &quot;dark&quot; : &quot;light&quot;;
+    root.dataset.theme = theme;
+    globalThis.openai = {
+      ...globalThis.openai,
+      openExternal,
+      sendFollowUpMessage,
+      setWidgetState,
+      theme,
+      visualizationStyleVariables: {},
+      visualizationTheme: theme,
+      widgetState: state,
+      statePersistence,
+      stateModelContext: &quot;none&quot;,
+    };
+    globalThis.dispatchEvent(
+      new CustomEvent(&quot;openai:set_globals&quot;, {
+        detail: { globals: globalThis.openai },
+      }),
+    );
+  };
+  const sendHeight = () =&gt; {
+    postToHost(&quot;height&quot;, {
+      height: Math.ceil(
+        Math.max(
+          document.body.scrollHeight,
+          document.body.getBoundingClientRect().height,
+        ),
+      ),
+    });
+  };
+
+  globalThis.addEventListener(
+    &quot;message&quot;,
+    (event) =&gt; {
+      const data = apply(getMessageData, event, []);
+      const ports = apply(getMessagePorts, event, []);
+      const source = apply(getMessageSource, event, []);
+      if (
+        hostPort != null ||
+        source !== parentWindow ||
+        typeof data !== &quot;object&quot; ||
+        data?.type !== &quot;codex-visualization-initialize&quot; ||
+        !isArray(ports) ||
+        ports.length !== 1
+      ) {
+        return;
+      }
+      apply(stopMessagePropagation, event, []);
+      const nextHostPort = ports[0];
+      try {
+        apply(addHostMessageListener, nextHostPort, [
+          &quot;message&quot;,
+          (event) =&gt; {
+            const data = apply(getMessageData, event, []);
+            if (typeof data === &quot;object&quot; &amp;&amp; data?.type === &quot;measure&quot;) {
+              sendHeight();
+            } else if (
+              typeof data === &quot;object&quot; &amp;&amp;
+              data?.type === &quot;widget-state-result&quot;
+            ) {
+              /** @type {unknown} */
+              const id = data.id;
+              if (typeof id !== &quot;number&quot;) {
+                return;
+              }
+              const pending = pendingStateWrites.get(id);
+              if (pending != null) {
+                pendingStateWrites.delete(id);
+                globalThis.clearTimeout(pending.timeout);
+                if (data.ok === true) {
+                  pending.resolve();
+                } else {
+                  pending.reject(persistenceError());
+                }
+              }
+            }
+          },
+        ]);
+        apply(startHostPort, nextHostPort, []);
+      } catch {
+        return;
+      }
+      hostPort = nextHostPort;
+      for (const [id, { serializedState }] of pendingStateWrites) {
+        postToHost(&quot;widget-state-write&quot;, { id, state: serializedState });
+      }
+      sendHeight();
+    },
+    { capture: true },
+  );
+  document.currentScript?.remove();
+  mediaQuery.addEventListener(&quot;change&quot;, syncTheme);
+  globalThis.addEventListener(&quot;click&quot;, (event) =&gt; {
+    if (event.defaultPrevented) {
+      return;
+    }
+    let element = null;
+    if (event.target instanceof globalThis.Element) {
+      element = event.target;
+    } else if (event.target instanceof globalThis.Node) {
+      element = event.target.parentElement;
+    }
+    const link = element?.closest(&quot;a[href]&quot;);
+    const href = link?.getAttribute(&quot;href&quot;);
+    if (href == null) {
+      return;
+    }
+    if (href.startsWith(&quot;#&quot;)) {
+      let id;
+      try {
+        id = decodeURIComponent(href.slice(1));
+      } catch {
+        return;
+      }
+      const target = id.length === 0 ? root : document.getElementById(id);
+      if (
+        target == null ||
+        globalThis.navigator.userActivation?.isActive !== true
+      ) {
+        return;
+      }
+      event.preventDefault();
+      postToHost(&quot;scroll-to&quot;, {
+        top: target.getBoundingClientRect().top + globalThis.scrollY,
+      });
+      return;
+    }
+    event.preventDefault();
+    openExternal({ href });
+  });
+  new ResizeObserver(sendHeight).observe(document.body);
+  syncTheme();
+})();
+&lt;/script&gt;
+&lt;style&gt;
+#spookky-app {
+  --bg:light-dark(#faf9f8,#151312); --surface:light-dark(#f3f2f0,#1b1918);
+  --raised:light-dark(#ecebe8,#24211f); --hover:light-dark(#e7e5e2,#2b2826);
+  --selected:light-dark(#e1dfdb,#302d2a); --text:light-dark(#252321,#e8e5e1);
+  --muted:light-dark(#68635e,#aca6a0); --faint:light-dark(#706a65,#8d8680);
+  --line:light-dark(#dedbd6,#302c29); --green:light-dark(#267a4a,#78bf91);
+  --red:light-dark(#b14646,#db8581); --amber:light-dark(#966500,#dbb069);
+  --blue:light-dark(#266e9c,#88afd6); --add:light-dark(#e6f0e8,#203127);
+  --del:light-dark(#f7e7e5,#382725); --shadow:light-dark(#221a121a,#0006);
+  color-scheme:dark; color:var(--text); background:var(--bg); border:1px solid var(--line);
+  border-radius:10px; overflow:hidden; font:13px/1.45 -apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,sans-serif;
+  min-width:0; position:relative; text-align:left; -webkit-font-smoothing:antialiased;
+}
+#spookky-app * {box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+#spookky-app button,#spookky-app input,#spookky-app textarea,#spookky-app select {font:inherit;color:inherit}
+#spookky-app button {border:0;background:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:6px 10px;border-radius:6px;white-space:nowrap}
+#spookky-app button:hover,#spookky-app summary:hover {background:var(--hover)}
+#spookky-app :is(button,summary,input,textarea,select):focus-visible {outline:2px solid var(--blue);outline-offset:-2px}
+#spookky-app button:disabled {opacity:.4;cursor:not-allowed}
+#spookky-app svg {width:16px;height:16px;stroke-width:1.65;flex:none}
+#spookky-app .icon {height:28px;width:28px;padding:6px;color:var(--muted);flex:none}
+#spookky-app .icon:hover {color:var(--text)}
+#spookky-app .muted,#spookky-app .hint {color:var(--muted)}
+#spookky-app .faint {color:var(--faint)}
+#spookky-app .green {color:var(--green)}
+#spookky-app .red {color:var(--red)}
+#spookky-app .amber {color:var(--amber)}
+#spookky-app .spacer {flex:1;min-width:0}
+#spookky-app .count {font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+#spookky-app .frame {display:grid;grid-template-columns:232px minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:760px}
+#spookky-app .project-sidebar {border-right:1px solid var(--line);background:var(--surface);min-width:0;min-height:0;display:flex;flex-direction:column;padding:0 8px 8px;overflow:hidden}
+#spookky-app .sidebar-controls {display:flex;align-items:center;justify-content:flex-end;height:40px;flex:none;padding:0 2px;margin-bottom:8px}
+#spookky-app .navigation {width:100%;height:34px;justify-content:flex-start;gap:10px;padding:7px 10px;color:var(--muted);text-align:left;flex:none}
+#spookky-app .navigation.strong {color:var(--text);background:var(--raised);margin-bottom:4px}
+#spookky-app .shortcut {margin-left:auto;color:var(--faint);font-size:11px}
+#spookky-app .sidebar-label {display:flex;align-items:center;padding:16px 8px 4px;color:var(--faint);font-size:11px;letter-spacing:.6px;text-transform:uppercase;flex:none}
+#spookky-app #project-list {overflow:auto;min-height:0;flex:1;padding:0 2px 12px}
+#spookky-app .project-group {margin-top:8px}
+#spookky-app .project-row,#spookky-app .workspace-row {display:flex;align-items:center;min-width:0;border-radius:6px;position:relative}
+#spookky-app .project-row {height:32px}
+#spookky-app .project-row:hover,#spookky-app .workspace-row:hover {background:var(--raised)}
+#spookky-app .project-row&gt;.project,#spookky-app .workspace-row&gt;.workspace {min-width:0;flex:1;justify-content:flex-start;text-align:left;background:none}
+#spookky-app .project {height:32px;padding:4px 8px;gap:8px;font-weight:500}
+#spookky-app .project-mark {display:grid;place-items:center;width:20px;height:20px;border-radius:5px;background:var(--raised);color:var(--muted);font-size:11px;flex:none}
+#spookky-app .project-mark svg {width:14px;height:14px}
+#spookky-app .project-name {overflow:hidden;text-overflow:ellipsis}
+#spookky-app .row-action {width:26px;height:28px;margin-right:4px;color:var(--faint)}
+#spookky-app .row-action:hover {background:var(--hover)}
+#spookky-app .workspace-row {margin:2px 0 2px 12px}
+#spookky-app .workspace-row.active {background:var(--selected)}
+#spookky-app .workspace {height:46px;padding:6px 8px;gap:8px;color:var(--muted)}
+#spookky-app .workspace.active {color:var(--text)}
+#spookky-app .workspace-info {display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+#spookky-app .workspace-name {font-size:12px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#spookky-app .workspace-branch {font-size:11px;color:var(--faint);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#spookky-app .rail-session-icon {display:flex;align-items:center;color:var(--faint);flex:none}
+#spookky-app .rail-session-icon svg {width:14px;height:14px}
+#spookky-app .status-dot {width:5px;height:5px;border-radius:50%;background:var(--faint);flex:none}
+#spookky-app .status-dot.working {background:var(--amber)}
+#spookky-app .status-dot.ready {background:var(--green)}
+#spookky-app .sidebar-footer {display:flex;align-items:center;gap:8px;margin-top:auto;padding:8px 4px 0;border-top:1px solid var(--line);color:var(--muted);font-size:12px;flex:none}
+#spookky-app .avatar {display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--raised);font-size:11px}
+#spookky-app.nav-hidden .frame {grid-template-columns:58px minmax(0,1fr)}
+#spookky-app.nav-hidden .project-sidebar {padding:0 6px 8px}
+#spookky-app.nav-hidden .sidebar-controls {justify-content:center}
+#spookky-app.nav-hidden .navigation {width:40px;height:36px;margin:2px auto;justify-content:center;padding:8px}
+#spookky-app.nav-hidden :is(.nav-label,.shortcut,.workspace-info,.project-name,.footer-name,.row-action) {display:none}
+#spookky-app.nav-hidden .sidebar-label {font-size:0;padding:12px 0 4px;justify-content:center}
+#spookky-app.nav-hidden .sidebar-label .spacer {display:none}
+#spookky-app.nav-hidden #project-list {padding:0;scrollbar-width:none}
+#spookky-app.nav-hidden .project-group {margin-top:6px}
+#spookky-app.nav-hidden .project-row {height:34px}
+#spookky-app.nav-hidden .project {justify-content:center;padding:6px}
+#spookky-app.nav-hidden .workspace-row {margin:2px 0}
+#spookky-app.nav-hidden .workspace {height:34px;justify-content:center;padding:8px}
+#spookky-app.nav-hidden .workspace .status-dot {position:absolute;right:6px;top:6px}
+#spookky-app.nav-hidden .sidebar-footer {flex-direction:column;gap:8px;padding-top:10px}
+#spookky-app.nav-hidden .sidebar-footer .spacer {display:none}
+#spookky-app .workspace-shell {min-width:0;min-height:0;display:flex;flex-direction:column}
+#spookky-app .agent-strip {height:40px;min-height:40px;display:flex;align-items:center;gap:4px;padding:0 6px;border-bottom:1px solid var(--line);background:var(--surface);min-width:0;flex:none}
+#spookky-app .tab-scroll {display:flex;align-self:stretch;min-width:0;max-width:calc(100% - 72px);overflow:auto;scrollbar-width:none}
+#spookky-app .tab-pair {display:flex;align-items:center;flex:none;border:1px solid transparent;border-bottom:0;border-radius:7px 7px 0 0;margin-top:4px;padding-right:4px;max-width:204px}
+#spookky-app .tab-pair.active {background:var(--bg);border-color:var(--line);position:relative}
+#spookky-app .tab-pair.active::after {content:&quot;&quot;;position:absolute;bottom:-1px;left:0;right:0;height:1px;background:var(--bg)}
+#spookky-app .session-tab {height:34px;min-width:80px;max-width:172px;font-size:12px;padding:6px 10px;color:var(--muted);background:none}
+#spookky-app .session-tab.active {color:var(--text)}
+#spookky-app .session-tab&gt;span:not(.status-dot) {overflow:hidden;text-overflow:ellipsis}
+#spookky-app .session-tab svg {width:14px;height:14px}
+#spookky-app .tab-pair&gt;.icon {width:24px;height:24px;padding:5px;color:var(--faint)}
+#spookky-app .agent-strip&gt;[aria-expanded=&quot;true&quot;] {color:var(--text);background:var(--raised)}
+#spookky-app .workspace-grid {display:grid;grid-template-columns:minmax(0,1fr) 248px;flex:1;min-width:0;min-height:0;overflow:hidden}
+#spookky-app.side-hidden .workspace-grid {grid-template-columns:minmax(0,1fr)}
+#spookky-app.side-hidden .files-sidebar {display:none}
+#spookky-app .core {display:grid;grid-template-columns:minmax(0,48%) 6px minmax(0,1fr);min-width:0;min-height:0}
+#spookky-app .core.no-diff,#spookky-app .core.max-diff {grid-template-columns:minmax(0,1fr)}
+#spookky-app .core.no-diff :is(.resizer,.diff-pane),#spookky-app .core.max-diff :is(.terminal-pane,.resizer) {display:none}
+#spookky-app .resizer {padding:0;width:6px;border-radius:0;background:var(--bg);border-left:1px solid var(--line);cursor:col-resize}
+#spookky-app .resizer:hover,#spookky-app .resizer:focus-visible {background:var(--selected)}
+#spookky-app .terminal-pane,#spookky-app .diff-pane,#spookky-app .files-sidebar {min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--bg)}
+#spookky-app .pane-head {height:36px;flex:none;display:flex;align-items:center;gap:4px;padding:0 8px 0 12px;background:var(--bg);border-bottom:1px solid var(--line);color:var(--muted)}
+#spookky-app .pane-title {display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px}
+#spookky-app .pane-title strong {font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis}
+#spookky-app .pane-title svg {width:14px;height:14px}
+#spookky-app .pane-head .count {margin-right:4px;flex:none}
+#spookky-app .terminal-split {display:flex;flex:1;min-width:0;min-height:0;overflow:hidden}
+#spookky-app .terminal-instance {display:flex;flex-direction:column;min-width:0;flex:1;overflow:hidden}
+#spookky-app .terminal-instance+.terminal-instance {border-left:1px solid var(--line)}
+#spookky-app .terminal-content {display:flex;flex-direction:column;flex:1;min-width:0;min-height:0;overflow:hidden;padding:18px 18px 12px;font:var(--terminal-size,13px)/1.65 ui-monospace,SFMono-Regular,Consolas,monospace}
+#spookky-app .terminal-lines {flex:1;min-height:0;min-width:0;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+#spookky-app .terminal-entry {margin-bottom:20px;white-space:pre-wrap;overflow-wrap:anywhere}
+#spookky-app .terminal-entry strong {font-weight:500}
+#spookky-app .terminal-prompt {display:flex;align-items:flex-start;gap:8px;border-top:1px solid var(--line);padding-top:12px}
+#spookky-app .terminal-prompt&gt;span {color:var(--amber)}
+#spookky-app .terminal-prompt textarea {width:100%;min-width:0;height:42px;max-height:100px;resize:vertical;border:0;background:none;padding:0;font:inherit}
+#spookky-app textarea::placeholder {color:var(--faint)}
+#spookky-app .terminal-meta {margin-top:6px;color:var(--faint);font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+#spookky-app .cwd-note {font-size:11px;color:var(--muted);padding:6px 0;overflow-wrap:anywhere}
+#spookky-app .cwd-note button {font-size:11px}
+#spookky-app .cli-picker {border:1px solid var(--line);border-radius:6px;padding:8px;margin:12px 0}
+#spookky-app .cli-picker&gt;button {display:block;text-align:left;white-space:normal;font:inherit}
+#spookky-app .resume-row {width:100%;display:block;white-space:normal}
+#spookky-app .resume-row small {display:block;color:var(--muted);font-size:11px;margin-top:4px}
+#spookky-app .files-sidebar {border-left:1px solid var(--line)}
+#spookky-app .side-tabs {display:flex;height:36px;border-bottom:1px solid var(--line);flex:none;padding:0 8px;gap:12px}
+#spookky-app .side-tabs button {position:relative;color:var(--muted);border-radius:0;padding:0 4px;gap:6px;font-size:12px}
+#spookky-app .side-tabs button.active {color:var(--text)}
+#spookky-app .side-tabs button.active::after {content:&quot;&quot;;position:absolute;bottom:-1px;left:4px;right:4px;height:2px;background:var(--muted)}
+#spookky-app .side-tabs svg {width:14px;height:14px}
+#spookky-app .scope-path {font-size:11px;color:var(--faint);padding:10px 12px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:none}
+#spookky-app .side-tools {display:flex;height:36px;align-items:center;gap:8px;margin:0 8px 4px;padding:0 4px;color:var(--faint);flex:none;border-bottom:1px solid var(--line)}
+#spookky-app .side-tools svg {width:14px;height:14px}
+#spookky-app .side-tools input {min-width:0;width:100%;border:0;background:none;padding:4px 0;font-size:12px}
+#spookky-app .side-tools input::placeholder {color:var(--faint)}
+#spookky-app .change-controls {display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px 0;font-size:11px}
+#spookky-app .change-controls select {max-width:100%;min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:4px 6px;font-size:11px}
+#spookky-app .change-controls .hint {margin:2px 0;font-size:11px}
+#spookky-app .file-tree {flex:1;min-height:0;overflow:auto;padding:0 6px 16px}
+#spookky-app .folder-row {width:100%;height:28px;justify-content:flex-start;padding:4px 6px;color:var(--muted);font-size:11px;gap:5px}
+#spookky-app .folder-row&gt;span:first-of-type {min-width:0;overflow:hidden;text-overflow:ellipsis}
+#spookky-app .folder-row svg {width:12px;height:12px}
+#spookky-app .folder-row .count {margin-left:auto;color:var(--faint)}
+#spookky-app .tree-file {width:100%;height:28px;justify-content:flex-start;gap:6px;padding:3px 6px 3px 22px;font-size:12px;border-radius:4px}
+#spookky-app .tree-file.active {background:var(--selected)}
+#spookky-app .tree-file&gt;svg {width:14px;height:14px;color:var(--muted)}
+#spookky-app .tree-file .name {overflow:hidden;white-space:nowrap;text-overflow:ellipsis;flex:1;text-align:left}
+#spookky-app .tree-file .delta {font:11px ui-monospace,SFMono-Regular,Consolas,monospace;flex:none}
+#spookky-app .empty-files {font-size:12px;color:var(--muted);padding:24px 12px;line-height:1.6;margin:0}
+#spookky-app .file-head {min-height:32px;display:flex;align-items:center;padding:7px 12px;border-bottom:1px solid var(--line);font-size:11px;color:var(--faint)}
+#spookky-app .file-head .path {min-width:0;overflow-wrap:anywhere}
+#spookky-app .diff-scroll {flex:1;min-width:0;overflow:auto}
+#spookky-app .context-row {width:100%;height:28px;justify-content:flex-start;border-radius:0;padding:4px 12px;background:var(--surface);font-size:11px;color:var(--muted)}
+#spookky-app .context-note {font-size:11px;padding:8px 12px;color:var(--muted)}
+#spookky-app .code {font:12px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace}
+#spookky-app .code-row {display:grid;grid-template-columns:30px 30px 14px minmax(0,1fr);min-height:22px;align-items:start}
+#spookky-app .code-row.add {background:var(--add);box-shadow:inset 2px 0 var(--green)}
+#spookky-app .code-row.del {background:var(--del);box-shadow:inset 2px 0 var(--red)}
+#spookky-app .code-row .old,#spookky-app .code-row .new {color:var(--faint);text-align:right;padding-right:6px;user-select:none}
+#spookky-app .code-row .sign {color:var(--faint)}
+#spookky-app .code-row.add :is(.new,.sign) {color:var(--green)}
+#spookky-app .code-row.del :is(.old,.sign) {color:var(--red)}
+#spookky-app .code-row .source {white-space:pre-wrap;overflow-wrap:anywhere;padding-right:8px}
+#spookky-app .kw {color:var(--blue)}
+#spookky-app .str {color:var(--green)}
+#spookky-app .code.split .code-pair {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+#spookky-app .code.split .code-pair&gt;:first-child {border-right:1px solid var(--line)}
+#spookky-app .code.split .code-row {grid-template-columns:28px 12px minmax(0,1fr)}
+#spookky-app .code.split .code-row .old {display:none}
+#spookky-app .blank-tab {height:100%;min-height:0;display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 28px}
+#spookky-app .start-screen {width:560px;max-width:100%;margin:52px auto 24px}
+#spookky-app .start-screen h2 {font-size:20px;font-weight:500;letter-spacing:-.4px;margin:0 0 24px;text-align:center}
+#spookky-app .launch-composer {border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:3px;position:relative}
+#spookky-app .launch-composer:focus-within {border-color:var(--faint)}
+#spookky-app .composer-input {display:block;width:100%;min-height:80px;max-height:260px;padding:12px 12px 4px;background:none;border:0;border-radius:7px;color:var(--text);resize:none;overflow-y:auto;font:14px/1.6 -apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,sans-serif}
+#spookky-app .composer-footer {display:flex;align-items:center;gap:8px;padding:4px 6px;min-height:42px}
+#spookky-app .composer-footer summary {padding:5px 6px;font-size:12px;gap:6px}
+#spookky-app .composer-tool summary svg {width:14px;height:14px}
+#spookky-app .composer-tool summary svg:last-child {width:12px;color:var(--faint)}
+#spookky-app .composer-launch {width:30px;height:30px;border-radius:50%;padding:7px;background:var(--text);color:var(--bg)}
+#spookky-app .composer-launch:hover {background:var(--muted)}
+#spookky-app .terminal-launch {background:var(--selected);font-size:12px;padding:7px 10px;border-radius:6px}
+#spookky-app .composer-context {display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-top:8px}
+#spookky-app .composer-context summary {padding:5px 6px;font-size:12px;color:var(--muted);gap:5px;max-width:100%}
+#spookky-app .composer-context summary&gt;span {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+#spookky-app .composer-context summary svg {width:13px;height:13px}
+#spookky-app .composer-context&gt;.start-menu {min-width:0;max-width:100%}
+#spookky-app .composer-caption {display:flex;align-items:flex-start;gap:8px;justify-content:space-between;margin:4px 6px 0;font-size:11px;color:var(--faint);min-width:0}
+#spookky-app .chosen-location,#spookky-app .inherited-folder {font:inherit;margin:0;min-width:0;overflow-wrap:anywhere}
+#spookky-app .composer-help {flex:none;white-space:nowrap;font-size:11px}
+#spookky-app .branch-caption {display:flex;align-items:center;flex-wrap:wrap;gap:4px;min-width:0;overflow-wrap:anywhere}
+#spookky-app .branch-options {display:inline-block;font-size:11px}
+#spookky-app .branch-options summary {padding:0 2px;font-size:11px;color:var(--muted)}
+#spookky-app .branch-options&gt;div {width:250px;padding:12px}
+#spookky-app .branch-options .field {margin:0 0 12px}
+#spookky-app .branch-options [data-action=&quot;done-branch&quot;] {justify-content:center;background:var(--raised)}
+#spookky-app .reference-label {font-size:12px;color:var(--muted);padding:5px 6px}
+#spookky-app .compact-note {font-size:11px;margin:12px 6px}
+#spookky-app .terminal-shortcut {display:flex;width:100%;height:40px;justify-content:flex-start;gap:10px;padding:8px;margin-top:16px;color:var(--muted);font-size:13px;text-align:left}
+#spookky-app kbd {font:11px -apple-system,sans-serif;border:1px solid var(--line);border-radius:4px;background:var(--surface);padding:2px 5px;min-width:22px;text-align:center;color:var(--faint)}
+#spookky-app .terminal-shortcut kbd+ kbd {margin-left:-6px}
+#spookky-app .composer-recents {margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+#spookky-app .recent-header {display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--faint);padding:0 6px 4px}
+#spookky-app .recent-header&gt;span {font-size:12px}
+#spookky-app .recent-header button {font-size:11px;color:var(--muted);padding:5px 2px}
+#spookky-app .recent-header svg {width:13px;height:13px}
+#spookky-app .recent-project {width:100%;height:34px;justify-content:flex-start;gap:10px;padding:6px;font-size:12px;text-align:left}
+#spookky-app .recent-project&gt;svg {width:15px;height:15px;color:var(--faint)}
+#spookky-app .recent-project .recent-path {color:var(--faint);font-size:11px;margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#spookky-app .tab-context {text-align:center;color:var(--muted);font-size:12px;margin:-16px 0 20px}
+#spookky-app summary {list-style:none;display:flex;align-items:center;gap:6px;border-radius:5px}
+#spookky-app summary::-webkit-details-marker {display:none}
+#spookky-app .start-menu {position:relative;font-size:12px}
+#spookky-app .start-menu&gt;div {position:absolute;top:calc(100% + 5px);left:0;z-index:15;width:250px;max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:5px;background:var(--surface);box-shadow:0 8px 28px var(--shadow)}
+#spookky-app .start-menu&gt;div button {display:flex;justify-content:flex-start;gap:8px;width:100%;text-align:left;padding:7px 8px;white-space:normal;min-height:32px}
+#spookky-app .start-menu small {display:block;color:var(--faint);font-size:11px;margin-top:2px;overflow-wrap:anywhere;white-space:normal}
+#spookky-app .start-menu&gt;div button&gt;span {min-width:0;flex:1}
+#spookky-app .composer-project&gt;div {width:288px}
+#spookky-app .composer-reference&gt;div {width:190px}
+#spookky-app .composer-tool&gt;div {width:180px}
+#spookky-app .composer-tool&gt;div button {flex-wrap:nowrap}
+#spookky-app .picker-search {display:flex;gap:8px;align-items:center;padding:6px 8px 9px;border-bottom:1px solid var(--line);margin-bottom:4px;color:var(--muted)}
+#spookky-app .picker-search input {width:100%;min-width:0;background:none;border:0;padding:3px;font-size:12px}
+#spookky-app .picker-divider {height:1px;background:var(--line);margin:4px 0}
+#spookky-app .picker-section {padding:8px 8px 4px;color:var(--faint);font-size:11px}
+#spookky-app #project-picker-results {max-height:180px;overflow:auto}
+#spookky-app .diff-menu summary {font-size:11px;padding:5px}
+#spookky-app .diff-menu&gt;div {left:auto;right:0;width:172px}
+#spookky-app .diff-menu summary svg {width:12px;height:12px}
+#spookky-app .field {display:block;font-size:12px;color:var(--muted);margin:14px 0}
+#spookky-app .field input,#spookky-app .field select,#spookky-app .dialog&gt;input {display:block;width:100%;min-width:0;border:1px solid var(--line);background:var(--bg);padding:8px 10px;border-radius:6px;margin-top:6px;color:var(--text)}
+#spookky-app .hint {font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+#spookky-app .inline-error {color:var(--red);font-size:12px;line-height:1.5;margin:12px 0;white-space:normal;overflow-wrap:anywhere}
+#spookky-app .inline-error:empty {display:none}
+#spookky-app .dialog-cover {position:absolute;inset:0;background:light-dark(#20181026,#0005);z-index:30;display:flex;justify-content:center;align-items:flex-start;padding:72px 16px 16px;overflow:auto;backdrop-filter:blur(3px)}
+#spookky-app .dialog {width:400px;max-width:100%;max-height:100%;flex:none;overflow:auto;padding:20px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 16px 48px var(--shadow)}
+#spookky-app .dialog header {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;font-size:15px}
+#spookky-app .dialog header strong {font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis}
+#spookky-app .dialog p {overflow-wrap:anywhere;font-size:12px;line-height:1.6}
+#spookky-app .dialog .primary {float:right;margin-top:8px;padding:8px 12px;background:var(--text);color:var(--bg);font-size:12px}
+#spookky-app .dialog .primary:hover {background:var(--muted)}
+#spookky-app .dialog&gt;button:not(.primary) {margin-top:8px;font-size:12px}
+#spookky-app .dialog::after {content:&quot;&quot;;display:block;clear:both}
+#spookky-app .dialog-note {color:var(--faint);font-size:11px}
+#spookky-app .check-label {display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin:16px 0}
+#spookky-app .check-label input {accent-color:var(--muted);width:14px;height:14px;margin:0}
+#spookky-app .scenario-section {border-top:1px solid var(--line);margin-top:16px;padding-top:8px}
+#spookky-app .scenario-section summary {padding:8px 0;color:var(--muted);font-size:12px}
+#spookky-app .scenario-section summary::before {content:&#x27;›&#x27;;width:12px}
+#spookky-app .scenario-section[open] summary::before {transform:rotate(90deg)}
+#spookky-app .context-cover {background:none;backdrop-filter:none;padding:0}
+#spookky-app .context-dialog {position:absolute;width:236px;padding:6px;border-radius:8px}
+#spookky-app .context-dialog header {font-size:11px;color:var(--faint);padding:4px 6px;margin:0 0 4px;border-bottom:1px solid var(--line)}
+#spookky-app .context-dialog header .icon {height:24px;width:24px}
+#spookky-app .context-dialog&gt;button:not(.primary) {display:flex;justify-content:flex-start;width:100%;margin:0;padding:8px;font-size:12px;min-height:32px}
+#spookky-app .context-dialog .hint {font-size:11px;margin:6px;padding:6px 0 0;border-top:1px solid var(--line)}
+#spookky-app .context-dialog [data-action=&quot;delete-worktree&quot;],#spookky-app .context-dialog [data-action=&quot;remove-project&quot;] {color:var(--red)}
+#spookky-app .project-picker-dialog&gt;button {display:flex;justify-content:flex-start;width:100%;height:38px}
+#spookky-app .search-result {width:100%;justify-content:flex-start;flex-wrap:wrap;white-space:normal;text-align:left;font-size:12px;margin:4px 0}
+#spookky-app .search-result span {display:block;width:100%;color:var(--faint);font-size:11px}
+#spookky-app #save-status {flex:none}
+#spookky-app .save-warning {display:flex;align-items:center;gap:12px;border:1px solid var(--amber);border-radius:6px;background:var(--surface);padding:10px;margin:8px;font-size:12px}
+#spookky-app .save-warning&gt;span {flex:1}
+#spookky-app .save-warning button {flex:none;background:var(--raised)}
+#spookky-app .notice {position:absolute;bottom:16px;left:50%;transform:translateX(-50%);max-width:calc(100% - 24px);background:var(--raised);border:1px solid var(--line);padding:10px 12px;border-radius:6px;color:var(--text);font-size:12px;white-space:normal;overflow-wrap:anywhere;z-index:35;box-shadow:0 4px 20px var(--shadow)}
+@media(max-width:1100px) and (min-width:801px) {
+  #spookky-app.nav-visible .frame {grid-template-columns:208px minmax(0,1fr)}
+  #spookky-app .workspace-grid {grid-template-columns:minmax(0,1fr) 224px}
+  #spookky-app.side-hidden .workspace-grid {grid-template-columns:minmax(0,1fr)}
+  #spookky-app .blank-tab {padding:24px}
+}
+@media(max-width:800px) {
+  #spookky-app .frame {height:740px}
+  #spookky-app.nav-hidden .frame,#spookky-app.nav-visible .frame {grid-template-columns:58px minmax(0,1fr)}
+  #spookky-app.nav-visible .project-sidebar {position:absolute;inset:0 auto 0 0;width:232px;z-index:20;box-shadow:8px 0 24px var(--shadow)}
+  #spookky-app .workspace-grid {grid-template-columns:minmax(0,1fr)}
+  #spookky-app.side-visible .files-sidebar {position:absolute;top:40px;right:0;bottom:0;width:248px;max-width:calc(100% - 58px);z-index:15;box-shadow:-8px 0 24px var(--shadow)}
+  #spookky-app .core {grid-template-columns:minmax(0,1fr)}
+  #spookky-app .core .resizer {display:none}
+  #spookky-app .core:not(.show-diff) .diff-pane,#spookky-app .core.show-diff .terminal-pane {display:none}
+  #spookky-app .core .diff-pane,#spookky-app .core .terminal-pane {grid-column:1;grid-row:1}
+  #spookky-app .blank-tab {padding:20px 16px}
+  #spookky-app .start-screen {margin:28px auto 24px}
+  #spookky-app .composer-caption {flex-wrap:wrap}
+  #spookky-app .composer-help {margin-left:auto}
+  #spookky-app .composer-context,#spookky-app .composer-caption {position:relative}
+  #spookky-app .composer-context&gt;.start-menu,#spookky-app .branch-options {position:static}
+  #spookky-app .composer-context&gt;.start-menu&gt;div,#spookky-app .branch-options&gt;div {left:0;right:auto;top:calc(100% + 5px);width:280px;max-width:100%;max-height:300px}
+  #spookky-app .terminal-content {padding:14px 12px}
+  #spookky-app .terminal-split.has-split {flex-direction:column}
+  #spookky-app .terminal-instance+.terminal-instance {border-left:0;border-top:1px solid var(--line)}
+  #spookky-app .pane-head {padding-left:8px}
+  #spookky-app .pane-head .count {display:none}
+  #spookky-app .dialog-cover {padding:48px 12px 12px}
+  #spookky-app .dialog {padding:16px}
+  #spookky-app .context-cover {padding:0}
+  #spookky-app .context-dialog {padding:6px}
+}
+@media(max-width:480px) {
+  #spookky-app .blank-tab {padding:20px 12px}
+  #spookky-app .start-screen h2 {font-size:18px;margin-bottom:20px}
+  #spookky-app .composer-context {gap:0}
+  #spookky-app .composer-context summary&gt;span {max-width:130px}
+  #spookky-app .recent-project {height:auto;min-height:40px;flex-wrap:wrap;gap:2px 8px}
+  #spookky-app .recent-project .recent-path {margin-left:23px;flex-basis:100%;font-size:11px}
+  #spookky-app .session-tab {min-width:60px;max-width:112px}
+  #spookky-app .tab-pair {max-width:144px}
+  #spookky-app .pane-title {flex:1}
+  #spookky-app .diff-menu summary {gap:2px}
+  #spookky-app .diff-menu summary span {display:none}
+  #spookky-app .diff-menu summary svg {width:16px}
+  #spookky-app .save-warning {flex-wrap:wrap}
+  #spookky-app .code-row {grid-template-columns:24px 24px 12px minmax(0,1fr);font-size:11px}
+}
+@media(pointer:coarse) {
+  #spookky-app .icon,#spookky-app .row-action {min-width:36px;min-height:36px}
+  #spookky-app .workspace {height:48px}
+  #spookky-app .project-row,#spookky-app .project {height:44px}
+  #spookky-app .composer-launch {width:44px;height:44px}
+  #spookky-app .composer-footer summary {min-height:44px}
+  #spookky-app input,#spookky-app .composer-input {font-size:16px}
+}
+
+@media (max-width: 360px) { #spookky-app .blank-tab {padding:20px 12px} #spookky-app .composer-footer:has(.terminal-launch) {flex-direction:column;align-items:stretch;gap:6px} #spookky-app .terminal-launch {width:100%;max-width:100%;white-space:nowrap;flex-wrap:nowrap;justify-content:center;min-height:34px} }
+&lt;/style&gt;
+&lt;div id=&quot;spookky-app&quot; aria-label=&quot;Minimal AI CLI workspace prototype&quot;&gt;
+
+  &lt;div class=&quot;frame&quot;&gt;&lt;aside class=&quot;project-sidebar&quot; aria-label=&quot;Projects and workspaces&quot;&gt;&lt;div class=&quot;sidebar-controls&quot;&gt;&lt;button class=&quot;icon&quot; data-action=&quot;toggle-projects&quot; aria-label=&quot;Toggle project sidebar&quot; aria-expanded=&quot;true&quot; data-tooltip=&quot;Expand or collapse sidebar&quot;&gt;&lt;i data-lucide=&quot;panel-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+    &lt;button class=&quot;navigation strong&quot; data-action=&quot;new-workspace&quot; aria-label=&quot;New workspace&quot; data-tooltip=&quot;New workspace · ⌘N&quot;&gt;&lt;i data-lucide=&quot;plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span class=&quot;nav-label&quot;&gt;New workspace&lt;/span&gt;&lt;span class=&quot;shortcut&quot;&gt;⌘N&lt;/span&gt;&lt;/button&gt;
+    &lt;button class=&quot;navigation&quot; data-action=&quot;search&quot; aria-label=&quot;Search workspaces&quot; data-tooltip=&quot;Search · ⌘K&quot;&gt;&lt;i data-lucide=&quot;search&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span class=&quot;nav-label&quot;&gt;Search&lt;/span&gt;&lt;span class=&quot;shortcut&quot;&gt;⌘K&lt;/span&gt;&lt;/button&gt;
+
+    &lt;div class=&quot;sidebar-label&quot;&gt;Projects&lt;span class=&quot;spacer&quot;&gt;&lt;/span&gt;&lt;button class=&quot;icon&quot; data-action=&quot;new-project&quot; aria-label=&quot;Add project&quot;&gt;&lt;i data-lucide=&quot;folder-plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+    &lt;div id=&quot;project-list&quot;&gt;&lt;/div&gt;&lt;div class=&quot;sidebar-footer&quot;&gt;&lt;span class=&quot;avatar&quot;&gt;P&lt;/span&gt;&lt;span class=&quot;footer-name&quot;&gt;Personal&lt;/span&gt;&lt;span class=&quot;spacer&quot;&gt;&lt;/span&gt;&lt;button class=&quot;icon&quot; data-action=&quot;settings&quot; aria-label=&quot;Settings&quot;&gt;&lt;i data-lucide=&quot;settings&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+  &lt;/aside&gt;&lt;div class=&quot;workspace-shell&quot;&gt;&lt;nav class=&quot;agent-strip&quot; aria-label=&quot;Terminal sessions&quot;&gt;&lt;/nav&gt;&lt;div id=&quot;save-status&quot;&gt;&lt;/div&gt;&lt;div class=&quot;workspace-grid&quot;&gt;&lt;div id=&quot;core&quot; class=&quot;core&quot;&gt;&lt;section class=&quot;terminal-pane&quot; aria-label=&quot;Agent terminal&quot; id=&quot;terminal-pane&quot;&gt;&lt;/section&gt;&lt;button class=&quot;resizer&quot; id=&quot;pane-resizer&quot; role=&quot;separator&quot; aria-label=&quot;Resize terminal and changes&quot; aria-orientation=&quot;vertical&quot; data-action=&quot;resize-pane&quot;&gt;&lt;/button&gt;&lt;section class=&quot;diff-pane&quot; aria-label=&quot;Changes pane&quot; id=&quot;diff-pane&quot;&gt;&lt;/section&gt;&lt;/div&gt;&lt;aside class=&quot;files-sidebar&quot; id=&quot;files-sidebar&quot; aria-label=&quot;Workspace file sidebar&quot;&gt;&lt;/aside&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;div id=&quot;panel-host&quot;&gt;&lt;/div&gt;&lt;div id=&quot;notice-host&quot; role=&quot;status&quot; aria-live=&quot;polite&quot;&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;script&gt;
+(()=&gt;{
+const root=document.getElementById(&#x27;spookky-app&#x27;),find=s=&gt;root.querySelector(s),all=s=&gt;[...root.querySelectorAll(s)];
+const icon=name=&gt;`&lt;i data-lucide=&quot;${name}&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;`;
+const safe=v=&gt;String(v??&#x27;&#x27;).replace(/[&amp;&lt;&gt;&quot;&#x27;]/g,c=&gt;({&#x27;&amp;&#x27;:&#x27;&amp;amp;&#x27;,&#x27;&lt;&#x27;:&#x27;&amp;lt;&#x27;,&#x27;&gt;&#x27;:&#x27;&amp;gt;&#x27;,&#x27;&quot;&#x27;:&#x27;&amp;quot;&#x27;,&quot;&#x27;&quot;:&#x27;&amp;#39;&#x27;}[c]));
+const setupIcons=()=&gt;{if(globalThis.lucide)lucide.createIcons({attrs:{width:16,height:16}});revealActiveTab()};
+const files=[
+{name:&#x27;session-manager.ts&#x27;,path:&#x27;src/app&#x27;,plus:24,minus:10,kind:&#x27;modified&#x27;,rows:[[&#x27;same&#x27;,41,41,&#x27;export class SessionManager {&#x27;],[&#x27;same&#x27;,42,42,&#x27;  constructor(private readonly store: Store) {}&#x27;],[&#x27;same&#x27;,43,43,&#x27;&#x27;],[&#x27;del&#x27;,44,&#x27;&#x27;,&#x27;  async restore() {&#x27;],[&#x27;del&#x27;,45,&#x27;&#x27;,&#x27;    return this.store.lastSession();&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,44,&#x27;  async restore(id: string) {&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,45,&#x27;    const session = await this.store.get(id);&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,46,&#x27;    if (!session) return undefined;&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,47,&#x27;    return this.attach(session);&#x27;],[&#x27;same&#x27;,46,48,&#x27;  }&#x27;],[&#x27;same&#x27;,47,49,&#x27;&#x27;],[&#x27;same&#x27;,48,50,&#x27;  private attach(session: Session) {&#x27;],[&#x27;del&#x27;,49,&#x27;&#x27;,&#x27;    return session.process;&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,51,&#x27;    return session.terminal.attach();&#x27;],[&#x27;same&#x27;,50,52,&#x27;  }&#x27;],[&#x27;same&#x27;,51,53,&#x27;}&#x27;]]},
+{name:&#x27;workspace.ts&#x27;,path:&#x27;src/app&#x27;,plus:12,minus:6,kind:&#x27;modified&#x27;,rows:[[&#x27;same&#x27;,18,18,&#x27;export function openWorkspace(id: string) {&#x27;],[&#x27;del&#x27;,19,&#x27;&#x27;,&#x27;  return createSession(id);&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,19,&#x27;  const existing = sessions.get(id);&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,20,&#x27;  if (existing) return existing;&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,21,&#x27;  return createSession(id);&#x27;],[&#x27;same&#x27;,20,22,&#x27;}&#x27;]]},
+{name:&#x27;terminal-view.ts&#x27;,path:&#x27;src/app&#x27;,plus:8,minus:4,kind:&#x27;modified&#x27;,rows:[[&#x27;same&#x27;,66,66,&#x27;function showTerminal(session: Session) {&#x27;],[&#x27;del&#x27;,67,&#x27;&#x27;,&#x27;  mount(session);&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,67,&#x27;  const view = attach(session);&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,68,&#x27;  view.focus();&#x27;],[&#x27;same&#x27;,68,69,&#x27;}&#x27;]]},
+{name:&#x27;session-store.ts&#x27;,path:&#x27;src/state&#x27;,plus:10,minus:3,kind:&#x27;modified&#x27;,rows:[[&#x27;same&#x27;,12,12,&#x27;export class SessionStore {&#x27;],[&#x27;del&#x27;,13,&#x27;&#x27;,&#x27;  getLast() {&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,13,&#x27;  get(id: string) {&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,14,&#x27;    return this.sessions.get(id);&#x27;],[&#x27;same&#x27;,15,16,&#x27;  }&#x27;]]},
+{name:&#x27;session-manager.test.ts&#x27;,path:&#x27;src/tests&#x27;,plus:10,minus:5,kind:&#x27;modified&#x27;,rows:[[&#x27;same&#x27;,7,7,&#x27;describe(&quot;session recovery&quot;, () =&gt; {&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,8,&#x27;  it(&quot;reattaches the requested session&quot;, async () =&gt; {&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,9,&#x27;    const view = await manager.restore(&quot;task-2&quot;);&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,10,&#x27;    expect(view?.id).toBe(&quot;task-2&quot;);&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,11,&#x27;  });&#x27;],[&#x27;same&#x27;,8,12,&#x27;}&#x27;]]}
+];
+const additionalFiles=[
+[&#x27;workspace-list.ts&#x27;,&#x27;src/app&#x27;,18,7],[&#x27;pane-layout.ts&#x27;,&#x27;src/app&#x27;,16,9],[&#x27;terminal-tabs.ts&#x27;,&#x27;src/app&#x27;,11,4],[&#x27;command-menu.ts&#x27;,&#x27;src/app&#x27;,13,5],[&#x27;status-indicator.ts&#x27;,&#x27;src/app&#x27;,9,2],
+[&#x27;session-cache.ts&#x27;,&#x27;src/state&#x27;,14,8],[&#x27;workspace-store.ts&#x27;,&#x27;src/state&#x27;,12,3],[&#x27;pane-state.ts&#x27;,&#x27;src/state&#x27;,7,4],
+[&#x27;terminal-view.test.ts&#x27;,&#x27;src/tests&#x27;,22,3],[&#x27;workspace.test.ts&#x27;,&#x27;src/tests&#x27;,17,6],[&#x27;pane-layout.test.ts&#x27;,&#x27;src/tests&#x27;,19,2],[&#x27;session-store.test.ts&#x27;,&#x27;src/tests&#x27;,15,4],
+[&#x27;session-types.ts&#x27;,&#x27;src/state&#x27;,6,1],[&#x27;workspace-types.ts&#x27;,&#x27;src/state&#x27;,8,2]
+];
+for(const [name,path,plus,minus] of additionalFiles){files.push({name,path,plus,minus,kind:&#x27;modified&#x27;,rows:[[&#x27;same&#x27;,12,12,`export function ${name.replace(/\W/g,&#x27;_&#x27;)}(id: string) {`],[&#x27;del&#x27;,13,&#x27;&#x27;,&#x27;  return previous(id);&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,13,&#x27;  const current = sessions.get(id);&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,14,&#x27;  return current ?? create(id);&#x27;],[&#x27;same&#x27;,14,15,&#x27;}&#x27;]]})}
+const fixtureFiles = files.slice(0,5).map((f,i)=&gt;({...f,id:&#x27;source-&#x27;+i,change:i===1?&#x27;staged&#x27;:i===2?&#x27;committed&#x27;:&#x27;unstaged&#x27;}));
+fixtureFiles.push(
+ {id:&#x27;readme&#x27;,name:&#x27;README.md&#x27;,path:&#x27;&#x27;,change:null,kind:&#x27;unchanged&#x27;,rows:[[&#x27;same&#x27;,1,1,&#x27;# Northstar&#x27;],[&#x27;same&#x27;,2,2,&#x27;Local development workspace.&#x27;]]},
+ {id:&#x27;new&#x27;,name:&#x27;session.test.ts&#x27;,path:&#x27;src/tests&#x27;,change:&#x27;untracked&#x27;,kind:&#x27;added&#x27;,plus:3,minus:0,rows:[[&#x27;add&#x27;,&#x27;&#x27;,1,&#x27;test(&quot;restores the session&quot;, () =&gt; {&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,2,&#x27;  expect(restore()).toBeDefined();&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,3,&#x27;});&#x27;]]},
+ {id:&#x27;rename&#x27;,name:&#x27;workspace-state.ts&#x27;,path:&#x27;src/state&#x27;,oldPath:&#x27;src/state/store.ts&#x27;,change:&#x27;staged&#x27;,kind:&#x27;renamed&#x27;,plus:1,minus:1,rows:[[&#x27;del&#x27;,1,&#x27;&#x27;,&#x27;export const store = {};&#x27;],[&#x27;add&#x27;,&#x27;&#x27;,1,&#x27;export const workspaceState = {};&#x27;]]},
+ {id:&#x27;delete&#x27;,name:&#x27;legacy.ts&#x27;,path:&#x27;src&#x27;,change:&#x27;unstaged&#x27;,kind:&#x27;deleted&#x27;,plus:0,minus:1,rows:[[&#x27;del&#x27;,1,&#x27;&#x27;,&#x27;export const legacy = true;&#x27;]]},
+ {id:&#x27;binary&#x27;,name:&#x27;icon.png&#x27;,path:&#x27;assets&#x27;,change:&#x27;unstaged&#x27;,kind:&#x27;binary&#x27;,rows:[]},
+ {id:&#x27;large&#x27;,name:&#x27;package-lock.json&#x27;,path:&#x27;&#x27;,change:&#x27;committed&#x27;,kind:&#x27;large&#x27;,rows:[]},
+ {id:&#x27;conflict&#x27;,name:&#x27;settings.ts&#x27;,path:&#x27;src&#x27;,change:&#x27;conflicted&#x27;,kind:&#x27;conflict&#x27;,rows:[[&#x27;same&#x27;,1,1,&#x27;&lt;&lt;&lt;&lt;&lt;&lt;&lt; current&#x27;],[&#x27;same&#x27;,2,2,&#x27;theme: &quot;dark&quot;&#x27;],[&#x27;same&#x27;,3,3,&#x27;=======&#x27;],[&#x27;same&#x27;,4,4,&#x27;theme: &quot;system&quot;&#x27;],[&#x27;same&#x27;,5,5,&#x27;&gt;&gt;&gt;&gt;&gt;&gt;&gt; incoming&#x27;]]}
+);
+const SCHEMA=12, labels={shell:&#x27;Terminal&#x27;,codex:&#x27;Codex&#x27;,claude:&#x27;Claude Code&#x27;};
+const viewDefault=()=&gt;({sideTab:&#x27;files&#x27;,query:&#x27;&#x27;,folded:[],fileId:null,diffOpen:false,fileView:true,diffMode:&#x27;unified&#x27;,maxDiff:false,scope:&#x27;uncommitted&#x27;,compare:&#x27;origin/dev&#x27;,width:48,context:false,diffScroll:0});
+const launchDefault=tool=&gt;({tool,prompt:&#x27;&#x27;,showPrompt:false});
+const newTabData=(id,tool=&#x27;shell&#x27;)=&gt;({id,tool:null,title:&#x27;&#x27;,status:&#x27;blank&#x27;,draft:&#x27;&#x27;,cwd:&#x27;&#x27;,messages:[],scroll:0,launch:launchDefault(tool),promptSent:false,history:false,job:false});
+function initialState(){return {schema:SCHEMA,revision:0,next:20,lastTool:&#x27;shell&#x27;,activeId:&#x27;w-start&#x27;,ui:{nav:root.clientWidth&gt;800,side:false,theme:&#x27;dark&#x27;,font:13},failure:&#x27;none&#x27;,forms:{},projects:[
+ {id:&#x27;p-n&#x27;,name:&#x27;northstar&#x27;,rootId:&#x27;c-n&#x27;,refs:[&#x27;HEAD&#x27;,&#x27;dev&#x27;,&#x27;main&#x27;,&#x27;feature/search&#x27;,&#x27;origin/dev&#x27;,&#x27;origin/main&#x27;],defaultRef:&#x27;origin/dev&#x27;},
+ {id:&#x27;p-a&#x27;,name:&#x27;atlas&#x27;,rootId:&#x27;c-a&#x27;,refs:[&#x27;HEAD&#x27;,&#x27;main&#x27;,&#x27;origin/main&#x27;],defaultRef:&#x27;origin/main&#x27;},
+ {id:&#x27;p-notes&#x27;,name:&#x27;notes&#x27;,rootId:&#x27;c-notes&#x27;,refs:[]},
+ {id:&#x27;p-empty&#x27;,name:&#x27;seed&#x27;,rootId:&#x27;c-empty&#x27;,refs:[]}
+],checkouts:[
+ {id:&#x27;c-n&#x27;,projectId:&#x27;p-n&#x27;,path:&#x27;~/code/northstar&#x27;,branch:&#x27;dev&#x27;,git:true,hasCommit:true,kind:&#x27;local&#x27;,fixture:&#x27;full&#x27;,dirty:true,available:true},
+ {id:&#x27;c-recovery&#x27;,projectId:&#x27;p-n&#x27;,path:&#x27;~/worktrees/northstar/session-recovery&#x27;,branch:&#x27;feat/session-recovery&#x27;,git:true,hasCommit:true,kind:&#x27;worktree&#x27;,fixture:&#x27;full&#x27;,dirty:true,unmerged:true,owned:true,available:true},
+ {id:&#x27;c-a&#x27;,projectId:&#x27;p-a&#x27;,path:&#x27;~/code/atlas&#x27;,branch:&#x27;main&#x27;,git:true,hasCommit:true,kind:&#x27;local&#x27;,fixture:&#x27;clean&#x27;,available:true},
+ {id:&#x27;c-notes&#x27;,projectId:&#x27;p-notes&#x27;,path:&#x27;~/Documents/notes&#x27;,git:false,kind:&#x27;local&#x27;,fixture:&#x27;plain&#x27;,available:true},
+ {id:&#x27;c-empty&#x27;,projectId:&#x27;p-empty&#x27;,path:&#x27;~/code/seed&#x27;,branch:&#x27;main&#x27;,git:true,hasCommit:false,kind:&#x27;local&#x27;,fixture:&#x27;empty&#x27;,available:true}
+],workspaces:[
+ {id:&#x27;w-recovery&#x27;,checkoutId:&#x27;c-recovery&#x27;,name:&#x27;Improve session recovery&#x27;,tabs:[{...newTabData(&#x27;t-recovery&#x27;,&#x27;codex&#x27;),tool:&#x27;codex&#x27;,status:&#x27;running&#x27;,cwd:&#x27;~/worktrees/northstar/session-recovery&#x27;,history:true,sample:true}],activeTab:&#x27;t-recovery&#x27;,view:viewDefault()},
+ {id:&#x27;w-start&#x27;,checkoutId:null,name:&#x27;New workspace&#x27;,draft:{projectId:null,mode:&#x27;local&#x27;,checkoutId:null,path:&#x27;~&#x27;,ref:&#x27;&#x27;,branch:&#x27;&#x27;,branchMode:&#x27;new&#x27;,query:&#x27;&#x27;},tabs:[newTabData(&#x27;t-start&#x27;)],activeTab:&#x27;t-start&#x27;,view:viewDefault()}
+]}}
+let state=initialState(),dialog=null,focusBeforeDialog=null,noticeTimer,saveTimer,operation=null,restoring=false;
+const uid=prefix=&gt;prefix+&#x27;-&#x27;+state.next++;
+const workspace=()=&gt;state.workspaces.find(w=&gt;w.id===state.activeId)||state.workspaces[0];
+const tab=(w=workspace())=&gt;w.tabs.find(t=&gt;t.id===w.activeTab)||w.tabs[0];
+const checkout=(w=workspace())=&gt;state.checkouts.find(c=&gt;c.id===w.checkoutId);
+const project=id=&gt;state.projects.find(p=&gt;p.id===id);
+const view=()=&gt;workspace().view;
+const running=t=&gt;t.status===&#x27;running&#x27;&amp;&amp;(t.tool!==&#x27;shell&#x27;||t.job);
+const pathOf=w=&gt;checkout(w)?.path||w.draft?.path||&#x27;~&#x27;;
+const normalize=p=&gt;{const parts=[];for(const part of p.trim().split(&#x27;/&#x27;)){if(!part||part===&#x27;.&#x27;)continue;if(part===&#x27;..&#x27;){if(parts.length&amp;&amp;parts.at(-1)!==&#x27;~&#x27;)parts.pop()}else parts.push(part)}return (p.startsWith(&#x27;/&#x27;)?&#x27;/&#x27;:&#x27;&#x27;)+parts.join(&#x27;/&#x27;)||&#x27;/&#x27;};
+const checkedPath=p=&gt;/^(~(?:\/|$)|\/)/.test(p.trim())&amp;&amp;!/[\x00-\x1f]/.test(p);
+function notify(text){clearTimeout(noticeTimer);find(&#x27;#notice-host&#x27;).innerHTML=`&lt;div class=&quot;notice&quot;&gt;${safe(text)}&lt;/div&gt;`;noticeTimer=setTimeout(()=&gt;find(&#x27;#notice-host&#x27;).innerHTML=&#x27;&#x27;,4500)}
+function validSnapshot(s){return s?.schema===SCHEMA&amp;&amp;Array.isArray(s.projects)&amp;&amp;Array.isArray(s.checkouts)&amp;&amp;Array.isArray(s.workspaces)&amp;&amp;s.workspaces.length&amp;&amp;s.workspaces.every(w=&gt;w.id&amp;&amp;w.tabs?.length&amp;&amp;w.view)&amp;&amp;Number.isFinite(s.next)}
+function restore(snapshot){if(!validSnapshot(snapshot))return false;state=structuredClone(snapshot);state.forms||={};state.ui.nav=state.ui.nav&amp;&amp;root.clientWidth&gt;800;state.ui.side=state.ui.side&amp;&amp;root.clientWidth&gt;800;state.workspaces.forEach(w=&gt;{w.tabs.forEach(t=&gt;{t.messages||=[];if(t.status===&#x27;launching&#x27;){t.status=&#x27;error&#x27;;t.error=&#x27;Launch was interrupted. Retry to continue.&#x27;}});if(w.checkoutId&amp;&amp;!state.checkouts.some(c=&gt;c.id===w.checkoutId)){w.checkoutId=null;w.draft={projectId:null,mode:&#x27;local&#x27;,path:&#x27;~&#x27;}}});if(!state.workspaces.some(w=&gt;w.id===state.activeId))state.activeId=state.workspaces[0].id;return true}
+function touchProject(id){const p=project(id);if(p)p.lastUsed=Date.now()}
+function saveWarning(message){const host=find(&#x27;#save-status&#x27;);host.innerHTML=message?`&lt;div class=&quot;save-warning&quot; role=&quot;alert&quot;&gt;&lt;span&gt;${safe(message)}&lt;/span&gt;${button(&#x27;retry-save&#x27;,&#x27;Retry save&#x27;)}&lt;/div&gt;`:&#x27;&#x27;}
+function snapshot(){const s=structuredClone(state);delete s.closed;s.failure=&#x27;none&#x27;;s.workspaces.forEach(w=&gt;w.tabs.forEach(t=&gt;{t.messages=[]}));const envelope={modelContent:{prototype:&#x27;Minimal CLI workspace&#x27;,workspace:workspace().name,location:pathOf(workspace()),openPane:view().diffOpen?&#x27;changes&#x27;:&#x27;terminal&#x27;},privateContent:s};return new TextEncoder().encode(JSON.stringify(envelope)).length&lt;=15500?envelope:null}
+let saveChain=Promise.resolve(),saveBlocked=false;
+function persist(){if(restoring)return;state.revision=(state.revision||0)+1;clearTimeout(saveTimer);saveTimer=setTimeout(()=&gt;{const value=snapshot(),revision=state.revision;if(!value){saveWarning(&#x27;Changes are not saved: this prototype’s storage limit was reached. Your full drafts remain here. Keep this page open and copy them before leaving.&#x27;);return}if(saveBlocked||!window.openai?.setWidgetState){saveWarning(&#x27;Changes are not saved. Your full drafts remain here. Keep this page open and copy them before leaving.&#x27;);return}saveChain=saveChain.catch(()=&gt;{}).then(async()=&gt;{try{await window.openai.setWidgetState(value);if(state.revision===revision)saveWarning(&#x27;&#x27;)}catch{if(state.revision===revision)saveWarning(&#x27;Saving failed. Your full drafts remain here. Keep this page open and copy them before leaving.&#x27;)}})},120)}
+function quickTerminal(){if(operation||dialog)return;const w=workspace(),t=tab();if(t.status!==&#x27;blank&#x27;||t.tool){createTab();return}const previousTool=t.launch.tool;let target=t;if(t.launch.prompt.trim()){target=newTabData(uid(&#x27;t&#x27;),&#x27;shell&#x27;);w.tabs.push(target);w.activeTab=target.id}else t.launch.tool=&#x27;shell&#x27;;launch(target,w).then(()=&gt;{state.lastTool=previousTool;persist()})}
+function terminalShortcut(){if(tab().launch.tool===&#x27;shell&#x27;)return &#x27;&#x27;;return button(&#x27;quick-terminal&#x27;,`${icon(&#x27;square-terminal&#x27;)}&lt;span&gt;Open Terminal&lt;/span&gt;&lt;span class=&quot;spacer&quot;&gt;&lt;/span&gt;&lt;kbd&gt;⌘&lt;/kbd&gt;&lt;kbd&gt;T&lt;/kbd&gt;`,&#x27;class=&quot;terminal-shortcut&quot; aria-label=&quot;Open Terminal immediately&quot;&#x27;)}
+function sessionChoices(t){if(t.resumeEmpty)return [];const currentPath=pathOf(workspace()),other=state.checkouts.find(c=&gt;normalize(c.path)!==normalize(currentPath)&amp;&amp;c.git);return [{id:&#x27;recent&#x27;,title:&#x27;Session recovery&#x27;,path:currentPath,activity:&#x27;Today · 10:24&#x27;},{id:&#x27;tests&#x27;,title:&#x27;Investigate failing tests&#x27;,path:currentPath,activity:&#x27;Yesterday · 16:40&#x27;},{id:&#x27;other&#x27;,title:&#x27;Navigation cleanup&#x27;,path:other?.path||&#x27;~/code/atlas&#x27;,activity:&#x27;Yesterday · 09:12&#x27;}]}
+function resumePicker(t){if(!t.picker)return &#x27;&#x27;;if(t.picker===&#x27;cloud&#x27;)return `&lt;div class=&quot;cli-picker&quot;&gt;&lt;p&gt;Cloud sessions · sample history&lt;/p&gt;${button(&#x27;resume-choice&#x27;,&#x27;Continue cloud task · feature/cloud&#x27;,`data-id=&quot;${t.id}&quot;`)}${button(&#x27;cancel-picker&#x27;,&#x27;Cancel&#x27;,`data-id=&quot;${t.id}&quot;`)}&lt;/div&gt;`;const sessions=sessionChoices(t),selected=sessions.find(s=&gt;s.id===t.resumeTarget);if(selected)return `&lt;div class=&quot;cli-picker&quot;&gt;&lt;p&gt;This conversation belongs to another folder.&lt;/p&gt;&lt;p class=&quot;muted&quot;&gt;${safe(selected.path)}&lt;/p&gt;${button(&#x27;resume-in-folder&#x27;,&#x27;Open folder and resume&#x27;,`data-id=&quot;${t.id}&quot;`)}${button(&#x27;resume-back&#x27;,&#x27;Back to sessions&#x27;,`data-id=&quot;${t.id}&quot;`)}&lt;/div&gt;`;return `&lt;div class=&quot;cli-picker&quot;&gt;&lt;p&gt;Saved ${safe(labels[t.tool])} sessions · sample history&lt;/p&gt;${sessions.length?sessions.map(s=&gt;button(&#x27;resume-choice&#x27;,`&lt;span&gt;${safe(s.title)}&lt;small&gt;${safe(s.path)} · ${safe(s.activity)}&lt;/small&gt;&lt;/span&gt;`,`class=&quot;resume-row&quot; data-id=&quot;${t.id}&quot; data-session=&quot;${s.id}&quot;`)).join(&#x27;&#x27;):&#x27;&lt;p class=&quot;muted&quot;&gt;No saved sessions in this folder.&lt;/p&gt;&#x27;}${button(&#x27;cancel-picker&#x27;,sessions.length?&#x27;Cancel&#x27;:&#x27;Start a new conversation&#x27;,`data-id=&quot;${t.id}&quot;`)}&lt;/div&gt;`}
+function continuityText(t){return {resume:&#x27;Resumed saved history · previous process not reattached&#x27;,cloud:&#x27;Cloud handoff · local conversation copy&#x27;,remote:&#x27;Remote Control · same local process&#x27;,reconnect:&#x27;Reconnected · same running process&#x27;,branch:&#x27;Opened branch · new conversation&#x27;}[t.continuity]||&#x27;New local session&#x27;}
+function finishResume(t,session){t.history=true;t.resumed=true;t.resumeTarget=null;t.picker=null;t.status=&#x27;running&#x27;;t.continuity=&#x27;resume&#x27;;t.messages.push(&#x27;Resumed “&#x27;+session.title+&#x27;” from saved history. The earlier process was not reattached.&#x27;);render();persist()}
+function resumeInFolder(source){const s=sessionChoices(source).find(s=&gt;s.id===source.resumeTarget);if(!s)return;const c=state.checkouts.find(c=&gt;normalize(c.path)===normalize(s.path));if(!c||!c.available){source.messages.push(&#x27;Saved folder is unavailable. Locate the folder before resuming.&#x27;);source.resumeTarget=null;render();return}let target=state.workspaces.find(w=&gt;w.checkoutId===c.id);if(!target){const first=newTabData(uid(&#x27;t&#x27;),source.tool);target={id:uid(&#x27;w&#x27;),checkoutId:c.id,name:project(c.projectId)?.name||c.path,tabs:[first],activeTab:first.id,view:viewDefault()};state.workspaces.push(target)}else{const next=newTabData(uid(&#x27;t&#x27;),source.tool);target.tabs.push(next);target.activeTab=next.id}source.resumeTarget=null;source.picker=null;capture();state.activeId=target.id;const destination=tab(target);destination.tool=source.tool;destination.launch.tool=source.tool;destination.cwd=c.path;touchProject(c.projectId);finishResume(destination,s)}
+function capture(){all(&#x27;[data-terminal]&#x27;).forEach(el=&gt;{const t=workspace().tabs.find(t=&gt;t.id===el.dataset.terminal);if(t)t.scroll=el.querySelector(&#x27;.terminal-lines&#x27;)?.scrollTop||0});const d=find(&#x27;.diff-scroll&#x27;);if(d)view().diffScroll=d.scrollTop}
+function switchWorkspace(id){capture();state.activeId=id;touchProject(checkout()?.projectId);dialog=null;render();persist()}
+function createWorkspace(preset={}){capture();const id=uid(&#x27;w&#x27;),t=newTabData(uid(&#x27;t&#x27;),state.lastTool);state.workspaces.push({id,checkoutId:null,name:&#x27;New workspace&#x27;,draft:{projectId:null,mode:&#x27;local&#x27;,checkoutId:null,path:&#x27;~&#x27;,ref:&#x27;&#x27;,branch:&#x27;&#x27;,branchMode:&#x27;new&#x27;,query:&#x27;&#x27;,...preset},tabs:[t],activeTab:t.id,view:viewDefault()});state.activeId=id;dialog=null;render();queueMicrotask(()=&gt;find(&#x27;.composer-input, .terminal-launch&#x27;)?.focus());persist()}
+function createTab(tool=null,split=false){capture();const w=workspace(),previous=w.activeTab,t=newTabData(uid(&#x27;t&#x27;),tool||state.lastTool);w.tabs.push(t);w.activeTab=t.id;w.split=split?previous:null;dialog=null;if(tool)launch(t,w);else{render();queueMicrotask(()=&gt;find(&#x27;.composer-input, .terminal-launch&#x27;)?.focus());persist()}}
+function selectProject(id){const w=workspace(),p=project(id);w.draft={...w.draft,projectId:id||null,mode:&#x27;local&#x27;,checkoutId:p?.rootId||null,path:&#x27;~&#x27;,ref:p?.lastRef||p?.defaultRef||&#x27;HEAD&#x27;,branch:&#x27;&#x27;,branchMode:&#x27;new&#x27;};render();persist()}
+function getFiles(c=checkout()){if(!c)return [];if(c.fixture===&#x27;plain&#x27;)return [{...fixtureFiles.find(f=&gt;f.id===&#x27;readme&#x27;),name:&#x27;notes.md&#x27;,rows:[[&#x27;same&#x27;,1,1,&#x27;# Notes&#x27;],[&#x27;same&#x27;,2,2,&#x27;Ideas for the next session.&#x27;]]}];if(c.fixture===&#x27;empty&#x27;)return [{...fixtureFiles.find(f=&gt;f.id===&#x27;readme&#x27;),change:&#x27;untracked&#x27;,kind:&#x27;added&#x27;,plus:2,minus:0}];if(c.fixture===&#x27;clean&#x27;)return fixtureFiles.filter(f=&gt;![&#x27;delete&#x27;,&#x27;conflict&#x27;].includes(f.id)).map(f=&gt;({...f,change:null,kind:[&#x27;binary&#x27;,&#x27;large&#x27;].includes(f.kind)?f.kind:&#x27;unchanged&#x27;}));return fixtureFiles}
+function button(action,text,attrs=&#x27;&#x27;){return `&lt;button data-action=&quot;${action}&quot; ${attrs}&gt;${text}&lt;/button&gt;`}
+function iconButton(action,name,label,attrs=&#x27;&#x27;){const extra=attrs.match(/class=&quot;([^&quot;]*)&quot;/)?.[1]||&#x27;&#x27;;return button(action,icon(name),`class=&quot;icon ${extra}&quot; aria-label=&quot;${safe(label)}&quot; data-tooltip=&quot;${safe(label)}&quot; ${attrs.replace(/class=&quot;[^&quot;]*&quot;/,&#x27;&#x27;)}`)}
+function menu(label,body,cls=&#x27;&#x27;){return `&lt;details class=&quot;start-menu ${cls}&quot;&gt;&lt;summary aria-label=&quot;${safe(label)}&quot;&gt;${cls===&#x27;diff-menu&#x27;?icon(&#x27;columns-2&#x27;)+&#x27;&lt;span&gt;&#x27;+safe(label)+&#x27;&lt;/span&gt;&#x27;:safe(label)}${icon(&#x27;chevron-down&#x27;)}&lt;/summary&gt;&lt;div&gt;${body}&lt;/div&gt;&lt;/details&gt;`}
+function launchLabel(t){return t.launch.tool!==&#x27;shell&#x27;&amp;&amp;t.launch.prompt.trim()?&#x27;Start &#x27;+labels[t.launch.tool]+&#x27; with prompt&#x27;:&#x27;Open &#x27;+labels[t.launch.tool]}
+function launchControl(t){const glyph=t.launch.tool===&#x27;shell&#x27;?&#x27;terminal&#x27;:t.launch.tool===&#x27;claude&#x27;?&#x27;sparkles&#x27;:&#x27;aperture&#x27;;return `&lt;div class=&quot;composer-footer&quot;&gt;&lt;details class=&quot;start-menu composer-tool&quot;&gt;&lt;summary aria-label=&quot;Choose terminal tool&quot;&gt;${icon(glyph)}&lt;span&gt;${labels[t.launch.tool]}&lt;/span&gt;${icon(&#x27;chevron-down&#x27;)}&lt;/summary&gt;&lt;div&gt;${Object.entries(labels).map(([id,label])=&gt;button(&#x27;tool&#x27;,`${icon(id===&#x27;shell&#x27;?&#x27;terminal&#x27;:id===&#x27;claude&#x27;?&#x27;sparkles&#x27;:&#x27;aperture&#x27;)}&lt;span&gt;${label}&lt;/span&gt;${t.launch.tool===id?icon(&#x27;check&#x27;):&#x27;&#x27;}`,`data-tool=&quot;${id}&quot;`)).join(&#x27;&#x27;)}&lt;/div&gt;&lt;/details&gt;&lt;span class=&quot;spacer&quot;&gt;&lt;/span&gt;${t.launch.tool===&#x27;shell&#x27;?button(&#x27;launch&#x27;,&#x27;Open Terminal &lt;kbd&gt;⌘ T&lt;/kbd&gt;&#x27;,&#x27;class=&quot;terminal-launch&quot; aria-label=&quot;Open Terminal&quot;&#x27;):iconButton(&#x27;launch&#x27;,&#x27;arrow-up&#x27;,launchLabel(t),&#x27;class=&quot;composer-launch&quot;&#x27;)}&lt;/div&gt;`}
+function toolIcon(tool){return tool===&#x27;codex&#x27;?&#x27;aperture&#x27;:tool===&#x27;claude&#x27;?&#x27;sparkles&#x27;:tool===&#x27;shell&#x27;?&#x27;terminal&#x27;:&#x27;plus&#x27;}
+function renderSidebar(){
+  const groups=[...state.projects.map(p=&gt;({id:p.id,name:p.name})),{id:null,name:&#x27;No project&#x27;}];
+  find(&#x27;#project-list&#x27;).innerHTML=groups.map(p=&gt;{
+    const ws=state.workspaces.filter(w=&gt;(checkout(w)?.projectId||w.draft?.projectId||null)===p.id);
+    if(!p.id&amp;&amp;!ws.length)return &#x27;&#x27;;
+    return `&lt;section class=&quot;project-group&quot;&gt;&lt;div class=&quot;project-row&quot;&gt;${button(&#x27;project-nav&#x27;,`&lt;span class=&quot;project-mark&quot;&gt;${p.id?safe(p.name[0].toUpperCase()):icon(&#x27;house&#x27;)}&lt;/span&gt;&lt;span class=&quot;project-name&quot;&gt;${safe(p.name)}&lt;/span&gt;`,`class=&quot;project&quot; data-id=&quot;${p.id||&#x27;&#x27;}&quot; aria-label=&quot;Project ${safe(p.name)}&quot; aria-keyshortcuts=&quot;Shift+F10&quot; data-tooltip=&quot;${safe(p.name)} · Right-click for options&quot;`)}${iconButton(&#x27;new-project-workspace&#x27;,&#x27;plus&#x27;,p.id?`New workspace in ${p.name}`:&#x27;New workspace in Home&#x27;,`data-id=&quot;${p.id||&#x27;&#x27;}&quot; class=&quot;row-action&quot;`)}&lt;/div&gt;`+ws.map(w=&gt;{
+      const c=checkout(w),active=w.id===state.activeId,live=w.tabs.some(running),busy=w.tabs.some(t=&gt;t.job),current=tab(w);
+      return `&lt;div class=&quot;workspace-row ${active?&#x27;active&#x27;:&#x27;&#x27;}&quot;&gt;${button(&#x27;workspace&#x27;,`&lt;span class=&quot;rail-session-icon&quot;&gt;${icon(c?c.kind===&#x27;worktree&#x27;?&#x27;git-branch&#x27;:toolIcon(current.tool):&#x27;plus&#x27;)}&lt;/span&gt;&lt;span class=&quot;workspace-info&quot;&gt;&lt;span class=&quot;workspace-name&quot;&gt;${safe(w.name)}&lt;/span&gt;&lt;span class=&quot;workspace-branch&quot;&gt;${safe(c?(w.name===c.branch?(c.kind===&#x27;worktree&#x27;?&#x27;Worktree&#x27;:&#x27;Local&#x27;)+&#x27; · &#x27;+w.tabs.length+(w.tabs.length===1?&#x27; tab&#x27;:&#x27; tabs&#x27;):(c.branch||c.path)):w.draft?.projectId?&#x27;Not started&#x27;:&#x27;Home · not started&#x27;)}&lt;/span&gt;&lt;/span&gt;${live?`&lt;span class=&quot;status-dot ${busy?&#x27;working&#x27;:&#x27;ready&#x27;}&quot; role=&quot;img&quot; aria-label=&quot;${busy?&#x27;Working&#x27;:&#x27;Session running&#x27;}&quot;&gt;&lt;/span&gt;`:&#x27;&#x27;}`,`class=&quot;workspace ${active?&#x27;active&#x27;:&#x27;&#x27;}&quot; data-id=&quot;${w.id}&quot; aria-label=&quot;${safe(w.name)}&quot; aria-current=&quot;${active?&#x27;page&#x27;:&#x27;false&#x27;}&quot; aria-keyshortcuts=&quot;Shift+F10&quot; data-tooltip=&quot;${safe(w.name)} · Right-click for options&quot;`)}${iconButton(&#x27;close-workspace&#x27;,&#x27;x&#x27;,`Close workspace ${w.name}`,`data-id=&quot;${w.id}&quot; class=&quot;row-action&quot;`)}&lt;/div&gt;`;
+    }).join(&#x27;&#x27;)+&#x27;&lt;/section&gt;&#x27;;
+  }).join(&#x27;&#x27;);
+  find(&#x27;.sidebar-controls button&#x27;).setAttribute(&#x27;aria-expanded&#x27;,state.ui.nav);
+}
+function renderTabs(){const w=workspace();find(&#x27;.agent-strip&#x27;).innerHTML=`&lt;div class=&quot;tab-scroll&quot;&gt;${w.tabs.map(t=&gt;`&lt;div class=&quot;tab-pair ${t.id===w.activeTab?&#x27;active&#x27;:&#x27;&#x27;}&quot;&gt;${button(&#x27;select-tab&#x27;,`${icon(toolIcon(t.tool))}&lt;span&gt;${safe(t.title||labels[t.tool]||&#x27;New tab&#x27;)}&lt;/span&gt;${running(t)?`&lt;span class=&quot;status-dot ${t.job?&#x27;working&#x27;:&#x27;ready&#x27;}&quot; role=&quot;img&quot; aria-label=&quot;${t.job?&#x27;Working&#x27;:&#x27;Session running&#x27;}&quot;&gt;&lt;/span&gt;`:&#x27;&#x27;}`,`class=&quot;session-tab ${t.id===w.activeTab?&#x27;active&#x27;:&#x27;&#x27;}&quot; data-id=&quot;${t.id}&quot; aria-label=&quot;Select ${safe(t.title||labels[t.tool]||&#x27;New tab&#x27;)}&quot; aria-pressed=&quot;${t.id===w.activeTab}&quot;`)}${iconButton(&#x27;close-tab&#x27;,&#x27;x&#x27;,`Close ${t.title||labels[t.tool]||&#x27;New tab&#x27;}`,`data-id=&quot;${t.id}&quot;`)}&lt;/div&gt;`).join(&#x27;&#x27;)}&lt;/div&gt;${iconButton(&#x27;add-terminal&#x27;,&#x27;plus&#x27;,tab(w).status===&#x27;blank&#x27;&amp;&amp;!tab(w).tool?&#x27;New tab&#x27;:&#x27;New tab · ⌘T&#x27;)}&lt;span class=&quot;spacer&quot;&gt;&lt;/span&gt;${iconButton(&#x27;toggle-files&#x27;,&#x27;panel-right&#x27;,&#x27;Toggle right sidebar&#x27;,`aria-expanded=&quot;${state.ui.side}&quot;`)}`}
+function revealActiveTab(){const strip=find(&#x27;.tab-scroll&#x27;),active=find(&#x27;.tab-pair.active&#x27;);if(!strip||!active)return;const a=active.getBoundingClientRect(),b=strip.getBoundingClientRect();if(a.right&gt;b.right)strip.scrollLeft+=a.right-b.right;else if(a.left&lt;b.left)strip.scrollLeft-=b.left-a.left}
+function composer(t){return `&lt;div class=&quot;launch-composer ${t.launch.tool===&#x27;shell&#x27;?&#x27;shell-composer&#x27;:&#x27;&#x27;}&quot;&gt;${t.launch.tool===&#x27;shell&#x27;?&#x27;&#x27;:`&lt;textarea class=&quot;composer-input&quot; data-field=&quot;prompt&quot; aria-label=&quot;Starting prompt (optional)&quot; placeholder=&quot;Start with a prompt…&quot; rows=&quot;3&quot;&gt;${safe(t.launch.prompt)}&lt;/textarea&gt;`}${launchControl(t)}&lt;/div&gt;`}
+function projectChoices(query=&#x27;&#x27;){return state.projects.filter(p=&gt;(p.name+&#x27; &#x27;+state.checkouts.find(c=&gt;c.id===p.rootId)?.path).toLowerCase().includes(query.toLowerCase())).map(p=&gt;button(&#x27;choose-project&#x27;,`${icon(&#x27;folder&#x27;)}&lt;span&gt;${safe(p.name)}&lt;small&gt;${safe(state.checkouts.find(c=&gt;c.id===p.rootId)?.path)}&lt;/small&gt;&lt;/span&gt;${workspace().draft?.projectId===p.id?icon(&#x27;check&#x27;):&#x27;&#x27;}`,`data-id=&quot;${p.id}&quot;`)).join(&#x27;&#x27;)||&#x27;&lt;p class=&quot;hint&quot;&gt;No matching projects.&lt;/p&gt;&#x27;}
+function projectPicker(d,p){return `&lt;details class=&quot;start-menu composer-project&quot;&gt;&lt;summary aria-label=&quot;Choose project&quot;&gt;${icon(p?&#x27;folder&#x27;:&#x27;box&#x27;)}&lt;span&gt;${safe(p?.name||&#x27;No project&#x27;)}&lt;/span&gt;${icon(&#x27;chevron-down&#x27;)}&lt;/summary&gt;&lt;div&gt;&lt;div class=&quot;picker-search&quot;&gt;${icon(&#x27;search&#x27;)}&lt;input data-field=&quot;project-search&quot; aria-label=&quot;Search projects&quot; placeholder=&quot;Search projects…&quot; value=&quot;${safe(d.query||&#x27;&#x27;)}&quot;&gt;&lt;/div&gt;${button(&#x27;choose-project&#x27;,`${icon(&#x27;house&#x27;)}&lt;span&gt;No project&lt;small&gt;Home directory&lt;/small&gt;&lt;/span&gt;`,&#x27;data-id=&quot;&quot;&#x27;)}&lt;div id=&quot;project-picker-results&quot;&gt;${projectChoices(d.query||&#x27;&#x27;)}&lt;/div&gt;&lt;div class=&quot;picker-divider&quot;&gt;&lt;/div&gt;${button(&#x27;add-project&#x27;,`${icon(&#x27;plus&#x27;)}Create project`,&#x27;data-kind=&quot;create&quot;&#x27;)}${button(&#x27;add-project&#x27;,`${icon(&#x27;git-fork&#x27;)}Clone repository`,&#x27;data-kind=&quot;clone&quot;&#x27;)}${button(&#x27;add-project&#x27;,`${icon(&#x27;folder-open&#x27;)}Open project folder`,&#x27;data-kind=&quot;folder&quot;&#x27;)}&lt;div class=&quot;picker-divider&quot;&gt;&lt;/div&gt;${button(&#x27;folder-once&#x27;,&#x27;Use folder once…&#x27;)}&lt;/div&gt;&lt;/details&gt;`}
+function checkoutPicker(d,p,selected){const locations=state.checkouts.filter(c=&gt;c.projectId===p.id&amp;&amp;c.kind===&#x27;worktree&#x27;);const rootCheckout=state.checkouts.find(c=&gt;c.id===p.rootId);const name=d.mode===&#x27;worktree&#x27;?&#x27;New worktree&#x27;:selected?.kind===&#x27;worktree&#x27;?selected.branch:&#x27;Local&#x27;;return `&lt;details class=&quot;start-menu composer-checkout&quot;&gt;&lt;summary aria-label=&quot;Choose checkout&quot;&gt;${icon(d.mode===&#x27;worktree&#x27;||selected?.kind===&#x27;worktree&#x27;?&#x27;git-branch&#x27;:&#x27;monitor&#x27;)}&lt;span&gt;${safe(name)}&lt;/span&gt;${icon(&#x27;chevron-down&#x27;)}&lt;/summary&gt;&lt;div&gt;${button(&#x27;select-checkout&#x27;,`&lt;span&gt;Local&lt;small&gt;Current project checkout · ${safe(rootCheckout?.branch||&#x27;Folder&#x27;)}&lt;/small&gt;&lt;/span&gt;`,`data-id=&quot;${p.rootId}&quot;`)}${button(&#x27;mode&#x27;,&#x27;&lt;span&gt;New worktree&lt;small&gt;Create a separate working folder&lt;/small&gt;&lt;/span&gt;&#x27;,`data-mode=&quot;worktree&quot; ${!rootCheckout?.git||!rootCheckout?.hasCommit?&#x27;disabled&#x27;:&#x27;&#x27;}`)}${locations.length?&#x27;&lt;div class=&quot;picker-section&quot;&gt;Existing worktrees&lt;/div&gt;&#x27;:&#x27;&#x27;}${locations.map(c=&gt;button(&#x27;select-checkout&#x27;,`${icon(&#x27;git-branch&#x27;)}&lt;span&gt;${safe(c.branch)}&lt;small&gt;${safe(c.path)}&lt;/small&gt;&lt;/span&gt;`,`data-id=&quot;${c.id}&quot;`)).join(&#x27;&#x27;)}&lt;/div&gt;&lt;/details&gt;`}
+function branchOptions(d,p){return `&lt;details class=&quot;start-menu branch-options&quot;&gt;&lt;summary aria-label=&quot;Edit working branch&quot;&gt;Edit&lt;/summary&gt;&lt;div&gt;&lt;label class=&quot;field&quot;&gt;Working branch&lt;select data-field=&quot;branch-mode&quot; aria-label=&quot;Working branch mode&quot;&gt;&lt;option value=&quot;new&quot; ${d.branchMode!==&#x27;existing&#x27;?&#x27;selected&#x27;:&#x27;&#x27;}&gt;Create a new branch&lt;/option&gt;&lt;option value=&quot;existing&quot; ${d.branchMode===&#x27;existing&#x27;?&#x27;selected&#x27;:&#x27;&#x27;}&gt;Use an existing branch&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;&lt;label class=&quot;field&quot;&gt;${d.branchMode===&#x27;existing&#x27;?&#x27;Existing branch&#x27;:&#x27;New branch&#x27;}${d.branchMode===&#x27;existing&#x27;?`&lt;select data-field=&quot;branch&quot; aria-label=&quot;Existing branch&quot;&gt;${p.refs.filter(r=&gt;r!==&#x27;HEAD&#x27;&amp;&amp;!r.startsWith(&#x27;origin/&#x27;)).map(r=&gt;`&lt;option ${d.branch===r?&#x27;selected&#x27;:&#x27;&#x27;}&gt;${safe(r)}&lt;/option&gt;`).join(&#x27;&#x27;)}&lt;/select&gt;`:`&lt;input data-field=&quot;branch&quot; aria-label=&quot;New branch&quot; placeholder=&quot;Automatic&quot; value=&quot;${safe(d.branch)}&quot;&gt;`}&lt;/label&gt;${button(&#x27;done-branch&#x27;,&#x27;Done&#x27;)}&lt;/div&gt;&lt;/details&gt;`}
+function renderStart(w,t){const d=w.draft||{},p=project(d.projectId),c=checkout(w),selected=state.checkouts.find(c=&gt;c.id===d.checkoutId);const optional=t.launch.tool!==&#x27;shell&#x27;?&#x27;&lt;span class=&quot;composer-help&quot;&gt;Prompt optional · ⌘↵ to open&lt;/span&gt;&#x27;:&#x27;&#x27;;if(c)return `&lt;div class=&quot;blank-tab&quot;&gt;&lt;div class=&quot;start-screen composer-start&quot;&gt;&lt;h2&gt;New tab&lt;/h2&gt;&lt;div class=&quot;tab-context&quot;&gt;${safe(project(c.projectId)?.name||w.name)}${c.branch?&#x27; · &#x27;+safe(c.branch):&#x27;&#x27;}&lt;/div&gt;${composer(t)}&lt;div class=&quot;composer-caption&quot;&gt;&lt;span class=&quot;inherited-folder&quot;&gt;${safe(c.path)}&lt;/span&gt;${optional}&lt;/div&gt;${terminalShortcut()}&lt;/div&gt;&lt;/div&gt;`;
+const worktree=d.mode===&#x27;worktree&#x27;;return `&lt;div class=&quot;blank-tab&quot;&gt;&lt;div class=&quot;start-screen composer-start&quot;&gt;&lt;h2&gt;New workspace&lt;/h2&gt;${composer(t)}${w.error?`&lt;div class=&quot;inline-error&quot; role=&quot;alert&quot;&gt;${safe(w.error)}&lt;/div&gt;`:&#x27;&#x27;}&lt;div class=&quot;composer-context&quot;&gt;${projectPicker(d,p)}${p?checkoutPicker(d,p,selected):menu(d.path===&#x27;~&#x27;?&#x27;Home directory&#x27;:d.path,button(&#x27;home-folder&#x27;,&#x27;Home directory&#x27;)+button(&#x27;change-folder&#x27;,&#x27;Choose folder…&#x27;),&#x27;composer-location&#x27;)}${p&amp;&amp;worktree?(d.branchMode===&#x27;existing&#x27;?`&lt;span class=&quot;reference-label&quot;&gt;From ${safe(d.branch)}&lt;/span&gt;`:menu(&#x27;From &#x27;+d.ref,p.refs.map(r=&gt;button(&#x27;source-ref&#x27;,safe(r),`data-ref=&quot;${safe(r)}&quot;`)).join(&#x27;&#x27;),&#x27;composer-reference&#x27;)):&#x27;&#x27;}&lt;/div&gt;&lt;div class=&quot;composer-caption&quot;&gt;${p&amp;&amp;worktree?`&lt;span class=&quot;branch-caption&quot;&gt;${d.branchMode===&#x27;existing&#x27;?&#x27;Existing branch&#x27;:&#x27;New branch&#x27;}: &lt;span id=&quot;branch-caption&quot;&gt;${safe(d.branch||&#x27;Automatic&#x27;)}&lt;/span&gt; · ${branchOptions(d,p)}&lt;/span&gt;`:p?`&lt;span class=&quot;chosen-location&quot;&gt;${safe(selected?.path)}${selected?.branch?&#x27; · &#x27;+safe(selected.branch):&#x27;&#x27;}&lt;/span&gt;`:&#x27;&lt;span&gt;&lt;/span&gt;&#x27;}${optional}&lt;/div&gt;${p&amp;&amp;(!selected?.git||!selected?.hasCommit)?`&lt;p class=&quot;hint compact-note&quot;&gt;${selected?.git?&#x27;Make a first commit to create a worktree.&#x27;:&#x27;Files and terminals are available in this folder. Git changes require a repository.&#x27;}&lt;/p&gt;`:&#x27;&#x27;}${terminalShortcut()}${!p?`&lt;div class=&quot;composer-recents&quot;&gt;&lt;div class=&quot;recent-header&quot;&gt;&lt;span&gt;Recent projects&lt;/span&gt;${button(&#x27;new-project&#x27;,`${icon(&#x27;plus&#x27;)}Add project`)}&lt;/div&gt;&lt;div id=&quot;recent-projects&quot;&gt;${recentRows(d)}&lt;/div&gt;&lt;/div&gt;`:&#x27;&#x27;}&lt;/div&gt;&lt;/div&gt;`}
+function recentRows(d){return [...state.projects].sort((a,b)=&gt;(b.lastUsed||0)-(a.lastUsed||0)).slice(0,3).map(p=&gt;button(&#x27;choose-project&#x27;,`${icon(&#x27;folder&#x27;)}&lt;span&gt;${safe(p.name)}&lt;/span&gt;&lt;span class=&quot;recent-path&quot;&gt;${safe(state.checkouts.find(c=&gt;c.id===p.rootId)?.path)}&lt;/span&gt;`,`class=&quot;recent-project&quot; data-id=&quot;${p.id}&quot;`)).join(&#x27;&#x27;)||&#x27;&lt;p class=&quot;hint&quot;&gt;Open a folder or create your first project.&lt;/p&gt;&#x27;}
+function fitPrompt(el){el.style.height=&#x27;auto&#x27;;el.style.height=Math.max(80,Math.min(260,el.scrollHeight))+&#x27;px&#x27;}
+function terminalMarkup(w,t){const c=checkout(w);const rows=t.messages.length?t.messages:t.sample?[&#x27;Review the session recovery code and preserve the running terminal.&#x27;,&#x27;Read src/app/session-manager.ts&#x27;,&#x27;Updated the session lookup. Changes are ready to inspect.&#x27;]:t.resumed?[&#x27;Saved conversation restored. Continue in this CLI.&#x27;]:[&#x27;Ready for input.&#x27;];return `&lt;section class=&quot;terminal-instance ${t.id===w.activeTab?&#x27;focused&#x27;:&#x27;&#x27;}&quot; data-terminal=&quot;${t.id}&quot; aria-label=&quot;${safe(t.title||labels[t.tool]||&#x27;Terminal&#x27;)} pane&quot;&gt;&lt;div class=&quot;pane-head&quot;&gt;&lt;span class=&quot;pane-title&quot; data-tooltip=&quot;${safe(c?.path)}&quot;&gt;${icon(c?.git?&#x27;git-branch&#x27;:&#x27;folder&#x27;)}${safe(c?.branch||c?.path||&#x27;Home&#x27;)}&lt;/span&gt;&lt;span class=&quot;spacer&quot;&gt;&lt;/span&gt;&lt;span class=&quot;count&quot;&gt;${safe(t.status===&#x27;running&#x27;?(t.remote?&#x27;Remote connected&#x27;:t.job?&#x27;Working&#x27;:&#x27;Ready&#x27;):t.status)}&lt;/span&gt;${iconButton(&#x27;split-terminal&#x27;,&#x27;columns-2&#x27;,&#x27;Split terminal&#x27;,`data-id=&quot;${t.id}&quot;`)}${iconButton(&#x27;tab-menu&#x27;,&#x27;ellipsis&#x27;,&#x27;Session options&#x27;,`data-id=&quot;${t.id}&quot;`)}&lt;/div&gt;&lt;div class=&quot;terminal-content&quot;&gt;&lt;div class=&quot;terminal-lines&quot;&gt;&lt;div class=&quot;terminal-entry&quot;&gt;&lt;strong&gt;${safe(labels[t.tool]||&#x27;Terminal&#x27;)}&lt;/strong&gt;&lt;div class=&quot;muted&quot;&gt;${safe(t.cwd||c?.path)}&lt;/div&gt;&lt;/div&gt;${rows.map((m,i)=&gt;`&lt;div class=&quot;terminal-entry&quot;&gt;${safe(m)}&lt;/div&gt;`).join(&#x27;&#x27;)}${t.error?`&lt;div class=&quot;inline-error&quot; role=&quot;alert&quot;&gt;${safe(t.error)}&lt;/div&gt;`:&#x27;&#x27;}${t.status===&#x27;error&#x27;?button(&#x27;retry-launch&#x27;,&#x27;Retry&#x27;)+button(&#x27;fallback-shell&#x27;,&#x27;Open Terminal&#x27;):&#x27;&#x27;}${t.status===&#x27;ended&#x27;?`&lt;div class=&quot;terminal-entry muted&quot;&gt;Session ended.&lt;/div&gt;${button(&#x27;restart-session&#x27;,&#x27;Restart&#x27;,`data-id=&quot;${t.id}&quot;`)}${t.tool!==&#x27;shell&#x27;?button(&#x27;resume-session&#x27;,&#x27;Resume saved session&#x27;,`data-id=&quot;${t.id}&quot;`):&#x27;&#x27;}`:&#x27;&#x27;}${resumePicker(t)}&lt;/div&gt;${t.cwd&amp;&amp;normalize(t.cwd)!==normalize(c?.path||&#x27;~&#x27;)?`&lt;div class=&quot;cwd-note&quot;&gt;${safe(t.cwd)} ${button(&#x27;open-cwd&#x27;,&#x27;Open as workspace&#x27;,`data-id=&quot;${t.id}&quot;`)}&lt;/div&gt;`:&#x27;&#x27;}${t.status===&#x27;running&#x27;?`&lt;div class=&quot;terminal-prompt&quot;&gt;&lt;span&gt;›&lt;/span&gt;&lt;textarea id=&quot;terminal-input-${t.id}&quot; data-input-tab=&quot;${t.id}&quot; aria-label=&quot;Terminal input ${t.id}&quot; placeholder=&quot;${t.tool===&#x27;shell&#x27;?&#x27;Type a command&#x27;:&#x27;Ask &#x27;+labels[t.tool]+&#x27; to do anything&#x27;}&quot; rows=&quot;2&quot;&gt;${safe(t.draft)}&lt;/textarea&gt;&lt;/div&gt;`:&#x27;&#x27;}&lt;div class=&quot;terminal-meta&quot;&gt;${safe(labels[t.tool]||&#x27;Terminal&#x27;)} · ${safe(continuityText(t))} · simulated&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;`}
+function renderTerminal(){const w=workspace(),t=tab(w),c=checkout(w);if(c?.available===false){find(&#x27;#terminal-pane&#x27;).innerHTML=`&lt;div class=&quot;blank-tab&quot;&gt;&lt;div class=&quot;start-screen&quot;&gt;&lt;h2&gt;Folder unavailable&lt;/h2&gt;&lt;p class=&quot;hint&quot;&gt;${safe(c.path)}&lt;/p&gt;${button(&#x27;locate-folder&#x27;,&#x27;Locate folder&#x27;,&#x27;class=&quot;primary&quot;&#x27;)}${button(&#x27;workspace-menu&#x27;,&#x27;Workspace options&#x27;,`data-id=&quot;${w.id}&quot;`)}&lt;/div&gt;&lt;/div&gt;`;return}if(!t.tool&amp;&amp;t.status!==&#x27;error&#x27;){find(&#x27;#terminal-pane&#x27;).innerHTML=renderStart(w,t);const input=find(&#x27;.composer-input&#x27;);if(input)fitPrompt(input);return}const other=w.tabs.find(x=&gt;x.id===w.split);find(&#x27;#terminal-pane&#x27;).innerHTML=`&lt;div class=&quot;terminal-split ${other&amp;&amp;other.id!==t.id?&#x27;has-split&#x27;:&#x27;&#x27;}&quot;&gt;${other&amp;&amp;other.id!==t.id?terminalMarkup(w,other):&#x27;&#x27;}${terminalMarkup(w,t)}&lt;/div&gt;`;all(&#x27;[data-terminal]&#x27;).forEach(el=&gt;{const item=w.tabs.find(t=&gt;t.id===el.dataset.terminal);el.querySelector(&#x27;.terminal-lines&#x27;).scrollTop=item.scroll||0})}
+function filteredFiles(){const c=checkout(),v=view();let list=getFiles(c);if(v.sideTab===&#x27;files&#x27;)list=list.filter(f=&gt;f.kind!==&#x27;deleted&#x27;);else if(v.scope===&#x27;branch&#x27;){if(v.compare===&#x27;HEAD&#x27;||v.compare===c?.branch)list=[];else{list=list.filter(f=&gt;f.change===&#x27;committed&#x27;||v.compare===&#x27;origin/main&#x27;&amp;&amp;f.id===&#x27;source-0&#x27;).map(f=&gt;({...f,change:&#x27;committed&#x27;}))}}else list=list.filter(f=&gt;f.change&amp;&amp;f.change!==&#x27;committed&#x27;);return list.filter(f=&gt;(f.path+&#x27;/&#x27;+f.name).toLowerCase().includes(v.query.toLowerCase()))}
+function renderFiles(){const c=checkout(),v=view(),changed=v.sideTab===&#x27;changes&#x27;,visible=filteredFiles();find(&#x27;#files-sidebar&#x27;).innerHTML=`&lt;div class=&quot;side-tabs&quot;&gt;${button(&#x27;side-tab&#x27;,icon(&#x27;file&#x27;)+&#x27;&lt;span&gt;Files&lt;/span&gt;&#x27;,&#x27;data-side=&quot;files&quot; aria-label=&quot;Files&quot; class=&quot;&#x27;+(!changed?&#x27;active&#x27;:&#x27;&#x27;)+&#x27;&quot; aria-pressed=&quot;&#x27;+!changed+&#x27;&quot;&#x27;)}${button(&#x27;side-tab&#x27;,icon(&#x27;git-compare-arrows&#x27;)+&#x27;&lt;span&gt;Changes&lt;/span&gt;&#x27;,&#x27;data-side=&quot;changes&quot; aria-label=&quot;Changes&quot; class=&quot;&#x27;+(changed?&#x27;active&#x27;:&#x27;&#x27;)+&#x27;&quot; aria-pressed=&quot;&#x27;+changed+&#x27;&quot;&#x27;)}&lt;/div&gt;&lt;div class=&quot;scope-path&quot; data-tooltip=&quot;${safe(c?.path||&#x27;No folder selected&#x27;)}&quot;&gt;${safe(c?.path||&#x27;No folder selected&#x27;)}${c?.branch?&#x27; · &#x27;+safe(c.branch):&#x27;&#x27;}&lt;/div&gt;${changed&amp;&amp;c?.git?`&lt;div class=&quot;change-controls&quot;&gt;&lt;select data-field=&quot;change-scope&quot; aria-label=&quot;Change scope&quot;&gt;&lt;option value=&quot;uncommitted&quot; ${v.scope===&#x27;uncommitted&#x27;?&#x27;selected&#x27;:&#x27;&#x27;}&gt;Uncommitted&lt;/option&gt;&lt;option value=&quot;branch&quot; ${v.scope===&#x27;branch&#x27;?&#x27;selected&#x27;:&#x27;&#x27;}&gt;Against branch&lt;/option&gt;&lt;/select&gt;${v.scope===&#x27;branch&#x27;?`&lt;select data-field=&quot;compare&quot; aria-label=&quot;Comparison base&quot;&gt;${(project(c.projectId)?.refs||[&#x27;HEAD&#x27;]).filter(r=&gt;r===&#x27;HEAD&#x27;||r.startsWith(&#x27;origin/&#x27;)).map(r=&gt;`&lt;option ${v.compare===r?&#x27;selected&#x27;:&#x27;&#x27;}&gt;${safe(r)}&lt;/option&gt;`).join(&#x27;&#x27;)}&lt;/select&gt;&lt;p class=&quot;hint&quot;&gt;Committed changes since ${safe(v.compare)}. Working-tree edits are in Uncommitted.&lt;/p&gt;`:&#x27;&#x27;}&lt;/div&gt;`:&#x27;&#x27;}&lt;div class=&quot;side-tools&quot;&gt;${icon(&#x27;search&#x27;)}&lt;input data-field=&quot;file-search&quot; aria-label=&quot;Search files&quot; placeholder=&quot;Search files&quot; value=&quot;${safe(v.query)}&quot;&gt;&lt;/div&gt;&lt;div class=&quot;file-tree&quot;&gt;${changed&amp;&amp;!c?.git?&#x27;&lt;p class=&quot;empty-files&quot;&gt;&#x27;+(c?&#x27;This folder has no Git repository.&#x27;:&#x27;Choose a folder to see changes.&#x27;)+&#x27;&lt;/p&gt;&#x27;:fileRows(visible,changed)}&lt;/div&gt;`}
+function fileRows(items,changed){const v=view();if(!items.length)return `&lt;p class=&quot;empty-files&quot;&gt;${v.query?&#x27;No matching files&#x27;:v.sideTab===&#x27;files&#x27;?&#x27;No files yet&#x27;:&#x27;No changes&#x27;}&lt;/p&gt;`;const groups=[...new Set(items.map(f=&gt;changed?({staged:&#x27;Staged&#x27;,unstaged:&#x27;Unstaged&#x27;,untracked:&#x27;Untracked&#x27;,conflicted:&#x27;Conflicts&#x27;,committed:&#x27;Committed&#x27;}[f.change]):f.path||&#x27;Project files&#x27;))];return groups.map(g=&gt;{const folded=v.folded.includes(g),groupItems=items.filter(f=&gt;(changed?({staged:&#x27;Staged&#x27;,unstaged:&#x27;Unstaged&#x27;,untracked:&#x27;Untracked&#x27;,conflicted:&#x27;Conflicts&#x27;,committed:&#x27;Committed&#x27;}[f.change]):f.path||&#x27;Project files&#x27;)===g);return button(&#x27;fold&#x27;,`${icon(folded?&#x27;chevron-right&#x27;:&#x27;chevron-down&#x27;)}&lt;span&gt;${safe(g)}&lt;/span&gt;&lt;span class=&quot;count&quot;&gt;${groupItems.length}&lt;/span&gt;`,`class=&quot;folder-row&quot; data-group=&quot;${safe(g)}&quot; aria-expanded=&quot;${!folded}&quot;`)+(folded?&#x27;&#x27;:groupItems.map(f=&gt;button(&#x27;file&#x27;,`${icon(f.kind===&#x27;binary&#x27;?&#x27;image&#x27;:&#x27;file-code-2&#x27;)}&lt;span class=&quot;name&quot;&gt;${safe(f.name)}&lt;/span&gt;${changed?`&lt;span class=&quot;delta ${f.kind===&#x27;conflict&#x27;?&#x27;amber&#x27;:&#x27;green&#x27;}&quot;&gt;${f.kind===&#x27;conflict&#x27;?&#x27;!&#x27;:f.kind===&#x27;renamed&#x27;?&#x27;R&#x27;:f.kind===&#x27;binary&#x27;?&#x27;B&#x27;:f.kind===&#x27;large&#x27;?&#x27;L&#x27;:&#x27;+&#x27;+(f.plus||0)}&lt;/span&gt;&lt;span class=&quot;delta red&quot;&gt;${f.minus?&#x27;−&#x27;+f.minus:&#x27;&#x27;}&lt;/span&gt;`:&#x27;&#x27;}`,`class=&quot;tree-file ${v.fileId===f.id&amp;&amp;v.diffOpen?&#x27;active&#x27;:&#x27;&#x27;}&quot; data-id=&quot;${f.id}&quot; aria-label=&quot;Open ${safe(f.name)}&quot; data-tooltip=&quot;${safe((f.path?f.path+&#x27;/&#x27;:&#x27;&#x27;)+f.name)}&quot;`)).join(&#x27;&#x27;))}).join(&#x27;&#x27;)}
+function formatCode(source){const keywords=[&#x27;export&#x27;,&#x27;class&#x27;,&#x27;const&#x27;,&#x27;return&#x27;,&#x27;async&#x27;,&#x27;await&#x27;,&#x27;function&#x27;,&#x27;if&#x27;,&#x27;private&#x27;,&#x27;readonly&#x27;];return String(source).split(/(&quot;[^&quot;\n]*&quot;|&#x27;[^&#x27;\n]*&#x27;|\b(?:export|class|const|return|async|await|function|if|private|readonly)\b)/g).map(part=&gt;keywords.includes(part)?&#x27;&lt;span class=&quot;kw&quot;&gt;&#x27;+safe(part)+&#x27;&lt;/span&gt;&#x27;:/^[&quot;&#x27;]/.test(part)?&#x27;&lt;span class=&quot;str&quot;&gt;&#x27;+safe(part)+&#x27;&lt;/span&gt;&#x27;:safe(part)).join(&#x27;&#x27;)}
+function codeRow(r){return `&lt;div class=&quot;code-row ${r[0]===&#x27;same&#x27;?&#x27;&#x27;:r[0]}&quot;&gt;&lt;span class=&quot;old&quot;&gt;${r[1]}&lt;/span&gt;&lt;span class=&quot;new&quot;&gt;${r[2]}&lt;/span&gt;&lt;span class=&quot;sign&quot;&gt;${r[0]===&#x27;add&#x27;?&#x27;+&#x27;:r[0]===&#x27;del&#x27;?&#x27;−&#x27;:&#x27;&#x27;}&lt;/span&gt;&lt;span class=&quot;source&quot;&gt;${formatCode(r[3])||&#x27; &#x27;}&lt;/span&gt;&lt;/div&gt;`}
+function renderDiff(){const v=view(),layout=root.clientWidth&lt;600?&#x27;unified&#x27;:v.diffMode,f=getFiles().find(f=&gt;f.id===v.fileId);if(!f){find(&#x27;#diff-pane&#x27;).innerHTML=&#x27;&lt;div class=&quot;pane-head&quot;&gt;No file selected&lt;/div&gt;&#x27;;return}let content;if(f.kind===&#x27;binary&#x27;)content=&#x27;&lt;p class=&quot;empty-files&quot;&gt;Binary file · PNG image&lt;br&gt;Text diff is unavailable.&lt;/p&gt;&#x27;;else if(f.kind===&#x27;large&#x27;)content=&#x27;&lt;p class=&quot;empty-files&quot;&gt;Large file · preview limited.&lt;br&gt;Open in your editor to inspect the full file.&lt;/p&gt;&#x27;;else if(f.kind===&#x27;deleted&#x27;&amp;&amp;v.fileView)content=&#x27;&lt;p class=&quot;empty-files&quot;&gt;This file was deleted.&lt;/p&gt;&#x27;;else{const rows=v.fileView?f.rows.filter(r=&gt;r[0]!==&#x27;del&#x27;).map(r=&gt;[&#x27;same&#x27;,&#x27;&#x27;,r[2],r[3]]):f.rows;content=rows.map(r=&gt;layout===&#x27;split&#x27;&amp;&amp;!v.fileView?`&lt;div class=&quot;code-pair&quot;&gt;${r[0]===&#x27;add&#x27;?&#x27;&lt;div&gt;&lt;/div&gt;&#x27;:codeRow([r[0],&#x27;&#x27;,r[1],r[3]])}${r[0]===&#x27;del&#x27;?&#x27;&lt;div&gt;&lt;/div&gt;&#x27;:codeRow(r)}&lt;/div&gt;`:codeRow(r)).join(&#x27;&#x27;);content=`&lt;div class=&quot;code ${v.fileView?&#x27;unified&#x27;:layout}&quot;&gt;${content}&lt;/div&gt;`}find(&#x27;#diff-pane&#x27;).innerHTML=`&lt;div class=&quot;pane-head&quot;&gt;&lt;span class=&quot;pane-title&quot;&gt;&lt;strong&gt;${safe(f.name)}&lt;/strong&gt;&lt;/span&gt;&lt;span class=&quot;spacer&quot;&gt;&lt;/span&gt;${!v.fileView?menu(&#x27;Diff layout&#x27;,button(&#x27;diff-mode&#x27;,&#x27;Unified diff&#x27;,&#x27;data-mode=&quot;unified&quot;&#x27;)+button(&#x27;diff-mode&#x27;,&#x27;Side by side diff&#x27;,&#x27;data-mode=&quot;split&quot;&#x27;),&#x27;diff-menu&#x27;):&#x27;&#x27;}${iconButton(&#x27;external-editor&#x27;,&#x27;external-link&#x27;,&#x27;Open in editor&#x27;)}${iconButton(&#x27;maximize-diff&#x27;,v.maxDiff?&#x27;minimize-2&#x27;:&#x27;maximize-2&#x27;,v.maxDiff?&#x27;Restore file pane&#x27;:&#x27;Maximize file pane&#x27;)}${iconButton(&#x27;close-diff&#x27;,&#x27;x&#x27;,&#x27;Close file pane&#x27;)}&lt;/div&gt;&lt;div class=&quot;file-head&quot;&gt;&lt;span class=&quot;path&quot;&gt;${safe(f.path||&#x27;Project root&#x27;)}${f.oldPath?&#x27; · renamed from &#x27;+safe(f.oldPath):&#x27;&#x27;}&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;diff-scroll&quot;&gt;${f.kind===&#x27;conflict&#x27;?&#x27;&lt;p class=&quot;inline-error&quot;&gt;Merge conflict. Resolve in your CLI or editor.&lt;/p&gt;&#x27;:&#x27;&#x27;}${!v.fileView?button(&#x27;context&#x27;,v.context?&#x27;Hide context&#x27;:&#x27;Show surrounding context&#x27;,&#x27;class=&quot;context-row&quot;&#x27;):&#x27;&#x27;}${v.context&amp;&amp;!v.fileView?&#x27;&lt;p class=&quot;context-note&quot;&gt;Sample excerpt. Unchanged surrounding lines are shown.&lt;/p&gt;&#x27;:&#x27;&#x27;}${content}&lt;/div&gt;`;find(&#x27;.diff-scroll&#x27;).scrollTop=v.diffScroll||0}
+function render(){const v=view();root.style.colorScheme=state.ui.theme;root.style.setProperty(&#x27;--terminal-size&#x27;,state.ui.font+&#x27;px&#x27;);root.classList.toggle(&#x27;nav-hidden&#x27;,!state.ui.nav);root.classList.toggle(&#x27;nav-visible&#x27;,state.ui.nav);root.classList.toggle(&#x27;side-hidden&#x27;,!state.ui.side);root.classList.toggle(&#x27;side-visible&#x27;,state.ui.side);find(&#x27;#core&#x27;).className=&#x27;core&#x27;+(!v.diffOpen?&#x27; no-diff&#x27;:&#x27;&#x27;)+(v.maxDiff?&#x27; max-diff&#x27;:&#x27;&#x27;)+(v.diffOpen?&#x27; show-diff&#x27;:&#x27;&#x27;);find(&#x27;#core&#x27;).style.gridTemplateColumns=v.diffOpen&amp;&amp;!v.maxDiff&amp;&amp;root.clientWidth&gt;800?`minmax(0,${v.width}%) 6px minmax(0,1fr)`:&#x27;&#x27;;renderSidebar();renderTabs();renderTerminal();renderFiles();renderDiff();renderDialog();setupIcons();all(&#x27;button,summary&#x27;).forEach(b=&gt;b.classList.add(&#x27;cursor-interaction&#x27;))}
+function openDialog(kind,data={}){capture();focusBeforeDialog=document.activeElement;dialog={kind,...data};renderDialog();setupIcons();queueMicrotask(()=&gt;find(&#x27;.dialog input, .dialog select, .context-dialog&gt;button, .dialog button&#x27;)?.focus())}
+function closeDialog(){dialog=null;renderDialog();focusBeforeDialog?.isConnected&amp;&amp;focusBeforeDialog.focus();persist()}
+function field(label,name,value=&#x27;&#x27;,placeholder=&#x27;&#x27;){return `&lt;label class=&quot;field&quot;&gt;${label}&lt;input data-form=&quot;${name}&quot; aria-label=&quot;${label}&quot; value=&quot;${safe(value)}&quot; placeholder=&quot;${safe(placeholder)}&quot;&gt;&lt;/label&gt;`}
+function confirmAction(title,message,label,run){openDialog(&#x27;confirm&#x27;,{title,message,label,run})}
+function renderDialog(){if(!dialog){find(&#x27;#panel-host&#x27;).innerHTML=&#x27;&#x27;;return}const d=dialog,w=workspace(),t=tab(),c=checkout();let title=&#x27;&#x27;,body=&#x27;&#x27;;
+if(d.kind===&#x27;add-picker&#x27;){title=&#x27;Add project&#x27;;body=[&#x27;folder&#x27;,&#x27;clone&#x27;,&#x27;create&#x27;].map((k,i)=&gt;button(&#x27;add-project&#x27;,icon([&#x27;folder-open&#x27;,&#x27;git-fork&#x27;,&#x27;folder-plus&#x27;][i])+[&#x27;Open from folder…&#x27;,&#x27;Clone from URL…&#x27;,&#x27;Create new project…&#x27;][i],`data-kind=&quot;${k}&quot;`)).join(&#x27;&#x27;)}
+else if(d.kind===&#x27;project&#x27;){const k=d.projectKind,f=state.forms[k]||={name:&#x27;&#x27;,path:&#x27;~/code&#x27;,url:&#x27;&#x27;,git:true,folder:&#x27;&#x27;,folderType:&#x27;git&#x27;};title={folder:&#x27;Open project folder&#x27;,clone:&#x27;Clone repository&#x27;,create:&#x27;Create project&#x27;}[k];body=(k===&#x27;folder&#x27;?field(&#x27;Folder path&#x27;,&#x27;folder&#x27;,f.folder,&#x27;~/code/my-project&#x27;)+`&lt;label class=&quot;field&quot;&gt;Sample folder type&lt;select data-form=&quot;folderType&quot; aria-label=&quot;Sample folder type&quot;&gt;&lt;option value=&quot;git&quot; ${f.folderType===&#x27;git&#x27;?&#x27;selected&#x27;:&#x27;&#x27;}&gt;Git repository&lt;/option&gt;&lt;option value=&quot;plain&quot; ${f.folderType===&#x27;plain&#x27;?&#x27;selected&#x27;:&#x27;&#x27;}&gt;Ordinary folder&lt;/option&gt;&lt;option value=&quot;worktree&quot; ${f.folderType===&#x27;worktree&#x27;?&#x27;selected&#x27;:&#x27;&#x27;}&gt;Existing Git worktree&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;`:(k===&#x27;clone&#x27;?field(&#x27;Repository URL&#x27;,&#x27;url&#x27;,f.url,&#x27;https://github.com/org/project&#x27;):&#x27;&#x27;)+field(&#x27;Project name&#x27;,&#x27;name&#x27;,f.name,k===&#x27;clone&#x27;?&#x27;From repository name&#x27;:&#x27;my-project&#x27;)+field(&#x27;Destination parent&#x27;,&#x27;path&#x27;,f.path,&#x27;~/code&#x27;)+(k===&#x27;create&#x27;?`&lt;label class=&quot;check-label&quot;&gt;&lt;input type=&quot;checkbox&quot; data-form=&quot;git&quot; ${f.git?&#x27;checked&#x27;:&#x27;&#x27;}&gt;Initialize Git&lt;/label&gt;`:&#x27;&#x27;))+`&lt;p class=&quot;dialog-note&quot;&gt;Simulated ${k===&#x27;folder&#x27;?&#x27;folder picker&#x27;:&#x27;operation&#x27;}. Your real files stay untouched.&lt;/p&gt;&lt;div id=&quot;form-error&quot; role=&quot;alert&quot; class=&quot;inline-error&quot;&gt;${safe(d.error||&#x27;&#x27;)}&lt;/div&gt;`+button(&#x27;submit-project&#x27;,d.retry?&#x27;Retry&#x27;:{folder:&#x27;Open folder&#x27;,clone:&#x27;Clone&#x27;,create:&#x27;Create project&#x27;}[k],&#x27;class=&quot;primary&quot;&#x27;)+button(&#x27;close-panel&#x27;,&#x27;Cancel&#x27;);}
+else if(d.kind===&#x27;folder&#x27;){title=d.locate?&#x27;Locate workspace folder&#x27;:&#x27;Choose folder&#x27;;body=field(&#x27;Folder path&#x27;,&#x27;path&#x27;,d.path||&#x27;~&#x27;,&#x27;~/Documents&#x27;)+`&lt;p class=&quot;hint&quot;&gt;Use a location without saving it as a project.&lt;/p&gt;&lt;div id=&quot;form-error&quot; class=&quot;inline-error&quot; role=&quot;alert&quot;&gt;${safe(d.error||&#x27;&#x27;)}&lt;/div&gt;`+button(&#x27;save-folder&#x27;,&#x27;Use folder&#x27;,&#x27;class=&quot;primary&quot;&#x27;)+button(&#x27;close-panel&#x27;,&#x27;Cancel&#x27;)}
+else if(d.kind===&#x27;confirm&#x27;){title=d.title;body=`&lt;p&gt;${safe(d.message)}&lt;/p&gt;`+button(&#x27;confirm&#x27;,safe(d.label),&#x27;class=&quot;primary&quot;&#x27;)+button(&#x27;close-panel&#x27;,&#x27;Cancel&#x27;)}
+else if(d.kind===&#x27;progress&#x27;){title=d.title;body=`&lt;p role=&quot;status&quot;&gt;${safe(d.step)}&lt;/p&gt;&lt;p class=&quot;hint&quot;&gt;Sample operation&lt;/p&gt;`+button(&#x27;cancel-operation&#x27;,&#x27;Cancel&#x27;)}
+else if(d.kind===&#x27;offline&#x27;){title=&#x27;Could not refresh &#x27;+d.ref;body=&#x27;&lt;p&gt;Network unavailable. Cached reference: a31c9e2.&lt;/p&gt;&#x27;+button(&#x27;retry-fetch&#x27;,&#x27;Retry&#x27;,&#x27;class=&quot;primary&quot;&#x27;)+button(&#x27;cached-ref&#x27;,&#x27;Use cached reference&#x27;)+button(&#x27;close-panel&#x27;,&#x27;Cancel&#x27;)}
+else if(d.kind===&#x27;duplicate&#x27;){title=&#x27;Checkout already open&#x27;;body=`&lt;p&gt;${safe(d.path)} is open in ${safe(d.target.name)}.&lt;/p&gt;`+button(&#x27;use-existing&#x27;,&#x27;Switch and add tab&#x27;,&#x27;class=&quot;primary&quot;&#x27;)+button(&#x27;close-panel&#x27;,&#x27;Cancel&#x27;)}
+else if(d.kind===&#x27;branch-conflict&#x27;){title=&#x27;Branch already checked out&#x27;;body=`&lt;p&gt;${safe(d.branch)} is in use at ${safe(d.target.path)}.&lt;/p&gt;`+button(&#x27;open-existing-checkout&#x27;,&#x27;Open existing checkout&#x27;,&#x27;class=&quot;primary&quot;&#x27;)+button(&#x27;new-branch-instead&#x27;,&#x27;Create a new branch instead&#x27;)+button(&#x27;close-panel&#x27;,&#x27;Cancel&#x27;)}
+else if(d.kind===&#x27;workspace-menu&#x27;){const target=state.workspaces.find(w=&gt;w.id===d.id),co=checkout(target);title=target.name;body=button(&#x27;rename-workspace&#x27;,icon(&#x27;pencil&#x27;)+&#x27;Rename workspace&#x27;)+button(&#x27;remove-workspace&#x27;,icon(&#x27;x&#x27;)+&#x27;Close workspace&#x27;)+(co?.owned?button(&#x27;delete-worktree&#x27;,icon(&#x27;trash-2&#x27;)+&#x27;Delete worktree…&#x27;):&#x27;&#x27;)+`&lt;p class=&quot;hint&quot;&gt;${safe(co?.path||&#x27;Not started&#x27;)}&lt;/p&gt;`;}
+else if(d.kind===&#x27;project-menu&#x27;){title=project(d.id).name;body=button(&#x27;new-project-workspace&#x27;,icon(&#x27;plus&#x27;)+&#x27;New workspace&#x27;)+button(&#x27;remove-project&#x27;,icon(&#x27;folder-minus&#x27;)+&#x27;Remove project…&#x27;)}
+else if(d.kind===&#x27;tab-menu&#x27;){title=t.title||labels[t.tool];body=button(&#x27;rename-tab&#x27;,&#x27;Rename tab&#x27;)+button(&#x27;split-terminal&#x27;,&#x27;Split with Terminal&#x27;)+(w.split?button(&#x27;unsplit&#x27;,&#x27;Show one terminal&#x27;):&#x27;&#x27;)+(t.status===&#x27;running&#x27;?button(&#x27;end-session&#x27;,&#x27;End session&#x27;):button(&#x27;restart-session&#x27;,&#x27;Restart&#x27;))+(t.tool!==&#x27;shell&#x27;?button(&#x27;resume-session&#x27;,&#x27;Resume saved session&#x27;):&#x27;&#x27;)+button(&#x27;close-tab&#x27;,&#x27;Close tab&#x27;,`data-id=&quot;${t.id}&quot;`)}
+else if(d.kind===&#x27;rename&#x27;){title=d.target===&#x27;tab&#x27;?&#x27;Rename tab&#x27;:&#x27;Rename workspace&#x27;;body=field(&#x27;Name&#x27;,&#x27;name&#x27;,d.name)+button(&#x27;save-name&#x27;,&#x27;Save&#x27;,&#x27;class=&quot;primary&quot;&#x27;)}
+else if(d.kind===&#x27;search&#x27;){title=&#x27;Find workspace&#x27;;body=&#x27;&lt;input data-field=&quot;workspace-search&quot; aria-label=&quot;Search workspaces&quot; placeholder=&quot;Search workspaces&quot;&gt;&lt;div id=&quot;search-results&quot;&gt;&#x27;+searchRows(&#x27;&#x27;)+&#x27;&lt;/div&gt;&#x27;}
+else if(d.kind===&#x27;settings&#x27;){title=&#x27;Settings&#x27;;body=`&lt;label class=&quot;field&quot;&gt;Theme&lt;select data-setting=&quot;theme&quot; aria-label=&quot;Theme&quot;&gt;&lt;option value=&quot;dark&quot; ${state.ui.theme===&#x27;dark&#x27;?&#x27;selected&#x27;:&#x27;&#x27;}&gt;Dark&lt;/option&gt;&lt;option value=&quot;light&quot; ${state.ui.theme===&#x27;light&#x27;?&#x27;selected&#x27;:&#x27;&#x27;}&gt;Light&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;&lt;label class=&quot;field&quot;&gt;Terminal font size&lt;select data-setting=&quot;font&quot; aria-label=&quot;Terminal font size&quot;&gt;${[12,13,14,15].map(n=&gt;`&lt;option value=&quot;${n}&quot; ${state.ui.font===n?&#x27;selected&#x27;:&#x27;&#x27;}&gt;${n} px&lt;/option&gt;`).join(&#x27;&#x27;)}&lt;/select&gt;&lt;/label&gt;&lt;p class=&quot;hint&quot;&gt;${state.workspaces.reduce((n,w)=&gt;n+w.tabs.filter(running).length,0)} simulated agents or jobs running&lt;/p&gt;&lt;details class=&quot;scenario-section&quot;&gt;&lt;summary&gt;Prototype scenarios&lt;/summary&gt;&lt;p class=&quot;hint&quot;&gt;Try recovery paths without running real operations.&lt;/p&gt;&lt;label class=&quot;field&quot;&gt;Scenario&lt;select id=&quot;scenario-choice&quot; aria-label=&quot;Prototype scenario&quot;&gt;${Object.entries(scenarios).map(([id,label])=&gt;`&lt;option value=&quot;${id}&quot;&gt;${label}&lt;/option&gt;`).join(&#x27;&#x27;)}&lt;/select&gt;&lt;/label&gt;${button(&#x27;apply-scenario&#x27;,&#x27;Apply scenario&#x27;)}${button(&#x27;reset-demo&#x27;,&#x27;Reset sample data&#x27;)}&lt;/details&gt;`+button(&#x27;close-panel&#x27;,&#x27;Done&#x27;,&#x27;class=&quot;primary&quot;&#x27;)}
+else if(d.kind===&#x27;quit&#x27;){title=&#x27;Quit prototype app&#x27;;body=&#x27;&lt;p&gt;Simulated sessions are still running.&lt;/p&gt;&#x27;+button(&#x27;quit-end&#x27;,&#x27;End sessions and quit&#x27;,&#x27;class=&quot;primary&quot;&#x27;)+button(&#x27;quit-keep&#x27;,&#x27;Keep sessions running in background&#x27;)+button(&#x27;close-panel&#x27;,&#x27;Cancel&#x27;)}
+else if(d.kind===&#x27;closed&#x27;){title=d.reason===&#x27;window&#x27;?&#x27;Window closed&#x27;:&#x27;App closed&#x27;;body=`&lt;p&gt;${d.background?&#x27;Sessions continue in the background.&#x27;:&#x27;Sessions have ended. Saved conversations can be resumed.&#x27;}&lt;/p&gt;`+button(&#x27;reopen-app&#x27;,&#x27;Reopen app&#x27;,&#x27;class=&quot;primary&quot;&#x27;)}
+else if(d.kind===&#x27;blocked-delete&#x27;){title=&#x27;Worktree needs attention&#x27;;body=`&lt;p&gt;${safe(d.message)}&lt;/p&gt;&lt;p class=&quot;hint&quot;&gt;Resolve this in the CLI. For this simulation, Settings → Prototype scenarios → Clean checkout marks the sample safe.&lt;/p&gt;`+button(&#x27;close-panel&#x27;,&#x27;Keep worktree&#x27;,&#x27;class=&quot;primary&quot;&#x27;)}
+else if(d.kind===&#x27;info&#x27;){title=d.title;body=`&lt;p&gt;${safe(d.message)}&lt;/p&gt;`+button(&#x27;close-panel&#x27;,&#x27;Done&#x27;,&#x27;class=&quot;primary&quot;&#x27;)}
+const contextual=d.kind.endsWith(&#x27;menu&#x27;);find(&#x27;#panel-host&#x27;).innerHTML=`&lt;div class=&quot;dialog-cover ${contextual?&#x27;context-cover&#x27;:&#x27;&#x27;}&quot;&gt;&lt;section class=&quot;dialog ${contextual?&#x27;context-dialog&#x27;:&#x27;&#x27;} ${d.kind===&#x27;add-picker&#x27;?&#x27;project-picker-dialog&#x27;:&#x27;&#x27;}&quot; role=&quot;dialog&quot; aria-modal=&quot;true&quot; aria-label=&quot;${safe(title)}&quot;&gt;&lt;header&gt;&lt;strong&gt;${safe(title)}&lt;/strong&gt;${[&#x27;progress&#x27;,&#x27;closed&#x27;].includes(d.kind)?&#x27;&#x27;:iconButton(&#x27;close-panel&#x27;,&#x27;x&#x27;,&#x27;Close dialog&#x27;)}&lt;/header&gt;${body}&lt;/section&gt;&lt;/div&gt;`;
+if(contextual){const panel=find(&#x27;.context-dialog&#x27;),bounds=root.getBoundingClientRect(),anchor=focusBeforeDialog?.getBoundingClientRect();const x=d.x??(anchor?anchor.right-bounds.left:16),y=d.y??(anchor?anchor.bottom-bounds.top:48);panel.style.left=Math.max(8,Math.min(x,root.clientWidth-panel.offsetWidth-8))+&#x27;px&#x27;;panel.style.top=Math.max(8,Math.min(y,root.clientHeight-panel.offsetHeight-8))+&#x27;px&#x27;}setupIcons()}
+function searchRows(q){return state.workspaces.filter(w=&gt;(w.name+&#x27; &#x27;+pathOf(w)).toLowerCase().includes(q.toLowerCase())).map(w=&gt;button(&#x27;workspace&#x27;,`${safe(w.name)}&lt;span&gt;${safe(pathOf(w))}&lt;/span&gt;`,`class=&quot;search-result&quot; data-id=&quot;${w.id}&quot;`)).join(&#x27;&#x27;)||&#x27;&lt;p class=&quot;hint&quot;&gt;No matching workspaces.&lt;/p&gt;&#x27;}
+const delay=ms=&gt;new Promise(resolve=&gt;setTimeout(resolve,ms));
+function consumeFailure(name){if(state.failure!==name)return false;state.failure=&#x27;none&#x27;;return true}
+async function submitProject(){const d=dialog,k=d.projectKind,f=state.forms[k],error=message=&gt;{d.error=message;renderDialog()};let name,path;if(k===&#x27;folder&#x27;){if(!checkedPath(f.folder))return error(&#x27;Enter an absolute path or a path beginning with ~/&#x27;);path=normalize(f.folder);name=path.split(&#x27;/&#x27;).pop()||&#x27;Root&#x27;}else{if(!checkedPath(f.path))return error(&#x27;Choose a destination beginning with / or ~/&#x27;);if(k===&#x27;clone&#x27;&amp;&amp;!/^(https?:\/\/[^\s/]+\/[^\s]+|git@[^\s:]+:[^\s]+)$/.test(f.url))return error(&#x27;Enter a valid repository URL.&#x27;);name=(f.name|| (k===&#x27;clone&#x27;?f.url.replace(/\/$/,&#x27;&#x27;).split(&#x27;/&#x27;).pop().replace(/\.git$/,&#x27;&#x27;):&#x27;&#x27; )).trim();if(!name||/[\/\\]|^\.{1,2}$/.test(name))return error(&#x27;Enter a project folder name without slashes.&#x27;);path=normalize(f.path+&#x27;/&#x27;+name)}
+const existing=state.checkouts.find(c=&gt;normalize(c.path)===path);if(existing){if(k===&#x27;folder&#x27;){if(!existing.projectId){const p={id:uid(&#x27;p&#x27;),name,rootId:existing.id,refs:existing.git?[&#x27;HEAD&#x27;,existing.branch,&#x27;origin/main&#x27;]:[],defaultRef:&#x27;origin/main&#x27;};state.projects.push(p);existing.projectId=p.id}return completeProject(existing.projectId)}return error(&#x27;That destination already exists. Open it from folder or choose another destination.&#x27;)}
+if(k===&#x27;clone&#x27;&amp;&amp;consumeFailure(&#x27;auth&#x27;)){d.retry=true;return error(&#x27;Sample authentication failed. Retry after signing in. No credentials are requested here.&#x27;)}
+const token={kind:&#x27;project&#x27;,projectKind:k};operation=token;openDialog(&#x27;progress&#x27;,{title:k===&#x27;clone&#x27;?&#x27;Cloning repository&#x27;:&#x27;Preparing project&#x27;,step:k===&#x27;clone&#x27;?&#x27;Downloading sample repository…&#x27;:&#x27;Preparing sample folder…&#x27;});await delay(650);if(operation!==token)return;operation=null;const id=uid(&#x27;p&#x27;),cid=uid(&#x27;c&#x27;),git=k===&#x27;clone&#x27;||k===&#x27;folder&#x27;&amp;&amp;f.folderType!==&#x27;plain&#x27;||k===&#x27;create&#x27;&amp;&amp;f.git,hasCommit=git&amp;&amp;k!==&#x27;create&#x27;;state.projects.push({id,name,rootId:cid,refs:hasCommit?[&#x27;HEAD&#x27;,&#x27;main&#x27;,&#x27;dev&#x27;,&#x27;origin/main&#x27;,&#x27;origin/dev&#x27;]:[],defaultRef:&#x27;origin/main&#x27;});state.checkouts.push({id:cid,projectId:id,path,branch:git?&#x27;main&#x27;:null,git,hasCommit,kind:k===&#x27;folder&#x27;&amp;&amp;f.folderType===&#x27;worktree&#x27;?&#x27;worktree&#x27;:&#x27;local&#x27;,fixture:!git?&#x27;plain&#x27;:hasCommit?&#x27;clean&#x27;:&#x27;empty&#x27;,available:true});completeProject(id)}
+function completeProject(id){touchProject(id);dialog=null;if(checkout())createWorkspace();selectProject(id);notify(&#x27;Sample project ready. Choose what to open.&#x27;);persist()}
+function targetWorkspace(c,t,w){const existing=c.git&amp;&amp;state.workspaces.find(x=&gt;x.id!==w.id&amp;&amp;x.checkoutId===c.id);if(existing){openDialog(&#x27;duplicate&#x27;,{target:existing,path:c.path,source:w.id,launch:structuredClone(t.launch)});return true}return false}
+async function launch(t=tab(),w=workspace(),options={}){if(operation)return;w.error=&#x27;&#x27;;const d=w.draft;let c=checkout(w);if(!c){if(d.projectId){const p=project(d.projectId);c=state.checkouts.find(c=&gt;c.id===d.checkoutId)||state.checkouts.find(c=&gt;c.id===p.rootId);if(d.mode===&#x27;worktree&#x27;){
+if(!c.git||!c.hasCommit){w.error=&#x27;A committed Git repository is needed for a worktree.&#x27;;render();return}
+if(d.branch&amp;&amp;(!/^[a-zA-Z0-9][a-zA-Z0-9/_-]*$/.test(d.branch)||d.branch.includes(&#x27;//&#x27;))){w.error=&#x27;Use letters, numbers, slashes, underscores, or hyphens in the branch name.&#x27;;render();return}
+const branch=d.branch||&#x27;work/quiet-&#x27;+state.next,used=state.checkouts.find(c=&gt;c.projectId===p.id&amp;&amp;c.branch===branch);if(used){openDialog(&#x27;branch-conflict&#x27;,{branch,target:used});return}if(d.branchMode!==&#x27;existing&#x27;&amp;&amp;p.refs.includes(branch)){w.error=&#x27;That branch already exists. Choose Branch options → Use an existing branch, or another name.&#x27;;render();return}
+if(d.ref.startsWith(&#x27;origin/&#x27;)&amp;&amp;!options.cached&amp;&amp;consumeFailure(&#x27;offline&#x27;)){openDialog(&#x27;offline&#x27;,{ref:d.ref});return}
+const token={kind:&#x27;launch&#x27;,w,t};operation=token;t.status=&#x27;launching&#x27;;openDialog(&#x27;progress&#x27;,{title:&#x27;Creating worktree&#x27;,step:d.ref.startsWith(&#x27;origin/&#x27;)?(options.cached?&#x27;Using cached &#x27;+d.ref+&#x27; · a31c9e2&#x27;:&#x27;Fetching &#x27;+d.ref+&#x27;…&#x27;):&#x27;Resolving &#x27;+d.ref+&#x27;…&#x27;});await delay(450);if(operation!==token)return;dialog.step=&#x27;Creating &#x27;+branch+&#x27;…&#x27;;renderDialog();await delay(450);if(operation!==token)return;c={id:uid(&#x27;c&#x27;),projectId:p.id,path:&#x27;~/worktrees/&#x27;+p.name+&#x27;/&#x27;+branch.replaceAll(&#x27;/&#x27;,&#x27;-&#x27;),branch,git:true,hasCommit:true,kind:&#x27;worktree&#x27;,owned:true,fixture:&#x27;clean&#x27;,available:true,base:d.ref,sourceCommit:options.cached?&#x27;a31c9e2&#x27;:&#x27;b74f021&#x27;};state.checkouts.push(c);if(!p.refs.includes(branch))p.refs.push(branch);p.lastRef=d.ref;operation=null;dialog=null;
+}}else{const path=normalize(d.path||&#x27;~&#x27;);const known=state.checkouts.find(c=&gt;normalize(c.path)===path);c=known||{id:uid(&#x27;c&#x27;),projectId:null,path,git:false,kind:&#x27;local&#x27;,fixture:&#x27;plain&#x27;,available:true};if(!known)state.checkouts.push(c)}
+if(targetWorkspace(c,t,w)){t.status=&#x27;blank&#x27;;return}w.checkoutId=c.id;w.name=project(c.projectId)?.name|| (c.path===&#x27;~&#x27;?&#x27;Home&#x27;:c.path.split(&#x27;/&#x27;).pop()||&#x27;Root&#x27;);if(c.kind===&#x27;worktree&#x27;)w.name=c.branch;delete w.draft;w.view.compare=project(c.projectId)?.defaultRef||&#x27;HEAD&#x27;}
+state.lastTool=t.launch.tool;t.tool=t.launch.tool;t.cwd=c.path;t.error=&#x27;&#x27;;
+if(!c.available){render();return}
+if(t.tool!==&#x27;shell&#x27;&amp;&amp;consumeFailure(&#x27;missing-agent&#x27;)){t.status=&#x27;error&#x27;;t.error=labels[t.tool]+&#x27; is not installed in this sample. Retry simulates installation, or open Terminal.&#x27;;render();persist();return}
+if(t.tool!==&#x27;shell&#x27;&amp;&amp;consumeFailure(&#x27;agent-auth&#x27;)){t.status=&#x27;error&#x27;;t.error=&#x27;Sign-in required. Retry simulates completing provider login in this terminal.&#x27;;render();persist();return}
+t.status=&#x27;running&#x27;;t.history=t.tool!==&#x27;shell&#x27;;touchProject(c.projectId);if(t.tool!==&#x27;shell&#x27;&amp;&amp;t.launch.prompt.trim()&amp;&amp;!t.promptSent){if(consumeFailure(&#x27;prompt-uncertain&#x27;)){t.status=&#x27;error&#x27;;t.error=&#x27;Prompt delivery is uncertain. Retry reconnects without resending. Type your follow-up explicitly.&#x27;;t.promptSent=true;render();persist();return}t.messages.push(&#x27;› &#x27;+t.launch.prompt,&#x27;Sample agent received the starting prompt.&#x27;);t.promptSent=true}render();persist();queueMicrotask(()=&gt;find(`[data-input-tab=&quot;${t.id}&quot;]`)?.focus())}
+function cancelOperation(){if(!operation)return;const op=operation;operation=null;if(op.t)op.t.status=&#x27;blank&#x27;;if(op.kind===&#x27;project&#x27;){dialog={kind:&#x27;project&#x27;,projectKind:op.projectKind||&#x27;clone&#x27;};renderDialog()}else{dialog=null;render()}notify(&#x27;Sample operation canceled. Existing files are unchanged.&#x27;);persist()}
+function closeTab(id){const w=workspace(),t=w.tabs.find(t=&gt;t.id===id)||tab();const remove=()=&gt;{w.tabs=w.tabs.filter(x=&gt;x.id!==t.id);if(w.split===t.id)w.split=null;if(!w.tabs.length)w.tabs=[newTabData(uid(&#x27;t&#x27;),state.lastTool)];if(w.activeTab===t.id)w.activeTab=w.tabs.at(-1).id;dialog=null;render();persist()};if(running(t))confirmAction(&#x27;End session and close?&#x27;,`${t.title||labels[t.tool]} is still running. Its files will remain.`,&#x27;End session and close&#x27;,remove);else remove()}
+function removeWorkspace(id){const w=state.workspaces.find(w=&gt;w.id===id);if(!w)return;const index=state.workspaces.indexOf(w);const remove=()=&gt;{state.workspaces=state.workspaces.filter(x=&gt;x.id!==id);dialog=null;if(!state.workspaces.length)createWorkspace();else{if(state.activeId===id)state.activeId=state.workspaces[Math.max(0,index-1)].id;render();persist()}};if(w.tabs.some(running))confirmAction(&#x27;Close workspace?&#x27;, &#x27;End its active sessions and close the workspace. Its files and branch will remain.&#x27;,&#x27;End sessions and close&#x27;,remove);else remove()}
+function resumeSession(t){t.tool=t.tool||t.launch.tool;if(t.tool===&#x27;shell&#x27;){t.status=&#x27;running&#x27;;t.messages.push(&#x27;Shell restarted.&#x27;);render();return}t.status=&#x27;running&#x27;;t.picker=&#x27;local&#x27;;t.messages.push(&#x27;Select a saved &#x27;+labels[t.tool]+&#x27; conversation.&#x27;);dialog=null;render();persist()}
+function submitTerminal(t){const text=t.draft.trim();if(!text)return;t.draft=&#x27;&#x27;;t.messages.push(&#x27;› &#x27;+text);const c=checkout();if(text===&#x27;exit&#x27;){t.status=&#x27;ended&#x27;;t.job=false}else if(/^cd(?:\s|$)/.test(text)){const path=text.slice(2).trim()||&#x27;~&#x27;;t.cwd=normalize(checkedPath(path)?path:t.cwd+&#x27;/&#x27;+path);t.messages.push(&#x27;Directory: &#x27;+t.cwd)}else if(/^(codex|claude)(?:\s|$)/.test(text)&amp;&amp;!text.includes(&#x27;--teleport&#x27;)){t.tool=text.startsWith(&#x27;codex&#x27;)?&#x27;codex&#x27;:&#x27;claude&#x27;;t.launch.tool=t.tool;t.history=true;if(/resume|continue/.test(text))t.picker=&#x27;local&#x27;;else t.messages.push(labels[t.tool]+&#x27; ready.&#x27;)}else if(text===&#x27;/resume&#x27;){if(t.tool===&#x27;shell&#x27;)t.messages.push(&#x27;Start codex or claude first to resume an agent session.&#x27;);else t.picker=&#x27;local&#x27;}else if(text.includes(&#x27;--teleport&#x27;)||text===&#x27;/teleport&#x27;){if(t.tool===&#x27;codex&#x27;)t.messages.push(&#x27;This provider handoff is unavailable here. Open the published branch and start a new session.&#x27;);else if(!c?.git)t.messages.push(&#x27;Open the matching Git repository before handoff.&#x27;);else if(c.dirty)t.messages.push(&#x27;A clean checkout is required. Keep existing changes and use a clean worktree.&#x27;);else{t.tool=&#x27;claude&#x27;;t.picker=&#x27;cloud&#x27;}}else if(text===&#x27;/remote-control&#x27;){if(t.tool===&#x27;claude&#x27;){t.remote=true;t.continuity=&#x27;remote&#x27;;t.messages.push(&#x27;Sample Remote Control connected. This local process must keep running.&#x27;)}else t.messages.push(&#x27;Remote Control is provider-specific. This sample supports the Claude CLI flow.&#x27;)}else if(text.startsWith(&#x27;git commit&#x27;)){if(c.git){c.hasCommit=true;c.dirty=false;c.fixture=&#x27;clean&#x27;;const p=project(c.projectId);if(p&amp;&amp;!p.refs.length)p.refs=[&#x27;HEAD&#x27;,&#x27;main&#x27;,&#x27;origin/main&#x27;];t.messages.push(&#x27;Sample commit created.&#x27;)}}else if(text.startsWith(&#x27;git switch &#x27;)){if(c.git){c.branch=text.replace(&#x27;git switch &#x27;,&#x27;&#x27;).replace(/^-c\s+/,&#x27;&#x27;).trim();t.messages.push(&#x27;Sample branch: &#x27;+c.branch)}}else if(text===&#x27;git status&#x27;){t.messages.push(c.git?(c.dirty?&#x27;Sample checkout has uncommitted changes.&#x27;:&#x27;Sample working tree clean.&#x27;):&#x27;Not a Git repository.&#x27;)}else if(/(npm|bun|pnpm) (run )?dev/.test(text)){t.job=true;t.messages.push(&#x27;Sample development server running.&#x27;)}else t.messages.push(&#x27;Sample input recorded. No command or agent has executed.&#x27;);if(t.messages.length&gt;30)t.messages=t.messages.slice(-30);render();persist();queueMicrotask(()=&gt;find(`[data-input-tab=&quot;${t.id}&quot;]`)?.focus())}
+const scenarios={none:&#x27;Normal operation&#x27;,&#x27;save-failure&#x27;:&#x27;Simulate saving unavailable&#x27;,&#x27;empty-history&#x27;:&#x27;Resume with empty history&#x27;,&#x27;branch-only&#x27;:&#x27;Published branch without conversation&#x27;, &#x27;missing-agent&#x27;:&#x27;Next agent launch: missing CLI&#x27;,&#x27;agent-auth&#x27;:&#x27;Next agent launch: sign-in needed&#x27;,auth:&#x27;Next clone: authentication fails&#x27;,offline:&#x27;Next remote worktree: offline fetch&#x27;,&#x27;prompt-uncertain&#x27;:&#x27;Next agent launch: prompt delivery uncertain&#x27;,&#x27;branch-conflict&#x27;:&#x27;Branch already in use&#x27;,crash:&#x27;End the current session&#x27;,moved:&#x27;Workspace folder moved&#x27;,clean:&#x27;Clean checkout&#x27;,files:&#x27;All file-change states&#x27;,cloud:&#x27;Cloud session handoff&#x27;,unsupported:&#x27;Unsupported provider handoff&#x27;,remote:&#x27;Remote-controlled local session&#x27;,saved:&#x27;Resume saved local conversation&#x27;, &#x27;close-window&#x27;:&#x27;Close window&#x27;,quit:&#x27;Quit app&#x27;,reboot:&#x27;Machine restarted&#x27;};
+function applyScenario(kind){dialog=null;const t=tab(),w=workspace();if(kind===&#x27;save-failure&#x27;){saveBlocked=true;render();persist();return}if(kind===&#x27;none&#x27;){saveBlocked=false;state.failure=&#x27;none&#x27;;render();persist();return}if([&#x27;none&#x27;,&#x27;missing-agent&#x27;,&#x27;agent-auth&#x27;,&#x27;auth&#x27;,&#x27;offline&#x27;,&#x27;prompt-uncertain&#x27;].includes(kind)){state.failure=kind;render();notify(kind===&#x27;none&#x27;?&#x27;Normal sample behavior restored.&#x27;:&#x27;Scenario armed: &#x27;+scenarios[kind]);persist();return}if(kind===&#x27;branch-conflict&#x27;){createWorkspace({projectId:&#x27;p-n&#x27;,checkoutId:&#x27;c-n&#x27;,mode:&#x27;worktree&#x27;,ref:&#x27;origin/dev&#x27;,branch:&#x27;feat/session-recovery&#x27;,branchMode:&#x27;existing&#x27;});return}if(kind===&#x27;close-window&#x27;||kind===&#x27;quit&#x27;){if(kind===&#x27;quit&#x27;){openDialog(&#x27;quit&#x27;);return}openDialog(&#x27;closed&#x27;,{reason:&#x27;window&#x27;,background:true});return}if(kind===&#x27;reboot&#x27;){state.workspaces.forEach(w=&gt;w.tabs.forEach(t=&gt;{if(t.tool){t.status=&#x27;ended&#x27;;t.job=false;t.remote=false}}));render();notify(&#x27;Sample restart: processes ended. Resume conversation history explicitly.&#x27;);persist();return}
+let co=checkout();if(!co){w.checkoutId=kind===&#x27;cloud&#x27;||kind===&#x27;unsupported&#x27;?&#x27;c-a&#x27;:&#x27;c-n&#x27;;delete w.draft;co=checkout();w.name=project(co.projectId)?.name||&#x27;Workspace&#x27;}if(kind===&#x27;moved&#x27;){co.available=false}else if(kind===&#x27;clean&#x27;){co.fixture=&#x27;clean&#x27;;co.dirty=false;co.unmerged=false;co.available=true;w.tabs.forEach(t=&gt;{t.status=t.tool?&#x27;ended&#x27;:&#x27;blank&#x27;;t.job=false})}else if(kind===&#x27;files&#x27;){co.fixture=&#x27;full&#x27;;co.dirty=true;state.ui.side=true;w.view.sideTab=&#x27;changes&#x27;}else{t.tool=kind===&#x27;cloud&#x27;||kind===&#x27;remote&#x27;?&#x27;claude&#x27;:&#x27;codex&#x27;;t.launch.tool=t.tool;t.cwd=co.path;t.history=true;t.status=kind===&#x27;crash&#x27;?&#x27;ended&#x27;:&#x27;running&#x27;;t.sample=false;t.messages=[];if(kind===&#x27;cloud&#x27;){co.dirty=false;co.fixture=&#x27;clean&#x27;;t.draft=&#x27;claude --teleport&#x27;}if(kind===&#x27;unsupported&#x27;)t.draft=&#x27;/teleport&#x27;;if(kind===&#x27;remote&#x27;){t.remote=true;t.messages=[&#x27;Remote Control connected from mobile. Local process continues.&#x27;]}if(kind===&#x27;saved&#x27;){t.resumeEmpty=false;t.picker=&#x27;local&#x27;}if(kind===&#x27;empty-history&#x27;){t.resumeEmpty=true;t.picker=&#x27;local&#x27;}if(kind===&#x27;branch-only&#x27;){co.branch=&#x27;feature/cloud&#x27;;t.continuity=&#x27;branch&#x27;;t.history=false;t.messages=[&#x27;Opened published branch feature/cloud. Start a new conversation with any context you want to supply.&#x27;]}if(kind===&#x27;remote&#x27;)t.continuity=&#x27;remote&#x27;}render();persist()}
+function sidebarContext(target,point){const b=target.closest(&#x27;[data-action=&quot;project-nav&quot;],[data-action=&quot;workspace&quot;]&#x27;);if(!b)return false;const kind=b.dataset.action===&#x27;workspace&#x27;?&#x27;workspace-menu&#x27;:&#x27;project-menu&#x27;;if(kind===&#x27;project-menu&#x27;&amp;&amp;!b.dataset.id)return false;b.focus();openDialog(kind,{id:b.dataset.id,...point});return true}
+root.addEventListener(&#x27;contextmenu&#x27;,e=&gt;{const bounds=root.getBoundingClientRect();if(sidebarContext(e.target,{x:e.clientX-bounds.left,y:e.clientY-bounds.top}))e.preventDefault()});
+root.addEventListener(&#x27;dblclick&#x27;,e=&gt;{const b=e.target.closest(&#x27;[data-action=&quot;select-tab&quot;]&#x27;);if(!b)return;const item=workspace().tabs.find(t=&gt;t.id===b.dataset.id);openDialog(&#x27;rename&#x27;,{target:&#x27;tab&#x27;,id:item.id,name:item.title||labels[item.tool]||&#x27;New tab&#x27;})});
+root.addEventListener(&#x27;click&#x27;,e=&gt;{if(e.target.classList.contains(&#x27;context-cover&#x27;)){closeDialog();return}const b=e.target.closest(&#x27;button[data-action]&#x27;);if(!b||b.disabled)return;const a=b.dataset.action,w=workspace(),t=tab(),v=view();
+if(a===&#x27;new-workspace&#x27;)return createWorkspace();
+if(a===&#x27;add-terminal&#x27;)return createTab();
+if(a===&#x27;workspace&#x27;){dialog=null;return switchWorkspace(b.dataset.id)}
+if(a===&#x27;project-nav&#x27;){const found=state.workspaces.find(w=&gt;(checkout(w)?.projectId||w.draft?.projectId||&#x27;&#x27;)===b.dataset.id);if(found)switchWorkspace(found.id);else{createWorkspace();selectProject(b.dataset.id)}return}
+if(a===&#x27;choose-project&#x27;)return selectProject(b.dataset.id);
+if(a===&#x27;mode&#x27;){w.draft.mode=b.dataset.mode;w.error=&#x27;&#x27;;render();persist();return}
+if(a===&#x27;tool&#x27;){t.launch.tool=b.dataset.tool;state.lastTool=b.dataset.tool;renderTerminal();setupIcons();persist();return}
+if(a===&#x27;select-checkout&#x27;){w.draft.mode=&#x27;local&#x27;;w.draft.checkoutId=b.dataset.id;w.error=&#x27;&#x27;;render();persist();return}
+if(a===&#x27;source-ref&#x27;){w.draft.ref=b.dataset.ref;render();persist();return}
+if(a===&#x27;done-branch&#x27;){find(&#x27;.branch-options&#x27;).open=false;persist();return}
+if(a===&#x27;folder-once&#x27;){selectProject(&#x27;&#x27;);return openDialog(&#x27;folder&#x27;,{path:&#x27;~&#x27;})}
+if(a===&#x27;home-folder&#x27;){w.draft.path=&#x27;~&#x27;;render();persist();return}
+if(a===&#x27;launch&#x27;||a===&#x27;retry-launch&#x27;){dialog=null;return launch()}
+if(a===&#x27;fallback-shell&#x27;){t.launch.tool=&#x27;shell&#x27;;return launch()}
+if(a===&#x27;select-tab&#x27;){if(w.activeTab===b.dataset.id)return;capture();w.activeTab=b.dataset.id;render();persist();return}
+if(a===&#x27;close-tab&#x27;)return closeTab(b.dataset.id||t.id);
+if(a===&#x27;tab-menu&#x27;){if(b.dataset.id)w.activeTab=b.dataset.id;return openDialog(&#x27;tab-menu&#x27;)}
+if(a===&#x27;split-terminal&#x27;){dialog=null;return createTab(&#x27;shell&#x27;,true)}
+if(a===&#x27;unsplit&#x27;){w.split=null;dialog=null;render();persist();return}
+if(a===&#x27;end-session&#x27;){t.status=&#x27;ended&#x27;;t.job=false;t.remote=false;dialog=null;render();persist();return}
+if(a===&#x27;restart-session&#x27;){t.status=&#x27;running&#x27;;t.error=&#x27;&#x27;;t.job=false;dialog=null;t.messages.push(&#x27;Session restarted.&#x27;);render();persist();return}
+if(a===&#x27;resume-session&#x27;){return resumeSession(w.tabs.find(t=&gt;t.id===b.dataset.id)||t)}
+if(a===&#x27;resume-choice&#x27;){const item=w.tabs.find(t=&gt;t.id===b.dataset.id)||t;if(item.picker===&#x27;cloud&#x27;){if(w.tabs.some(other=&gt;other.id!==item.id&amp;&amp;running(other))){item.messages.push(&#x27;Another agent uses this checkout. Open a clean worktree for the cloud handoff.&#x27;);item.picker=null;render();return}checkout().branch=&#x27;feature/cloud&#x27;;item.messages.push(&#x27;Cloud handoff complete. This is a local copy of the saved conversation and code; the cloud process was not attached.&#x27;);item.continuity=&#x27;cloud&#x27;;item.history=true;item.resumed=true;item.picker=null;render();persist();return}const selected=sessionChoices(item).find(s=&gt;s.id===b.dataset.session);if(!selected)return;if(normalize(selected.path)!==normalize(pathOf(w))){item.resumeTarget=selected.id;render();return}finishResume(item,selected);return}
+if(a===&#x27;resume-in-folder&#x27;)return resumeInFolder(w.tabs.find(t=&gt;t.id===b.dataset.id)||t);
+if(a===&#x27;resume-back&#x27;){t.resumeTarget=null;render();return}
+if(a===&#x27;quick-terminal&#x27;)return quickTerminal();
+if(a===&#x27;retry-save&#x27;){persist();return}
+if(a===&#x27;cancel-picker&#x27;){(w.tabs.find(t=&gt;t.id===b.dataset.id)||t).picker=null;render();return}
+if(a===&#x27;open-cwd&#x27;){const item=w.tabs.find(t=&gt;t.id===b.dataset.id)||t;return createWorkspace({path:item.cwd})}
+if(a===&#x27;change-folder&#x27;)return openDialog(&#x27;folder&#x27;,{path:w.draft.path});
+if(a===&#x27;locate-folder&#x27;)return openDialog(&#x27;folder&#x27;,{path:checkout().path,locate:true});
+if(a===&#x27;save-folder&#x27;){if(!checkedPath(dialog.path||&#x27;&#x27;)){dialog.error=&#x27;Enter a path beginning with / or ~/&#x27;;return renderDialog()}if(dialog.locate){const old=checkout().path;checkout().path=normalize(dialog.path);checkout().available=true;w.tabs.forEach(t=&gt;{if(t.cwd===old)t.cwd=checkout().path})}else w.draft.path=normalize(dialog.path);dialog=null;render();persist();return}
+if(a===&#x27;new-project&#x27;)return openDialog(&#x27;add-picker&#x27;);
+if(a===&#x27;add-project&#x27;){return openDialog(&#x27;project&#x27;,{projectKind:b.dataset.kind})}
+if(a===&#x27;submit-project&#x27;)return submitProject();
+if(a===&#x27;cancel-operation&#x27;)return cancelOperation();
+if(a===&#x27;retry-fetch&#x27;||a===&#x27;cached-ref&#x27;){dialog=null;return launch(t,w,{cached:a===&#x27;cached-ref&#x27;})}
+if(a===&#x27;use-existing&#x27;){const d=dialog,source=state.workspaces.find(w=&gt;w.id===d.source);state.activeId=d.target.id;const nt=newTabData(uid(&#x27;t&#x27;),d.launch.tool);nt.launch=d.launch;d.target.tabs.push(nt);d.target.activeTab=nt.id;dialog=null;if(source&amp;&amp;source.tabs.every(t=&gt;!t.tool&amp;&amp;!t.draft&amp;&amp;!t.launch.prompt))state.workspaces=state.workspaces.filter(w=&gt;w.id!==source.id);return launch(nt,d.target)}
+if(a===&#x27;open-existing-checkout&#x27;){const target=dialog.target;dialog=null;w.draft.mode=&#x27;local&#x27;;w.draft.checkoutId=target.id;render();return launch()}
+if(a===&#x27;new-branch-instead&#x27;){dialog=null;w.draft.branch=&#x27;&#x27;;w.draft.branchMode=&#x27;new&#x27;;render();persist();return}
+if(a===&#x27;project-menu&#x27;||a===&#x27;workspace-menu&#x27;)return openDialog(a,{id:b.dataset.id});
+if(a===&#x27;new-project-workspace&#x27;){const id=b.dataset.id??dialog?.id;createWorkspace();if(id)selectProject(id);return}
+if(a===&#x27;close-workspace&#x27;)return removeWorkspace(b.dataset.id);
+if(a===&#x27;remove-project&#x27;){const id=dialog.id,p=project(id),count=state.workspaces.filter(w=&gt;checkout(w)?.projectId===id||w.draft?.projectId===id).length;return confirmAction(&#x27;Remove &#x27;+p.name+&#x27;?&#x27;,`${count} workspace(s) will move to No project. Their sessions and files remain.`,&#x27;Remove project&#x27;,()=&gt;{state.projects=state.projects.filter(p=&gt;p.id!==id);state.checkouts.filter(c=&gt;c.projectId===id).forEach(c=&gt;c.projectId=null);state.workspaces.filter(w=&gt;w.draft?.projectId===id).forEach(w=&gt;{w.draft.projectId=null;w.draft.mode=&#x27;local&#x27;});dialog=null;render();persist()})}
+if(a===&#x27;remove-workspace&#x27;)return removeWorkspace(dialog.id);
+if(a===&#x27;delete-worktree&#x27;){const target=state.workspaces.find(w=&gt;w.id===dialog.id),co=checkout(target);if(target.tabs.some(running)||co.dirty||co.unmerged)return openDialog(&#x27;blocked-delete&#x27;,{message:target.tabs.some(running)?&#x27;A session is running in this worktree. End it before deleting.&#x27;:&#x27;This worktree contains uncommitted files or unmerged commits.&#x27;});return confirmAction(&#x27;Delete worktree?&#x27;,`Remove sample folder ${co.path}. Keep branch ${co.branch}.`,&#x27;Delete worktree&#x27;,()=&gt;{state.checkouts=state.checkouts.filter(c=&gt;c.id!==co.id);target.tabs.forEach(t=&gt;t.status=&#x27;ended&#x27;);removeWorkspace(target.id)})}
+if(a===&#x27;rename-tab&#x27;||a===&#x27;rename-workspace&#x27;){const target=a===&#x27;rename-tab&#x27;?&#x27;tab&#x27;:&#x27;workspace&#x27;,id=target===&#x27;workspace&#x27;?dialog.id:t.id,name=target===&#x27;tab&#x27;?t.title||labels[t.tool]:state.workspaces.find(w=&gt;w.id===id).name;return openDialog(&#x27;rename&#x27;,{target,id,name})}
+if(a===&#x27;save-name&#x27;){const name=dialog.name?.trim();if(!name)return;const d=dialog;if(d.target===&#x27;tab&#x27;)w.tabs.find(t=&gt;t.id===d.id).title=name;else state.workspaces.find(w=&gt;w.id===d.id).name=name;dialog=null;render();persist();return}
+if(a===&#x27;confirm&#x27;){const run=dialog.run;dialog=null;return run()}
+if(a===&#x27;close-panel&#x27;){if(operation)return;return closeDialog()}
+if(a===&#x27;toggle-projects&#x27;){capture();state.ui.nav=!state.ui.nav;render();persist();return}
+if(a===&#x27;toggle-files&#x27;){capture();state.ui.side=!state.ui.side;render();persist();return}
+if(a===&#x27;side-tab&#x27;){v.sideTab=b.dataset.side;v.query=&#x27;&#x27;;renderFiles();setupIcons();persist();return}
+if(a===&#x27;fold&#x27;){const group=b.dataset.group;v.folded=v.folded.includes(group)?v.folded.filter(g=&gt;g!==group):[...v.folded,group];renderFiles();setupIcons();persist();return}
+if(a===&#x27;file&#x27;){capture();v.fileId=b.dataset.id;v.fileView=v.sideTab===&#x27;files&#x27;;v.diffOpen=true;v.maxDiff=false;v.diffScroll=0;if(root.clientWidth&lt;=800)state.ui.side=false;render();persist();return}
+if(a===&#x27;close-diff&#x27;){capture();v.diffOpen=false;v.maxDiff=false;render();persist();return}
+if(a===&#x27;maximize-diff&#x27;){capture();v.maxDiff=!v.maxDiff;render();persist();return}
+if(a===&#x27;diff-mode&#x27;){v.diffMode=b.dataset.mode;renderDiff();setupIcons();persist();return}
+if(a===&#x27;context&#x27;){v.context=!v.context;renderDiff();setupIcons();return}
+if(a===&#x27;external-editor&#x27;)return openDialog(&#x27;info&#x27;,{title:&#x27;Open in editor&#x27;,message:&#x27;In the native app, this opens the selected file in your editor. This prototype does not launch external applications.&#x27;});
+if(a===&#x27;resize-pane&#x27;){v.width=v.width&gt;=65?38:v.width+8;render();persist();return}
+if(a===&#x27;search&#x27;)return openDialog(&#x27;search&#x27;);
+if(a===&#x27;settings&#x27;)return openDialog(&#x27;settings&#x27;);
+if(a===&#x27;apply-scenario&#x27;)return applyScenario(find(&#x27;#scenario-choice&#x27;).value);
+if(a===&#x27;reset-demo&#x27;)return confirmAction(&#x27;Reset sample data?&#x27;,&#x27;Reset prototype projects, workspaces, and drafts. No real files are affected.&#x27;,&#x27;Reset sample data&#x27;,()=&gt;{state=initialState();saveBlocked=false;dialog=null;render();persist()});
+if(a===&#x27;quit-end&#x27;||a===&#x27;quit-keep&#x27;){const keep=a===&#x27;quit-keep&#x27;;if(!keep)state.workspaces.forEach(w=&gt;w.tabs.forEach(t=&gt;{if(t.tool){t.status=&#x27;ended&#x27;;t.job=false;t.remote=false}}));dialog={kind:&#x27;closed&#x27;,background:keep};render();persist();return}
+if(a===&#x27;reopen-app&#x27;){state.workspaces.forEach(w=&gt;w.tabs.forEach(t=&gt;{if(t.status===&#x27;running&#x27;)t.continuity=&#x27;reconnect&#x27;}));dialog=null;render();notify(&#x27;Prototype reopened. &#x27;+(state.workspaces.some(w=&gt;w.tabs.some(running))?&#x27;Reattached to simulated running sessions.&#x27;:&#x27;Ended sessions can be restarted or resumed.&#x27;));persist();return}
+});
+root.addEventListener(&#x27;input&#x27;,e=&gt;{const el=e.target,w=workspace(),t=tab();if(el.dataset.inputTab){const item=w.tabs.find(t=&gt;t.id===el.dataset.inputTab);item.draft=el.value;persist();return}if(el.dataset.form){if(dialog?.kind===&#x27;project&#x27;)state.forms[dialog.projectKind][el.dataset.form]=el.type===&#x27;checkbox&#x27;?el.checked:el.value;else if(dialog)dialog[el.dataset.form]=el.value;persist();return}switch(el.dataset.field){case&#x27;project-search&#x27;:w.draft.query=el.value;find(&#x27;#project-picker-results&#x27;).innerHTML=projectChoices(el.value);setupIcons();break;case&#x27;branch&#x27;:w.draft.branch=el.value;if(find(&#x27;#branch-caption&#x27;))find(&#x27;#branch-caption&#x27;).textContent=el.value||&#x27;Automatic&#x27;;break;case&#x27;prompt&#x27;:t.launch.prompt=el.value;find(&#x27;.composer-launch&#x27;).setAttribute(&#x27;aria-label&#x27;,launchLabel(t));find(&#x27;.composer-launch&#x27;).dataset.tooltip=launchLabel(t);fitPrompt(el);break;case&#x27;workspace-search&#x27;:find(&#x27;#search-results&#x27;).innerHTML=searchRows(el.value);break;case&#x27;file-search&#x27;:view().query=el.value;find(&#x27;.file-tree&#x27;).innerHTML=view().sideTab===&#x27;changes&#x27;&amp;&amp;!checkout()?.git?&#x27;&lt;p class=&quot;empty-files&quot;&gt;This folder has no Git repository.&lt;/p&gt;&#x27;:fileRows(filteredFiles(),view().sideTab===&#x27;changes&#x27;);setupIcons();break}persist()});
+root.addEventListener(&#x27;change&#x27;,e=&gt;{const el=e.target,d=workspace().draft,v=view();if(el.dataset.setting){state.ui[el.dataset.setting]=el.dataset.setting===&#x27;font&#x27;?Number(el.value):el.value;root.style.colorScheme=state.ui.theme;root.style.setProperty(&#x27;--terminal-size&#x27;,state.ui.font+&#x27;px&#x27;);persist();return}if(el.dataset.form){if(dialog?.kind===&#x27;project&#x27;)state.forms[dialog.projectKind][el.dataset.form]=el.type===&#x27;checkbox&#x27;?el.checked:el.value;return}switch(el.dataset.field){case&#x27;checkout&#x27;:d.checkoutId=el.value;break;case&#x27;ref&#x27;:d.ref=el.value;break;case&#x27;branch&#x27;:d.branch=el.value;if(d.branchMode===&#x27;existing&#x27;)d.ref=el.value;break;case&#x27;branch-mode&#x27;:d.branchMode=el.value;d.branch=el.value===&#x27;existing&#x27;?(project(d.projectId).refs.find(r=&gt;r!==&#x27;HEAD&#x27;&amp;&amp;!r.startsWith(&#x27;origin/&#x27;))||&#x27;&#x27;):&#x27;&#x27;;if(d.branchMode===&#x27;existing&#x27;)d.ref=d.branch;break;case&#x27;change-scope&#x27;:v.scope=el.value;break;case&#x27;compare&#x27;:v.compare=el.value;break;default:return}const branchOpen=!!find(&#x27;.branch-options[open]&#x27;);render();if(branchOpen&amp;&amp;find(&#x27;.branch-options&#x27;))find(&#x27;.branch-options&#x27;).open=true;persist()});
+root.addEventListener(&#x27;focusin&#x27;,e=&gt;{const container=e.target.closest(&#x27;[data-terminal]&#x27;);if(container&amp;&amp;workspace().activeTab!==container.dataset.terminal){const w=workspace(),previous=w.activeTab;w.activeTab=container.dataset.terminal;w.split=previous;renderTabs();setupIcons()}});
+root.addEventListener(&#x27;keydown&#x27;,e=&gt;{const key=e.key.toLowerCase();if(!dialog&amp;&amp;((e.shiftKey&amp;&amp;e.key===&#x27;F10&#x27;)||e.key===&#x27;ContextMenu&#x27;)){if(sidebarContext(e.target))e.preventDefault();return}if(dialog){if(e.key===&#x27;Escape&#x27;){e.preventDefault();if(operation)cancelOperation();else if(dialog.kind!==&#x27;closed&#x27;)closeDialog();return}if(dialog.kind.endsWith(&#x27;menu&#x27;)&amp;&amp;[&#x27;ArrowDown&#x27;,&#x27;ArrowUp&#x27;,&#x27;Home&#x27;,&#x27;End&#x27;].includes(e.key)){const nodes=all(&#x27;.context-dialog&gt;button:not([disabled])&#x27;),index=nodes.indexOf(document.activeElement);e.preventDefault();nodes[e.key===&#x27;Home&#x27;?0:e.key===&#x27;End&#x27;?nodes.length-1:(index+(e.key===&#x27;ArrowDown&#x27;?1:-1)+nodes.length)%nodes.length]?.focus();return}if(e.key===&#x27;Tab&#x27;){const nodes=all(&#x27;.dialog button:not([disabled]),.dialog input,.dialog textarea,.dialog select,.dialog summary&#x27;).filter(n=&gt;n.getClientRects().length);if(nodes.length&amp;&amp;e.shiftKey&amp;&amp;document.activeElement===nodes[0]){e.preventDefault();nodes.at(-1).focus()}else if(nodes.length&amp;&amp;!e.shiftKey&amp;&amp;document.activeElement===nodes.at(-1)){e.preventDefault();nodes[0].focus()}return}if(e.key===&#x27;Enter&#x27;&amp;&amp;e.target.tagName===&#x27;INPUT&#x27;){e.preventDefault();const action={project:&#x27;submit-project&#x27;,folder:&#x27;save-folder&#x27;,rename:&#x27;save-name&#x27;}[dialog.kind];if(action)find(`[data-action=&quot;${action}&quot;]`)?.click();return}return}
+if((e.metaKey||e.ctrlKey)&amp;&amp;e.key===&#x27;Enter&#x27;&amp;&amp;!tab().tool){e.preventDefault();return launch()}
+if(e.metaKey||e.ctrlKey){if([&#x27;n&#x27;,&#x27;t&#x27;,&#x27;w&#x27;,&#x27;k&#x27;].includes(key)){e.preventDefault();if(key===&#x27;n&#x27;)createWorkspace();if(key===&#x27;t&#x27;)quickTerminal();if(key===&#x27;w&#x27;)closeTab(tab().id);if(key===&#x27;k&#x27;)openDialog(&#x27;search&#x27;);return}if(key===&#x27;c&#x27;&amp;&amp;e.target.dataset.inputTab&amp;&amp;tab().job){e.preventDefault();tab().job=false;tab().messages.push(&#x27;Sample job interrupted.&#x27;);render();persist();return}}
+if(e.key===&#x27;Escape&#x27;){all(&#x27;.composer-start details[open]&#x27;).forEach(d=&gt;{d.open=false;d.querySelector(&#x27;summary&#x27;).focus()});return}
+if(e.key===&#x27;Enter&#x27;&amp;&amp;!e.shiftKey&amp;&amp;e.target.dataset.inputTab){e.preventDefault();return submitTerminal(workspace().tabs.find(t=&gt;t.id===e.target.dataset.inputTab))}if(e.key===&#x27;Enter&#x27;&amp;&amp;e.target.dataset.field===&#x27;project-search&#x27;){e.preventDefault();const first=find(&#x27;#project-picker-results [data-action=&quot;choose-project&quot;]&#x27;);first?.click();return}});
+const resizer=find(&#x27;#pane-resizer&#x27;);let dragged=false;
+resizer.addEventListener(&#x27;pointerdown&#x27;,e=&gt;{capture();dragged=false;resizer.setPointerCapture(e.pointerId)});
+resizer.addEventListener(&#x27;pointermove&#x27;,e=&gt;{if(!resizer.hasPointerCapture(e.pointerId))return;const bounds=find(&#x27;#core&#x27;).getBoundingClientRect();view().width=Math.min(70,Math.max(28,(e.clientX-bounds.left)/bounds.width*100));find(&#x27;#core&#x27;).style.gridTemplateColumns=`minmax(0,${view().width}%) 6px minmax(0,1fr)`;dragged=true});
+resizer.addEventListener(&#x27;pointerup&#x27;,e=&gt;{if(resizer.hasPointerCapture(e.pointerId))resizer.releasePointerCapture(e.pointerId);persist()});resizer.addEventListener(&#x27;click&#x27;,e=&gt;{if(dragged){e.stopPropagation();dragged=false}});
+let wasWide=root.clientWidth&gt;800,wasCompact=root.clientWidth&lt;600;new ResizeObserver(()=&gt;{const wide=root.clientWidth&gt;800,compact=root.clientWidth&lt;600;if(wide!==wasWide){wasWide=wide;capture();state.ui.nav=wide;if(!wide)state.ui.side=false;render()}else if(compact!==wasCompact){renderDiff();setupIcons()}wasCompact=compact}).observe(root);
+restore(window.openai?.widgetState?.privateContent);render();
+window.addEventListener(&#x27;openai:set_globals&#x27;,e=&gt;{const s=e.detail?.globals?.widgetState?.privateContent;if(!validSnapshot(s)||(s.revision||0)&lt;=(state.revision||0)||operation||dialog||root.contains(document.activeElement))return;restoring=true;restore(s);render();restoring=false});
+})();
+
+&lt;/script&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerdown&quot;, handlePointer);
+    document.removeEventListener(&quot;pointercancel&quot;, handlePointer);
+    document.removeEventListener(&quot;click&quot;, handleTouchClick);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerdown&quot;, handlePointer);
+  document.addEventListener(&quot;pointercancel&quot;, handlePointer);
+  document.addEventListener(&quot;click&quot;, handleTouchClick);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+<script>(() => {
+  const frame = document.getElementById("codex-visualization");
+  if (!(frame instanceof HTMLIFrameElement)) {
+    return;
+  }
+  let viewportHeight = globalThis.innerHeight;
+  const storageKey = `codex:visualization-widget-state-v2:${JSON.stringify([
+    globalThis.location.pathname,
+    globalThis.location.search,
+  ])}`;
+  const parseState = (serializedState) => {
+    if (
+      typeof serializedState !== "string" ||
+      new TextEncoder().encode(serializedState).length > 16 * 1024
+    ) {
+      throw new TypeError(
+        "Widget state must be a JSON object of at most 16 KiB",
+      );
+    }
+    /** @type {unknown} */
+    const state = JSON.parse(serializedState);
+    if (
+      state == null ||
+      typeof state !== "object" ||
+      Array.isArray(state) ||
+      ("imageIds" in state &&
+        (!Array.isArray(state.imageIds) || state.imageIds.length > 0))
+    ) {
+      throw new TypeError("Widget state must be a JSON object");
+    }
+    const storedState = { modelContent: null, privateContent: null, ...state };
+    const canonicalState = JSON.stringify(
+      storedState,
+      (_key, /** @type {unknown} */ value) => {
+        if (typeof value === "number" && !Number.isFinite(value)) {
+          throw new TypeError("Widget state must contain finite numbers");
+        }
+        return value;
+      },
+    );
+    if (new TextEncoder().encode(canonicalState).length > 16 * 1024) {
+      throw new TypeError(
+        "Widget state must be a JSON object of at most 16 KiB",
+      );
+    }
+    return storedState;
+  };
+  let storage = null;
+  let state = null;
+  try {
+    const localStorage = globalThis.localStorage;
+    const probeKey = `${storageKey}:probe`;
+    localStorage.setItem(probeKey, "1");
+    localStorage.removeItem(probeKey);
+    storage = localStorage;
+    const savedState = storage.getItem(storageKey);
+    if (savedState != null) {
+      try {
+        state = parseState(savedState);
+      } catch {
+        // Invalid saved state does not disable future writes.
+      }
+    }
+  } catch {
+    storage = null;
+  }
+  const initialGlobals = {
+    widgetState: state,
+    statePersistence: storage == null ? "none" : "local",
+  };
+
+  const channel = new MessageChannel();
+  channel.port1.addEventListener("message", (event) => {
+    const data = event.data;
+    if (typeof data !== "object" || data == null) {
+      return;
+    }
+    if (data.type === "widget-state-write") {
+      if (!Number.isSafeInteger(data.id) || data.id <= 0) {
+        return;
+      }
+      let ok = false;
+      try {
+        if (storage != null) {
+          const state = parseState(data.state);
+          storage.setItem(storageKey, JSON.stringify(state));
+          ok = true;
+        }
+      } catch {
+        // Storage denial, quota limits, and invalid state return a failed receipt.
+      }
+      channel.port1.postMessage({
+        type: "widget-state-result",
+        id: data.id,
+        ok,
+      });
+      return;
+    }
+    if (data.type === "height") {
+      const height = data.height;
+      if (
+        typeof height === "number" &&
+        Number.isFinite(height) &&
+        height >= 0 &&
+        height <= 10_000
+      ) {
+        frame.style.height = Math.ceil(height) + "px";
+      }
+      return;
+    }
+    if (data.type === "scroll-to") {
+      const top = data.top;
+      if (
+        typeof top === "number" &&
+        Number.isFinite(top) &&
+        top >= 0 &&
+        globalThis.navigator.userActivation?.isActive === true
+      ) {
+        globalThis.scrollTo({
+          top: Math.ceil(
+            globalThis.scrollY + frame.getBoundingClientRect().top + top,
+          ),
+        });
+      }
+      return;
+    }
+    if (data.type === "open-external") {
+      const rawHref = data.href;
+      if (typeof rawHref !== "string") {
+        return;
+      }
+      let href;
+      try {
+        const url = new URL(rawHref, document.baseURI);
+        if (url.protocol !== "https:") {
+          return;
+        }
+        href = url.href;
+      } catch {
+        return;
+      }
+      if (globalThis.navigator.userActivation?.isActive === true) {
+        const anchor = document.createElement("a");
+        anchor.href = href;
+        anchor.rel = "noopener noreferrer";
+        anchor.target = "_blank";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      }
+      return;
+    }
+    if (data.type === "follow-up") {
+      const prompt = data.prompt;
+      if (
+        typeof prompt !== "string" ||
+        globalThis.navigator.userActivation?.isActive !== true
+      ) {
+        return;
+      }
+      const title = data.title;
+      globalThis.prompt(typeof title === "string" ? title : prompt, prompt);
+    }
+  });
+  channel.port1.start();
+  const srcdoc = frame.dataset.srcdoc;
+  if (srcdoc == null) {
+    return;
+  }
+  globalThis.addEventListener("resize", () => {
+    const height = Number.parseFloat(frame.style.height);
+    if (!Number.isFinite(height) || height <= viewportHeight) {
+      frame.style.removeProperty("height");
+    }
+    viewportHeight = globalThis.innerHeight;
+    channel.port1.postMessage({ type: "measure" });
+  });
+  frame.addEventListener(
+    "load",
+    () => {
+      frame.contentWindow?.postMessage(
+        { type: "codex-visualization-initialize" },
+        "*",
+        [channel.port2],
+      );
+    },
+    { once: true },
+  );
+  // Match the trusted bootstrap element, not the same text in an authored title.
+  frame.srcdoc = srcdoc.replace(
+    '<script type="application/json" id="codex-visualization-widget-state">__CODEX_VISUALIZATION_WIDGET_STATE__<\/script>',
+    () =>
+      '<script type="application/json" id="codex-visualization-widget-state">' +
+      JSON.stringify(initialGlobals).replaceAll("<", "\\u003c") +
+      "<\/script>",
+  );
+  delete frame.dataset.srcdoc;
+})();
+</script>
+</body>
+</html>

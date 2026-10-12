@@ -1,0 +1,7 @@
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Public Ed25519 verification key, never the private signing key"
+regexTarget = "secret"
+regexes = ['''^ylm2I0pE6SXlhv5FNRJrmSRS4/doVTy4h2NyeNPUxIQ=$''']

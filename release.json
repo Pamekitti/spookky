@@ -1,0 +1,10 @@
+{
+  "version": "0.1.0",
+  "build": 100,
+  "channel": "preview",
+  "minimumOS": "14.0",
+  "architecture": "arm64",
+  "bundleID": "dev.spookky.app",
+  "feedURL": "https://pamekitti.github.io/spookky/appcast.xml",
+  "publicEDKey": "ylm2I0pE6SXlhv5FNRJrmSRS4/doVTy4h2NyeNPUxIQ="
+}

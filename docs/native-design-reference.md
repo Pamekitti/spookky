@@ -1,0 +1,48 @@
+# Native control specification
+
+Spookky's native controls follow the geometry and interaction rules below. The launch, ownership, and recovery flows remain defined by [the product contract](product.md) and [flows](flows.md).
+
+## Components
+
+| Component | Geometry | Behavior |
+| --- | --- | --- |
+| Sidebar | 232-point column, 58-point rail, 8-point outer selection inset | Keeps project and workspace navigation compact |
+| Project row | 28 points, 16-point icon slot, separate 28-point add action | Uses SF Symbols and text monograms; add remains visible |
+| Workspace row | 46 points, one 28-point title line and secondary metadata | Shows checkout and session context; close remains visible |
+| Tab | 40-point strip, muted inactive title, one selection/hover fill, 24-point close width | Full-height native tabs use a trailing separator; independent terminal sessions remain intact |
+| Composer | 560-point maximum width, 80-point minimum prompt, 13-point card radius | Prompt is optional; Terminal collapses the input; provider and launch action share one card |
+| Files/Changes | 40-point header, two quiet named buttons, 28-point file rows | Provides file and change inspection within the workspace scope |
+| Preview | 40-point header, 28-point utility targets, muted notices, explicit diff signs | Read-only native selection/copy and Spookky's existing limit states remain intact |
+| Menus and dialogs | Native NSMenu, NSAlert, and folder picker; shared type, path, warning, and destination styling | Uses macOS placement, focus, cancellation, and platform metrics |
+
+Spookky uses 14-point SF Symbols in a 16-point slot. Symbols retain their natural proportions. Compact buttons use 28-point targets and 8-point corner radii. The 24-point tab close target remains the only smaller utility target. Filled buttons have primary, secondary, and destructive roles; quiet controls draw only their interaction or selection state.
+
+Dark hover and selection washes use the foreground at 7% and 10% opacity. Light washes use 4% and 6%. They composite over the current surface instead of using a separate opaque gray for every component. Light OKLCH reference values are converted to fixed sRGB values at development time. There is no runtime color-conversion dependency.
+
+Metadata uses an independently tuned native pair, `#9a9795` and `#605e5d`, to retain at least 4.5:1 contrast over both ordinary and selected sidebar rows. Inactive tabs and Files/Changes labels use the secondary foreground. Preview actions stay aligned to the right edge.
+
+Native keyboard focus keeps the macOS focus indicator. Disabled controls remain visible at 45% opacity and do not gain a hover fill. Error text uses the warning role and keeps its recovery action nearby. Destructive confirmations retain native dialog semantics.
+
+## Review requirements
+
+Compare blank Home, agent composer, selected project, worktree controls, terminals, splits, Files, both diff layouts, dialogs, menus, and recovery states at 1440×900, 1120×760, and 650×450 in both themes. Check icon optical weight, row alignment, padding, truncation, selected states, keyboard focus, and cancellation. Use disposable runtime/data roots and plain-language fixtures. Preserve the previous screenshot baseline.
+
+The pass must preserve Cmd+N → Cmd+T, typed drafts, checkout scope, process identity, and terminal focus. Build and test evidence does not establish physical typing, IME composition, spoken VoiceOver, provider responses, or extended continuity. Those checks keep their existing pending status.
+
+The completed native pass and measured build boundaries are recorded in [current status](status.md).
+
+The interface specification records the final native table margins and row hierarchy. Its explicit geometry supersedes the initial row inset mapping.
+
+## Chrome and syntax follow-up
+
+The native interface uses the fixed header, centered rail, declared shortcuts, and native code colors defined in the interface specification. Syntax roles reference the pinned CodeMirror highlighting mapping and Ember terminal colors. Native light-theme values are tuned independently for contrast. HighlighterSwift supplies language definitions.
+
+The range adapter and its upstream dependency notices are recorded in [dependency provenance](../THIRD_PARTY.md). Shared AppKit controls implement Spookky's sidebar and tab strip.
+
+## Component finish pass
+
+The native interface includes an expanding composer, labeled worktree fields, full-height tabs, inline rename, project monograms, lifecycle indicators and compact preview overflow. Native file categories replace generic document icons. Code retains its native selection and fixed gutters, with 18-point rows and explicit comparison captions.
+
+Native controls, generated text monograms and SF Symbols implement these roles.
+
+Verification boundaries are recorded in [current status](status.md).

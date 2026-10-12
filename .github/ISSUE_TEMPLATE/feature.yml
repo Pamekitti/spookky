@@ -1,0 +1,19 @@
+name: Feature proposal
+description: Describe a user need and the smallest useful change.
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What are you trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: interaction
+    attributes:
+      label: Smallest useful interaction
+    validations:
+      required: true
+  - type: textarea
+    id: cost
+    attributes:
+      label: Resource, state, or compatibility costs

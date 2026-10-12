@@ -1,0 +1,62 @@
+name: Checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  source:
+    name: Source and website
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - run: python3 scripts/check_repo.py
+      - run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - run: python3 scripts/check_public.py --history
+      - run: npm ci && npx playwright install --with-deps chromium && npm test
+        working-directory: website
+  native:
+    name: Swift and native builds (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            developer: /Applications/Xcode_26.3.0.app/Contents/Developer
+          - os: macos-26
+            developer: /Applications/Xcode_26.6.0.app/Contents/Developer
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: ${{ matrix.developer }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - run: brew install cmake pkgconf
+      - run: python3 scripts/build_runtime.py
+      - run: swift build --product spookky-launch && swift build --product spookky-runtime-check && swift test
+      - if: matrix.os == 'macos-26'
+        run: python3 scripts/build_ghostty.py
+      - if: matrix.os == 'macos-26'
+        run: sh scripts/build_native.sh Debug && sh scripts/build_native.sh Release
+      - if: matrix.os == 'macos-26'
+        run: python3 scripts/verify_bundle.py DerivedData/Build/Products/Release/Spookky.app
+      - name: Check public build metadata and packaging
+        if: matrix.os == 'macos-26'
+        run: |
+          xcodebuild -project Spookky.xcodeproj -scheme Spookky -configuration Distribution -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build
+          for executable in Spookky spookky-launch spookky-runtime-check tmux; do
+            strip -S "DerivedData/Build/Products/Distribution/Spookky.app/Contents/MacOS/$executable"
+          done
+          python3 scripts/verify_bundle.py DerivedData/Build/Products/Distribution/Spookky.app

@@ -1,0 +1,93 @@
+name: Prepare signed release
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag matching release.json'
+        required: true
+      notes:
+        description: 'Committed release notes path'
+        required: true
+permissions:
+  contents: write
+jobs:
+  prepare:
+    runs-on: macos-26
+    timeout-minutes: 90
+    environment: release
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.6.0.app/Contents/Developer
+      RELEASE_TAG: ${{ inputs.tag }}
+      RELEASE_NOTES: ${{ inputs.notes }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+      - name: Require main and configured credentials
+        env:
+          CERTIFICATE: ${{ secrets.DEVELOPER_ID_CERTIFICATE }}
+          KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/main
+          test -n "$CERTIFICATE"
+          test -n "$KEY"
+          test -f "$RELEASE_NOTES"
+          test "${RELEASE_NOTES#docs/releases/}" != "$RELEASE_NOTES"
+      - run: brew install cmake pkgconf
+      - run: python3 -m venv .cache/release-tools && .cache/release-tools/bin/pip install --require-hashes -r scripts/release-requirements.txt
+      - name: Configure temporary signing keychain
+        env:
+          CERTIFICATE: ${{ secrets.DEVELOPER_ID_CERTIFICATE }}
+          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          SPARKLE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.NOTARY_PASSWORD }}
+          TEAM: ${{ vars.APPLE_TEAM_ID }}
+        run: |
+          mkdir -p .cache/signing
+          python3 - <<'PY'
+          import base64, os
+          from pathlib import Path
+          certificate = Path('.cache/signing/certificate.p12')
+          certificate.write_bytes(base64.b64decode(os.environ['CERTIFICATE'], validate=True))
+          certificate.chmod(0o600)
+          key = Path('.cache/signing/update.key')
+          key.write_text(os.environ['SPARKLE_KEY'])
+          key.chmod(0o600)
+          PY
+          security create-keychain -p "$KEYCHAIN_PASSWORD" .cache/signing/release.keychain-db
+          security set-keychain-settings -lut 21600 .cache/signing/release.keychain-db
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" .cache/signing/release.keychain-db
+          security import .cache/signing/certificate.p12 -k .cache/signing/release.keychain-db -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" .cache/signing/release.keychain-db
+          security list-keychains -d user -s .cache/signing/release.keychain-db
+          security default-keychain -d user -s .cache/signing/release.keychain-db
+          xcrun notarytool store-credentials spookky-ci --apple-id "$APPLE_ID" --team-id "$TEAM" --password "$APPLE_PASSWORD" --keychain .cache/signing/release.keychain-db
+      - name: Build and check source
+        run: |
+          python3 scripts/build_runtime.py
+          swift build --product spookky-launch
+          swift build --product spookky-runtime-check
+          swift test
+          python3 -m unittest discover -s scripts -p 'test_*.py'
+          python3 scripts/build_ghostty.py
+          sh scripts/build_native.sh Release
+      - name: Prepare signed artifacts
+        env:
+          IDENTITY: ${{ vars.DEVELOPER_ID_IDENTITY }}
+          TEAM: ${{ vars.APPLE_TEAM_ID }}
+          SPOOKKY_ED_KEY_FILE: .cache/signing/update.key
+        run: |
+          tools=$(find DerivedData/SourcePackages/artifacts -path '*/bin/generate_appcast' -print -quit)
+          test -n "$tools"
+          .cache/release-tools/bin/python scripts/prepare_release.py --tag "$RELEASE_TAG" --identity "$IDENTITY" --team "$TEAM" --notary-profile spookky-ci --sparkle-tools "$(dirname "$tools")" --notes "$RELEASE_NOTES"
+      - name: Create draft release
+        run: |
+          gh release create "$RELEASE_TAG" --draft --target "$GITHUB_SHA" --title "Spookky ${RELEASE_TAG#v}" --notes-file "$RELEASE_NOTES" dist/release/*.dmg dist/release/SHA256SUMS dist/release/release-manifest.json dist/release/updates/appcast.xml dist/release/updates/*.md
+      - name: Remove signing material
+        if: always()
+        run: |
+          security delete-keychain .cache/signing/release.keychain-db || true
+          rm -rf .cache/signing

@@ -1,0 +1,9 @@
+Spookky dependency sources
+
+The unmodified z2d 0.10.0 component is available under MPL 2.0 at:
+https://github.com/vancluever/z2d/archive/refs/tags/v0.10.0.tar.gz
+
+Ghostty source and its exact dependency URLs/hashes are recorded in:
+https://github.com/Pamekitti/spookky/blob/main/Dependencies/notice-inventory.json
+
+FreeType is distributed under the FreeType License. This software uses the FreeType Project (https://freetype.org).

@@ -1,0 +1,183 @@
+import AppKit
+import Sparkle
+import SpookkyCore
+
+@MainActor enum InstallationLocation {
+    static var canRun: Bool {
+        let path = Bundle.main.bundleURL.standardizedFileURL.path
+        let userApps = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications").path + "/"
+        return (path.hasPrefix("/Applications/") || path.hasPrefix(userApps)) && FileManager.default.isWritableFile(atPath: path)
+    }
+
+    static func showGuidance() {
+        let alert = NSAlert()
+        alert.messageText = "Move Spookky to Applications"
+        alert.informativeText = "Drag Spookky into Applications, then open it there. This lets Spookky save your work and install updates."
+        alert.addButton(withTitle: "Show in Finder")
+        alert.addButton(withTitle: "Quit")
+        if alert.runModal() == .alertFirstButtonReturn { NSWorkspace.shared.activateFileViewerSelecting([Bundle.main.bundleURL]) }
+    }
+}
+
+@MainActor final class AppServices: NSObject, SPUUpdaterDelegate {
+    private var controller: SPUStandardUpdaterController?
+    private var settings: NSWindow?
+    private var updateChecks: NSButton?
+    private var updateDownloads: NSButton?
+    private var previewUpdates: NSButton?
+    private var licenses: NSWindow?
+    private var pendingInstall: (() -> Void)?
+    private var pendingInstallID: UUID?
+    private var preparing = false
+    private(set) var installingUpdate = false
+    var prepareForUpdate: (() async throws -> Void)?
+
+    override init() {
+        super.init()
+        let preview = Bundle.main.object(forInfoDictionaryKey: "SpookkyReleaseChannel") as? String == "preview"
+        UserDefaults.standard.register(defaults: ["receivePreviewUpdates": preview])
+        if Bundle.main.bundleIdentifier == "dev.spookky.app",
+           let key = Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String, !key.isEmpty {
+            controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: nil)
+        }
+    }
+
+    func populate(_ menu: NSMenu) {
+        let about = menu.addItem(withTitle: "About Spookky", action: #selector(showAbout), keyEquivalent: "")
+        about.target = self
+        let notices = menu.addItem(withTitle: "Licenses…", action: #selector(showLicenses), keyEquivalent: "")
+        notices.target = self
+        menu.addItem(.separator())
+        let preferences = menu.addItem(withTitle: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
+        preferences.target = self
+        let updates = menu.addItem(withTitle: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
+        updates.target = self
+        menu.addItem(.separator())
+    }
+
+    @objc(allowedSystemProfileKeysForUpdater:)
+    func allowedSystemProfileKeys(for updater: SPUUpdater) -> [String] { [] }
+
+    @objc(allowedChannelsForUpdater:)
+    func allowedChannels(for updater: SPUUpdater) -> Set<String> {
+        UserDefaults.standard.bool(forKey: "receivePreviewUpdates") ? ["preview"] : []
+    }
+
+    func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) { installingUpdate = true }
+
+    @objc(updater:shouldPostponeRelaunchForUpdate:untilInvokingBlock:)
+    func updater(_ updater: SPUUpdater, shouldPostponeRelaunchForUpdate item: SUAppcastItem,
+                 untilInvokingBlock installHandler: @escaping () -> Void) -> Bool {
+        pendingInstall = installHandler
+        pendingInstallID = UUID()
+        resumeInstallation()
+        return true
+    }
+
+    func updater(_ updater: SPUUpdater, willInstallUpdateOnQuit item: SUAppcastItem,
+                 immediateInstallationBlock immediateInstallHandler: @escaping () -> Void) -> Bool {
+        installingUpdate = true
+        return false
+    }
+
+    @objc(updater:didAbortWithError:)
+    func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
+        pendingInstall = nil
+        pendingInstallID = nil
+        installingUpdate = false
+    }
+
+    private func resumeInstallation() {
+        guard !preparing, let install = pendingInstall, let installID = pendingInstallID else { return }
+        preparing = true
+        Task {
+            defer { preparing = false }
+            do {
+                guard let prepareForUpdate else { throw LaunchError.invalid("Workspaces are still opening. Try the update again shortly.") }
+                try await prepareForUpdate()
+                guard pendingInstallID == installID else { return }
+                installingUpdate = true
+                pendingInstall = nil
+                pendingInstallID = nil
+                install()
+            } catch {
+                guard pendingInstallID == installID else { return }
+                let alert = NSAlert()
+                alert.messageText = "The update is waiting"
+                alert.informativeText = error.localizedDescription + "\nYour sessions will keep running when Spookky restarts."
+                alert.addButton(withTitle: "Later")
+                alert.addButton(withTitle: "Retry")
+                let result = alert.runModal()
+                if result == .alertSecondButtonReturn { Task { self.resumeInstallation() } }
+            }
+        }
+    }
+
+    @objc private func checkForUpdates(_ sender: Any?) {
+        if pendingInstall != nil { resumeInstallation() }
+        else if let controller { controller.checkForUpdates(sender) }
+        else {
+            let alert = NSAlert()
+            alert.messageText = "Updates are unavailable in this build"
+            alert.informativeText = "Install a signed public release to receive updates."
+            alert.runModal()
+        }
+    }
+
+    @objc private func showAbout() {
+        NSApp.orderFrontStandardAboutPanel(options: [
+            .applicationName: "Spookky",
+            .credits: NSAttributedString(string: "A native Mac workspace for terminals and coding agents.\nMIT license · Built on Ghostty.\nhttps://pamekitti.github.io/spookky/")
+        ])
+    }
+
+    @objc private func showSettings() {
+        if let settings { refreshSettings(); settings.makeKeyAndOrderFront(nil); return }
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 230), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.title = "Spookky Settings"; window.isReleasedWhenClosed = false
+        let checks = NSButton(checkboxWithTitle: "Check for updates automatically", target: self, action: #selector(changeChecks(_:)))
+        checks.state = controller?.updater.automaticallyChecksForUpdates == true ? .on : .off
+        checks.isEnabled = controller != nil
+        let downloads = NSButton(checkboxWithTitle: "Download updates automatically", target: self, action: #selector(changeDownloads(_:)))
+        downloads.state = controller?.updater.automaticallyDownloadsUpdates == true ? .on : .off
+        downloads.isEnabled = controller != nil
+        let previews = NSButton(checkboxWithTitle: "Include Preview releases", target: self, action: #selector(changePreviews(_:)))
+        previews.state = UserDefaults.standard.bool(forKey: "receivePreviewUpdates") ? .on : .off
+        previews.isEnabled = controller != nil
+        updateChecks = checks; updateDownloads = downloads; previewUpdates = previews
+        let detail = NSTextField(wrappingLabelWithString: controller == nil ? "Update settings are available in signed public releases." : "Updates check once a day while Spookky runs. Restarting keeps your terminal sessions running.")
+        detail.textColor = .secondaryLabelColor
+        let stack = NSStackView(views: [checks, downloads, previews, detail]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 14
+        stack.translatesAutoresizingMaskIntoConstraints = false; window.contentView!.addSubview(stack)
+        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: window.contentView!.leadingAnchor, constant: 24), stack.trailingAnchor.constraint(equalTo: window.contentView!.trailingAnchor, constant: -24), stack.topAnchor.constraint(equalTo: window.contentView!.topAnchor, constant: 24)])
+        settings = window; window.center(); window.makeKeyAndOrderFront(nil)
+    }
+    private func refreshSettings() {
+        updateChecks?.state = controller?.updater.automaticallyChecksForUpdates == true ? .on : .off
+        updateDownloads?.state = controller?.updater.automaticallyDownloadsUpdates == true ? .on : .off
+        previewUpdates?.state = UserDefaults.standard.bool(forKey: "receivePreviewUpdates") ? .on : .off
+    }
+    @objc private func changeChecks(_ sender: NSButton) { controller?.updater.automaticallyChecksForUpdates = sender.state == .on }
+    @objc private func changeDownloads(_ sender: NSButton) { controller?.updater.automaticallyDownloadsUpdates = sender.state == .on }
+    @objc private func changePreviews(_ sender: NSButton) {
+        UserDefaults.standard.set(sender.state == .on, forKey: "receivePreviewUpdates")
+        controller?.updater.resetUpdateCycle()
+    }
+
+    @objc private func showLicenses() {
+        if let licenses { licenses.makeKeyAndOrderFront(nil); return }
+        let directory = Bundle.main.resourceURL!.appendingPathComponent("licenses")
+        let urls = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+        let text = urls.sorted { $0.lastPathComponent < $1.lastPathComponent }.compactMap { url -> String? in
+            guard let value = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+            return url.lastPathComponent + "\n\n" + value
+        }.joined(separator: "\n\n________________________________\n\n")
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.title = "Spookky Licenses"; window.isReleasedWhenClosed = false
+        let scroll = NSScrollView(frame: window.contentView!.bounds); scroll.autoresizingMask = [.width, .height]; scroll.hasVerticalScroller = true
+        let view = NSTextView(frame: scroll.bounds); view.isEditable = false; view.string = text; view.font = .systemFont(ofSize: 12)
+        view.textContainerInset = NSSize(width: 20, height: 20); view.autoresizingMask = [.width]; view.isVerticallyResizable = true
+        view.textContainer?.widthTracksTextView = true; scroll.documentView = view; window.contentView!.addSubview(scroll)
+        licenses = window; window.center(); window.makeKeyAndOrderFront(nil)
+    }
+}
