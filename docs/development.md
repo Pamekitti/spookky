@@ -67,6 +67,8 @@ PR CI always runs source/Python checks and the public audit. Native changes add 
 
 After merge, main runs source checks only. It does not repeat native builds or browser tests. Dependency caches hold pinned tmux and Ghostty outputs, npm downloads, and Chromium. Keys include dependency recipes, architecture, and toolchain. Swift/Xcode build outputs and app state are not cached. Source jobs have a five-minute timeout; the native PR job has a 15-minute timeout. The actual warm native duration remains unmeasured.
 
+PR-created caches are isolated by GitHub. To share native dependencies across PRs, run **Checks → Run workflow → main** once to warm the default-branch caches. This manual run builds dependencies only. Repeat when dependency or toolchain cache keys change; ordinary main pushes never trigger it.
+
 The opt-in signed release workflow uses macOS 26 and prepares Distribution packaging. Extra build configurations and compatibility checks belong to release verification. Signed automatic delivery remains disabled while private local installers are in use.
 
 ```sh

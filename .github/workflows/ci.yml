@@ -3,6 +3,7 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
@@ -46,7 +47,7 @@ jobs:
   native15:
     name: Swift and native builds (macos-15)
     needs: source
-    if: github.event_name == 'pull_request' && needs.source.outputs.native == 'true'
+    if: (github.event_name == 'pull_request' && needs.source.outputs.native == 'true') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: macos-15
     timeout-minutes: 15
     env:
@@ -78,8 +79,11 @@ jobs:
           key: ghostty-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('Dependencies/manifest.json', 'scripts/build_ghostty.py', 'scripts/collect_notices.py', 'scripts/merge_macos_archives.py') }}
       - run: brew install cmake pkgconf
       - run: python3 scripts/build_runtime.py
-      - run: swift test
+      - if: github.event_name == 'pull_request'
+        run: swift test
       - if: steps.ghostty.outputs.cache-hit != 'true'
         run: python3 scripts/build_ghostty.py
-      - run: sh scripts/build_native.sh Release
-      - run: python3 scripts/verify_bundle.py DerivedData/Build/Products/Release/Spookky.app
+      - if: github.event_name == 'pull_request'
+        run: sh scripts/build_native.sh Release
+      - if: github.event_name == 'pull_request'
+        run: python3 scripts/verify_bundle.py DerivedData/Build/Products/Release/Spookky.app
