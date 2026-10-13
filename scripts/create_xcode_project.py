@@ -79,6 +79,8 @@ settings = {
     "SPOOKKY_UPDATE_FEED_URL": release["feedURL"],
     "SPOOKKY_UPDATE_PUBLIC_KEY": release["publicEDKey"],
     "SPOOKKY_RELEASE_CHANNEL": release["channel"],
+    "SPOOKKY_DISPLAY_NAME": "Spookky Dev",
+    "SPOOKKY_DEVELOPMENT_CHECKOUT": "$(SRCROOT)",
 }
 configs = []
 for name in ["Debug", "Release", "Distribution"]:
@@ -86,6 +88,8 @@ for name in ["Debug", "Release", "Distribution"]:
     current["SWIFT_OPTIMIZATION_LEVEL"] = "-Onone" if name == "Debug" else "-O"
     current["DEBUG_INFORMATION_FORMAT"] = "dwarf-with-dsym"
     if name == "Distribution":
+        current["SPOOKKY_DISPLAY_NAME"] = "Spookky"
+        current["SPOOKKY_DEVELOPMENT_CHECKOUT"] = ""
         current["PRODUCT_BUNDLE_IDENTIFIER"] = release["bundleID"]
         current["ENABLE_HARDENED_RUNTIME"] = "YES"
         current["CODE_SIGN_IDENTITY"] = "Developer ID Application"

@@ -3,6 +3,28 @@ import Testing
 import SpookkyCore
 
 struct AppPathsTests {
+    @Test func worktreesAndProductionOwnDifferentState() {
+        let home = URL(fileURLWithPath: "/home/example")
+        let first = AppPaths(bundleID: "dev.spookky.m0", home: home, userID: 501, environment: [:], developmentCheckout: "/tmp/checkout-one")
+        let second = AppPaths(bundleID: "dev.spookky.m0", home: home, userID: 501, environment: [:], developmentCheckout: "/tmp/checkout-two")
+        let production = AppPaths(bundleID: "dev.spookky.app", home: home, userID: 501, environment: [:], developmentCheckout: "/tmp/checkout-one")
+        #expect(first.data != second.data)
+        #expect(first.runtime != second.runtime)
+        #expect(first.data != production.data)
+        #expect(first.runtime != production.runtime)
+        #expect(production.developmentID == nil)
+        let rebuilt = AppPaths(bundleID: "dev.spookky.development.example", home: home, userID: 501, environment: [:], developmentCheckout: "/tmp/checkout-one")
+        #expect(first.data == rebuilt.data)
+        #expect(first.runtime == rebuilt.runtime)
+    }
+
+    @Test func worktreeFixturesCanStillOverrideTheirRoots() {
+        let paths = AppPaths(bundleID: "dev.spookky.m0", home: URL(fileURLWithPath: "/home/example"), userID: 501,
+                             environment: ["SPOOKKY_M1_DATA": "/tmp/fixture", "SPOOKKY_M1_ROOT": "/tmp/runtime"],
+                             developmentCheckout: "/tmp/checkout-one")
+        #expect(paths.data.path == "/tmp/fixture")
+        #expect(paths.runtime.path == "/tmp/runtime")
+    }
     @Test func productionIgnoresFixtureOverrides() {
         let paths = AppPaths(bundleID: "dev.spookky.app", home: URL(fileURLWithPath: "/home/example"), userID: 501,
                              environment: ["SPOOKKY_M1_DATA": "/tmp/fixture", "SPOOKKY_M1_ROOT": "/tmp/runtime"])
