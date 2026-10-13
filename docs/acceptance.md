@@ -70,6 +70,7 @@ Extended continuity remains blocked by an unsent-input preservation failure. The
 
 - [ ] Native TUI drawing, alternate screen, resize, Unicode/IME, selection, bracketed paste, Ctrl+C, and provider approvals work.
 - [ ] Dragging terminal text selects it without moving the window, in normal and fullscreen layouts.
+- [ ] Selection remains highlighted after release and Cmd+C copies it. CLI mouse input and wheel scrolling remain usable.
 - [ ] Fullscreen drag keeps the window present. Exiting restores normal geometry and header dragging.
 - [ ] File/image path input never appends Enter automatically; supported image clipboard behavior is verified per CLI version.
 - [ ] CLI model/auth/permission controls remain provider-owned.

@@ -17,6 +17,46 @@ import SpookkyRuntime
         }
     }
 
+    @Test func mouseRoutingPreservesApplicationInputAndNativeHistorySelection() async throws {
+        let (runtime, root) = try fixture()
+        let socket = await runtime.socket
+        defer {
+            _ = try? ProcessRunner.run(PackagedRuntime.tmux(), ["-S", socket, "kill-server"])
+            try? FileManager.default.removeItem(at: root)
+        }
+        let shell = try await runtime.create(LaunchSpec(tool: .shell, executable: "/bin/cat", directory: "/tmp"))
+        #expect(try await runtime.applicationCapturesMouse(shell) == false)
+        let app = try await runtime.create(LaunchSpec(tool: .shell, executable: "/bin/sh",
+            arguments: ["-c", "printf '\\033[?1002h\\033[?1006h'; exec /bin/cat"], directory: "/tmp"))
+        for _ in 0..<20 {
+            if try await runtime.applicationCapturesMouse(app) { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(try await runtime.applicationCapturesMouse(app))
+        let entered = try ProcessRunner.run(PackagedRuntime.tmux(), ["-S", socket, "copy-mode", "-t", "=" + app.name + ":0.0"])
+        #expect(entered.status == 0)
+        #expect(try await runtime.applicationCapturesMouse(app) == false)
+        let cancelled = try ProcessRunner.run(PackagedRuntime.tmux(), ["-S", socket, "send-keys", "-t", "=" + app.name + ":0.0", "-X", "cancel"])
+        #expect(cancelled.status == 0)
+        #expect(try await runtime.applicationCapturesMouse(app))
+        #expect(try await runtime.inspect(shell)?.dead == false)
+        #expect(try await runtime.inspect(app)?.dead == false)
+    }
+
+    @Test func mouseRoutingRejectsWrongOwner() async throws {
+        let (runtime, root) = try fixture()
+        let socket = await runtime.socket
+        defer {
+            _ = try? ProcessRunner.run(PackagedRuntime.tmux(), ["-S", socket, "kill-server"])
+            try? FileManager.default.removeItem(at: root)
+        }
+        let spec = try LaunchSpec(tool: .shell, executable: "/bin/cat", directory: "/tmp")
+        let binding = try await runtime.create(spec)
+        await #expect(throws: LaunchError.self) { try await runtime.applicationCapturesMouse(SessionBinding(spec: spec)) }
+        #expect(try await runtime.applicationCapturesMouse(binding) == false)
+        #expect(try await runtime.inspect(binding)?.dead == false)
+    }
+
     @Test func nullBytesRejected() throws {
         #expect(throws: LaunchError.self) {
             try LaunchSpec(tool: .shell, executable: "/bin/cat", arguments: ["a\0b"], directory: "/tmp")

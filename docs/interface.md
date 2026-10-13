@@ -29,6 +29,8 @@ The sidebar toggle sits in the fixed 40-point tab-strip header. It does not scro
 
 The left sidebar collapses to a 58px icon rail. The right sidebar hides completely. The right-edge Code control shows its label at widths of 900 points or more and its icon at smaller widths. Its selected state reflects Files/Changes visibility. Unused header and tab-strip space moves the normal window. Terminal, prompt, and file content retain their own mouse gestures. Header dragging is disabled during fullscreen and its transitions. Compact native titlebar integration preserves standard window controls without adding another empty row.
 
+Terminal text selection remains highlighted after mouse release. Cmd+C copies that selection. Programs that request mouse input keep their gestures. Shift selection retains Ghostty's normal behavior.
+
 When a file preview moves from a wide layout into a window below 800 points, dismiss the file-list overlay once so the preview remains readable. The toolbar control can reopen the overlay on demand.
 
 ## Start page

@@ -125,6 +125,10 @@ public protocol SessionRuntime: Sendable {
     func attachmentArguments(_ binding: SessionBinding) async throws -> [String]
     func terminate(_ binding: SessionBinding) async throws
 }
+
+public protocol SessionMouseRuntime: SessionRuntime {
+    func applicationCapturesMouse(_ binding: SessionBinding) async throws -> Bool
+}
 public struct SessionViewport: Codable, Equatable, Sendable {
     public let historySize: Int
     public let scrollOffset: Int

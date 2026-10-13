@@ -79,7 +79,9 @@ import SpookkyGit
             runtime = WorkspaceViewportFixtureRuntime(baseRuntime)
         } else { runtime = baseRuntime }
         locations = LocationCoordinator(store: store, runtime: runtime, operationRoot: root.appendingPathComponent("git-operations"))
-        let engine = try GhosttyEngine(root: root)
+        let clipboard = CommandLine.arguments.contains("--workspace-benchmark-selection")
+            ? NSPasteboard(name: NSPasteboard.Name("dev.spookky.selection-fixture." + root.lastPathComponent)) : .general
+        let engine = try GhosttyEngine(root: root, clipboard: clipboard)
         launches = LaunchCoordinator(store: store, runtime: runtime, resolver: resolver)
         surfaces = TerminalSurfaceManager(engine: engine, runtime: runtime, executable: tmux, root: root)
         diagnostics = WorkspaceDiagnostics(root: root)
@@ -1242,6 +1244,10 @@ import SpookkyGit
         }
         if CommandLine.arguments.contains("--workspace-benchmark-races"), let id = ids.first {
             try await surfaceRaceFixture(id: id, root: root)
+        }
+        if CommandLine.arguments.contains("--workspace-benchmark-selection"), let id = ids.first,
+           let view = surfaces.view(id), let binding = store.state.tab(id)?.binding {
+            try await TerminalSelectionFixture.run(view: view, binding: binding, runtime: launches.runtime, root: root)
         }
         if let index = CommandLine.arguments.firstIndex(of: "--workspace-benchmark-continuity") {
             guard CommandLine.arguments.count > index + 1,

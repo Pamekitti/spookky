@@ -77,6 +77,9 @@ import SpookkyRuntime
             let tabID = tab.id
             view.onExit = { [weak self] _ in self?.onExit?(tabID) }
             view.onFocus = { [weak self] in self?.onFocus?(tabID) }
+            if let mouseOwner = runtime as? any SessionMouseRuntime {
+                view.applicationCapturesMouse = { try await mouseOwner.applicationCapturesMouse(binding) }
+            }
             view.onViewportInteraction = { [weak self] in
                 self?.resizeAnchors[tabID] = nil; self?.resizeTasks[tabID]?.cancel()
             }

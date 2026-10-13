@@ -1,7 +1,7 @@
 import Foundation
 import SpookkyCore
 
-public actor TmuxRuntime: SessionViewportRuntime {
+public actor TmuxRuntime: SessionViewportRuntime, SessionMouseRuntime {
     public let executable: String
     public let root: URL
     public let socket: String
@@ -150,6 +150,21 @@ public actor TmuxRuntime: SessionViewportRuntime {
     public func attachmentArguments(_ binding: SessionBinding) async throws -> [String] {
         guard try await inspect(binding) != nil else { throw LaunchError.invalid("Session no longer exists.") }
         return ["-S", socket, "attach-session", "-t", "=" + binding.name]
+    }
+
+    public func applicationCapturesMouse(_ binding: SessionBinding) async throws -> Bool {
+        let executable = executable, socket = socket, config = config
+        let result = try await Task.detached {
+            try ProcessRunner.run(executable, ["-S", socket, "-f", config, "list-panes", "-t", "=" + binding.name,
+                "-F", "#{SPOOKKY_M0_TOKEN}|#{pane_in_mode}|#{mouse_any_flag}"], timeout: 0.15, outputLimit: 256)
+        }.value
+        guard result.status == 0 else { throw LaunchError.command(result.error) }
+        let values = result.output.trimmingCharacters(in: .newlines).split(separator: "|", omittingEmptySubsequences: false)
+        guard values.count == 3, ["0", "1"].contains(values[1]), ["0", "1"].contains(values[2]) else {
+            throw LaunchError.command("Invalid terminal mouse state.")
+        }
+        guard values[0] == binding.token.uuidString else { throw LaunchError.ownershipMismatch }
+        return values[1] == "0" && values[2] == "1"
     }
 
     public func terminate(_ binding: SessionBinding) async throws {

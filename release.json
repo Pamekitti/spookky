@@ -1,6 +1,6 @@
 {
-  "version": "0.1.1",
-  "build": 101,
+  "version": "0.1.2",
+  "build": 102,
   "channel": "preview",
   "minimumOS": "14.0",
   "architecture": "arm64",

@@ -627,6 +627,9 @@ private struct HarnessSession {
                 command = ShellCommand.render([helper, "--request", request.path])
             } else { return }
             let view = try TerminalHostView(engine: engine, command: command, directory: root.path)
+            if let binding = sessions[index].binding, let runtime {
+                view.applicationCapturesMouse = { try await runtime.applicationCapturesMouse(binding) }
+            }
             if id == inputFixtureID {
                 view.inputTrace = fixtureInputTrace
             }

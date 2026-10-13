@@ -76,6 +76,7 @@ python3 scripts/check_m0_input.py input --mode direct --replay --output .cache/i
 python3 scripts/check_m0_input.py input --mode persistent --replay --output .cache/input-persistent.json
 python3 scripts/check_m0_input.py folders --output .cache/folders.json
 python3 scripts/check_surface_races.py --output .cache/surface-races.json
+python3 scripts/check_terminal_selection.py --output .cache/terminal-selection.json
 python3 scripts/check_provider_continuity.py --output .cache/provider-interfaces.json
 ```
 
