@@ -77,10 +77,14 @@ private struct HarnessSession {
                             guard saved == nil, args.indices.contains(index + 1), let count = Int(args[index + 1]), (0...10).contains(count),
                                   ProcessInfo.processInfo.environment["SPOOKKY_M1_DATA"] != nil,
                                   workspaceRoot.path.hasPrefix("/tmp/spookky-m1-") else { throw LaunchError.invalid("Workspace benchmarks require an isolated fixture root and a count from zero to ten.") }
-                            workspaceController = try WorkspaceWindowController(root: workspaceRoot, initialStore: store, firstUse: saved == nil, resolver: WorkspaceBenchmarkResolver())
+                            workspaceController = try WorkspaceWindowController(root: workspaceRoot, initialStore: store, firstUse: saved == nil, resolver: WorkspaceBenchmarkResolver(),
+                                backgroundFixture: !args.contains("--workspace-benchmark-front"))
                             try await workspaceController?.benchmark(count: count, root: workspaceRoot, timing: args.contains("--workspace-benchmark-timing"))
                         } else {
-                            workspaceController = try WorkspaceWindowController(root: workspaceRoot, initialStore: store, firstUse: saved == nil)
+                            let backgroundRestore = args.contains("--workspace-benchmark-restoring") && !args.contains("--workspace-benchmark-front") &&
+                                workspaceRoot.path.hasPrefix("/tmp/spookky-m1-") && ProcessInfo.processInfo.environment["SPOOKKY_M1_DATA"] != nil
+                            workspaceController = try WorkspaceWindowController(root: workspaceRoot, initialStore: store, firstUse: saved == nil,
+                                backgroundFixture: backgroundRestore)
                         }
                         if args.contains("--workspace-benchmark-front") || (benchmarkIndex == nil && !args.contains("--workspace-benchmark-restoring")) {
                             workspaceController?.window.makeKeyAndOrderFront(nil)
@@ -89,6 +93,7 @@ private struct HarnessSession {
                         else { workspaceController?.window.orderBack(nil) }
                     } catch {
                         if CommandLine.arguments.contains("--workspace-benchmark-count") {
+                            workspaceController?.recordBenchmarkFailure(root: workspaceRoot)
                             fputs(error.localizedDescription + "\n", stderr)
                             _exit(1)
                         }

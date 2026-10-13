@@ -27,16 +27,18 @@ A temporary local QA build under the production identity created only Spookky me
 
 Build-runner checks found two compiler compatibility errors and an output/history race. Explicit types resolve the compiler errors. Viewport capture now reads tmux's frozen copy-mode grid. A deterministic streaming regression fails on the previous code and passes on the fix. The full Swift suite and 20 repeated streaming regressions pass locally.
 
-The updated native timing fixture passes wrapped resizing and crash restoration. Warm selection p95 is 4.13 ms across 36 observations. Surface recreation p95 is 41.35 ms across 106 observations. These stop at an attached, laid-out, focused view and exclude physical display latency. The fixture ran behind user windows.
+The updated native timing fixture passes wrapped resizing and crash restoration. Warm selection p95 is 5.61 ms across 36 observations. Surface recreation p95 is 44.51 ms across 106 observations. These stop at an attached, laid-out, focused view and exclude physical display latency. The fixture ran behind user windows.
 
 ## Continuity boundary
 
 A new smoke fixture passes two lifecycle cycles and a one-second continuity workload. The fixture uses a short controlled shell prompt. It checks both the native text projection and the owner's joined lines so line wrapping is not mistaken for lost input.
 
-The full eight-hour replay uses a frozen app bundle and an isolated runtime behind user windows. A superseded run was stopped after the viewport fix; its partial evidence is retained privately. The replacement run's result is pending. Fixture-only termination records are bounded and retained privately for diagnosis. The earlier failed overnight record had missing original panes; its cause remains unresolved.
+The full eight-hour replay uses a frozen app bundle and an isolated runtime behind user windows. A superseded run was stopped after the viewport fix; its partial evidence is retained privately. The replacement run stopped after its last good checkpoint at 3 hours 16 minutes. It recorded an explicit session termination just before failure. The output producer was alive, one baseline pane was missing, and the native output view was unavailable. The close request's origin was not recorded. This is a failed run, not an eight-hour pass. Its evidence remains private.
+
+Background fixtures now open without a key or main window and ignore mouse input. Continuity checkpoints verify that focus remains outside the fixture. Failure snapshots retain bounded tab status, binding identities, and UI close requests before fixture cleanup. The background smoke and deliberately injected process failure pass their checks. The failure snapshot remains available after owned fixture cleanup. Lifecycle samples now wait for runtime reconciliation. The resize fixture uses measured history depth. Crash restoration compares the native marker immediately before and after the crash. The corrected preflight passes all 110 lifecycle cycles, a 31-second continuity workload, and a 60-second idle observation. A new eight-hour replay is running from a separate frozen bundle. Its result remains pending. The earlier failed overnight record had missing original panes; its cause remains unresolved.
 
 ## Release blockers
 
-No valid Apple signing identity is currently available on the development host. The maintainer must configure Apple membership, Developer ID signing, and notarization authentication. The actual two-build Sparkle installation test and clean-Mac installation have not run.
+No valid Apple signing identity is currently available on the development host. The maintainer must enroll in the Apple Developer Program, then configure Developer ID signing and notarization authentication. The actual two-build Sparkle installation test and clean-Mac installation have not run.
 
 macOS 14 compatibility, physical typing and IME, spoken VoiceOver, terminal link/file activation, provider responses/resume, sleep/wake, reboot, and final performance acceptance remain gates. See [current status](status.md), [acceptance](acceptance.md), and [the release procedure](releasing.md).

@@ -45,13 +45,14 @@ import SpookkyRuntime
         guard let owner = runtime as? any SessionViewportRuntime, let binding = bindings[id] else { return nil }
         return try await owner.viewport(binding)
     }
-    func scrollFixtureHistory(_ id: UUID, offset: Int = 25) async throws {
+    func scrollFixtureHistory(_ id: UUID, offset: Int? = 25) async throws {
         guard let owner = runtime as? any SessionViewportRuntime,
               let binding = bindings[id], let surface = views[id]?.surface else { throw LaunchError.invalid("Fixture terminal is unavailable.") }
         let size = ghostty_surface_size(surface)
         try await owner.restoreViewport(SessionViewport(historySize: 0, scrollOffset: 0), binding: binding, columns: Int(size.columns), rows: Int(size.rows))
         let baseline = try await owner.viewport(binding)
-        try await owner.restoreViewport(SessionViewport(historySize: baseline?.historySize ?? 0, scrollOffset: offset), binding: binding, columns: Int(size.columns), rows: Int(size.rows))
+        let distance = offset ?? max(1, (baseline?.historySize ?? 0) / 2)
+        try await owner.restoreViewport(SessionViewport(historySize: baseline?.historySize ?? 0, scrollOffset: distance), binding: binding, columns: Int(size.columns), rows: Int(size.rows))
         await captureViewport(id)
     }
     func prepare(_ tabs: [WorkspaceTab], sizes: [UUID: NSSize] = [:]) async throws -> [UUID: TerminalHostView]? {

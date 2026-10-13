@@ -620,6 +620,9 @@ final class TabStripScrollView: NSScrollView {
 }
 
 final class WorkspaceNativeWindow: NSWindow {
+    var acceptsUserFocus = true
+    override var canBecomeKey: Bool { acceptsUserFocus && super.canBecomeKey }
+    override var canBecomeMain: Bool { acceptsUserFocus && super.canBecomeMain }
     var onCommand: ((NSEvent) -> Bool)?
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if onCommand?(event) == true { return true }

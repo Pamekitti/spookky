@@ -6,7 +6,7 @@ import SpookkyWorkspace
 import SpookkyGit
 
 @MainActor final class WorkspaceWindowController: NSObject, NSWindowDelegate, NSSplitViewDelegate, NSMenuItemValidation {
-    private(set) var window: NSWindow!
+    private(set) var window: WorkspaceNativeWindow!
     let store: WorkspaceStore
     let services = AppServices()
     private let locations: LocationCoordinator
@@ -59,9 +59,12 @@ import SpookkyGit
     private var announcedError: String?
     private var renameEditor: InlineRenameEditor?
     private var paneHeaders: [UUID: ChromeStackView] = [:]
+    private let backgroundFixture: Bool
+    private var fixtureCloseRequests: [[String: String]] = []
 
     init(root: URL, initialStore: WorkspaceStore? = nil, firstUse: Bool = true,
-         resolver: any ExecutableResolver = CLIResolver()) throws {
+         resolver: any ExecutableResolver = CLIResolver(), backgroundFixture: Bool = false) throws {
+        self.backgroundFixture = backgroundFixture
         let store = initialStore ?? WorkspaceStore()
         self.store = store
         try PrivateFiles.directory(root)
@@ -111,7 +114,10 @@ import SpookkyGit
             store.update { $0.newWorkspace(directory: FileManager.default.homeDirectoryForCurrentUser.path) }
         }
         if store.state.windowFrame == nil { window.center() }
-        window.makeKeyAndOrderFront(nil); rememberWindowFrame(); render()
+        showWindow(); rememberWindowFrame(); render()
+        if backgroundFixture && (window.isKeyWindow || window.isMainWindow) {
+            throw LaunchError.invalid("Background fixture took native window focus.")
+        }
         Task {
             await locations.reconcileAll()
             await refreshSelectedRepository()
@@ -150,6 +156,8 @@ import SpookkyGit
         window = WorkspaceNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 760),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
         window.title = "Spookky"; window.titleVisibility = .hidden; window.titlebarAppearsTransparent = true
+        window.acceptsUserFocus = !backgroundFixture
+        window.ignoresMouseEvents = backgroundFixture
         window.isRestorable = false
         window.isReleasedWhenClosed = false; window.minSize = NSSize(width: 650, height: 450); window.delegate = self
         if let saved = store.state.windowFrame, saved.width.isFinite, saved.height.isFinite,
@@ -1037,6 +1045,10 @@ import SpookkyGit
         closeTabs(workspace.tabs.map(\.id), workspaceID: id)
     }
     private func closeTabs(_ ids: [UUID], workspaceID: UUID? = nil) {
+        if diagnostics != nil && CommandLine.arguments.contains("--workspace-benchmark-continuity") {
+            fixtureCloseRequests.append(["time": Date().ISO8601Format(), "tabs": ids.map(\.uuidString).joined(separator: ",")])
+            fixtureCloseRequests = Array(fixtureCloseRequests.suffix(32))
+        }
         renameEditor?.cancel(); renameEditor = nil
         guard ids.allSatisfy({ id in !closing.contains(id) && !launches.isBusy(id) && !(store.state.workspace(containing: id).map { locations.isBusy(workspaceID: $0.id) } ?? false) }) else { return }
         ids.forEach { closing.insert($0) }
@@ -1117,9 +1129,38 @@ import SpookkyGit
         Task { await surfaces.captureViewports(); if !window.isVisible { surfaces.releaseAll() }; try? await store.flush() }
     }
     func reopen() {
-        if CommandLine.arguments.contains("--workspace-benchmark-count") && !CommandLine.arguments.contains("--workspace-benchmark-front") { window.orderBack(nil) }
-        else { window.makeKeyAndOrderFront(nil) }
+        showWindow()
         contentKey = ""; render(); observeRuntimeEvent() }
+    private func showWindow() {
+        if backgroundFixture { window.orderBack(nil) }
+        else { window.makeKeyAndOrderFront(nil) }
+    }
+    func recordBenchmarkFailure(root: URL) {
+        guard diagnostics != nil, CommandLine.arguments.contains("--workspace-benchmark-continuity") else { return }
+        struct Tab: Encodable {
+            let id: UUID
+            let bindingID: UUID?
+            let status: String
+            let failure: String?
+            let surface: Bool
+        }
+        struct Failure: Encodable {
+            let selectedTab: UUID?
+            let visibleTabs: [UUID]
+            let windowVisible: Bool
+            let windowKey: Bool
+            let appActive: Bool
+            let closeRequests: [[String: String]]
+            let tabs: [Tab]
+        }
+        let snapshot = Failure(selectedTab: store.state.selectedTab?.id, visibleTabs: store.state.visibleTabIDs,
+            windowVisible: window.isVisible, windowKey: window.isKeyWindow, appActive: NSApp.isActive,
+            closeRequests: fixtureCloseRequests, tabs: store.state.workspaces.flatMap(\.tabs).prefix(32).map {
+                Tab(id: $0.id, bindingID: $0.binding?.id, status: $0.status.rawValue,
+                    failure: $0.failure.map { String($0.message.prefix(512)) }, surface: surfaces.view($0.id) != nil)
+            })
+        try? PrivateFiles.write(snapshot, to: root.appendingPathComponent("continuity-failure.json"))
+    }
     func setFocus(_ focused: Bool) { surfaces.setFocus(focused); if focused { observeRuntimeEvent() } }
     func benchmark(count: Int, root: URL, timing: Bool) async throws {
         let fileFixture = CommandLine.arguments.contains("--workspace-benchmark-files")
@@ -1227,7 +1268,7 @@ import SpookkyGit
                 try await Task.sleep(for: .milliseconds(20))
             }
             guard outputReady else { throw LaunchError.invalid("Fixture command did not produce its expected terminal output.") }
-            try await surfaces.scrollFixtureHistory(id, offset: CommandLine.arguments.contains("--workspace-benchmark-resize") ? 80 : 25)
+            try await surfaces.scrollFixtureHistory(id, offset: CommandLine.arguments.contains("--workspace-benchmark-resize") ? nil : 25)
             var marker: Int?
             for _ in 0..<100 {
                 marker = surfaces.fixtureHistoryMarker(id)
@@ -1335,12 +1376,14 @@ import SpookkyGit
         var cycles: [Cycle] = []
         guard let anchor = store.state.selectedWorkspaceID else { throw LaunchError.invalid("Fixture workspace is unavailable") }
         var identities: [UUID: Int32] = [:]
+        var baseline: [[String: String]] = []
         for id in ids {
             guard let binding = store.state.tab(id)?.binding,
                   let observed = try await launches.runtime.inspect(binding) else { throw LaunchError.invalid("Fixture session is unavailable") }
             identities[id] = observed.processID
+            baseline.append(["id": id.uuidString, "pid": String(observed.processID), "bindingID": binding.id.uuidString])
         }
-        try PrivateFiles.write(ids.map { ["id": $0.uuidString, "pid": String(identities[$0]!)] }, to: root.appendingPathComponent("baseline-identities.json"))
+        try PrivateFiles.write(baseline, to: root.appendingPathComponent("baseline-identities.json"))
         let cycleCount = try WorkspaceBenchmarkOptions.cycleCount()
         for index in 0..<cycleCount {
             var workspaceID: UUID?, tabID: UUID?
@@ -1363,8 +1406,10 @@ import SpookkyGit
             guard let pairBinding = store.state.tab(pair)?.binding,
                   let pairObservation = try await launches.runtime.inspect(pairBinding) else { throw LaunchError.invalid("Cycle split launch failed") }
             guard surfaces.count <= 3 else { throw LaunchError.invalid("Cycle surface budget exceeded") }
+            try await settleRuntimeForFixture()
             try await launches.terminate(pair); surfaces.release(pair)
             store.update { $0.closeTab(pair) }
+            try await settleRuntimeForFixture()
             try await launches.terminate(tabID); surfaces.release(tabID)
             store.update { $0.closeWorkspace(workspaceID); $0.selectWorkspace(anchor); $0.selectTab(ids[index % ids.count]) }
             if let renderTask { await renderTask.value }
@@ -1377,9 +1422,10 @@ import SpookkyGit
                 if firstGone && secondGone { gone = true; break }
                 try await Task.sleep(for: .milliseconds(20))
             }
+            let remaining = try await launches.runtime.list().count
+            try await settleRuntimeForFixture()
             let diagnostics = files.diagnostics
             guard let residentMiB = WorkspaceDiagnostics.residentMiB() else { throw LaunchError.invalid("Fixture RSS could not be measured") }
-            let remaining = try await launches.runtime.list().count
             cycles.append(Cycle(index: index, warmup: index < 10, surfaces: surfaces.count,
                 watchers: diagnostics["watchers"] ?? 0, previewBytes: diagnostics["previewBytes"] ?? 0,
                 metadataBytes: diagnostics["metadataBytes"] ?? 0, composers: composers.count,
@@ -1475,19 +1521,31 @@ import SpookkyGit
                       try await launches.runtime.inspect(binding)?.processID == identities[id] else { throw LaunchError.invalid("Continuity process identity changed") }
             }
             checkpoints.append(files.diagnostics.merging(["tick": tick, "elapsedSeconds": Int(started.duration(to: .now).components.seconds), "surfaces": surfaces.count,
+                "windowKey": window.isKeyWindow ? 1 : 0, "windowMain": window.isMainWindow ? 1 : 0,
                 "resizeTaskHandles": surfaces.resizeTaskCount, "reconciliationTaskHandles": observationTask == nil ? 0 : 1,
                 "renderTaskHandles": renderTask == nil ? 0 : 1], uniquingKeysWith: { _, new in new }))
             try PrivateFiles.write(checkpoints, to: root.appendingPathComponent("continuity-checkpoints.json"))
             guard surfaces.count <= 3 else { throw LaunchError.invalid("Continuity surface budget exceeded") }
+            guard !backgroundFixture || (!window.isKeyWindow && !window.isMainWindow) else {
+                throw LaunchError.invalid("Background fixture took native window focus.")
+            }
             tick += 1
             try await Task.sleep(for: .seconds(min(15, seconds)))
         }
+        try await settleRuntimeForFixture()
         try await launches.terminate(outputID); surfaces.release(outputID)
         store.update { $0.closeTab(outputID); $0.selectTab(ids[0]) }
         if let renderTask { await renderTask.value }
         try await store.flush()
         try PrivateFiles.write(["same_processes": 1, "draft_preserved": 1, "cycles": cycles.count,
             "checkpoints": checkpoints.count, "elapsedSeconds": Int(started.duration(to: .now).components.seconds)] as [String: Int], to: root.appendingPathComponent("continuity-result.json"))
+    }
+    private func settleRuntimeForFixture() async throws {
+        for _ in 0..<100 {
+            if observationTask == nil && !store.state.workspaces.flatMap(\.tabs).contains(where: { launches.isBusy($0.id) }) { return }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        throw LaunchError.invalid("Fixture runtime reconciliation did not settle within two seconds.")
     }
 
 }
