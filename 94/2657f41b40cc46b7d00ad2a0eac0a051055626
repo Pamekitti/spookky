@@ -1,0 +1,33 @@
+scripts/check.py
+  s_f3a8ec1b1f74ec::t_69e7815b0ac050 1-97
+scripts/check_scope.py
+  s_f3a8ec1b1f74ec::t_52123dc3ffd2d5 1-73
+scripts/test_check_receipts.py
+  s_71deb0dcf6dca4::t_da5fa533386713 1-57
+scripts/test_check_scope.py
+  s_71deb0dcf6dca4::t_eb3acab93f52c8 1-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "942657f41b40cc46b7d00ad2a0eac0a051055626",
+  "prompts": {},
+  "sessions": {
+    "s_71deb0dcf6dca4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a120ab-1a58-7d22-b858-0c194ed2c830",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_f3a8ec1b1f74ec": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13595-be2b-7410-9a55-45f3190d38c6",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
