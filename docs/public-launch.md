@@ -43,4 +43,6 @@ Apple enrollment is deferred while the maintainer uses a private local DMG. The 
 
 No valid Apple signing identity is currently available on the development host. A public installer requires Apple Developer enrollment, Developer ID signing, and notarization authentication. The actual two-build Sparkle installation test and clean-Mac installation have not run.
 
+The 0.1.1 local preview confines window movement to unused header and tab-strip areas. Terminal mouse input stays in the terminal. A targeted native probe selected the exact test marker in fullscreen, kept the window present, and restored normal geometry on exit. The final revision adds explicit header dragging. Its Debug and Release builds pass. Final pointer verification and installed-app replacement remain pending because the host's screen-capture service failed. Running user sessions are preserved.
+
 macOS 14 compatibility, physical typing and IME, spoken VoiceOver, terminal link/file activation, provider responses/resume, sleep/wake, reboot, and final performance acceptance remain gates. See [current status](status.md), [acceptance](acceptance.md), and [the release procedure](releasing.md).

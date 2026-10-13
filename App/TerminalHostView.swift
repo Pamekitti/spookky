@@ -52,6 +52,7 @@ final class TerminalHostView: NSView, NSTextInputClient {
     required init?(coder: NSCoder) { fatalError("Use init(engine:command:directory:)") }
     override var acceptsFirstResponder: Bool { true }
     override var isFlipped: Bool { true }
+    override var mouseDownCanMoveWindow: Bool { false }
 
     func releaseSurface() {
         if let surface { ghostty_surface_free(surface); self.surface = nil }

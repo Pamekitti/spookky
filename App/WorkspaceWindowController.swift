@@ -170,7 +170,7 @@ import SpookkyGit
         let rootView = WorkspaceRootView(); window.contentView = rootView
         rootView.onAppearance = { [weak self] in self?.render() }
         rootView.onLayout = { [weak self] in self?.updateHeaderGeometry() }
-        window.isMovableByWindowBackground = true
+        window.isMovableByWindowBackground = false
         let content = window.contentView!
         let workspaceBody = files.layout
         filesToggle.handler = { [weak self] in self?.toggleCodeSidebar() }
@@ -877,10 +877,27 @@ import SpookkyGit
         if let split = splitView, split.isVertical != (body.bounds.width >= 700) { contentKey = ""; render() }
     }
     func windowDidMove(_ notification: Notification) { rememberWindowFrame() }
-    func windowWillEnterFullScreen(_ notification: Notification) { fullscreenTransition = true }
+    func windowWillEnterFullScreen(_ notification: Notification) {
+        fullscreenTransition = true
+        window.allowsHeaderDragging = false
+    }
     func windowDidEnterFullScreen(_ notification: Notification) { fullscreenTransition = false; updateHeaderGeometry() }
     func windowWillExitFullScreen(_ notification: Notification) { fullscreenTransition = true }
-    func windowDidExitFullScreen(_ notification: Notification) { fullscreenTransition = false; updateHeaderGeometry(); rememberWindowFrame() }
+    func windowDidExitFullScreen(_ notification: Notification) {
+        fullscreenTransition = false
+        window.allowsHeaderDragging = true
+        updateHeaderGeometry(); rememberWindowFrame()
+    }
+    func windowDidFailToEnterFullScreen(_ window: NSWindow) {
+        fullscreenTransition = false
+        self.window.allowsHeaderDragging = true
+        updateHeaderGeometry()
+    }
+    func windowDidFailToExitFullScreen(_ window: NSWindow) {
+        fullscreenTransition = false
+        self.window.allowsHeaderDragging = false
+        updateHeaderGeometry()
+    }
     private func rememberWindowFrame() {
         guard store.onChange != nil, let window, !fullscreenTransition, !window.styleMask.contains(.fullScreen) else { return }
         let frame = window.frame

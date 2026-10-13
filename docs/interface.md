@@ -27,7 +27,7 @@ Opening a file inserts an adjacent preview between terminal and file list. The f
 
 The sidebar toggle sits in the fixed 40-point tab-strip header. It does not scroll with sidebar entries. The header measures native window-button clearance before placing the first tab. Fullscreen removes that reservation. Collapsed navigation, projects and workspaces use centered 32-point targets on one vertical axis. The header toggle retains its 28-point utility target.
 
-The left sidebar collapses to a 58px icon rail. The right sidebar hides completely. The right-edge Code control shows its label at widths of 900 points or more and its icon at smaller widths. Its selected state reflects Files/Changes visibility. Unused strip space remains available for window dragging. Compact native titlebar integration must preserve window dragging and standard window controls without adding another empty row.
+The left sidebar collapses to a 58px icon rail. The right sidebar hides completely. The right-edge Code control shows its label at widths of 900 points or more and its icon at smaller widths. Its selected state reflects Files/Changes visibility. Unused header and tab-strip space moves the normal window. Terminal, prompt, and file content retain their own mouse gestures. Header dragging is disabled during fullscreen and its transitions. Compact native titlebar integration preserves standard window controls without adding another empty row.
 
 When a file preview moves from a wide layout into a window below 800 points, dismiss the file-list overlay once so the preview remains readable. The toolbar control can reopen the overlay on demand.
 

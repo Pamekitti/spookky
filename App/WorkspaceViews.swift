@@ -607,7 +607,8 @@ final class ClosureMenuItem: NSMenuItem {
 
 final class WorkspaceHeaderView: NSView {
     var sidebarWidth: CGFloat = SpookkyStyle.sidebarWidth { didSet { needsDisplay = true } }
-    override var mouseDownCanMoveWindow: Bool { true }
+    override var mouseDownCanMoveWindow: Bool { false }
+    override func mouseDown(with event: NSEvent) { (window as? WorkspaceNativeWindow)?.dragHeader(with: event) }
     override func draw(_ dirtyRect: NSRect) {
         SpookkyPalette.background.setFill(); bounds.fill()
         SpookkyPalette.sidebar.setFill(); NSRect(x: 0, y: 0, width: sidebarWidth, height: bounds.height).fill()
@@ -616,14 +617,24 @@ final class WorkspaceHeaderView: NSView {
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
 }
 final class TabStripScrollView: NSScrollView {
-    override var mouseDownCanMoveWindow: Bool { true }
+    override var mouseDownCanMoveWindow: Bool { false }
+    override func mouseDown(with event: NSEvent) { (window as? WorkspaceNativeWindow)?.dragHeader(with: event) }
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let target = super.hitTest(point)
+        return target === contentView || target === documentView ? self : target
+    }
 }
 
 final class WorkspaceNativeWindow: NSWindow {
     var acceptsUserFocus = true
+    var allowsHeaderDragging = true
     override var canBecomeKey: Bool { acceptsUserFocus && super.canBecomeKey }
     override var canBecomeMain: Bool { acceptsUserFocus && super.canBecomeMain }
     var onCommand: ((NSEvent) -> Bool)?
+    func dragHeader(with event: NSEvent) {
+        guard allowsHeaderDragging, !styleMask.contains(.fullScreen) else { return }
+        performDrag(with: event)
+    }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if onCommand?(event) == true { return true }
         return super.performKeyEquivalent(with: event)
