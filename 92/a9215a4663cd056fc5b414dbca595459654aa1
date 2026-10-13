@@ -1,0 +1,29 @@
+Spookky.xcodeproj/project.pbxproj
+  s_7c7077e9b16eda::t_30f86eb990d18f 72
+scripts/create_xcode_project.py
+  s_f3a8ec1b1f74ec::t_f2c0571d710842 60-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "92a9215a4663cd056fc5b414dbca595459654aa1",
+  "prompts": {},
+  "sessions": {
+    "s_7c7077e9b16eda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a13595-be2b-7410-9a55-45f3190d38c6",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_f3a8ec1b1f74ec": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13595-be2b-7410-9a55-45f3190d38c6",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
