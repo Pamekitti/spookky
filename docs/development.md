@@ -10,6 +10,20 @@ The verified development host used macOS 26.6.2, Xcode 27, Swift 6.3.3, and tmux
 
 ## Build and test
 
+After the one-time dependency setup, an ordinary native change uses these commands:
+
+```sh
+python3 scripts/check_repo.py
+swift test
+python3 scripts/dev.py run
+```
+
+Test the changed interaction in that checkout's development app. Run relevant checks once, then repeat only after relevant changes or failures. CI checks the Release build.
+
+Documentation changes need the repository checker. Python script changes add `python3 -m unittest discover -s scripts -p 'test_*.py'`. Website changes use `npm test --prefix website` after website setup. Browser tests are headless and belong to website changes, not ordinary native development.
+
+The complete commands remain available for setup and explicit verification:
+
 ```sh
 python3 scripts/build_runtime.py
 swift build --product spookky-launch
@@ -48,6 +62,14 @@ Do not point benchmarks at normal development data or the user's repositories. K
 The CLI resolver checks inherited PATH, a bounded login-shell PATH query, local/Homebrew locations, and installed nvm Node directories. It preserves the selected executable's adjacent interpreter directory. Lookup does not install providers or alter authentication, trust, or permission controls.
 
 ## Public website and releases
+
+PR CI always runs source/Python checks and the public audit. Native changes add one macOS 15 job with Swift tests, one Release build, and a bundle audit. Website changes add headless browser tests. Documentation changes skip both. Unknown paths and CI machinery changes select both areas. The source check and native check remain required; an intentionally skipped native job permits documentation PRs to merge.
+
+After merge, main runs source checks only. It does not repeat native builds or browser tests. Dependency caches hold pinned tmux and Ghostty outputs, npm downloads, and Chromium. Keys include dependency recipes, architecture, and toolchain. Swift/Xcode build outputs and app state are not cached. Source jobs have a five-minute timeout; the native PR job has a 15-minute timeout. The actual warm native duration remains unmeasured.
+
+PR-created caches are isolated by GitHub. To share native dependencies across PRs, run **Checks → Run workflow → main** once to warm the default-branch caches. This manual run builds dependencies only. Repeat when dependency or toolchain cache keys change; ordinary main pushes never trigger it.
+
+The opt-in signed release workflow uses macOS 26 and prepares Distribution packaging. Extra build configurations and compatibility checks belong to release verification. Signed automatic delivery remains disabled while private local installers are in use.
 
 ```sh
 cd website
