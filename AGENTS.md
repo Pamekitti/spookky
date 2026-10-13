@@ -40,6 +40,7 @@ Public positioning describes Spookky's user needs and outcomes without competito
 - Avoid speculative layers, unused packages, placeholder services, and dependencies added only for future work.
 - Use isolated checkouts when concurrent work requires them. Name feature branches `codex/<description>` unless directed otherwise. Do not spawn other agents unless requested.
 - Keep commits scoped to one concern. Stage named paths. Do not push, publish, send external messages, or deploy without authorization.
+- For shipping Spookky changes or opening a PR, use the repository's [ship skill](.agents/skills/ship/SKILL.md). Commit scoped dirty work in logical groups, then rebase onto `origin/main`, verify, audit, push the feature branch, and open the PR.
 - Before public pushes, audit all remote refs. Exclude AI notes, session metadata, private state, fixture output, and local checkout paths. Preserve required dependency licenses and notices.
 - Do not install dependencies or run setup code from a user's project automatically. Registration and opening Local are passive operations.
 - Never execute terminal fixture text from the HTML prototype. It is sample data.
