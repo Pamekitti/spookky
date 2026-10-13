@@ -17,7 +17,7 @@ Private vulnerability reporting and immutable releases are enabled. Main require
 
 The host is an Apple Silicon Mac with 16 GiB RAM and macOS 26.6.2. Native Debug, Release, and unsigned Distribution configuration builds pass. The Distribution metadata and packaged executable/resource checks pass. Stripped executables contain no builder-home paths. This does not establish Developer ID signing or notarization.
 
-The full Swift suite passes 94 tests. Python passes 14 tests. The website passes six Playwright checks, including 1440px, 390px, 320px, release availability, invalid metadata, and keyboard access. The repository checker, public file/ref audit, and secret scan pass.
+The full Swift suite passes 96 tests. Python passes 19 tests. The website passes six Playwright checks, including 1440px, 390px, 320px, release availability, invalid metadata, and keyboard access. The repository checker, public file/ref audit, and secret scan pass.
 
 The packaged runtime passes 100 ownership/lifecycle cycles. Native history checks pass four assertions. Crash/reopen checks pass seven assertions. Input replay passes 11 assertions in each of direct and persistent modes. Real shell input, the native Settings shortcut, both themes, and the 650×450 layout were inspected. These are targeted checks, not full human acceptance.
 
@@ -39,12 +39,16 @@ Background fixtures now open without a key or main window and ignore mouse input
 
 ## Release blockers
 
-Apple enrollment is deferred while the maintainer uses a private local DMG. The local installer uses an ad hoc signature with updates disabled. Its source bundle, bundled dependencies, disk-image checksum, and browser download are verified. It launches from Applications after the owner's macOS approval. A Home shell accepts keyboard input with focus in the terminal. Fresh production metadata and a separate runtime are created. Historical and development databases remain unchanged. These checks apply to the maintainer's Mac. The maintainer confirms that the shell prompt is visible on screen. Native screenshot capture did not include the terminal text.
+Apple enrollment is deferred while the maintainer uses a private local DMG. The 0.1.0 installation used an ad hoc signature with updates disabled. Its source bundle, bundled dependencies, disk-image checksum, and browser download passed verification. It launched from Applications after the owner's macOS approval. A Home shell accepted keyboard input with focus in the terminal. Fresh production metadata and a separate runtime were created. That namespace check left the historical and development databases unchanged. These checks applied to the maintainer's Mac. The maintainer confirmed that the shell prompt was visible on screen. Native screenshot capture did not include the terminal text.
 
 No valid Apple signing identity is currently available on the development host. A public installer requires Apple Developer enrollment, Developer ID signing, and notarization authentication. The actual two-build Sparkle installation test and clean-Mac installation have not run.
 
 The 0.1.1 local preview is installed and opens from Applications. Its signature and runtime/resource audit pass. The maintainer confirms that dragging terminal text no longer moves the window. The maintainer also reports that its highlight disappears after release.
 
-The 0.1.2 change routes shell selection through Ghostty while preserving application mouse input and wheel scrolling. Debug and Release builds pass. All 96 Swift tests and 19 Python tests pass. The Release native fixture passes five checks for exact selection, retained highlight, immediate copying, process identity, and absence of tmux copy mode. It uses a private clipboard. Selection was ready in 11.1 ms in that single Release observation. Installation and physical pointer verification remain pending. The host's native-control service cannot reliably target windows.
+The 0.1.2 change routes shell selection through Ghostty while preserving application mouse input and wheel scrolling. Debug and Release builds pass. All 96 Swift tests and 19 Python tests pass. Native keyboard replay passes 11 checks in each of direct and persistent modes. The Release native fixture passes five checks for exact selection, retained highlight, immediate copying, process identity, and absence of tmux copy mode. It uses a private clipboard. Selection was ready in 11.1 ms in that single Release observation.
+
+The 0.1.2 private DMG and its browser download pass checksum verification. The installed bundle passes signature and runtime/resource checks and opens from Applications. The previous app bundle is backed up privately. The installed root's quarantine attribute is unchanged. The maintainer confirms retained highlighting and Cmd+C copying in normal and fullscreen layouts. The window remains visible, and empty-header dragging works after fullscreen exit. Native window control on the host is unreliable, so these final pointer checks use maintainer confirmation.
+
+The previous shell pane closed when 0.1.1 quit for replacement. No destructive quit option was selected by the installation tooling. The close request's origin is unconfirmed. This update does not establish session continuity.
 
 macOS 14 compatibility, physical typing and IME, spoken VoiceOver, terminal link/file activation, provider responses/resume, sleep/wake, reboot, and final performance acceptance remain gates. See [current status](status.md), [acceptance](acceptance.md), and [the release procedure](releasing.md).
