@@ -386,10 +386,17 @@ import SpookkyGit
             if let error { NSAccessibility.post(element: NSApp!, notification: .announcementRequested,
                 userInfo: [.announcement: error, .priority: NSAccessibilityPriorityLevel.medium.rawValue]) }
         }
-        let chrome = state.workspaces.map { w in
-            w.id.uuidString + w.title + w.directory + (w.anchor?.branch ?? "") + String(describing: w.projectID) + w.selectedTabID.uuidString +
-                w.tabs.map { $0.id.uuidString + $0.title + $0.status.rawValue + $0.draft.tool.rawValue }.joined()
-        }.joined() + state.projects.map { $0.id.uuidString + $0.name }.joined() + String(describing: state.selectedWorkspaceID) + String(state.sidebarCollapsed) + String(describing: window.effectiveAppearance.name)
+        let workspaceChrome = state.workspaces.map { w -> String in
+            let identity = w.id.uuidString + w.title + w.directory
+            let anchor = (w.anchor?.branch ?? "") + String(describing: w.projectID)
+            let tabs = w.tabs.map { tab -> String in
+                tab.id.uuidString + tab.title + tab.status.rawValue + tab.draft.tool.rawValue
+            }.joined()
+            return identity + anchor + w.selectedTabID.uuidString + tabs
+        }.joined()
+        let projectChrome = state.projects.map { $0.id.uuidString + $0.name }.joined()
+        let selectionChrome = String(describing: state.selectedWorkspaceID) + String(state.sidebarCollapsed)
+        let chrome = workspaceChrome + projectChrome + selectionChrome + String(describing: window.effectiveAppearance.name)
         if chrome != chromeRevision {
             chromeRevision = chrome
             window.effectiveAppearance.performAsCurrentDrawingAppearance { renderChrome() }
@@ -1004,8 +1011,10 @@ import SpookkyGit
     }
     private func showLocationOperations() {
         let operations = store.state.locations?.operations ?? []
-        let text = operations.suffix(10).map {
-            $0.request.kind.rawValue + " · " + $0.status.rawValue + "\n" + $0.request.destination + "\n" + ($0.error ?? $0.receipts.last?.phase.rawValue ?? "intent")
+        let text = operations.suffix(10).map { operation -> String in
+            let heading = operation.request.kind.rawValue + " · " + operation.status.rawValue
+            let phase = operation.error ?? operation.receipts.last?.phase.rawValue ?? "intent"
+            return heading + "\n" + operation.request.destination + "\n" + phase
         }.joined(separator: "\n\n")
         alert("Project operations", text.isEmpty ? "No project operations yet." : text)
     }
