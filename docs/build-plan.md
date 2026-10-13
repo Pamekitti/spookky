@@ -28,4 +28,4 @@ Use [acceptance](acceptance.md) and [performance](performance.md) to choose chec
 
 Preserve immediate shell access, drafts, process ownership, and workspace scope. Keep UI, scanning, Git operations, and persistence within the [architecture boundaries](architecture.md).
 
-Publication of source is separate from release readiness. The public repository does not grant an open-source license for original application code. Third-party attribution and licenses remain intact.
+Publication of source is separate from release readiness. Original code, documentation, and artwork use the MIT license. Third-party attribution and licenses remain intact.
