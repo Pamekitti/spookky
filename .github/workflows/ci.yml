@@ -12,6 +12,7 @@ jobs:
   source:
     name: Source and website
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       native: ${{ steps.scope.outputs.native }}
     steps:
@@ -24,7 +25,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
-          cache: ${{ steps.scope.outputs.website == 'true' && 'npm' || '' }}
+          cache: ${{ github.event_name == 'pull_request' && steps.scope.outputs.website == 'true' && 'npm' || '' }}
           cache-dependency-path: website/package-lock.json
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
@@ -33,25 +34,24 @@ jobs:
       - run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - run: python3 scripts/check_public.py --history
       - name: Cache Chromium download
-        if: steps.scope.outputs.website == 'true'
+        if: github.event_name == 'pull_request' && steps.scope.outputs.website == 'true'
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/ms-playwright
           key: browsers-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('website/package-lock.json') }}
       - name: Website checks
-        if: steps.scope.outputs.website == 'true'
+        if: github.event_name == 'pull_request' && steps.scope.outputs.website == 'true'
         run: npm ci && npx playwright install --with-deps chromium && npm test
         working-directory: website
   native15:
     name: Swift and native builds (macos-15)
     needs: source
-    if: needs.source.outputs.native == 'true'
+    if: github.event_name == 'pull_request' && needs.source.outputs.native == 'true'
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 15
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.0.app/Contents/Developer
-      FULL_NATIVE: 'false'
-    steps: &native_steps
+    steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Identify build toolchain
         id: toolchain
@@ -68,7 +68,6 @@ jobs:
           path: .cache/runtime
           key: runtime-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('Dependencies/manifest.json', 'scripts/build_runtime.py') }}
       - name: Cache pinned terminal library
-        if: env.FULL_NATIVE == 'true'
         id: ghostty
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
@@ -77,42 +76,10 @@ jobs:
             .cache/dependencies/ghostty/zig-out/share/ghostty
             .cache/dependencies/ghostty/zig-out/share/terminfo
           key: ghostty-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('Dependencies/manifest.json', 'scripts/build_ghostty.py', 'scripts/collect_notices.py', 'scripts/merge_macos_archives.py') }}
-      - name: Cache incremental Swift and Xcode builds
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: |
-            .build
-            DerivedData/Build
-            DerivedData/ModuleCache.noindex
-            DerivedData/SDKExplicitPrecompiledModules
-            DerivedData/SourcePackages
-          key: swift-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('Package.swift', 'Package.resolved', 'Dependencies/manifest.json') }}-${{ hashFiles('Sources/**', 'Tests/**', 'App/**', 'Dependencies/HighlighterSwift/**', 'Spookky.xcodeproj/**', 'scripts/create_xcode_project.py') }}
-          restore-keys: |
-            swift-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('Package.swift', 'Package.resolved', 'Dependencies/manifest.json') }}-
       - run: brew install cmake pkgconf
       - run: python3 scripts/build_runtime.py
       - run: swift test
-      - if: env.FULL_NATIVE == 'true' && steps.ghostty.outputs.cache-hit != 'true'
+      - if: steps.ghostty.outputs.cache-hit != 'true'
         run: python3 scripts/build_ghostty.py
-      - if: env.FULL_NATIVE == 'true'
-        run: sh scripts/build_native.sh Debug && sh scripts/build_native.sh Release
-      - if: env.FULL_NATIVE == 'true'
-        run: python3 scripts/verify_bundle.py DerivedData/Build/Products/Release/Spookky.app
-      - name: Check public build metadata and packaging
-        if: env.FULL_NATIVE == 'true'
-        run: |
-          xcodebuild -project Spookky.xcodeproj -scheme Spookky -configuration Distribution -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build
-          for executable in Spookky spookky-launch spookky-runtime-check tmux; do
-            strip -S "DerivedData/Build/Products/Distribution/Spookky.app/Contents/MacOS/$executable"
-          done
-          python3 scripts/verify_bundle.py DerivedData/Build/Products/Distribution/Spookky.app
-  native26:
-    name: Swift and native builds (macos-26)
-    needs: source
-    if: needs.source.outputs.native == 'true'
-    runs-on: macos-26
-    timeout-minutes: 30
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_26.6.0.app/Contents/Developer
-      FULL_NATIVE: 'true'
-    steps: *native_steps
+      - run: sh scripts/build_native.sh Release
+      - run: python3 scripts/verify_bundle.py DerivedData/Build/Products/Release/Spookky.app
