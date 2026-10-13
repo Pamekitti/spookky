@@ -1,0 +1,53 @@
+App/AppDelegate.swift
+  s_71deb0dcf6dca4::t_adb8bae0b13f34 110-112
+App/Info.plist
+  s_71deb0dcf6dca4::t_c7e7c28b5abbf8 7-8
+App/WorkspaceWindowController.swift
+  s_71deb0dcf6dca4::t_46faabd5318315 160-161
+Sources/SpookkyCore/AppPaths.swift
+  s_7c7077e9b16eda::t_62f989720303d2 2,8,10-11,13-16,22-24
+Spookky.xcodeproj/project.pbxproj
+  s_7c7077e9b16eda::t_fd3afeb5c3edb6 76-78
+scripts/build_native.sh
+  s_71deb0dcf6dca4::t_a656fa2cf00fb9 4
+scripts/create_xcode_project.py
+  s_f3a8ec1b1f74ec::t_f6b893006e9559 82-83,91-92
+scripts/dev.py
+  s_7c7077e9b16eda::t_35963622b7f613 1-74
+scripts/test_dev_lifecycle.py
+  s_7c7077e9b16eda::t_dbd088c0418a64 1-25
+Tests/SpookkyRuntimeTests/AppPathsTests.swift
+  s_f3a8ec1b1f74ec::t_4e75881753e467 6-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "40305a0ecbad9ad56c24aa1b8d1db0e2540d9c53",
+  "prompts": {},
+  "sessions": {
+    "s_71deb0dcf6dca4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a120ab-1a58-7d22-b858-0c194ed2c830",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_7c7077e9b16eda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a13595-be2b-7410-9a55-45f3190d38c6",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_f3a8ec1b1f74ec": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13595-be2b-7410-9a55-45f3190d38c6",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
