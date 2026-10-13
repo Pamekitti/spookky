@@ -43,7 +43,7 @@ def build_app(config, build):
         raise ValueError("Quit this worktree's development app before rebuilding. Choose Keep sessions running to retain its terminals.")
     environment = dict(os.environ, DEVELOPER_DIR=developer)
     subprocess.run(["xcodebuild", "-project", "Spookky.xcodeproj", "-scheme", "Spookky",
-                    "-configuration", build, "-derivedDataPath", "DerivedData",
+                    "-configuration", build, "-derivedDataPath", "DerivedData", "ARCHS=arm64",
                     "PRODUCT_BUNDLE_IDENTIFIER=" + config["bundleID"],
                     "SPOOKKY_DISPLAY_NAME=" + config["name"], "build"], cwd=ROOT, env=environment, check=True)
 
