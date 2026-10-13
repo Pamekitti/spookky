@@ -31,4 +31,14 @@ The [public launch report](public-launch.md) records new packaging, website, upd
 
 Unknown activity stays unknown. A running process does not prove an agent is working, a prompt was acknowledged, or a task succeeded.
 
+## Development lifecycle verification
+
+On 13 October 2026, two development apps built from separate worktrees ran alongside the installed local daily app. Each had a distinct bundle identifier, metadata database, and private terminal socket. Automated native input opened a Home shell in each app and produced a separate runtime-side marker. The first app quit with sessions retained and reopened with the same shell process. The daily app and its runtime retained their original process identities. The launcher rejected rebuilding a running development instance. Both owned test apps were closed afterward, and the disposable worktree was removed.
+
+The local change passed 83 XCTest cases, 17 Swift Testing cases, 22 Python tests, native Release builds for both checkouts, an unsigned Distribution build, bundle/signature audits, and the repository checker. A subsequent targeted run passed all five path-isolation tests. This check does not establish physical input, extended continuity, or an actual installed-app update.
+
+The rebuild check exposed bundled tmux clients exiting with SIGKILL after helpers were copied over existing executable files. Signature verification still passed. The shell remained alive, but the rebuilt app could not reconnect. Helper packaging now copies into temporary files and renames them into place. Two corrected launcher rebuilds reopened the app with the same shell process and visibly retained unsent input. The second rebuild also confirmed a new helper inode. Owned test state was archived after cleanup. Running private runtimes keep their existing executable inodes.
+
+The release workflow YAML was parsed locally. Its successful-main trigger, exact source checkout, opt-in variable, and protected release environment were inspected. The workflow was not run on GitHub. The active path remains private local installers. Signed automatic delivery is deferred. See the [development lifecycle](lifecycle.md).
+
 See [acceptance](acceptance.md) for the full requirement matrix and [development](development.md) for reproducible commands. The source is MIT-licensed. A signed public installer is not available yet.
