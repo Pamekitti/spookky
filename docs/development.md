@@ -76,6 +76,8 @@ python3 scripts/check_m0_input.py input --mode direct --replay --output .cache/i
 python3 scripts/check_m0_input.py input --mode persistent --replay --output .cache/input-persistent.json
 python3 scripts/check_m0_input.py folders --output .cache/folders.json
 python3 scripts/check_surface_races.py --output .cache/surface-races.json
+python3 scripts/check_terminal_selection.py --output .cache/terminal-selection.json
+python3 scripts/check_workspace_close.py --output .cache/workspace-close.json
 python3 scripts/check_provider_continuity.py --output .cache/provider-interfaces.json
 ```
 
@@ -102,7 +104,7 @@ python3 scripts/benchmark_m4.py --output .cache/continuity.json
 python3 scripts/benchmark_m4.py --overnight --output .cache/overnight.json
 ```
 
-The default M4 fixture runs ten warm-ups, 100 measured lifecycle cycles, a 30-minute workload, and a 60-second idle observation. The overnight mode is eight hours. Run measurements separately with no builds in progress. Neither mode prevents or initiates sleep.
+The default M4 fixture runs ten warm-ups, 100 measured lifecycle cycles, a 30-minute workload, and a 60-second idle observation. The overnight mode is eight hours. Run measurements separately with no builds in progress. Neither mode prevents or initiates sleep. Add `--background` to keep the automated fixture behind user windows without keyboard focus or mouse input. This mode measures programmatic native attachment and excludes physical typing.
 
 `benchmark_agents_m0.py` uses a separately prepared `/tmp/spookky-m0-agent-fixture` folder trusted through normal provider flows. It opens provider interfaces without model prompts. See [performance](performance.md) for resource boundaries and [recovery](m4-recovery.md) for hands-on sleep/reboot checks.
 

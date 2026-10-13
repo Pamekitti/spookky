@@ -16,7 +16,7 @@ struct WorkspaceBenchmarkResolver: ExecutableResolver {
     func resolve(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec {
         guard tool == .shell else { throw LaunchError.invalid("The workspace benchmark supports shells only.") }
         return try LaunchSpec(tool: .shell, executable: "/bin/zsh", arguments: ["-f"], directory: directory,
-                              environment: ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "PS1": "% ", "PROMPT": "% "])
+                              environment: ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin", "PS1": "%% ", "PROMPT": "%% "])
     }
 }
 

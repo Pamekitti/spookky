@@ -288,7 +288,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
         workspaces[w].tabs.remove(at: t)
         if let split = workspaces[w].split, split.first == id || split.second == id { workspaces[w].split = nil }
         if workspaces[w].tabs.isEmpty {
-            let blank = WorkspaceTab(tool: lastTool); workspaces[w].tabs = [blank]; workspaces[w].selectedTabID = blank.id
+            closeWorkspace(workspaces[w].id)
         } else if workspaces[w].selectedTabID == id { workspaces[w].selectedTabID = workspaces[w].tabs[min(t, workspaces[w].tabs.count - 1)].id }
     }
     public mutating func closeWorkspace(_ id: UUID) {

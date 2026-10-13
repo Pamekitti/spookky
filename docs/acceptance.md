@@ -32,7 +32,17 @@ For S01-S12, exercise Terminal, Codex without/with a prompt, and Claude Code wit
 - [ ] Cmd+N then Cmd+T works without pointer input, including focus routing immediately after render.
 - [ ] Quick Terminal retains a typed agent draft in another tab.
 - [ ] Project + preselects its project. Workspace × targets the correct workspace.
-- [ ] Closing an inactive workspace preserves current selection; closing the last tab returns to a blank view.
+- [ ] Closing an inactive workspace preserves current selection; closing the last tab removes its workspace without creating a replacement tab. Closing the final tab closes the window.
+- [x] Enter confirms tab closure and Escape cancels with terminal focus retained. Cmd+T after final-tab closure opens one Home terminal without an empty intermediate page.
+
+Earlier targeted native check, 13 October 2026: final blank-tab and confirmed running-shell closure closed the window without a replacement tab. Cancel retained the shell and terminal focus. Closing a second tab retained the first shell and window. Cmd+N reopened a workspace after final-tab closure. The earlier installed local app also passed final blank-tab closure. Release build, 83 XCTest cases, 13 Swift Testing cases, and the repository checker passed. This record preceded the combined selection/closure installer. It does not establish the full acceptance suite.
+
+Combined 0.1.3 build, 13 October 2026: Debug and Release pass. The native lifecycle fixture passes all 12 checks. These cover first launch, tab closure, Return/Escape, retained process/focus, Cmd+T, Cmd+N, reopening, and startup from saved empty state. The selection fixture passes all five checks, including retained highlighting and exact copied text. The full suite passes 83 XCTest cases and 15 Swift Testing cases.
+
+The downloaded 0.1.3 DMG passed checksum verification. Build 103 is installed in Applications from source commit `42a892a12ac8a121a30dd6174e0acbc7514dae13`. Its ad hoc signature and bundled runtime pass verification. The update retained the existing macOS quarantine attribute and a backup of 0.1.2. The installed app reopened on the Home start screen.
+
+The maintainer confirmed the physical keyboard checks on 13 October 2026. Cmd+T opens Terminal; Cmd+W then Escape cancels closure. Cmd+W then Enter closes the final tab and window without a replacement blank page. Cmd+T then reopens one terminal. Text selection, Cmd+C, and fullscreen continue to work. This confirms the targeted interaction checks on the maintainer's Mac. The broader input, accessibility, and continuity gates remain separate.
+
 - [ ] Tabs can be selected, renamed, closed, and explicitly split; active tabs stay visible in overflow.
 - [ ] Project/workspace context menus support right-click and keyboard access.
 - [ ] Tab/workspace switching preserves drafts, processes, output, scroll, and file selection.
@@ -69,6 +79,9 @@ Extended continuity remains blocked by an unsent-input preservation failure. The
 ## Terminal and UI checks
 
 - [ ] Native TUI drawing, alternate screen, resize, Unicode/IME, selection, bracketed paste, Ctrl+C, and provider approvals work.
+- [ ] Dragging terminal text selects it without moving the window, in normal and fullscreen layouts.
+- [ ] Selection remains highlighted after release and Cmd+C copies it. CLI mouse input and wheel scrolling remain usable.
+- [ ] Fullscreen drag keeps the window present. Exiting restores normal geometry and header dragging.
 - [ ] File/image path input never appends Enter automatically; supported image clipboard behavior is verified per CLI version.
 - [ ] CLI model/auth/permission controls remain provider-owned.
 - [ ] No hidden process is stopped merely to lower resource use.

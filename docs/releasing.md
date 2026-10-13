@@ -2,9 +2,33 @@
 
 Public binaries require Developer ID signing, notarization, complete dependency notices, and installation/update evidence. The website shows the source until verified release metadata is published.
 
+## Private local installer
+
+Apple enrollment is deferred while the maintainer uses Spookky on their own Mac. A private local DMG provides browser download and drag-to-Applications installation. It is not an Apple-notarized public release. macOS may block first launch until the owner approves this specific app.
+
+Package an already-tested app with the pinned release tools. Use its full source commit and a fresh output directory:
+
+```sh
+.cache/release-tools/bin/python scripts/prepare_local_dmg.py \
+  --app path/to/tested/Spookky.app \
+  --source-commit FULL_TESTED_COMMIT \
+  --output .cache/local-download
+python3 scripts/serve_local_download.py --directory .cache/local-download
+```
+
+Open [the local download page](http://127.0.0.1:48769/), download the DMG, and drag Spookky into Applications. The server binds only to loopback and serves an explicit file list. It does not expose the repository or app state. Stop the server when downloads are finished.
+
+If macOS blocks opening, click Done. Open System Settings → Privacy & Security, scroll to Security, and click Open Anyway for Spookky. Authenticate if asked, then confirm Open in the next alert. This records an exception for this app. See [Apple's first-open instructions](https://support.apple.com/en-us/102445).
+
+The package uses a local ad hoc signature and production identity `dev.spookky.app`. It keeps the normal Spookky data location for a later signed release. It does not import development or historical metadata. Automatic updates are disabled. Install future local builds manually after quitting the installed app safely. Preserve running sessions through the app's quit choices before replacement.
+
+The local packaging command copies the source app, strips owned executable debug paths, verifies bundled dependencies, and creates a branded DMG with a checksum and local build manifest. It never changes the tested source bundle. Public release verification rejects the local marker. The public download manifest and updater feed remain unchanged.
+
 ## One-time setup
 
-Enroll in the Apple Developer Program or use an existing membership. Add the account in Xcode and create a Developer ID Application certificate. Keep its private key and backup outside Git.
+Enroll in the [Apple Developer Program](https://developer.apple.com/programs/enroll/) or use an existing membership. Membership costs 99 USD per year, with regional pricing shown during enrollment. Use Individual for a personal project. Organization enrollment requires a legal entity and a D-U-N-S Number. Complete identity verification, the agreement, and payment directly with Apple. [Enrollment requirements](https://developer.apple.com/help/account/membership/program-enrollment/).
+
+After Apple confirms membership, add the account in Xcode and create a [Developer ID Application certificate](https://developer.apple.com/help/account/certificates/create-developer-id-certificates/). Keep its private key and backup outside Git. Do not send credentials or certificates through chat.
 
 The Sparkle public key is in `release.json`. Its matching private key is stored in the maintainer's login Keychain under the Sparkle account `dev.spookky.app`. Back it up through Sparkle's `generate_keys` export workflow to private storage. Do not paste it into chat, issues, or logs.
 

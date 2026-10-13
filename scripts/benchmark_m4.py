@@ -76,7 +76,7 @@ def main():
                     for key, filename in [('cycles', 'continuity-cycles.json'), ('checkpoints', 'continuity-checkpoints.json')]:
                         source = fixture.root / filename
                         if source.exists(): result[key] = json.loads(source.read_text())
-                    for key, filename in [('owner_actions', 'runtime-actions.json'), ('baseline_identities', 'baseline-identities.json'), ('draft_failure', 'draft-failure.json')]:
+                    for key, filename in [('owner_actions', 'runtime-actions.json'), ('baseline_identities', 'baseline-identities.json'), ('draft_failure', 'draft-failure.json'), ('fixture_failure', 'continuity-failure.json')]:
                         source = fixture.root / filename
                         if source.exists(): result[key] = json.loads(source.read_text())
                     if (fixture.root / 'socket').exists():
@@ -117,6 +117,8 @@ def main():
             if 'timing' in result:
                 result['continuity_checks']['warm_switch_budget'] = result['timing']['warm_selection']['p95_ms'] < 100
                 result['continuity_checks']['reattachment_budget'] = result['timing']['recreated_surface_selection']['p95_ms'] < 250
+        if args.background:
+            result.setdefault('continuity_checks', {})['no_keyboard_focus'] = bool(result['checkpoints']) and all(row['windowKey'] == 0 and row['windowMain'] == 0 for row in result['checkpoints'])
         result['binary_changed_during_run'] = hashlib.sha256(args.binary.read_bytes()).hexdigest() != result['binary_sha256']
         if args.smoke:
             result['performance_acceptance'] = False
