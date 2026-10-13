@@ -16,15 +16,17 @@ The daily app remains open while development apps run. Each worktree keeps its o
 
 1. Open or create a Spookky workspace anchored to the checkout you want to change.
 2. Make the change in that checkout. Preserve unrelated work.
-3. Build and run its development app:
+3. For a native change, run the checks and open its development app:
 
    ```sh
+   python3 scripts/check_repo.py
+   swift test
    python3 scripts/dev.py run
    ```
 
-4. Verify the affected interaction once with real terminal input, focus, and lifecycle when relevant. Run `python3 scripts/check.py` for the selected automated checks. Use the affected [acceptance requirements](acceptance.md) without repeating unchanged verification.
+4. Verify the affected interaction once with real terminal input, focus, and lifecycle when relevant. Use the affected [acceptance requirements](acceptance.md) without repeating unchanged verification. Documentation changes need the repository checker only. Python and website changes have their own checks in [development](development.md).
 5. Quit that development app before rebuilding it. Choose Keep sessions running when you need to reattach its terminals after the rebuild.
-6. Open a PR after verification. Include the tested commit, checks, and remaining limits.
+6. Use `/ship` for logical commits, rebase, public audit, push, and PR creation. Include the tested commit, checks, and remaining limits. Merge after the required checks pass.
 
 Dependencies require the explicit first-build steps in [development setup](development.md). The run command reports a missing dependency and does not install it automatically.
 
@@ -46,7 +48,7 @@ Existing shared development data is preserved. New checkout-specific builds do n
 
 ## Merge and update the daily app now
 
-Wait for main's Checks workflow to pass. Then prepare a local installer from an isolated main checkout:
+The PR runs affected tests before merge. Main's Checks workflow runs source checks without repeating native or browser builds. After it passes, prepare a local installer from an isolated main checkout:
 
 ```sh
 .cache/release-tools/bin/python scripts/prepare_main_update.py --open

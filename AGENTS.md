@@ -7,7 +7,7 @@ Build a fast, reliable native macOS workspace around real CLI terminals. Keep th
 - Follow the latest user instruction. Answer questions without implementing them. Finish authorized work without repeated confirmation.
 - Inspect Git state and relevant files first. Preserve unrelated edits and active sessions. Use `rg`, batch reads, and keep one todo item in progress.
 - Read only relevant contracts: [product](docs/product.md)/[flows](docs/flows.md), [UI](docs/interface.md), [runtime](docs/architecture.md), or [development](docs/development.md). Check [status](docs/status.md) before claiming acceptance.
-- Run `python3 scripts/check.py --plan`, then selected checks once. Reuse matching passed receipts. Recheck changed behavior or failures. Batch UI changes before one focused verification.
+- Run the existing affected checks in [development](docs/development.md) once. Recheck after relevant changes or failures. Batch UI changes before one focused verification.
 - Use the project [ship skill](.agents/skills/ship/SKILL.md). Make logical commits, rebase onto main, audit, and open a PR. Never push directly to main or force push. Merge only when authorized and the exact head is ready.
 
 ## Boundaries

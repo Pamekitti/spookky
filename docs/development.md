@@ -10,16 +10,17 @@ The verified development host used macOS 26.6.2, Xcode 27, Swift 6.3.3, and tmux
 
 ## Build and test
 
-Use the check planner for an ordinary change:
+After the one-time dependency setup, an ordinary native change uses these commands:
 
 ```sh
-python3 scripts/check.py --plan
-python3 scripts/check.py
+python3 scripts/check_repo.py
+swift test
+python3 scripts/dev.py run
 ```
 
-The planner compares against `origin/main` and includes staged, unstaged, and untracked source. Documentation and agent instructions use repository and Python checks. Native changes add Swift tests and a Release build. Build/packaging changes also add Debug. Website changes add browser tests. CI machinery changes exercise both areas on GitHub without rebuilding the unchanged local app. Unknown paths or an unavailable base select full coverage.
+Test the changed interaction in that checkout's development app. Run relevant checks once, then repeat only after relevant changes or failures. CI checks the Release build.
 
-One bounded receipt under ignored `.cache/checks/` reuses passed automated checks for matching source, selected commands, tools, and environment. Failed or interrupted checks are not reused. Public audits and GUI evidence remain separate. Use `--force` after an external change invalidates runtime evidence, or `--full` to select all local checks. This avoids repeated builds after commits and unchanged rebases.
+Documentation changes need the repository checker. Python script changes add `python3 -m unittest discover -s scripts -p 'test_*.py'`. Website changes use `npm test --prefix website` after website setup. Browser tests are headless and belong to website changes, not ordinary native development.
 
 The complete commands remain available for setup and explicit verification:
 
@@ -62,9 +63,11 @@ The CLI resolver checks inherited PATH, a bounded login-shell PATH query, local/
 
 ## Public website and releases
 
-CI always runs source/Python checks and the public audit. It selects website tests and macOS jobs from changed paths. Required check names remain stable when native jobs are intentionally skipped for documentation. Native and unknown changes keep both macOS checks. Changed CI selection logic runs the native and website jobs.
+PR CI always runs source/Python checks and the public audit. Native changes add one macOS 15 job with Swift tests, one Release build, and a bundle audit. Website changes add headless browser tests. Documentation changes skip both. Unknown paths and CI machinery changes select both areas. The source check and native check remain required; an intentionally skipped native job permits documentation PRs to merge.
 
-Caches contain pinned runtime/terminal dependencies, Swift/Xcode build outputs, npm downloads, and Chromium. Keys include dependency recipes, architecture, OS/toolchain, and relevant source. Cache hits do not skip native tests or bundle audits. App state, session data, credentials, and signing material are excluded. Runner queue time and cold builds remain outside the warm-cache speed claim.
+After merge, main runs source checks only. It does not repeat native builds or browser tests. Dependency caches hold pinned tmux and Ghostty outputs, npm downloads, and Chromium. Keys include dependency recipes, architecture, and toolchain. Swift/Xcode build outputs and app state are not cached. Source jobs have a five-minute timeout; the native PR job has a 15-minute timeout. The actual warm native duration remains unmeasured.
+
+The opt-in signed release workflow uses macOS 26 and prepares Distribution packaging. Extra build configurations and compatibility checks belong to release verification. Signed automatic delivery remains disabled while private local installers are in use.
 
 ```sh
 cd website
