@@ -1,0 +1,19 @@
+.github/workflows/ci.yml
+  s_f3a8ec1b1f74ec::t_f9b875e75fd41d 15-16,21-23,27-28,35-43,45-50,52-54,56-91,94-95,97,99,102,109-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f355bea1a5cfbde450b8364b27248316c9bd3609",
+  "prompts": {},
+  "sessions": {
+    "s_f3a8ec1b1f74ec": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13595-be2b-7410-9a55-45f3190d38c6",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}

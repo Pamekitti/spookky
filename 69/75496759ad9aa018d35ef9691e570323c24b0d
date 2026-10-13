@@ -1,0 +1,105 @@
+Spookky.xcodeproj/project.pbxproj
+  s_7c7077e9b16eda::t_30f86eb990d18f 72
+  s_7c7077e9b16eda::t_fd3afeb5c3edb6 76-78
+scripts/create_xcode_project.py
+  s_f3a8ec1b1f74ec::t_f2c0571d710842 60-61
+  s_f3a8ec1b1f74ec::t_f6b893006e9559 82-83,91-92
+App/AppDelegate.swift
+  s_71deb0dcf6dca4::t_adb8bae0b13f34 110-112
+App/Info.plist
+  s_71deb0dcf6dca4::t_c7e7c28b5abbf8 7-8
+App/WorkspaceWindowController.swift
+  s_71deb0dcf6dca4::t_46faabd5318315 160-161
+Sources/SpookkyCore/AppPaths.swift
+  s_7c7077e9b16eda::t_62f989720303d2 2,8,10-11,13-16,22-24
+scripts/build_native.sh
+  s_71deb0dcf6dca4::t_a656fa2cf00fb9 4
+scripts/dev.py
+  s_7c7077e9b16eda::t_35963622b7f613 1-74
+scripts/test_dev_lifecycle.py
+  s_7c7077e9b16eda::t_dbd088c0418a64 1-25
+Tests/SpookkyRuntimeTests/AppPathsTests.swift
+  s_f3a8ec1b1f74ec::t_4e75881753e467 6-27
+scripts/prepare_local_dmg.py
+  s_71deb0dcf6dca4::t_9bccd77840f88a 23-25,31,33
+scripts/prepare_main_update.py
+  s_c9ff549f43baee::t_96541d8ab8ea07 1-62
+scripts/test_local_dmg.py
+  s_7c7077e9b16eda::t_8c4478c62e7792 24-31
+.github/workflows/release.yml
+  s_7c7077e9b16eda::t_b6ee1027730ffd 3-6,16-19,21-46,48-51,57-59,64,127
+scripts/release_plan.py
+  s_7c7077e9b16eda::t_58d1777a8e8d61 1-56
+scripts/test_release_config.py
+  s_7c7077e9b16eda::t_0a7fdc0694207a 6,14-21
+README.md
+  s_c9ff549f43baee::t_5e8d5258ea3f28 39,60-61
+docs/build-plan.md
+  s_c9ff549f43baee::t_8f66dad82d5209 14,23
+docs/development.md
+  s_7c7077e9b16eda::t_1c15e87b865b41 29,32-33,38-42
+docs/lifecycle.md
+  s_c9ff549f43baee::t_07293b536676e3 1-75
+docs/releasing.md
+  s_7c7077e9b16eda::t_19abfcd365fe15 5-6,47-48
+docs/status.md
+  s_71deb0dcf6dca4::t_f1f225444575a5 34-43
+CONTRIBUTING.md
+  s_f3a8ec1b1f74ec::t_947e1851dfeedf 21-26
+.agents/skills/ship/agents/openai.yaml
+  s_f3a8ec1b1f74ec::t_8555c97534b6b4 1-4
+.claude/skills/ship
+  s_7c7077e9b16eda::t_5c007c7e5d1ff6 1
+AGENTS.md
+  s_f3a8ec1b1f74ec::t_3635a25d7dbdc9 43
+.agents/skills/ship/SKILL.md
+  s_c9ff549f43baee::t_bda6a78a85f56f 1-95
+scripts/check.py
+  s_f3a8ec1b1f74ec::t_69e7815b0ac050 1-97
+scripts/check_scope.py
+  s_f3a8ec1b1f74ec::t_52123dc3ffd2d5 1-73
+scripts/test_check_receipts.py
+  s_71deb0dcf6dca4::t_da5fa533386713 1-57
+scripts/test_check_scope.py
+  s_71deb0dcf6dca4::t_eb3acab93f52c8 1-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6975496759ad9aa018d35ef9691e570323c24b0d",
+  "prompts": {},
+  "sessions": {
+    "s_71deb0dcf6dca4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a120ab-1a58-7d22-b858-0c194ed2c830",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_7c7077e9b16eda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a13595-be2b-7410-9a55-45f3190d38c6",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_c9ff549f43baee": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a120ab-1a58-7d22-b858-0c194ed2c830",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_f3a8ec1b1f74ec": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a13595-be2b-7410-9a55-45f3190d38c6",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
