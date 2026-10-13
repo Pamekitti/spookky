@@ -1,0 +1,45 @@
+README.md
+  s_c9ff549f43baee::t_5e8d5258ea3f28 39,60-61
+docs/build-plan.md
+  s_c9ff549f43baee::t_8f66dad82d5209 14,23
+docs/development.md
+  s_7c7077e9b16eda::t_1c15e87b865b41 29,32-33,38-42
+docs/lifecycle.md
+  s_c9ff549f43baee::t_07293b536676e3 1-75
+docs/releasing.md
+  s_7c7077e9b16eda::t_19abfcd365fe15 5-6,47-48
+docs/status.md
+  s_71deb0dcf6dca4::t_f1f225444575a5 34-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2a99754008e06988ec8ae312a6c214710eca2573",
+  "prompts": {},
+  "sessions": {
+    "s_71deb0dcf6dca4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a120ab-1a58-7d22-b858-0c194ed2c830",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_7c7077e9b16eda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a13595-be2b-7410-9a55-45f3190d38c6",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_c9ff549f43baee": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a120ab-1a58-7d22-b858-0c194ed2c830",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
