@@ -37,7 +37,10 @@ For S01-S12, exercise Terminal, Codex without/with a prompt, and Claude Code wit
 
 Earlier targeted native check, 13 October 2026: final blank-tab and confirmed running-shell closure closed the window without a replacement tab. Cancel retained the shell and terminal focus. Closing a second tab retained the first shell and window. Cmd+N reopened a workspace after final-tab closure. The earlier installed local app also passed final blank-tab closure. Release build, 83 XCTest cases, 13 Swift Testing cases, and the repository checker passed. This record preceded the combined selection/closure installer. It does not establish the full acceptance suite.
 
-Combined 0.1.3 build, 13 October 2026: Debug and Release pass. The native lifecycle fixture passes 12 checks for first launch, tab closure, Return/Escape, retained process/focus, Cmd+T, Cmd+N, reopening, and startup from saved empty state. The selection fixture passes five checks, including retained highlighting and exact copied text. The full suite passes 83 XCTest cases and 15 Swift Testing cases. Installation and physical keyboard confirmation remain pending.
+Combined 0.1.3 build, 13 October 2026: Debug and Release pass. The native lifecycle fixture passes all 12 checks. These cover first launch, tab closure, Return/Escape, retained process/focus, Cmd+T, Cmd+N, reopening, and startup from saved empty state. The selection fixture passes all five checks, including retained highlighting and exact copied text. The full suite passes 83 XCTest cases and 15 Swift Testing cases.
+
+The downloaded 0.1.3 DMG passed checksum verification. Build 103 is installed in Applications from source commit `42a892a12ac8a121a30dd6174e0acbc7514dae13`. Its ad hoc signature and bundled runtime pass verification. The update retained the existing macOS quarantine attribute and a backup of 0.1.2. The installed app reopened on the Home start screen. Physical keyboard confirmation remains pending.
+
 - [ ] Tabs can be selected, renamed, closed, and explicitly split; active tabs stay visible in overflow.
 - [ ] Project/workspace context menus support right-click and keyboard access.
 - [ ] Tab/workspace switching preserves drafts, processes, output, scroll, and file selection.
