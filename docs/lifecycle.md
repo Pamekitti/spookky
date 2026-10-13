@@ -22,7 +22,7 @@ The daily app remains open while development apps run. Each worktree keeps its o
    python3 scripts/dev.py run
    ```
 
-4. Verify the affected interaction with real terminal input, focus, and lifecycle when relevant. Run the checks listed in [development setup](development.md) and the affected [acceptance requirements](acceptance.md).
+4. Verify the affected interaction once with real terminal input, focus, and lifecycle when relevant. Run `python3 scripts/check.py` for the selected automated checks. Use the affected [acceptance requirements](acceptance.md) without repeating unchanged verification.
 5. Quit that development app before rebuilding it. Choose Keep sessions running when you need to reattach its terminals after the rebuild.
 6. Open a PR after verification. Include the tested commit, checks, and remaining limits.
 

@@ -10,6 +10,19 @@ The verified development host used macOS 26.6.2, Xcode 27, Swift 6.3.3, and tmux
 
 ## Build and test
 
+Use the check planner for an ordinary change:
+
+```sh
+python3 scripts/check.py --plan
+python3 scripts/check.py
+```
+
+The planner compares against `origin/main` and includes staged, unstaged, and untracked source. Documentation and agent instructions use repository and Python checks. Native changes add Swift tests and a Release build. Build/packaging changes also add Debug. Website changes add browser tests. CI machinery changes exercise both areas on GitHub without rebuilding the unchanged local app. Unknown paths or an unavailable base select full coverage.
+
+One bounded receipt under ignored `.cache/checks/` reuses passed automated checks for matching source, selected commands, tools, and environment. Failed or interrupted checks are not reused. Public audits and GUI evidence remain separate. Use `--force` after an external change invalidates runtime evidence, or `--full` to select all local checks. This avoids repeated builds after commits and unchanged rebases.
+
+The complete commands remain available for setup and explicit verification:
+
 ```sh
 python3 scripts/build_runtime.py
 swift build --product spookky-launch
@@ -48,6 +61,10 @@ Do not point benchmarks at normal development data or the user's repositories. K
 The CLI resolver checks inherited PATH, a bounded login-shell PATH query, local/Homebrew locations, and installed nvm Node directories. It preserves the selected executable's adjacent interpreter directory. Lookup does not install providers or alter authentication, trust, or permission controls.
 
 ## Public website and releases
+
+CI always runs source/Python checks and the public audit. It selects website tests and macOS jobs from changed paths. Required check names remain stable when native jobs are intentionally skipped for documentation. Native and unknown changes keep both macOS checks. Changed CI selection logic runs the native and website jobs.
+
+Caches contain pinned runtime/terminal dependencies, Swift/Xcode build outputs, npm downloads, and Chromium. Keys include dependency recipes, architecture, OS/toolchain, and relevant source. Cache hits do not skip native tests or bundle audits. App state, session data, credentials, and signing material are excluded. Runner queue time and cold builds remain outside the warm-cache speed claim.
 
 ```sh
 cd website
