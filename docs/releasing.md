@@ -4,7 +4,9 @@ Public binaries require Developer ID signing, notarization, complete dependency 
 
 ## One-time setup
 
-Enroll in the Apple Developer Program or use an existing membership. Add the account in Xcode and create a Developer ID Application certificate. Keep its private key and backup outside Git.
+Enroll in the [Apple Developer Program](https://developer.apple.com/programs/enroll/) or use an existing membership. Membership costs 99 USD per year, with regional pricing shown during enrollment. Use Individual for a personal project. Organization enrollment requires a legal entity and a D-U-N-S Number. Complete identity verification, the agreement, and payment directly with Apple. [Enrollment requirements](https://developer.apple.com/help/account/membership/program-enrollment/).
+
+After Apple confirms membership, add the account in Xcode and create a [Developer ID Application certificate](https://developer.apple.com/help/account/certificates/create-developer-id-certificates/). Keep its private key and backup outside Git. Do not send credentials or certificates through chat.
 
 The Sparkle public key is in `release.json`. Its matching private key is stored in the maintainer's login Keychain under the Sparkle account `dev.spookky.app`. Back it up through Sparkle's `generate_keys` export workflow to private storage. Do not paste it into chat, issues, or logs.
 
