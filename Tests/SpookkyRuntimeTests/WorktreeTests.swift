@@ -253,7 +253,7 @@ extension WorktreeTests {
                 let before = try await runtime.inspect(binding); await launch.reconcile(tab); await launch.launch(tab)
                 let after = try await runtime.inspect(binding); XCTAssertEqual(before?.processID, after?.processID)
                 try await launch.terminate(tab)
-                store.update { $0.closeTab(tab) }
+                store.update { $0.newTab(); $0.closeTab(tab) }
             }
         }
     }

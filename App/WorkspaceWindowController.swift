@@ -62,7 +62,7 @@ import SpookkyGit
     private let backgroundFixture: Bool
     private var fixtureCloseRequests: [[String: String]] = []
 
-    init(root: URL, initialStore: WorkspaceStore? = nil, firstUse: Bool = true,
+    init(root: URL, initialStore: WorkspaceStore? = nil,
          resolver: any ExecutableResolver = CLIResolver(), backgroundFixture: Bool = false) throws {
         self.backgroundFixture = backgroundFixture
         let store = initialStore ?? WorkspaceStore()
@@ -112,7 +112,7 @@ import SpookkyGit
             guard let self, self.store.state.tab(id)?.binding != nil else { return }
             self.store.update { $0.apply(.failure(.unavailable, TabFailure(.observation, error.localizedDescription), clearIntent: false), to: id) }
         }
-        if firstUse && store.state.workspaces.isEmpty {
+        if store.state.workspaces.isEmpty {
             store.update { $0.newWorkspace(directory: FileManager.default.homeDirectoryForCurrentUser.path) }
         }
         if store.state.windowFrame == nil { window.center() }
@@ -785,14 +785,15 @@ import SpookkyGit
         store.update { $0.apply(.failure(.failed, TabFailure(.attachment, "Terminal view disconnected. Your session is still running."), clearIntent: false), to: id) }
     }
     @objc private func newWorkspace() {
-        if !window.isVisible { window.makeKeyAndOrderFront(nil); contentKey = "" }
+        let hidden = !window.isVisible
         store.update { $0.newWorkspace(directory: FileManager.default.homeDirectoryForCurrentUser.path) }
+        if hidden { reopen() }
     }
     private func addBlankTab() { files.revealTerminal(); if store.state.selected == nil { newWorkspace() } else { store.update { $0.newTab() } } }
     @objc private func newTab() {
         files.revealTerminal()
-        if !window.isVisible { reopen() }
         if store.state.selected == nil { newWorkspace() }
+        else if !window.isVisible { reopen() }
         guard let tab = store.state.selectedTab else { return }
         if tab.isEditable { openTerminal(from: tab.id) } else { addBlankTab() }
     }
@@ -1058,7 +1059,10 @@ import SpookkyGit
             if entries.indices.contains(index) { self?.store.update { $0.selectWorkspace(entries[index].id) } }
         }
     }
-    @objc private func closeSelectedTab() { if let id = store.state.selectedTab?.id { closeTabs([id]) } }
+    @objc private func closeSelectedTab() {
+        if let id = store.state.selectedTab?.id { closeTabs([id]) }
+        else { window.performClose(nil) }
+    }
     private func closeWorkspace(_ id: UUID) {
         guard let workspace = store.state.workspaces.first(where: { $0.id == id }) else { return }
         closeTabs(workspace.tabs.map(\.id), workspaceID: id)
@@ -1084,7 +1088,11 @@ import SpookkyGit
                 for id in ids {
                     try await launches.terminate(id)
                     surfaces.release(id)
-                    if workspaceID == nil { store.update { $0.closeTab(id) }; try await store.flush() }
+                    if workspaceID == nil {
+                        store.update { $0.closeTab(id) }
+                        if store.state.workspaces.isEmpty { window.close() }
+                        try await store.flush()
+                    }
                 }
                 if let workspaceID { store.update { $0.closeWorkspace(workspaceID) }; try await store.flush() }
             } catch { alert("Could not finish closing", error.localizedDescription) }
@@ -1092,8 +1100,11 @@ import SpookkyGit
     }
     private func confirm(_ title: String, _ message: String) async -> Bool {
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = message
-        alert.addButton(withTitle: "Close").hasDestructiveAction = true
-        alert.addButton(withTitle: "Cancel")
+        let close = alert.addButton(withTitle: "Close")
+        close.keyEquivalent = "\r"; close.keyEquivalentModifierMask = []
+        let cancel = alert.addButton(withTitle: "Cancel")
+        cancel.keyEquivalent = "\u{1b}"; cancel.keyEquivalentModifierMask = []
+        alert.window.defaultButtonCell = close.cell as? NSButtonCell
         return await present(alert) == .alertFirstButtonReturn
     }
     private func present(_ alert: NSAlert) async -> NSApplication.ModalResponse {
@@ -1148,6 +1159,9 @@ import SpookkyGit
         Task { await surfaces.captureViewports(); if !window.isVisible { surfaces.releaseAll() }; try? await store.flush() }
     }
     func reopen() {
+        if store.state.workspaces.isEmpty {
+            store.update { $0.newWorkspace(directory: FileManager.default.homeDirectoryForCurrentUser.path) }
+        }
         showWindow()
         contentKey = ""; render(); observeRuntimeEvent() }
     private func showWindow() {
@@ -1248,6 +1262,13 @@ import SpookkyGit
         if CommandLine.arguments.contains("--workspace-benchmark-selection"), let id = ids.first,
            let view = surfaces.view(id), let binding = store.state.tab(id)?.binding {
             try await TerminalSelectionFixture.run(view: view, binding: binding, runtime: launches.runtime, root: root)
+        }
+        if CommandLine.arguments.contains("--workspace-benchmark-close") {
+            guard count == 0 else { throw LaunchError.invalid("Close fixtures start with one unlaunched tab.") }
+            try await WorkspaceCloseFixture.run(window: window, state: { self.store.state }, runtime: launches.runtime,
+                view: { self.surfaces.view($0) }, command: { self.handleCommand($0) }, reopen: { self.reopen() },
+                settled: { self.closing.isEmpty && !self.store.state.workspaces.flatMap(\.tabs).contains { self.launches.isBusy($0.id) } }, root: root)
+            try await store.flush()
         }
         if let index = CommandLine.arguments.firstIndex(of: "--workspace-benchmark-continuity") {
             guard CommandLine.arguments.count > index + 1,

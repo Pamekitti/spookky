@@ -32,7 +32,12 @@ For S01-S12, exercise Terminal, Codex without/with a prompt, and Claude Code wit
 - [ ] Cmd+N then Cmd+T works without pointer input, including focus routing immediately after render.
 - [ ] Quick Terminal retains a typed agent draft in another tab.
 - [ ] Project + preselects its project. Workspace × targets the correct workspace.
-- [ ] Closing an inactive workspace preserves current selection; closing the last tab returns to a blank view.
+- [ ] Closing an inactive workspace preserves current selection; closing the last tab removes its workspace without creating a replacement tab. Closing the final tab closes the window.
+- [ ] Enter confirms tab closure and Escape cancels with terminal focus retained. Cmd+T after final-tab closure opens one Home terminal without an empty intermediate page.
+
+Earlier targeted native check, 13 October 2026: final blank-tab and confirmed running-shell closure closed the window without a replacement tab. Cancel retained the shell and terminal focus. Closing a second tab retained the first shell and window. Cmd+N reopened a workspace after final-tab closure. The earlier installed local app also passed final blank-tab closure. Release build, 83 XCTest cases, 13 Swift Testing cases, and the repository checker passed. This record preceded the combined selection/closure installer. It does not establish the full acceptance suite.
+
+Combined 0.1.3 build, 13 October 2026: Debug and Release pass. The native lifecycle fixture passes 12 checks for first launch, tab closure, Return/Escape, retained process/focus, Cmd+T, Cmd+N, reopening, and startup from saved empty state. The selection fixture passes five checks, including retained highlighting and exact copied text. The full suite passes 83 XCTest cases and 15 Swift Testing cases. Installation and physical keyboard confirmation remain pending.
 - [ ] Tabs can be selected, renamed, closed, and explicitly split; active tabs stay visible in overflow.
 - [ ] Project/workspace context menus support right-click and keyboard access.
 - [ ] Tab/workspace switching preserves drafts, processes, output, scroll, and file selection.

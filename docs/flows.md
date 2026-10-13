@@ -37,6 +37,8 @@ Open Spookky
 
 First use defaults to Home and Terminal. Later starts remember the selected tool and display it explicitly. Choosing a tool, project, or reference alone does not launch a process. Blank tabs in an unbound workspace share its eventual anchor.
 
+Opening or reopening Spookky with no remaining workspaces shows the Home start screen. Restoring existing workspaces does not add another blank workspace.
+
 ## Keyboard and mouse contract
 
 | Action | Result |
@@ -46,6 +48,7 @@ First use defaults to Home and Terminal. Later starts remember the selected tool
 | Cmd+T while a running/ended tab is selected | Open a blank tab in the same workspace. |
 | Cmd+T while a blank tab is selected | Open Terminal at the selected/inherited location immediately. |
 | Cmd+T with an agent prompt draft | Preserve that draft in its tab and open Terminal in another tab. |
+| Cmd+T after closing the final tab | Reopen with one Home terminal immediately. |
 | Tab-strip + | Always add a blank tab. Do not label it Cmd+T when that shortcut currently means launch Terminal. |
 | Cmd+Enter in launch composer | Launch selected tool with optional initial prompt. |
 | Enter in initial prompt | Insert a newline. |
@@ -160,7 +163,7 @@ Commits, pushes, tests, and PRs happen through the user's preferred tools. Spook
 | Event | Result |
 | --- | --- |
 | Switch tab/workspace | Preserve process and view state. |
-| Close blank/ended tab or confirmed idle shell | Close immediately. Last tab returns to a blank tab in the same workspace. |
+| Close blank/ended tab or confirmed idle shell | Close immediately. The last tab removes its workspace and selects another workspace if available. Closing the final tab closes the window. |
 | Close active agent or shell with a job | Confirm termination or cancel. If shell-job state is unknown, use a conservative close confirmation. |
 | Close workspace | Confirm active sessions, remove entry, keep checkout and branch. Closing an inactive entry preserves the active workspace. |
 | Close window | Normal macOS app behavior; processes may continue. |
@@ -171,6 +174,8 @@ Commits, pushes, tests, and PRs happen through the user's preferred tools. Spook
 | Delete app-created worktree | Separate action; check running processes, dirty/untracked work, and unmerged/unpushed commits. Confirm exact folder. Keep branch by default. |
 
 Process continuity is subject to M0 validation. A saved conversation is not a surviving process. Hidden sessions still consume resources; never kill them only because their views are hidden.
+
+In a tab/workspace close confirmation, Enter activates Close and Escape cancels. Closing the final tab closes the window without displaying a replacement landing page. First use still opens the blank Home workspace with Terminal selected.
 
 ## Recovery
 

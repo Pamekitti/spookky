@@ -17,7 +17,7 @@ Private vulnerability reporting and immutable releases are enabled. Main require
 
 The host is an Apple Silicon Mac with 16 GiB RAM and macOS 26.6.2. Native Debug, Release, and unsigned Distribution configuration builds pass. The Distribution metadata and packaged executable/resource checks pass. Stripped executables contain no builder-home paths. This does not establish Developer ID signing or notarization.
 
-The full Swift suite passes 96 tests. Python passes 19 tests. The website passes six Playwright checks, including 1440px, 390px, 320px, release availability, invalid metadata, and keyboard access. The repository checker, public file/ref audit, and secret scan pass.
+The full Swift suite passes 98 tests. Python passes 19 tests. The website passes six Playwright checks, including 1440px, 390px, 320px, release availability, invalid metadata, and keyboard access. The repository checker, public file/ref audit, and secret scan pass.
 
 The packaged runtime passes 100 ownership/lifecycle cycles. Native history checks pass four assertions. Crash/reopen checks pass seven assertions. Input replay passes 11 assertions in each of direct and persistent modes. Real shell input, the native Settings shortcut, both themes, and the 650×450 layout were inspected. These are targeted checks, not full human acceptance.
 
@@ -50,5 +50,7 @@ The 0.1.2 change routes shell selection through Ghostty while preserving applica
 The 0.1.2 private DMG and its browser download pass checksum verification. The installed bundle passes signature and runtime/resource checks and opens from Applications. The previous app bundle is backed up privately. The installed root's quarantine attribute is unchanged. The maintainer confirms retained highlighting and Cmd+C copying in normal and fullscreen layouts. The window remains visible, and empty-header dragging works after fullscreen exit. Native window control on the host is unreliable, so these final pointer checks use maintainer confirmation.
 
 The previous shell pane closed when 0.1.1 quit for replacement. No destructive quit option was selected by the installation tooling. The close request's origin is unconfirmed. This update does not establish session continuity.
+
+The combined 0.1.3 build restores the existing last-tab changes on top of the selection and fullscreen fixes. The final tab closes its window without a replacement tab. Enter confirms Close and Escape cancels. Cmd+T reopens one Home terminal. Reopening with no workspaces shows the Home start screen. The native lifecycle fixture passes 12 checks, and the selection fixture passes all five checks on the same Release binary. The controlled fixture uses a correctly escaped zsh percent prompt. Installation and physical keyboard confirmation remain pending.
 
 macOS 14 compatibility, physical typing and IME, spoken VoiceOver, terminal link/file activation, provider responses/resume, sleep/wake, reboot, and final performance acceptance remain gates. See [current status](status.md), [acceptance](acceptance.md), and [the release procedure](releasing.md).
