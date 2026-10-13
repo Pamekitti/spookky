@@ -39,7 +39,7 @@ Background fixtures now open without a key or main window and ignore mouse input
 
 ## Release blockers
 
-Apple enrollment is deferred while the maintainer uses a private local DMG. The local installer uses an ad hoc signature with updates disabled. Its source bundle, bundled dependencies, disk-image checksum, and browser download are verified. It launches from Applications after the owner's macOS approval. A Home shell accepts keyboard input with focus in the terminal. Fresh production metadata and a separate runtime are created. Historical and development databases remain unchanged. These checks apply to the maintainer's Mac. Terminal text is available through accessibility; visual confirmation remains pending because the native capture shows a blank terminal pane.
+Apple enrollment is deferred while the maintainer uses a private local DMG. The local installer uses an ad hoc signature with updates disabled. Its source bundle, bundled dependencies, disk-image checksum, and browser download are verified. It launches from Applications after the owner's macOS approval. A Home shell accepts keyboard input with focus in the terminal. Fresh production metadata and a separate runtime are created. Historical and development databases remain unchanged. These checks apply to the maintainer's Mac. The maintainer confirms that the shell prompt is visible on screen. Native screenshot capture did not include the terminal text.
 
 No valid Apple signing identity is currently available on the development host. A public installer requires Apple Developer enrollment, Developer ID signing, and notarization authentication. The actual two-build Sparkle installation test and clean-Mac installation have not run.
 
