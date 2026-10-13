@@ -53,6 +53,8 @@ The previous shell pane closed when 0.1.1 quit for replacement. No destructive q
 
 The combined 0.1.3 build restores the existing last-tab changes on top of the selection and fullscreen fixes. The final tab closes its window without a replacement tab. Enter confirms Close and Escape cancels. Cmd+T reopens one Home terminal. Reopening with no workspaces shows the Home start screen. The native lifecycle fixture passes all 12 checks, and the selection fixture passes all five checks on the same Release binary. The controlled fixture uses a correctly escaped zsh percent prompt.
 
-The maintainer downloaded the 0.1.3 DMG through the local browser page. Its checksum, ad hoc signature, and bundled runtime passed verification. Build 103 is installed and reopened on the Home start screen. The update retained the existing macOS approval attribute and a backup of 0.1.2. Physical keyboard confirmation remains pending.
+The maintainer downloaded the 0.1.3 DMG through the local browser page. Its checksum, ad hoc signature, and bundled runtime passed verification. Build 103 is installed and reopened on the Home start screen. The update retained the existing macOS approval attribute and a backup of 0.1.2.
+
+The maintainer confirmed the physical close-tab checks on 13 October 2026. Escape cancels; Enter closes the final tab and window without a replacement blank page. Cmd+T then reopens one terminal. Text selection, Cmd+C, and fullscreen continue to work.
 
 macOS 14 compatibility, physical typing and IME, spoken VoiceOver, terminal link/file activation, provider responses/resume, sleep/wake, reboot, and final performance acceptance remain gates. See [current status](status.md), [acceptance](acceptance.md), and [the release procedure](releasing.md).
