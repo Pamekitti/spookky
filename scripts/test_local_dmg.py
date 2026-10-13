@@ -21,6 +21,14 @@ class LocalInstallerTests(unittest.TestCase):
                      "SURequireSignedFeed": True, "SUVerifyUpdateBeforeExtraction": True,
                      "SUSignedFeedFailureExpirationInterval": 0}
 
+    def test_local_packaging_removes_development_identity_and_paths(self):
+        info = local_info({"CFBundleExecutable": "Spookky", "CFBundleIdentifier": "dev.spookky.development." + "a" * 16,
+                           "CFBundleShortVersionString": "0.1.3", "CFBundleDisplayName": "Spookky Dev (fixture)",
+                           "SpookkyDevelopmentCheckout": "/private/checkouts/fixture"}, "b" * 40)
+        self.assertEqual(info["CFBundleIdentifier"], "dev.spookky.app")
+        self.assertEqual(info["CFBundleDisplayName"], "Spookky")
+        self.assertNotIn("SpookkyDevelopmentCheckout", info)
+
     def test_local_install_keeps_future_identity_without_fetching_public_updates(self):
         local = local_info(self.info, "a" * 40)
         self.assertEqual(local["CFBundleIdentifier"], "dev.spookky.app")
