@@ -1,5 +1,9 @@
 name: Prepare signed release
 on:
+  workflow_run:
+    workflows: [Checks]
+    branches: [main]
+    types: [completed]
   workflow_dispatch:
     inputs:
       tag:
@@ -9,20 +13,55 @@ on:
         description: 'Committed release notes path'
         required: true
 permissions:
-  contents: write
+  contents: read
+concurrency:
+  group: release-preparation
+  cancel-in-progress: false
 jobs:
+  plan:
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && vars.SPOOKKY_AUTO_RELEASE == 'true')
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.intent.outputs.ready }}
+      tag: ${{ steps.intent.outputs.tag }}
+      notes: ${{ steps.intent.outputs.notes }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 0
+      - name: Resolve committed release intent
+        id: intent
+        env:
+          MANUAL_TAG: ${{ inputs.tag }}
+          MANUAL_NOTES: ${{ inputs.notes }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            test "$GITHUB_REF" = refs/heads/main
+            python3 scripts/release_plan.py --github-output "$GITHUB_OUTPUT" --tag "$MANUAL_TAG" --notes "$MANUAL_NOTES"
+          else
+            python3 scripts/release_plan.py --github-output "$GITHUB_OUTPUT"
+          fi
   prepare:
+    needs: plan
+    if: needs.plan.outputs.ready == 'true'
+    permissions:
+      contents: write
     runs-on: macos-26
     timeout-minutes: 90
     environment: release
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.6.0.app/Contents/Developer
-      RELEASE_TAG: ${{ inputs.tag }}
-      RELEASE_NOTES: ${{ inputs.notes }}
+      RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+      RELEASE_NOTES: ${{ needs.plan.outputs.notes }}
+      RELEASE_COMMIT: ${{ github.event.workflow_run.head_sha || github.sha }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
           fetch-depth: 0
       - name: Require main and configured credentials
         env:
@@ -85,7 +124,7 @@ jobs:
           .cache/release-tools/bin/python scripts/prepare_release.py --tag "$RELEASE_TAG" --identity "$IDENTITY" --team "$TEAM" --notary-profile spookky-ci --sparkle-tools "$(dirname "$tools")" --notes "$RELEASE_NOTES"
       - name: Create draft release
         run: |
-          gh release create "$RELEASE_TAG" --draft --target "$GITHUB_SHA" --title "Spookky ${RELEASE_TAG#v}" --notes-file "$RELEASE_NOTES" dist/release/*.dmg dist/release/SHA256SUMS dist/release/release-manifest.json dist/release/updates/appcast.xml dist/release/updates/*.md
+          gh release create "$RELEASE_TAG" --draft --target "$RELEASE_COMMIT" --title "Spookky ${RELEASE_TAG#v}" --notes-file "$RELEASE_NOTES" dist/release/*.dmg dist/release/SHA256SUMS dist/release/release-manifest.json dist/release/updates/appcast.xml dist/release/updates/*.md
       - name: Remove signing material
         if: always()
         run: |

@@ -2,6 +2,8 @@
 
 Public binaries require Developer ID signing, notarization, complete dependency notices, and installation/update evidence. The website shows the source until verified release metadata is published.
 
+The [daily development lifecycle](lifecycle.md) connects worktree testing, main merges, local installation, and signed delivery.
+
 ## Private local installer
 
 Apple enrollment is deferred while the maintainer uses Spookky on their own Mac. A private local DMG provides browser download and drag-to-Applications installation. It is not an Apple-notarized public release. macOS may block first launch until the owner approves this specific app.
@@ -41,6 +43,8 @@ Configure the GitHub `release` environment with maintainer approval. Variables a
 Update the version, increasing build number, and channel in `release.json`. Regenerate the Xcode project. Add release notes under `docs/releases/`. Commit the reviewed changes through a PR. Use a clean main checkout whose source and native checks pass.
 
 The **Prepare signed release** workflow builds, signs inside out, notarizes the app and DMG, validates packaged paths, signs the Sparkle feed, and creates a draft release. It preserves existing published releases. It does not publish a binary.
+
+Repository variable `SPOOKKY_AUTO_RELEASE=true` enables preparation after a successful main push's **Checks** run. Release intent comes from the committed version, increasing build number, and notes. Automatic Preview tags use `v<version>-preview.<build>`. Existing tags and published builds are skipped. The release environment's approval requirement remains in effect. The workflow checks out the exact tested commit and verifies that it is still main before preparation.
 
 For local preparation, install the pinned build tools in an isolated environment. Use actual identity, team, profile, and tool locations:
 

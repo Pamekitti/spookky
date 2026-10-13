@@ -157,7 +157,8 @@ import SpookkyGit
     private func buildWindow() {
         window = WorkspaceNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 760),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)
-        window.title = "Spookky"; window.titleVisibility = .hidden; window.titlebarAppearsTransparent = true
+        window.title = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Spookky"
+        window.titleVisibility = .hidden; window.titlebarAppearsTransparent = true
         window.acceptsUserFocus = !backgroundFixture
         window.ignoresMouseEvents = backgroundFixture
         window.isRestorable = false

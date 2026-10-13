@@ -4,7 +4,8 @@
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
-  <key>CFBundleDisplayName</key><string>Spookky</string>
+  <key>CFBundleDisplayName</key><string>$(SPOOKKY_DISPLAY_NAME)</string>
+  <key>SpookkyDevelopmentCheckout</key><string>$(SPOOKKY_DEVELOPMENT_CHECKOUT)</string>
   <key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
   <key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
   <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>

@@ -57,7 +57,8 @@ def phase(name, kind, files):
 sources_phase = phase("sources", "PBXSourcesBuildPhase", source_builds)
 frameworks_phase = phase("frameworks", "PBXFrameworksBuildPhase", framework_builds)
 resources_phase = phase("resources", "PBXResourcesBuildPhase", resources)
-helper_script = 'set -eu\ncd "$SRCROOT"\n/usr/bin/swift build -c release --product spookky-launch\n/usr/bin/swift build -c release --product spookky-runtime-check\nfor helper in spookky-launch spookky-runtime-check; do\n  cp ".build/release/$helper" "$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/$helper"\ndone\ntest -x .cache/runtime/bin/tmux\ncp .cache/runtime/bin/tmux "$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/tmux"\ncp -R .cache/runtime/share/terminfo/. "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/terminfo/"\n'
+# Atomic replacement preserves executable inodes used by retained terminal processes.
+helper_script = 'set -eu\ncd "$SRCROOT"\n/usr/bin/swift build -c release --product spookky-launch\n/usr/bin/swift build -c release --product spookky-runtime-check\nfor helper in spookky-launch spookky-runtime-check; do\n  destination="$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/$helper"\n  cp ".build/release/$helper" "$destination.next"\n  mv -f "$destination.next" "$destination"\ndone\ntest -x .cache/runtime/bin/tmux\ndestination="$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/tmux"\ncp .cache/runtime/bin/tmux "$destination.next"\nmv -f "$destination.next" "$destination"\ncp -R .cache/runtime/share/terminfo/. "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/terminfo/"\n'
 helper_phase = obj("helper", f'isa = PBXShellScriptBuildPhase; alwaysOutOfDate = 1; buildActionMask = 2147483647; files = (); inputPaths = (); outputPaths = ("$(TARGET_BUILD_DIR)/$(EXECUTABLE_FOLDER_PATH)/spookky-launch"); runOnlyForDeploymentPostprocessing = 0; shellPath = /bin/sh; shellScript = {quote(helper_script)};')
 app_ref = obj("app", 'isa = PBXFileReference; explicitFileType = wrapper.application; path = "Spookky.app"; sourceTree = BUILT_PRODUCTS_DIR;')
 products_group = obj("products-group", f'isa = PBXGroup; name = Products; children = ({app_ref}); sourceTree = "<group>";')
@@ -78,6 +79,8 @@ settings = {
     "SPOOKKY_UPDATE_FEED_URL": release["feedURL"],
     "SPOOKKY_UPDATE_PUBLIC_KEY": release["publicEDKey"],
     "SPOOKKY_RELEASE_CHANNEL": release["channel"],
+    "SPOOKKY_DISPLAY_NAME": "Spookky Dev",
+    "SPOOKKY_DEVELOPMENT_CHECKOUT": "$(SRCROOT)",
 }
 configs = []
 for name in ["Debug", "Release", "Distribution"]:
@@ -85,6 +88,8 @@ for name in ["Debug", "Release", "Distribution"]:
     current["SWIFT_OPTIMIZATION_LEVEL"] = "-Onone" if name == "Debug" else "-O"
     current["DEBUG_INFORMATION_FORMAT"] = "dwarf-with-dsym"
     if name == "Distribution":
+        current["SPOOKKY_DISPLAY_NAME"] = "Spookky"
+        current["SPOOKKY_DEVELOPMENT_CHECKOUT"] = ""
         current["PRODUCT_BUNDLE_IDENTIFIER"] = release["bundleID"]
         current["ENABLE_HARDENED_RUNTIME"] = "YES"
         current["CODE_SIGN_IDENTITY"] = "Developer ID Application"

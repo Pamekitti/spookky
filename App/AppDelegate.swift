@@ -107,7 +107,9 @@ private struct HarnessSession {
                 }
                 return
             }
-            root = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SPOOKKY_M0_ROOT"] ?? "/tmp/spookky-m0-\(getuid())")
+            let paths = AppPaths(bundleID: Bundle.main.bundleIdentifier, home: FileManager.default.homeDirectoryForCurrentUser, userID: getuid())
+            let suffix = paths.developmentID.map { "-" + $0 } ?? ""
+            root = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SPOOKKY_M0_ROOT"] ?? "/tmp/spookky-m0-\(getuid())\(suffix)")
             try PrivateFiles.directory(root)
             let helper = Bundle.main.executableURL!.deletingLastPathComponent().appendingPathComponent("spookky-launch").path
             runtime = try TmuxRuntime(executable: PackagedRuntime.tmux(), helper: helper, root: root)

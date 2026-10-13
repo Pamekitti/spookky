@@ -20,15 +20,17 @@ def run(arguments):
 
 
 def local_info(info, source_commit):
-    if info.get("CFBundleExecutable") != "Spookky" or info.get("CFBundleIdentifier") not in ("dev.spookky.m0", "dev.spookky.app"):
+    bundle_id = info.get("CFBundleIdentifier", "")
+    if info.get("CFBundleExecutable") != "Spookky" or not (bundle_id in ("dev.spookky.m0", "dev.spookky.app") or
+            re.fullmatch(r"dev\.spookky\.development\.[0-9a-f]{16}", bundle_id)):
         raise ValueError("Use a tested Spookky app bundle")
     if not re.fullmatch(r"[0-9a-f]{40}", source_commit): raise ValueError("Use the full tested source commit")
     if not re.fullmatch(r"\d+\.\d+\.\d+", str(info.get("CFBundleShortVersionString", ""))):
         raise ValueError("Use a numeric app version")
     result = dict(info)
-    result.update(CFBundleIdentifier="dev.spookky.app", SpookkyBuildKind="local", SpookkySourceCommit=source_commit,
+    result.update(CFBundleIdentifier="dev.spookky.app", CFBundleDisplayName="Spookky", SpookkyBuildKind="local", SpookkySourceCommit=source_commit,
                   SUEnableAutomaticChecks=False, SUAutomaticallyUpdate=False)
-    for key in ("SUFeedURL", "SUPublicEDKey"): result.pop(key, None)
+    for key in ("SUFeedURL", "SUPublicEDKey", "SpookkyDevelopmentCheckout"): result.pop(key, None)
     return result
 
 

@@ -26,15 +26,20 @@ sh scripts/build_native.sh Release
 
 Build the runtime and Swift helpers before running runtime tests. `SPOOKKY_TMUX` selects an explicit runtime for development fixtures. Build native Debug and Release sequentially. [Dependency setup](../Dependencies/README.md) records the pinned Ghostty build and Xcode compatibility workarounds. Ghostty downloads and build outputs remain under ignored `.cache/` directories.
 
-Open `Spookky.xcodeproj`, select the **Spookky** scheme, and run. Normal launch opens the workspace interface. `--terminal-harness` opens the diagnostic terminal harness. To open the built Release app:
+Use the [daily development lifecycle](lifecycle.md) to keep the installed app and concurrent worktree builds separate. Build and open this checkout's development app:
 
 ```sh
-open DerivedData/Build/Products/Release/Spookky.app
+python3 scripts/dev.py run
+python3 scripts/dev.py run --configuration Release
 ```
 
 ## State and ownership
 
-Workspace metadata defaults to `~/Library/Application Support/Spookky/Development`. The normal workspace runtime root is `/tmp/spookky-m1-<uid>`. The terminal harness uses `/tmp/spookky-m0-<uid>`. `SPOOKKY_M1_ROOT`, `SPOOKKY_M1_DATA`, and `SPOOKKY_M0_ROOT` override these locations for owned fixtures.
+Open `Spookky.xcodeproj`, select the **Spookky** scheme, and run when using the debugger. Normal launch opens the workspace interface. `--terminal-harness` opens the diagnostic terminal harness. The launcher gives each checkout a distinct macOS bundle identity; Xcode's default identity remains the shared development identifier.
+
+Workspace metadata defaults to `~/Library/Application Support/Spookky/Development/<checkout-id>`. The normal runtime root is `/tmp/spookky-dev-<uid>-<checkout-id>`. The terminal harness uses `/tmp/spookky-m0-<uid>-<checkout-id>`. `python3 scripts/dev.py info` prints the exact locations. `SPOOKKY_M1_ROOT`, `SPOOKKY_M1_DATA`, and `SPOOKKY_M0_ROOT` override these locations for owned fixtures. The normal launcher sets its own roots rather than inheriting fixture overrides.
+
+Older development bundles without an embedded checkout retain the historical shared development paths. Their data is preserved.
 
 Installed releases use `dev.spookky.app`, `~/Library/Application Support/Spookky`, and `/tmp/spookky-app-<uid>`. They do not import development metadata. Debug and Release remain development configurations; Distribution creates the public identity.
 

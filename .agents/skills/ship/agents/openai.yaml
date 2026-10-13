@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ship Spookky"
+  short_description: "Commit scoped changes, rebase, verify, and open a PR"
+  default_prompt: "Use $ship to commit scoped Spookky changes, rebase onto main, verify them, and open a pull request."
