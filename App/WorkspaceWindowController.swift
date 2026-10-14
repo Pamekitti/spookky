@@ -733,6 +733,150 @@ import SpookkyGit
         if !row.interactionActive { row.icon?.image = image; row.icon?.contentTintColor = nil }
         if collapsed { row.primary?.image = image }
     }
+    private func checkSidebar(root: URL) async throws {
+        let location = WorkspaceLocation(path: root.path)
+        var projectID = UUID(), workspaceID = UUID()
+        let name = "Investigate workspace navigation and preserve terminal drafts"
+        store.update {
+            projectID = $0.registerProject(location)
+            workspaceID = $0.newWorkspace(location: location, projectID: projectID)
+            $0.renameWorkspace(workspaceID, name)
+            $0.editDraft($0.selectedTab!.id, tool: .codex, prompt: "Keep this unsent draft")
+        }
+        let original = store.state.selected!
+        let count = store.state.workspaces.count
+        var checks: [String: Bool] = [:]
+        try await Task.sleep(for: .milliseconds(50))
+        window.contentView?.layoutSubtreeIfNeeded()
+        guard let project = projectRows[projectID], let workspace = workspaceRows[workspaceID],
+              let title = workspace.primary as? FadingTitleButton, let close = workspace.secondaryButton,
+              let pair = tabPairs[original.selectedTabID], let tabClose = pair.arrangedSubviews.last as? ActionButton else {
+            throw LaunchError.invalid("Sidebar fixture controls are unavailable.")
+        }
+        checks["close_hidden_at_rest"] = !close.isRevealed && !tabClose.isRevealed
+        checks["compact_tab_close_target"] = abs(tabClose.frame.width - 24) <= 0.5 && abs(tabClose.frame.height - 24) <= 0.5
+        let hitPoint = NSPoint(x: close.frame.midX, y: close.frame.midY)
+        checks["hidden_close_ignores_pointer_hit"] = close.hitTest(hitPoint) == nil
+        guard let entered = NSEvent.enterExitEvent(with: .mouseEntered, location: .zero, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+            eventNumber: 0, trackingNumber: 0, userData: nil),
+              let exited = NSEvent.enterExitEvent(with: .mouseExited, location: .zero, modifierFlags: [],
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+            eventNumber: 0, trackingNumber: 0, userData: nil) else { throw LaunchError.invalid("Sidebar pointer fixture is unavailable.") }
+        project.primary?.mouseEntered(with: entered)
+        checks["child_hover_reveals_project_action"] = project.secondaryButton?.isRevealed == true
+        project.primary?.mouseExited(with: exited)
+        workspace.mouseEntered(with: entered)
+        checks["hover_reveals_close_and_routes_hit"] = close.isRevealed && close.hitTest(hitPoint) === close
+        checks["revealed_close_has_button_role"] = close.accessibilityRole() == .button
+        workspace.mouseExited(with: exited)
+        checks["hover_exit_hides_close"] = !close.isRevealed && close.hitTest(hitPoint) == nil
+        let firstFocused = FadingTitleButton(name, action: {})
+        firstFocused.frame = NSRect(x: 0, y: 0, width: 100, height: 28); firstFocused.revealTitle = true
+        firstFocused.drawTitle(in: firstFocused.bounds, tint: SpookkyPalette.text)
+        let titleLayer = firstFocused.layer?.sublayers?.first?.sublayers?.first
+        let firstAnimation = titleLayer?.animation(forKey: "reveal") as? CABasicAnimation
+        let reducedMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        checks["first_focused_title_reveal_respects_motion"] = reducedMotion ? firstAnimation == nil :
+            firstAnimation?.fromValue as? CGFloat == titleLayer.map { $0.bounds.width / 2 } && (firstAnimation?.duration ?? 0) >= 0.5 && (firstAnimation?.duration ?? 7) <= 6
+        firstFocused.title = "Rename a workspace while its long name is already revealing"
+        firstFocused.drawTitle(in: firstFocused.bounds, tint: SpookkyPalette.text)
+        let renamedAnimation = titleLayer?.animation(forKey: "reveal") as? CABasicAnimation
+        checks["renamed_title_reveals_from_start"] = reducedMotion ? renamedAnimation == nil :
+            renamedAnimation?.fromValue as? CGFloat == titleLayer.map { $0.bounds.width / 2 }
+        let frame = title.frame
+        window.makeFirstResponder(title)
+        checks["keyboard_reveals_close_and_title"] = close.isRevealed && title.revealTitle
+        title.displayIfNeeded()
+        checks["visible_title_starts_reveal"] = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion ||
+            title.layer?.sublayers?.first?.sublayers?.first?.animation(forKey: "reveal") != nil
+        checks["title_alignment_stable"] = title.frame == frame
+        window.makeFirstResponder(project.primary)
+        project.primary?.performClick(nil)
+        checks["project_click_hides_rows_immediately"] = workspaceRows[workspaceID] == nil && store.state.projects.first { $0.id == projectID }?.isCollapsed == true
+        checks["collapse_preserves_workspace_and_draft"] = store.state.selected == original && store.state.workspaces.count == count
+        checks["removed_title_stops_animation"] = title.layer?.sublayers?.first?.sublayers?.first?.animationKeys()?.isEmpty != false
+        checks["collapse_preserves_project_keyboard_focus"] = window.firstResponder === projectRows[projectID]?.primary
+        checks["collapse_retains_project_control"] = projectRows[projectID] === project
+        checks["collapse_releases_workspace_view"] = workspace.superview == nil
+        focusSidebar()
+        checks["sidebar_focus_reaches_collapsed_project"] = window.firstResponder === projectRows[projectID]?.primary
+        projectRows[projectID]?.primary?.performClick(nil)
+        checks["expand_restores_rows"] = workspaceRows[workspaceID]?.isHidden == false && store.state.workspaces.count == count
+        projectRows[projectID]?.secondaryButton?.performClick(nil)
+        checks["separate_plus_creates_one_workspace"] = store.state.workspaces.count == count + 1 && store.state.selected?.projectID == projectID
+        store.update { $0.setProjectCollapsed(projectID, true); $0.selectWorkspace(workspaceID) }
+        checks["selection_reveals_project"] = workspaceRows[workspaceID]?.isHidden == false
+        store.update { $0.sidebarCollapsed = true }
+        projectRows[projectID]?.primary?.performClick(nil)
+        checks["rail_project_opens_sidebar_without_creation"] = !store.state.sidebarCollapsed && workspaceRows[workspaceID]?.isHidden == false && store.state.workspaces.count == count + 1
+        var screenshots: [String] = []
+        for (theme, size) in [(WorkspaceAppearance.dark, NSSize(width: 1120, height: 760)), (.light, NSSize(width: 650, height: 450))] {
+            store.update { $0.appearance = theme }
+            window.setContentSize(size); window.contentView?.layoutSubtreeIfNeeded()
+            window.makeFirstResponder(nil)
+            guard let content = window.contentView, let image = content.bitmapImageRepForCachingDisplay(in: content.bounds) else { continue }
+            var background = NSColor.clear
+            window.effectiveAppearance.performAsCurrentDrawingAppearance {
+                background = window.backgroundColor.usingColorSpace(.deviceRGB) ?? .windowBackgroundColor
+                content.cacheDisplay(in: content.bounds, to: image)
+            }
+            let composite = NSImage(size: content.bounds.size, flipped: false) { bounds in
+                background.setFill(); bounds.fill(); image.draw(in: bounds); return true
+            }
+            if let tiff = composite.tiffRepresentation, let bitmap = NSBitmapImageRep(data: tiff),
+               let png = bitmap.representation(using: .png, properties: [:]) {
+                let file = "sidebar-" + theme.rawValue + ".png"
+                try png.write(to: root.appendingPathComponent(file)); screenshots.append(file)
+            }
+        }
+        checks["wide_and_narrow_native_snapshots"] = screenshots.count == 2
+        store.update { $0.appearance = .dark }
+        window.setContentSize(NSSize(width: 1120, height: 760)); window.contentView?.layoutSubtreeIfNeeded()
+        var shellID: UUID?
+        store.update { shellID = $0.newTab() }
+        guard let shellID else { throw LaunchError.invalid("Sidebar shell fixture is unavailable.") }
+        await launches.launch(shellID, tool: .shell)
+        for _ in 0..<100 {
+            if surfaces.view(shellID) != nil { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        guard let surface = surfaces.view(shellID), let binding = store.state.tab(shellID)?.binding else {
+            throw LaunchError.invalid("Sidebar shell fixture did not attach.")
+        }
+        surface.insertText("SPOOKKY_SIDEBAR_UNSENT", replacementRange: NSRange(location: NSNotFound, length: 0))
+        try await Task.sleep(for: .milliseconds(150))
+        let before = try await launches.runtime.inspect(binding)
+        projectRows[projectID]?.primary?.performClick(nil)
+        let after = try await launches.runtime.inspect(binding)
+        checks["collapse_preserves_running_process"] = before?.processID != nil && before?.processID == after?.processID && surfaces.view(shellID) === surface
+        projectRows[projectID]?.primary?.performClick(nil)
+        checks["collapse_preserves_terminal_input"] = surface.visibleText().contains("SPOOKKY_SIDEBAR_UNSENT")
+        checks["agent_draft_survives_shell_and_collapse"] = store.state.tab(original.selectedTabID)?.draft == original.tabs[0].draft
+        func cpuSeconds() -> Double {
+            var usage = rusage(); _ = getrusage(RUSAGE_SELF, &usage)
+            return Double(usage.ru_utime.tv_sec + usage.ru_stime.tv_sec) + Double(usage.ru_utime.tv_usec + usage.ru_stime.tv_usec) / 1_000_000
+        }
+        let idleStart = cpuSeconds(), idleTime = ProcessInfo.processInfo.systemUptime
+        try await Task.sleep(for: .seconds(2))
+        let idleCPU = (cpuSeconds() - idleStart) / (ProcessInfo.processInfo.systemUptime - idleTime) * 100
+        window.makeFirstResponder(workspaceRows[workspaceID]?.primary)
+        let activeStart = cpuSeconds(), activeTime = ProcessInfo.processInfo.systemUptime
+        let avatar = await avatarCache.image("superset-sh")
+        try await Task.sleep(for: .seconds(2))
+        let activeCPU = (cpuSeconds() - activeStart) / (ProcessInfo.processInfo.systemUptime - activeTime) * 100
+        window.makeFirstResponder(nil)
+        let settledStart = cpuSeconds(), settledTime = ProcessInfo.processInfo.systemUptime
+        try await Task.sleep(for: .seconds(2))
+        let settledCPU = (cpuSeconds() - settledStart) / (ProcessInfo.processInfo.systemUptime - settledTime) * 100
+        let resources: [String: Double] = ["idle_app_cpu_percent": idleCPU, "reveal_and_avatar_app_cpu_percent": activeCPU,
+            "settled_app_cpu_percent": settledCPU, "app_rss_mib": WorkspaceDiagnostics.residentMiB() ?? -1,
+            "avatar_bytes": Double(avatar?.count ?? 0), "terminal_session_count": 1]
+        try PrivateFiles.write(resources, to: root.appendingPathComponent("sidebar-resources.json"))
+        try await store.flush()
+        try PrivateFiles.write(checks, to: root.appendingPathComponent("sidebar-checks.json"))
+        guard checks.values.allSatisfy({ $0 }) else { throw LaunchError.invalid("Sidebar fixture failed: " + checks.filter { !$0.value }.keys.sorted().joined(separator: ", ") + ". Tab close target: " + String(describing: tabClose.frame.size)) }
+    }
     private func renderContent(started: Double) async {
         guard window.isVisible else { return }
         let ids = store.state.visibleTabIDs, records = ids.compactMap { store.state.tab($0) }
@@ -1390,6 +1534,10 @@ import SpookkyGit
         if CommandLine.arguments.contains("--workspace-benchmark-selection"), let id = ids.first,
            let view = surfaces.view(id), let binding = store.state.tab(id)?.binding {
             try await TerminalSelectionFixture.run(view: view, binding: binding, runtime: launches.runtime, root: root)
+        }
+        if CommandLine.arguments.contains("--workspace-benchmark-sidebar") {
+            guard count == 0 else { throw LaunchError.invalid("Sidebar fixtures start without running sessions.") }
+            try await checkSidebar(root: root)
         }
         if CommandLine.arguments.contains("--workspace-benchmark-close") {
             guard count == 0 else { throw LaunchError.invalid("Close fixtures start with one unlaunched tab.") }

@@ -105,8 +105,12 @@ python3 scripts/check_m0_input.py folders --output .cache/folders.json
 python3 scripts/check_surface_races.py --output .cache/surface-races.json
 python3 scripts/check_terminal_selection.py --output .cache/terminal-selection.json
 python3 scripts/check_workspace_close.py --output .cache/workspace-close.json
+python3 scripts/check_sidebar.py --output .cache/sidebar.json
+swift scripts/check_prototype.swift --output .cache/prototype-webkit.json
 python3 scripts/check_provider_continuity.py --output .cache/provider-interfaces.json
 ```
+
+The prototype check uses an offscreen WebKit renderer with temporary website storage. It checks navigation, drafts, icon geometry, and narrow layouts without opening a browser window. It records focus-dependent CSS checks as skipped when the offscreen page has no active OS keyboard window.
 
 Input replay uses native events, briefly selects already-enabled keyboard layouts, and restores the original selection. It needs at least two enabled layouts for its source-switch assertion. It does not establish human typing or IME composition. Provider-interface probes send no model prompts and do not prove provider responses.
 
