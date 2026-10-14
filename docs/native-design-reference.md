@@ -7,15 +7,15 @@ Spookky's native controls follow the geometry and interaction rules below. The l
 | Component | Geometry | Behavior |
 | --- | --- | --- |
 | Sidebar | 232-point column, 58-point rail, 8-point outer selection inset | Keeps project and workspace navigation compact |
-| Project row | 28 points, 16-point icon slot, separate 28-point add action | Uses SF Symbols and text monograms; add remains visible |
-| Workspace row | 46 points, one 28-point title line and secondary metadata | Shows checkout and session context; close remains visible |
-| Tab | 40-point strip, muted inactive title, one selection/hover fill, 24-point close width | Full-height native tabs use a trailing separator; independent terminal sessions remain intact |
+| Project row | 28 points, 16-point icon slot, separate 28-point add action | Click toggles expansion; monogram becomes a chevron on hover/focus; add appears on hover/focus |
+| Workspace row | 46 points, one 28-point title line and secondary metadata | Shows checkout and session context; close appears on hover/focus; long titles fade and reveal once |
+| Tab | 40-point strip, muted inactive title, one selection/hover fill, 24-by-24-point close target | Full-height native tabs use a trailing separator; close appears on hover/focus |
 | Composer | 560-point maximum width, 80-point minimum prompt, 13-point card radius | Prompt is optional; Terminal collapses the input; provider and launch action share one card |
 | Files/Changes | 40-point header, two quiet named buttons, 28-point file rows | Provides file and change inspection within the workspace scope |
 | Preview | 40-point header, 28-point utility targets, muted notices, explicit diff signs | Read-only native selection/copy and Spookky's existing limit states remain intact |
 | Menus and dialogs | Native NSMenu, NSAlert, and folder picker; shared type, path, warning, and destination styling | Uses macOS placement, focus, cancellation, and platform metrics |
 
-Spookky uses 14-point SF Symbols in a 16-point slot. Symbols retain their natural proportions. Compact buttons use 28-point targets and 8-point corner radii. The 24-point tab close target remains the only smaller utility target. Filled buttons have primary, secondary, and destructive roles; quiet controls draw only their interaction or selection state.
+Leading symbols use 14 points in a 16-point slot. Add and close symbols use 12-point regular weight with a centered 20-point hover fill and 5-point radius. Symbols retain their natural proportions. Compact buttons use 28-point targets and 8-point corner radii. The 24-point tab close target remains the only smaller utility target. Filled buttons have primary, secondary, and destructive roles; quiet controls draw only their interaction or selection state.
 
 Dark hover and selection washes use the foreground at 7% and 10% opacity. Light washes use 4% and 6%. They composite over the current surface instead of using a separate opaque gray for every component. Light OKLCH reference values are converted to fixed sRGB values at development time. There is no runtime color-conversion dependency.
 

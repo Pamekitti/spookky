@@ -50,10 +50,12 @@ import SpookkyGit
     private var observationTask: Task<Void, Never>?
     private var observationRequested = false
     private var wakeObserver: NSObjectProtocol?
+    private var displayOptionsObserver: NSObjectProtocol?
     private var chromeRevision = ""
     private var sidebarRevision = ""
     private var tabRevision = ""
     private var workspaceRows: [UUID: ContextRow] = [:]
+    private var projectRows: [UUID: ContextRow] = [:]
     private var tabPairs: [UUID: ChromeStackView] = [:]
     private var fullscreenTransition = false
     private var announcedError: String?
@@ -126,6 +128,13 @@ import SpookkyGit
             observeRuntimeEvent()
         }
         runtimeEvents.onChange = { [weak self] in self?.observeRuntimeEvent() }
+        displayOptionsObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in
+                    guard let self else { return }
+                    for row in Array(self.workspaceRows.values) + Array(self.projectRows.values) { row.primary?.needsDisplay = true }
+                }
+            }
         wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor in self?.observeRuntimeEvent() }
@@ -152,6 +161,7 @@ import SpookkyGit
     }
     deinit {
         if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
+        if let displayOptionsObserver { NSWorkspace.shared.notificationCenter.removeObserver(displayOptionsObserver) }
         observationTask?.cancel()
     }
     private func buildWindow() {
@@ -394,7 +404,10 @@ import SpookkyGit
             }.joined()
             return identity + anchor + w.selectedTabID.uuidString + tabs
         }.joined()
-        let projectChrome = state.projects.map { $0.id.uuidString + $0.name }.joined()
+        let projectChrome = state.projects.map { project -> String in
+            let identity = project.id.uuidString + project.name + project.location.scopePath
+            return identity + String(project.location.isGit) + String(project.isCollapsed == true)
+        }.joined()
         let selectionChrome = String(describing: state.selectedWorkspaceID) + String(state.sidebarCollapsed)
         let chrome = workspaceChrome + projectChrome + selectionChrome + String(describing: window.effectiveAppearance.name)
         if chrome != chromeRevision {
@@ -417,11 +430,13 @@ import SpookkyGit
     }
     private func renderChrome() {
         let state = store.state, collapsed = state.sidebarCollapsed
-        let sidebarKey = state.projects.map { $0.id.uuidString }.joined() +
+        let sidebarKey = state.projects.map { $0.id.uuidString + $0.name + $0.location.scopePath + String($0.location.isGit) }.joined() +
             state.workspaces.map { $0.id.uuidString + String(describing: $0.projectID) }.joined() + String(collapsed) + String(describing: window.effectiveAppearance.name)
         if sidebarKey != sidebarRevision {
             renameEditor?.cancel(); renameEditor = nil
-            sidebarRevision = sidebarKey; workspaceRows.removeAll(); clear(rail)
+            let focusedProject = projectRows.first { $0.value.primary === window.firstResponder }?.key
+            let focusedWorkspace = workspaceRows.first { $0.value.primary === window.firstResponder }?.key
+            sidebarRevision = sidebarKey; workspaceRows.removeAll(); projectRows.removeAll(); clear(rail)
             let newWorkspace = ActionButton(collapsed ? "" : "New workspace", symbol: "plus", help: "New workspace · ⌘N") { [weak self] in self?.newWorkspace() }
             newWorkspace.emphasis = .secondary
             rail.addArrangedSubview(newWorkspace)
@@ -450,16 +465,35 @@ import SpookkyGit
                 if projectIndex > 0, let previous = rail.arrangedSubviews.last { rail.setCustomSpacing(8, after: previous) }
                 let row = contextRow(title: collapsed ? "" : project.name, symbol: "folder", secondarySymbol: "plus",
                     help: project.name + " · " + project.location.path, selected: false, monogram: project.name,
-                    select: { [weak self] in self?.newProjectWorkspace(project.id) },
+                    select: { [weak self] in
+                        self?.store.update {
+                            if collapsed { $0.sidebarCollapsed = false; $0.setProjectCollapsed(project.id, false) }
+                            else { $0.toggleProjectCollapsed(project.id) }
+                        }
+                    },
                     secondary: { [weak self] in self?.newProjectWorkspace(project.id) })
                 row.secondary = { [weak self] in
                     let menu = NSMenu()
                     menu.addItem(ClosureMenuItem("Remove project") { self?.store.update { $0.removeProject(project.id) } })
                     return menu
                 }
+                row.primary?.setAccessibilityLabel(project.name)
+                row.primary?.setAccessibilityValue(project.isCollapsed == true ? "Collapsed" : "Expanded")
+                row.primary?.toolTip = (project.isCollapsed == true ? "Expand " : "Collapse ") + project.name
+                row.restingIcon = row.icon?.image
+                let previousInteraction = row.onInteractionChange
+                row.onInteractionChange = { [weak row] active in
+                    previousInteraction?(active)
+                    guard let row, !collapsed else { return }
+                    row.icon?.image = active ? NSImage(systemSymbolName: row.groupCollapsed ? "chevron.right" : "chevron.down", accessibilityDescription: nil) : row.restingIcon
+                    row.icon?.contentTintColor = active ? SpookkyPalette.secondary : nil
+                }
                 rail.addArrangedSubview(row)
                 row.widthAnchor.constraint(equalToConstant: collapsed ? 32 : SpookkyStyle.sidebarWidth - 16).isActive = true
-                for w in state.workspaces where w.projectID == project.id { addWorkspaceRow(w, collapsed: collapsed) }
+                projectRows[project.id] = row
+                if project.isCollapsed != true {
+                    for w in state.workspaces where w.projectID == project.id { addWorkspaceRow(w, collapsed: collapsed) }
+                }
             }
             let unbound = state.workspaces.filter { $0.projectID == nil }
             if !collapsed && !unbound.isEmpty {
@@ -468,6 +502,30 @@ import SpookkyGit
                 rail.addArrangedSubview(label)
             }
             for workspace in unbound { addWorkspaceRow(workspace, collapsed: collapsed) }
+            if let focusedProject, let button = projectRows[focusedProject]?.primary { window.makeFirstResponder(button) }
+            else if let focusedWorkspace, let button = workspaceRows[focusedWorkspace]?.primary { window.makeFirstResponder(button) }
+        }
+        for project in state.projects {
+            guard let row = projectRows[project.id] else { continue }
+            let nextCollapsed = project.isCollapsed == true
+            if row.groupCollapsed != nextCollapsed {
+                row.groupCollapsed = nextCollapsed
+                row.onInteractionChange?(row.interactionActive)
+            }
+            row.primary?.setAccessibilityValue(row.groupCollapsed ? "Collapsed" : "Expanded")
+            row.primary?.toolTip = (row.groupCollapsed ? "Expand " : "Collapse ") + project.name + " · " + project.location.path
+            let entries = state.workspaces.filter { $0.projectID == project.id }
+            if row.groupCollapsed {
+                for workspace in entries {
+                    if let child = workspaceRows.removeValue(forKey: workspace.id) {
+                        rail.removeArrangedSubview(child); child.removeFromSuperview()
+                    }
+                }
+            } else if let index = rail.arrangedSubviews.firstIndex(where: { $0 === row }) {
+                for (offset, workspace) in entries.enumerated() where workspaceRows[workspace.id] == nil {
+                    addWorkspaceRow(workspace, collapsed: collapsed, at: index + 1 + offset)
+                }
+            }
         }
         for workspace in state.workspaces {
             guard let row = workspaceRows[workspace.id] else { continue }
@@ -502,14 +560,21 @@ import SpookkyGit
                     let select = ActionButton(tab.title, symbol: SpookkyStyle.toolSymbol(tab.binding?.tool ?? tab.draft.tool), help: tab.title + " · " + tab.status.rawValue) { [weak self] in self?.selectTab(tab.id) }
                     select.drawsInteractionFill = false
                     select.onDoubleClick = { [weak self] in self?.rename(tabID: tab.id) }
-                    let close = ActionButton("", symbol: "xmark", help: "Close " + tab.title) { [weak self] in self?.closeTabs([tab.id]) }
+                    let close = ActionButton("", symbol: "xmark", help: "Close " + tab.title, height: SpookkyStyle.compactHeight) { [weak self] in self?.closeTabs([tab.id]) }
                     let status = NSImageView(); status.symbolConfiguration = .init(pointSize: 12, weight: .regular)
                     status.widthAnchor.constraint(equalToConstant: 16).isActive = true; status.heightAnchor.constraint(equalToConstant: 16).isActive = true
                     let pair = ChromeStackView(views: [select, status, close]); pair.spacing = 0
+                    close.revealOnInteraction = true
+                    pair.onInteractionChange = { [weak close] in close?.interactionActive = $0 }
+                    select.onFocusChange = { [weak pair, weak select] focused in if let select { pair?.trackFocus(select, focused) } }
+                    close.onFocusChange = { [weak pair, weak close] focused in if let close { pair?.trackFocus(close, focused) } }
+                    select.onHoverChange = { [weak pair, weak select] inside in if let select { pair?.trackHover(select, inside) } }
+                    close.onHoverChange = { [weak pair, weak close] inside in if let close { pair?.trackHover(close, inside) } }
                     pair.cornerRadius = 0; pair.drawsTrailingBorder = true
                     select.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).isActive = true
                     pair.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).isActive = true
                     close.widthAnchor.constraint(equalToConstant: SpookkyStyle.compactHeight).isActive = true
+                    close.heightAnchor.constraint(equalToConstant: SpookkyStyle.compactHeight).isActive = true
                     select.widthAnchor.constraint(lessThanOrEqualToConstant: 200).isActive = true
                     select.lineBreakMode = .byTruncatingTail
                     pair.menu = NSMenu(); pair.menu?.addItem(ClosureMenuItem("Rename tab…") { [weak self] in self?.rename(tabID: tab.id) })
@@ -549,7 +614,7 @@ import SpookkyGit
                             monogram: String? = nil, select: @escaping () -> Void, secondary: @escaping () -> Void) -> ContextRow {
         let row = ContextRow(); row.translatesAutoresizingMaskIntoConstraints = false
         let collapsed = store.state.sidebarCollapsed
-        let primary = ActionButton(title, symbol: collapsed ? symbol : nil, help: help, action: select)
+        let primary = FadingTitleButton(title, symbol: collapsed ? symbol : nil, help: help, action: select)
         if collapsed, let monogram { primary.image = SpookkyStyle.monogram(monogram) }
         primary.contentInset = collapsed ? SpookkyStyle.controlInset : 0
         primary.drawsInteractionFill = false
@@ -557,7 +622,7 @@ import SpookkyGit
         primary.onContextMenu = { [weak row] in row?.secondary?() }
         primary.onNavigate = { [weak self, weak primary] key in
             guard let self, let primary else { return }
-            let controls = self.rail.arrangedSubviews.compactMap { ($0 as? ContextRow)?.primary }
+            let controls = self.rail.arrangedSubviews.filter { !$0.isHiddenOrHasHiddenAncestor }.compactMap { ($0 as? ContextRow)?.primary }
             guard let index = controls.firstIndex(where: { $0 === primary }), !controls.isEmpty else { return }
             let offset = key == 123 || key == 126 ? -1 : 1
             let target = controls[(index + offset + controls.count) % controls.count]
@@ -566,6 +631,14 @@ import SpookkyGit
         primary.alignment = .left; primary.lineBreakMode = .byTruncatingTail
         let action = ActionButton("", symbol: secondarySymbol, help: secondarySymbol == "plus" ? "New workspace for " + title : "Close " + title, action: secondary)
         row.secondaryButton = action
+        action.revealOnInteraction = true
+        row.onInteractionChange = { [weak action, weak primary] active in
+            action?.interactionActive = active; primary?.revealTitle = active
+        }
+        primary.onFocusChange = { [weak row, weak primary] focused in if let primary { row?.trackFocus(primary, focused) } }
+        action.onFocusChange = { [weak row, weak action] focused in if let action { row?.trackFocus(action, focused) } }
+        primary.onHoverChange = { [weak row, weak primary] inside in if let primary { row?.trackHover(primary, inside) } }
+        action.onHoverChange = { [weak row, weak action] inside in if let action { row?.trackHover(action, inside) } }
         let isWorkspace = secondarySymbol == "xmark"
         let icon = NSImageView()
         row.icon = icon
@@ -604,7 +677,7 @@ import SpookkyGit
         row.selected = selected
         return row
     }
-    private func addWorkspaceRow(_ workspace: Workspace, collapsed: Bool) {
+    private func addWorkspaceRow(_ workspace: Workspace, collapsed: Bool, at index: Int? = nil) {
         let row = contextRow(title: collapsed ? "" : workspace.title, symbol: "terminal", secondarySymbol: "xmark",
             help: workspace.title + " · " + workspace.directory, selected: workspace.id == store.state.selectedWorkspaceID, nested: workspace.projectID != nil,
             select: { [weak self] in self?.selectWorkspace(workspace.id) },
@@ -620,7 +693,7 @@ import SpookkyGit
             }
             return menu
         }
-        rail.addArrangedSubview(row)
+        if let index { rail.insertArrangedSubview(row, at: index) } else { rail.addArrangedSubview(row) }
         workspaceRows[workspace.id] = row
         row.widthAnchor.constraint(equalToConstant: collapsed ? 32 : SpookkyStyle.sidebarWidth - 16).isActive = true
     }
@@ -781,7 +854,12 @@ import SpookkyGit
     @objc private func nextTab() { cycleTab(1) }
     @objc private func previousTab() { cycleTab(-1) }
     @objc private func renameSelectedTab() { if let id = store.state.selectedTab?.id { rename(tabID: id) } }
-    @objc private func focusSidebar() { if let button = workspaceRows[store.state.selectedWorkspaceID ?? UUID()]?.primary { window.makeFirstResponder(button) } }
+    @objc private func focusSidebar() {
+        guard let workspace = store.state.selected else { return }
+        let row = workspaceRows[workspace.id]
+        let button = row?.isHidden == false ? row?.primary : workspace.projectID.flatMap { projectRows[$0]?.primary }
+        if let button { window.makeFirstResponder(button) }
+    }
     @objc private func focusTabStrip() { if let id = store.state.selectedTab?.id { moveTabFocus(from: id, offset: 0) } }
     @objc private func focusOtherPane() {
         guard let ids = store.state.selected?.split.map({ [$0.first, $0.second] }), let other = ids.first(where: { $0 != store.state.selectedTab?.id }) else { return }
@@ -1045,8 +1123,12 @@ import SpookkyGit
     private func rename(tabID: UUID? = nil, workspaceID: UUID? = nil) {
         renameEditor?.cancel(); renameEditor = nil
         if store.state.sidebarCollapsed, workspaceID != nil { store.update { $0.sidebarCollapsed = false } }
+        if let workspaceID, let projectID = store.state.workspaces.first(where: { $0.id == workspaceID })?.projectID {
+            store.update { $0.setProjectCollapsed(projectID, false) }
+        }
         let button = tabID.flatMap { tabPairs[$0]?.arrangedSubviews.first as? ActionButton } ?? workspaceID.flatMap { workspaceRows[$0]?.primary }
         guard let button else { return }
+        window.contentView?.layoutSubtreeIfNeeded()
         button.scrollToVisible(button.bounds)
         renameEditor = InlineRenameEditor(button: button) { [weak self, weak button] name, restoreFocus in
             guard let self else { return }; self.renameEditor = nil
@@ -1066,7 +1148,7 @@ import SpookkyGit
         alert.beginSheetModal(for: window) { [weak self] result in
             guard result == .alertFirstButtonReturn else { return }
             let index = picker.indexOfSelectedItem
-            if entries.indices.contains(index) { self?.store.update { $0.selectWorkspace(entries[index].id) } }
+            if entries.indices.contains(index) { self?.store.update { $0.sidebarCollapsed = false; $0.selectWorkspace(entries[index].id) } }
         }
     }
     @objc private func closeSelectedTab() {

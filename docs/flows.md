@@ -44,7 +44,8 @@ Opening or reopening Spookky with no remaining workspaces shows the Home start s
 | Action | Result |
 | --- | --- |
 | Cmd+N / New workspace | Create and select an unbound workspace immediately. |
-| Project + | Create an unbound workspace with that project selected, Local by default. |
+| Project row | Toggle its workspace rows without changing the selected workspace or stopping processes. |
+| Project + | Create an unbound workspace with that project selected, Local by default, and expand the group. |
 | Cmd+T while a running/ended tab is selected | Open a blank tab in the same workspace. |
 | Cmd+T while a blank tab is selected | Open Terminal at the selected/inherited location immediately. |
 | Cmd+T with an agent prompt draft | Preserve that draft in its tab and open Terminal in another tab. |
@@ -54,7 +55,7 @@ Opening or reopening Spookky with no remaining workspaces shows the Home start s
 | Enter in initial prompt | Insert a newline. |
 | Cmd+W / tab × | Close selected tab, confirming active agent/job termination. |
 | Workspace × | Close workspace, confirming active sessions; keep files and branch. |
-| Cmd+K | Find a workspace. |
+| Cmd+K | Find a workspace and reveal its parent project group. |
 | Right-click / Shift+F10 on a sidebar entry | Open secondary contextual actions. |
 | Double-click selected terminal tab | Rename its UI label. |
 | Right-sidebar toggle | Show/hide Files and Changes. Never start a process. |

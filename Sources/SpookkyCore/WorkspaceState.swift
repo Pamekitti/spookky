@@ -43,6 +43,7 @@ public struct Project: Codable, Identifiable, Equatable, Sendable {
     public var location: WorkspaceLocation
     public var preferredSource: String?
     public var lastUsed: Date?
+    public var isCollapsed: Bool?
     public init(id: UUID = UUID(), name: String, location: WorkspaceLocation) {
         self.id = id; self.name = name; self.location = location
     }
@@ -141,14 +142,27 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     }
     @discardableResult public mutating func newWorkspace(location: WorkspaceLocation, projectID: UUID? = nil) -> UUID {
         let workspace = Workspace(location: location, projectID: projectID, tool: lastTool)
-        workspaces.append(workspace); selectedWorkspaceID = workspace.id; return workspace.id
+        workspaces.append(workspace); selectedWorkspaceID = workspace.id
+        if let projectID { setProjectCollapsed(projectID, false) }
+        return workspace.id
     }
     public mutating func setFileView(_ view: FileViewState, workspaceID: UUID) {
         guard view.isValid, let index = workspaces.firstIndex(where: { $0.id == workspaceID }) else { return }
         workspaces[index].fileView = view
     }
     public mutating func selectWorkspace(_ id: UUID) {
-        if workspaces.contains(where: { $0.id == id }) { selectedWorkspaceID = id }
+        if let workspace = workspaces.first(where: { $0.id == id }) {
+            selectedWorkspaceID = id
+            if let projectID = workspace.projectID { setProjectCollapsed(projectID, false) }
+        }
+    }
+    public mutating func setProjectCollapsed(_ id: UUID, _ collapsed: Bool) {
+        guard let index = projects.firstIndex(where: { $0.id == id }) else { return }
+        projects[index].isCollapsed = collapsed
+    }
+    public mutating func toggleProjectCollapsed(_ id: UUID) {
+        guard let project = projects.first(where: { $0.id == id }) else { return }
+        setProjectCollapsed(id, project.isCollapsed != true)
     }
     public mutating func selectTab(_ id: UUID) {
         guard let index = workspaces.firstIndex(where: { $0.id == selectedWorkspaceID }),

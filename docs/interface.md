@@ -84,15 +84,15 @@ These are the native component dimensions. The HTML retains the approved flow an
 
 Use SF Symbols in the native app. A symbol beside a row or button label uses a 14-point regular glyph in a 16-point slot, followed by 6 points of space. Icon-only add, close, and pane controls use a 14-point medium glyph centered in a 28×28-point target. The tab close target is 24 points wide. Tabs occupy the full 40-point strip, with a trailing separator and restrained selected fill. Keep the symbol's optical size consistent within each role rather than stretching every symbol to a fixed image rectangle.
 
-Keep 8 points between compact controls, 12 points between sections, and 4 points within a compound control. Use 8-point sidebar selection insets. Project rows remain 28 points high, workspace rows 46 points high, and the tab strip 40 points high. Use the existing 13/12/11-point type hierarchy. Truncate titles and paths before they displace an action. Tooltips and accessibility labels retain the full text.
+Keep 8 points between compact controls, 12 points between sections, and 4 points within a compound control. Use 8-point sidebar selection insets. Project rows remain 28 points high, workspace rows 46 points high, and the tab strip 40 points high. Use the existing 13/12/11-point type hierarchy. Clip titles and paths before they displace an action. Overflowing workspace titles use a 14-point trailing fade. Hover or keyboard focus reveals the hidden end in one pass after 350 ms, at 32 points per second with a duration from 0.5 to 6 seconds. Exit returns the title in 200 ms. Reduce Motion retains a static fade. Tooltips and accessibility labels retain the full text.
 
-Use four button roles: primary launch, secondary destination/direct launch, quiet navigation/utility, and destructive confirmation. Filled controls retain their role on hover and press. Quiet controls use the foreground wash. All roles have a visible native keyboard focus ring and a disabled state. Selected rows and tabs carry the selection fill. The add and close buttons remain visible without hover. Row and tab hover fills cover their enclosing component; nested label buttons do not draw another fill. Files and Changes use the same quiet selection treatment, not the system-blue segmented style. A plain-language visual fixture must not display the Unicode stress-test names used by automated compatibility checks.
+Use four button roles: primary launch, secondary destination/direct launch, quiet navigation/utility, and destructive confirmation. Filled controls retain their role on hover and press. Quiet controls use the foreground wash. All roles have a visible native keyboard focus ring and a disabled state. Selected rows and tabs carry the selection fill. Project add and workspace/tab close actions appear on row hover or descendant keyboard focus. Standalone add controls remain visible. Actions reserve their space at rest and never move the title when revealed. Row and tab hover fills cover their enclosing component; nested label buttons do not draw another fill. Files and Changes use the same quiet selection treatment, not the system-blue segmented style. A plain-language visual fixture must not display the Unicode stress-test names used by automated compatibility checks.
 
 The HTML's fixed 760px frame is a preview constraint, not a native window requirement. Avoid shrinking text to fit more controls. At 800px and below, secondary sidebars overlay; at 600px and below, diffs use unified layout. Touch targets should expand if a touch-capable surface is ever supported.
 
 ### Native row and preview geometry
 
-Project icons start 16 points from the sidebar edge; project titles start at 40. Nested workspace icons start at 32 points; titles and their secondary metadata start at 56. No-project workspace icons and titles use the top-level 16/40 alignment. Each leading icon has a 16-point slot and an 8-point gap to its title. Project groups have an 8-point gap. Close controls align to the title line, with a reserved 28-point target at the trailing edge.
+Project icons start 16 points from the sidebar edge; project titles start at 40. Nested workspace icons start at 32 points; titles and their secondary metadata start at 56. No-project workspace icons and titles use the top-level 16/40 alignment. Each leading icon has a 16-point slot and an 8-point gap to its title. Project groups have an 8-point gap. Close controls align to the title line, with a reserved 28-point target at the trailing edge. Add and close glyphs use 12-point regular-weight symbols and a centered 20-point hover fill with a 5-point radius. Tab close targets are 24 by 24 points.
 
 Files and preview tables use the plain native style with no enclosing horizontal content inset. File group headings and root icons begin 8 points from the panel edge. Root filenames begin at 28 points; each directory level adds 12 points. Directory disclosure uses native chevrons. Files use native code, document, configuration, image, archive or generic symbols. Repository and symlink entries remain distinct. Git status letters carry semantic colors and descriptive accessibility names. Parent paths use secondary text and yield space before the filename. Status indicators remain 8 points from the trailing edge. Selection uses a foreground wash; only the table with keyboard focus draws its focus outline.
 
@@ -123,7 +123,7 @@ Diff additions/removals use muted green/red backgrounds plus explicit signs and 
 
 ## Direct controls
 
-- Project **+** creates a workspace with that project selected. Workspace **×** closes that entry.
+- Clicking a project expands or collapses its workspace rows. Project **+** creates a workspace with that project selected and expands its group. Workspace **×** closes that entry. Collapse does not change selection, drafts, or processes. Collapse state persists. Finding a workspace expands its parent group.
 - Keep the close button inside the selected row's visual boundary. Closing another row must not steal selection.
 - Secondary rename/remove/delete actions live in contextual menus, opened by right-click or Shift+F10. Context menus anchor to the entry and stay inside the window.
 - Project menus open from the exact add or picker control that invoked them. Keep the trigger visible when there is room below it.
@@ -178,7 +178,7 @@ Menus close on Escape and restore focus. Arrow keys navigate contextual actions.
 
 Inputs retain focus while typing; do not rebuild the entire interface per keystroke. Validation retains values and places the error near the relevant action. Loading states identify the current step and allow cancellation when safe.
 
-Do not rely on hover to discover primary actions. Keep compact controls distinguishable in both themes. Native VoiceOver behavior needs real testing; the HTML checks do not establish native accessibility.
+Keep primary launch actions visible. Reveal sidebar utilities on hover and keyboard focus. Keep compact controls distinguishable in both themes. Native VoiceOver behavior needs real testing; the HTML checks do not establish native accessibility.
 
 ## Visual QA
 

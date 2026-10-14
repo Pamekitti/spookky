@@ -136,6 +136,18 @@ final class ChromeStackView: NSStackView {
     var cornerRadius: CGFloat = SpookkyStyle.cornerRadius
     var drawsTrailingBorder = false
     private var hovered = false
+    private var focusedControls = Set<ObjectIdentifier>()
+    private var hoveredControls = Set<ObjectIdentifier>()
+    var onInteractionChange: ((Bool) -> Void)?
+    var interactionActive: Bool { hovered || !hoveredControls.isEmpty || !focusedControls.isEmpty }
+    func trackHover(_ button: ActionButton, _ inside: Bool) {
+        if inside { hoveredControls.insert(ObjectIdentifier(button)) } else { hoveredControls.remove(ObjectIdentifier(button)) }
+        onInteractionChange?(interactionActive); needsDisplay = true
+    }
+    func trackFocus(_ button: ActionButton, _ focused: Bool) {
+        if focused { focusedControls.insert(ObjectIdentifier(button)) } else { focusedControls.remove(ObjectIdentifier(button)) }
+        onInteractionChange?(interactionActive); needsDisplay = true
+    }
     private var tracking: NSTrackingArea?
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -143,11 +155,11 @@ final class ChromeStackView: NSStackView {
         tracking = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self)
         addTrackingArea(tracking!)
     }
-    override func mouseEntered(with event: NSEvent) { hovered = true; needsDisplay = true }
-    override func mouseExited(with event: NSEvent) { hovered = false; needsDisplay = true }
+    override func mouseEntered(with event: NSEvent) { hovered = true; onInteractionChange?(interactionActive); needsDisplay = true }
+    override func mouseExited(with event: NSEvent) { hovered = false; onInteractionChange?(interactionActive); needsDisplay = true }
     override func draw(_ dirtyRect: NSRect) {
         let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: cornerRadius, yRadius: cornerRadius)
-        (raised ? SpookkyPalette.raised : selected ? SpookkyPalette.selected : hovered ? SpookkyPalette.hover : .clear).setFill(); path.fill()
+        (raised ? SpookkyPalette.raised : selected ? SpookkyPalette.selected : interactionActive ? SpookkyPalette.hover : .clear).setFill(); path.fill()
         if raised {
             let focused = (window?.firstResponder as? NSView)?.isDescendant(of: self) == true
             (focused ? NSColor.keyboardFocusIndicatorColor : SpookkyPalette.border).setStroke()
@@ -223,7 +235,7 @@ final class PromptTextView: NSTextView {
     override func didChangeText() { super.didChangeText(); needsDisplay = true }
 }
 
-final class ActionButton: NSButton {
+class ActionButton: NSButton {
     enum Emphasis { case quiet, secondary, primary, destructive }
     var emphasis: Emphasis = .quiet { didSet { needsDisplay = true } }
     var selected = false { didSet { if selected != oldValue { needsDisplay = true } } }
@@ -234,24 +246,44 @@ final class ActionButton: NSButton {
     var onNavigate: ((UInt16) -> Void)?
     var contentInset: CGFloat = SpookkyStyle.controlInset
     var menuIndicator = false
+    var compactUtility = false
+    var revealOnInteraction = false { didSet { updateInteractionVisibility() } }
+    var interactionActive = false { didSet { updateInteractionVisibility() } }
+    var onFocusChange: ((Bool) -> Void)?
+    var onHoverChange: ((Bool) -> Void)?
+    private var keyboardFocused = false
+    private let targetHeight: CGFloat
+    var isRevealed: Bool { !revealOnInteraction || interactionActive || keyboardFocused }
+    func updateInteractionVisibility() {
+        alphaValue = isRevealed ? 1 : 0
+        setAccessibilityElement(isRevealed)
+        setAccessibilityRole(.button)
+        needsDisplay = true
+    }
+    override func hitTest(_ point: NSPoint) -> NSView? { isRevealed ? super.hitTest(point) : nil }
     private var hovered = false
     private var tracking: NSTrackingArea?
-    init(_ title: String, symbol: String? = nil, help: String? = nil, action: @escaping () -> Void) {
-        handler = action
+    init(_ title: String, symbol: String? = nil, help: String? = nil, height: CGFloat = SpookkyStyle.controlHeight, action: @escaping () -> Void) {
+        handler = action; targetHeight = height
         super.init(frame: .zero)
         self.title = title; target = self; self.action = #selector(invoke)
         isBordered = false; focusRingType = .none; font = .systemFont(ofSize: 13)
         if let symbol { image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil); imagePosition = title.isEmpty ? .imageOnly : .imageLeading }
+        compactUtility = symbol == "plus" || symbol == "xmark"
         toolTip = help ?? title; setAccessibilityLabel(help ?? title)
-        heightAnchor.constraint(greaterThanOrEqualToConstant: SpookkyStyle.controlHeight).isActive = true
+        heightAnchor.constraint(greaterThanOrEqualToConstant: height).isActive = true
     }
     required init?(coder: NSCoder) { fatalError("Use init") }
     override var isOpaque: Bool { false }
+    override var alignmentRectInsets: NSEdgeInsets {
+        // Custom symbol buttons have no native bezel outside their declared target.
+        compactUtility && title.isEmpty ? NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0) : super.alignmentRectInsets
+    }
     override var intrinsicContentSize: NSSize {
         let text = (title as NSString).size(withAttributes: [.font: font ?? NSFont.systemFont(ofSize: 13)]).width
         let iconWidth = image == nil ? 0 : SpookkyStyle.iconSlot + SpookkyStyle.iconLabelGap
-        return NSSize(width: title.isEmpty ? SpookkyStyle.controlHeight :
-            text + 2 * SpookkyStyle.controlInset + iconWidth + (menuIndicator ? 16 : 0), height: SpookkyStyle.controlHeight)
+        return NSSize(width: title.isEmpty ? targetHeight :
+            text + 2 * SpookkyStyle.controlInset + iconWidth + (menuIndicator ? 16 : 0), height: targetHeight)
     }
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -259,14 +291,24 @@ final class ActionButton: NSButton {
         tracking = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self)
         addTrackingArea(tracking!)
     }
-    override func mouseEntered(with event: NSEvent) { hovered = true; needsDisplay = true }
-    override func mouseExited(with event: NSEvent) { hovered = false; needsDisplay = true }
+    override func mouseEntered(with event: NSEvent) { hovered = true; onHoverChange?(true); needsDisplay = true }
+    override func mouseExited(with event: NSEvent) { hovered = false; onHoverChange?(false); needsDisplay = true }
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
-    override func becomeFirstResponder() -> Bool { let result = super.becomeFirstResponder(); needsDisplay = true; return result }
-    override func resignFirstResponder() -> Bool { let result = super.resignFirstResponder(); needsDisplay = true; return result }
+    override func becomeFirstResponder() -> Bool {
+        let result = super.becomeFirstResponder()
+        if result { keyboardFocused = true; updateInteractionVisibility(); onFocusChange?(true) }
+        needsDisplay = true; return result
+    }
+    override func resignFirstResponder() -> Bool {
+        let result = super.resignFirstResponder()
+        if result { keyboardFocused = false; updateInteractionVisibility(); onFocusChange?(false) }
+        needsDisplay = true; return result
+    }
     override func draw(_ dirtyRect: NSRect) {
         let pressed = cell?.isHighlighted == true
-        let shape = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: SpookkyStyle.cornerRadius, yRadius: SpookkyStyle.cornerRadius)
+        let compact = compactUtility && title.isEmpty
+        let fillBounds = compact ? NSRect(x: bounds.midX - 10, y: bounds.midY - 10, width: 20, height: 20) : bounds.insetBy(dx: 1, dy: 1)
+        let shape = NSBezierPath(roundedRect: fillBounds, xRadius: compact ? 5 : SpookkyStyle.cornerRadius, yRadius: compact ? 5 : SpookkyStyle.cornerRadius)
         let fill: NSColor = switch emphasis {
         case .primary: SpookkyPalette.text
         case .secondary: SpookkyPalette.raised
@@ -298,8 +340,8 @@ final class ActionButton: NSButton {
         if let image {
             let utility = title.isEmpty
             let config = NSImage.SymbolConfiguration(
-                pointSize: utility ? SpookkyStyle.utilityIconSize : SpookkyStyle.leadingIconSize,
-                weight: utility ? .medium : .regular).applying(.init(paletteColors: [tint]))
+                pointSize: utility ? (compactUtility ? 12 : SpookkyStyle.utilityIconSize) : SpookkyStyle.leadingIconSize,
+                weight: utility && !compactUtility ? .medium : .regular).applying(.init(paletteColors: [tint]))
             let symbol = image.withSymbolConfiguration(config) ?? image
             let slot = NSRect(x: utility ? bounds.midX - SpookkyStyle.iconSlot / 2 : content.minX,
                 y: bounds.midY - SpookkyStyle.iconSlot / 2, width: SpookkyStyle.iconSlot, height: SpookkyStyle.iconSlot)
@@ -313,15 +355,17 @@ final class ActionButton: NSButton {
                 content.origin.x += width; content.size.width = max(0, content.width - width)
             }
         }
-        if !title.isEmpty {
-            let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byTruncatingTail; paragraph.alignment = alignment
-            let label = NSAttributedString(string: title, attributes: [.font: font ?? NSFont.systemFont(ofSize: 13), .foregroundColor: tint, .paragraphStyle: paragraph])
-            let h = label.size().height
-            label.draw(in: NSRect(x: content.minX, y: bounds.midY - h / 2, width: content.width, height: h))
-        }
+        drawTitle(in: content, tint: tint)
         if window?.firstResponder === self, window?.isKeyWindow == true {
             NSColor.keyboardFocusIndicatorColor.setStroke(); shape.lineWidth = 2; shape.stroke()
         }
+    }
+    func drawTitle(in content: NSRect, tint: NSColor) {
+        guard !title.isEmpty else { return }
+        let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byTruncatingTail; paragraph.alignment = alignment
+        let label = NSAttributedString(string: title, attributes: [.font: font ?? NSFont.systemFont(ofSize: 13), .foregroundColor: tint, .paragraphStyle: paragraph])
+        let h = label.size().height
+        label.draw(in: NSRect(x: content.minX, y: bounds.midY - h / 2, width: content.width, height: h))
     }
     @objc private func invoke() { handler?() }
     override var acceptsFirstResponder: Bool { true }
@@ -343,6 +387,18 @@ final class ActionButton: NSButton {
 final class ContextRow: NSView {
     var selected = false { didSet { if selected != oldValue { needsDisplay = true } } }
     private var hovered = false
+    private var focusedControls = Set<ObjectIdentifier>()
+    private var hoveredControls = Set<ObjectIdentifier>()
+    var onInteractionChange: ((Bool) -> Void)?
+    var interactionActive: Bool { hovered || !hoveredControls.isEmpty || !focusedControls.isEmpty }
+    func trackHover(_ button: ActionButton, _ inside: Bool) {
+        if inside { hoveredControls.insert(ObjectIdentifier(button)) } else { hoveredControls.remove(ObjectIdentifier(button)) }
+        onInteractionChange?(interactionActive); needsDisplay = true
+    }
+    func trackFocus(_ button: ActionButton, _ focused: Bool) {
+        if focused { focusedControls.insert(ObjectIdentifier(button)) } else { focusedControls.remove(ObjectIdentifier(button)) }
+        onInteractionChange?(interactionActive); needsDisplay = true
+    }
     private var tracking: NSTrackingArea?
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -350,10 +406,10 @@ final class ContextRow: NSView {
         tracking = NSTrackingArea(rect: .zero, options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self)
         addTrackingArea(tracking!)
     }
-    override func mouseEntered(with event: NSEvent) { hovered = true; needsDisplay = true }
-    override func mouseExited(with event: NSEvent) { hovered = false; needsDisplay = true }
+    override func mouseEntered(with event: NSEvent) { hovered = true; onInteractionChange?(interactionActive); needsDisplay = true }
+    override func mouseExited(with event: NSEvent) { hovered = false; onInteractionChange?(interactionActive); needsDisplay = true }
     override func draw(_ dirtyRect: NSRect) {
-        if selected || hovered {
+        if selected || interactionActive {
             (selected ? SpookkyPalette.selected : SpookkyPalette.hover).setFill()
             NSBezierPath(roundedRect: bounds, xRadius: SpookkyStyle.cornerRadius, yRadius: SpookkyStyle.cornerRadius).fill()
         }
@@ -361,6 +417,8 @@ final class ContextRow: NSView {
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
     override func mouseDown(with event: NSEvent) { primary?.handler?() }
     var icon: NSImageView?
+    var restingIcon: NSImage?
+    var groupCollapsed = false
     var primary: ActionButton?
     var secondaryButton: ActionButton?
     var metadata: NSTextField?
