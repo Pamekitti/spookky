@@ -14,6 +14,9 @@ import SpookkyGit
     private var repositorySnapshots: [UUID: RepositorySnapshot] = [:]
     private var repositoryGenerations: [UUID: UUID] = [:]
     private var projectCreation: ProjectCreationController?
+    private let avatarCache: GitHubAvatarCache
+    private var avatarTasks: [UUID: Task<Void, Never>] = [:]
+    private var projectOwners: [String: String] = [:]
     private let launches: LaunchCoordinator
     private let surfaces: TerminalSurfaceManager
     private let diagnostics: WorkspaceDiagnostics?
@@ -66,6 +69,8 @@ import SpookkyGit
 
     init(root: URL, initialStore: WorkspaceStore? = nil,
          resolver: any ExecutableResolver = CLIResolver(), backgroundFixture: Bool = false) throws {
+        let paths = AppPaths(bundleID: Bundle.main.bundleIdentifier, home: FileManager.default.homeDirectoryForCurrentUser, userID: getuid())
+        avatarCache = GitHubAvatarCache(directory: paths.data.appendingPathComponent("AvatarCache"))
         self.backgroundFixture = backgroundFixture
         let store = initialStore ?? WorkspaceStore()
         self.store = store
@@ -437,6 +442,9 @@ import SpookkyGit
             let focusedProject = projectRows.first { $0.value.primary === window.firstResponder }?.key
             let focusedWorkspace = workspaceRows.first { $0.value.primary === window.firstResponder }?.key
             sidebarRevision = sidebarKey; workspaceRows.removeAll(); projectRows.removeAll(); clear(rail)
+            avatarTasks.values.forEach { $0.cancel() }; avatarTasks.removeAll()
+            let paths = Set(state.projects.map { $0.location.scopePath })
+            projectOwners = projectOwners.filter { paths.contains($0.key) }
             let newWorkspace = ActionButton(collapsed ? "" : "New workspace", symbol: "plus", help: "New workspace · ⌘N") { [weak self] in self?.newWorkspace() }
             newWorkspace.emphasis = .secondary
             rail.addArrangedSubview(newWorkspace)
@@ -491,6 +499,7 @@ import SpookkyGit
                 rail.addArrangedSubview(row)
                 row.widthAnchor.constraint(equalToConstant: collapsed ? 32 : SpookkyStyle.sidebarWidth - 16).isActive = true
                 projectRows[project.id] = row
+                installProjectAvatar(project, row: row, collapsed: collapsed)
                 if project.isCollapsed != true {
                     for w in state.workspaces where w.projectID == project.id { addWorkspaceRow(w, collapsed: collapsed) }
                 }
@@ -526,6 +535,7 @@ import SpookkyGit
                     addWorkspaceRow(workspace, collapsed: collapsed, at: index + 1 + offset)
                 }
             }
+            if !project.location.isGit { projectOwners[project.location.scopePath] = nil }
         }
         for workspace in state.workspaces {
             guard let row = workspaceRows[workspace.id] else { continue }
@@ -696,6 +706,32 @@ import SpookkyGit
         if let index { rail.insertArrangedSubview(row, at: index) } else { rail.addArrangedSubview(row) }
         workspaceRows[workspace.id] = row
         row.widthAnchor.constraint(equalToConstant: collapsed ? 32 : SpookkyStyle.sidebarWidth - 16).isActive = true
+    }
+    private func installProjectAvatar(_ project: Project, row: ContextRow, collapsed: Bool) {
+        guard project.location.isGit else { return }
+        avatarTasks[project.id] = Task { [weak self, weak row] in
+            guard let self else { return }
+            let path = project.location.scopePath
+            let owner: String
+            if let known = projectOwners[path] { owner = known }
+            else {
+                owner = (try? await GitRepository().githubOwner(project.location)) ?? ""
+                guard !Task.isCancelled else { return }
+                projectOwners[path] = owner
+            }
+            guard !owner.isEmpty, !Task.isCancelled else { return }
+            let cached = await avatarCache.cached(owner)
+            if let cached, let row { applyProjectAvatar(cached, row: row, collapsed: collapsed) }
+            let data = await avatarCache.image(owner)
+            guard !Task.isCancelled, let data, let row, row.superview != nil else { return }
+            applyProjectAvatar(data, row: row, collapsed: collapsed)
+        }
+    }
+    private func applyProjectAvatar(_ data: Data, row: ContextRow, collapsed: Bool) {
+        guard let image = NSImage(data: data) else { return }
+        image.size = NSSize(width: 16, height: 16); row.restingIcon = image
+        if !row.interactionActive { row.icon?.image = image; row.icon?.contentTintColor = nil }
+        if collapsed { row.primary?.image = image }
     }
     private func renderContent(started: Double) async {
         guard window.isVisible else { return }

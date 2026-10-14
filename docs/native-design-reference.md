@@ -7,7 +7,7 @@ Spookky's native controls follow the geometry and interaction rules below. The l
 | Component | Geometry | Behavior |
 | --- | --- | --- |
 | Sidebar | 232-point column, 58-point rail, 8-point outer selection inset | Keeps project and workspace navigation compact |
-| Project row | 28 points, 16-point icon slot, separate 28-point add action | Click toggles expansion; monogram becomes a chevron on hover/focus; add appears on hover/focus |
+| Project row | 28 points, 16-point icon slot, separate 28-point add action | Click toggles expansion; avatar becomes a chevron on hover/focus; add appears on hover/focus |
 | Workspace row | 46 points, one 28-point title line and secondary metadata | Shows checkout and session context; close appears on hover/focus; long titles fade and reveal once |
 | Tab | 40-point strip, muted inactive title, one selection/hover fill, 24-by-24-point close target | Full-height native tabs use a trailing separator; close appears on hover/focus |
 | Composer | 560-point maximum width, 80-point minimum prompt, 13-point card radius | Prompt is optional; Terminal collapses the input; provider and launch action share one card |
@@ -41,8 +41,8 @@ The range adapter and its upstream dependency notices are recorded in [dependenc
 
 ## Component finish pass
 
-The native interface includes an expanding composer, labeled worktree fields, full-height tabs, inline rename, project monograms, lifecycle indicators and compact preview overflow. Native file categories replace generic document icons. Code retains its native selection and fixed gutters, with 18-point rows and explicit comparison captions.
+The native interface includes an expanding composer, labeled worktree fields, full-height tabs, inline rename, project avatars with monogram fallbacks, lifecycle indicators and compact preview overflow. Native file categories replace generic document icons. Code retains its native selection and fixed gutters, with 18-point rows and explicit comparison captions.
 
-Native controls, generated text monograms and SF Symbols implement these roles.
+Native controls, cached GitHub owner avatars, generated text monograms and SF Symbols implement these roles. Avatar loading permits two concurrent downloads, limits each response to 512 KiB, and decodes images to 64 pixels. The cache holds 32 images in memory and at most 10 MiB on disk. Images refresh after seven days; failed refreshes retain stale images and wait an hour before retrying on demand.
 
 Verification boundaries are recorded in [current status](status.md).

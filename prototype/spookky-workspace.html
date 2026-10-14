@@ -45,6 +45,7 @@
 #spookky-app .project-mark {display:grid;place-items:center;width:20px;height:20px;border-radius:5px;background:var(--raised);color:var(--muted);font-size:11px;flex:none}
 #spookky-app .project-mark svg {width:14px;height:14px}
 #spookky-app .project-mark {width:16px;height:16px;position:relative}
+#spookky-app .project-mark img {position:absolute;inset:0;width:16px;height:16px;border-radius:4px}
 #spookky-app .project-disclosure {display:none}
 #spookky-app .project-row:is(:hover,:focus-within) .project-identity {display:none}
 #spookky-app .project-row:is(:hover,:focus-within) .project-disclosure {display:grid}
@@ -389,7 +390,7 @@ const viewDefault=()=>({sideTab:'files',query:'',folded:[],fileId:null,diffOpen:
 const launchDefault=tool=>({tool,prompt:'',showPrompt:false});
 const newTabData=(id,tool='shell')=>({id,tool:null,title:'',status:'blank',draft:'',cwd:'',messages:[],scroll:0,launch:launchDefault(tool),promptSent:false,history:false,job:false});
 function initialState(){return {schema:SCHEMA,revision:0,next:20,lastTool:'shell',activeId:'w-start',ui:{nav:root.clientWidth>800,side:false,theme:'dark',font:13},failure:'none',forms:{},projects:[
- {id:'p-n',name:'northstar',rootId:'c-n',refs:['HEAD','dev','main','feature/search','origin/dev','origin/main'],defaultRef:'origin/dev'},
+ {id:'p-n',name:'northstar',githubOwner:'github',rootId:'c-n',refs:['HEAD','dev','main','feature/search','origin/dev','origin/main'],defaultRef:'origin/dev'},
  {id:'p-a',name:'atlas',rootId:'c-a',refs:['HEAD','main','origin/main'],defaultRef:'origin/main'},
  {id:'p-notes',name:'notes',rootId:'c-notes',refs:[]},
  {id:'p-empty',name:'seed',rootId:'c-empty',refs:[]}
@@ -445,11 +446,11 @@ function measureTitle(node){const text=node.firstElementChild;if(!text)return;co
 const titleObserver=new ResizeObserver(entries=>entries.forEach(entry=>measureTitle(entry.target)));
 function observeTitles(){titleObserver.disconnect();all('.workspace-name').forEach(node=>{measureTitle(node);titleObserver.observe(node)})}
 function renderSidebar(){
-  const groups=[...state.projects.map(p=>({id:p.id,name:p.name,isCollapsed:p.isCollapsed})),{id:null,name:'No project'}];
+  const groups=[...state.projects.map(p=>({id:p.id,name:p.name,isCollapsed:p.isCollapsed,githubOwner:p.githubOwner})),{id:null,name:'No project'}];
   find('#project-list').innerHTML=groups.map(p=>{
     const ws=state.workspaces.filter(w=>(checkout(w)?.projectId||w.draft?.projectId||null)===p.id);
     if(!p.id&&!ws.length)return '';
-    return `<section class="project-group"><div class="project-row">${button('project-nav',`<span class="project-mark project-identity">${p.id?safe(p.name[0].toUpperCase()):icon('house')}</span>${p.id?`<span class="project-mark project-disclosure">${icon(p.isCollapsed?'chevron-right':'chevron-down')}</span>`:''}<span class="project-name">${safe(p.name)}</span>`,`class="project" data-id="${p.id||''}" aria-label="Project ${safe(p.name)}" ${p.id?`aria-expanded="${!p.isCollapsed}"`:""} aria-keyshortcuts="Shift+F10" data-tooltip="${safe(p.name)} · Right-click for options"`)}${iconButton('new-project-workspace','plus',p.id?`New workspace in ${p.name}`:'New workspace in Home',`data-id="${p.id||''}" class="row-action"`)}</div>`+(p.isCollapsed?[]:ws).map(w=>{
+    return `<section class="project-group"><div class="project-row">${button('project-nav',`<span class="project-mark project-identity">${p.id?safe(p.name[0].toUpperCase()):icon('house')}${p.githubOwner?`<img src="https://github.com/${encodeURIComponent(p.githubOwner)}.png?size=64" alt="" onerror="this.hidden=true">`:''}</span>${p.id?`<span class="project-mark project-disclosure">${icon(p.isCollapsed?'chevron-right':'chevron-down')}</span>`:''}<span class="project-name">${safe(p.name)}</span>`,`class="project" data-id="${p.id||''}" aria-label="Project ${safe(p.name)}" ${p.id?`aria-expanded="${!p.isCollapsed}"`:""} aria-keyshortcuts="Shift+F10" data-tooltip="${safe(p.name)} · Right-click for options"`)}${iconButton('new-project-workspace','plus',p.id?`New workspace in ${p.name}`:'New workspace in Home',`data-id="${p.id||''}" class="row-action"`)}</div>`+(p.isCollapsed?[]:ws).map(w=>{
       const c=checkout(w),active=w.id===state.activeId,live=w.tabs.some(running),busy=w.tabs.some(t=>t.job),current=tab(w);
       return `<div class="workspace-row ${active?'active':''}">${button('workspace',`<span class="rail-session-icon">${icon(c?c.kind==='worktree'?'git-branch':toolIcon(current.tool):'plus')}</span><span class="workspace-info"><span class="workspace-name" title="${safe(w.name)}"><span class="title-text">${safe(w.name)}</span></span><span class="workspace-branch">${safe(c?(w.name===c.branch?(c.kind==='worktree'?'Worktree':'Local')+' · '+w.tabs.length+(w.tabs.length===1?' tab':' tabs'):(c.branch||c.path)):w.draft?.projectId?'Not started':'Home · not started')}</span></span>${live?`<span class="status-dot ${busy?'working':'ready'}" role="img" aria-label="${busy?'Working':'Session running'}"></span>`:''}`,`class="workspace ${active?'active':''}" data-id="${w.id}" aria-label="${safe(w.name)}" aria-current="${active?'page':'false'}" aria-keyshortcuts="Shift+F10" data-tooltip="${safe(w.name)} · Right-click for options"`)}${iconButton('close-workspace','x',`Close workspace ${w.name}`,`data-id="${w.id}" class="row-action"`)}</div>`;
     }).join('')+'</section>';
