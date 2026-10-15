@@ -1,0 +1,23 @@
+docs/agent-activity.md
+  s_aad90be40b2891::t_e37d48dc0f832a 51
+docs/architecture.md
+  s_aad90be40b2891::t_88db7083859c31 132
+scripts/check_agent_hooks.py
+  s_aad90be40b2891::t_1f749ae3057994 151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1f1e26e9cfc334223b33b6bf3cc3ac49b98de8cd",
+  "prompts": {},
+  "sessions": {
+    "s_aad90be40b2891": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a14062-f3a9-78c2-a457-19b8789f45a4",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
