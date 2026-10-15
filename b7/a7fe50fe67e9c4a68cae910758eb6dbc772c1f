@@ -1,0 +1,23 @@
+Spookky.xcodeproj/project.pbxproj
+  s_47728b2748c7d1::t_49b88030214354 80-82
+docs/releases/0.1.4.md
+  s_47728b2748c7d1::t_7fc8fe7b7679fd 1-28
+release.json
+  s_47728b2748c7d1::t_80b56d2fa4008d 2-3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b7a7fe50fe67e9c4a68cae910758eb6dbc772c1f",
+  "prompts": {},
+  "sessions": {
+    "s_47728b2748c7d1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1407c-8dd4-7783-83f5-34e3f18177ac",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
