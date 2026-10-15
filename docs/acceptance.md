@@ -48,6 +48,7 @@ The maintainer confirmed the physical keyboard checks on 13 October 2026. Cmd+T 
 - [ ] Sidebar add and workspace/tab close actions reveal on hover and keyboard focus, keep fixed title alignment, and retain close confirmations.
 - [ ] Long workspace titles fade and reveal once; short titles remain still and Reduce Motion disables scrolling.
 - [ ] GitHub origin-owner avatars load without blocking UI; offline, invalid-image, and non-GitHub cases retain cached images or monograms.
+- [x] New workspace names are readable and unique. The first composer starting prompt names a workspace once, including after a shell launch. Manual names win; retries, additional prompts, and restart keep the title. Saved generic automatic labels upgrade without changing readable/manual names, paths, branches, drafts, or process identities. See [targeted naming verification](status.md#workspace-naming-verification).
 - [ ] Project/workspace context menus support right-click and keyboard access.
 - [ ] Tab/workspace switching preserves drafts, processes, output, scroll, and file selection.
 - [ ] Root directory identity and start subdirectory remain distinct.

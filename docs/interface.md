@@ -132,6 +132,8 @@ Diff additions/removals use muted green/red backgrounds plus explicit signs and 
 - Files and Changes have both text labels and icons. File groups include counts. Long names truncate with a path tooltip.
 - Keep diff context and layout actions in the preview header. Show the extra conflict selector only for a conflicted file.
 - If workspace title equals branch name, use location type and tab count on the second row rather than duplicating the name.
+- Workspace titles start with a friendly two-word name. The first composer starting prompt can replace it once; manual names always win. See [naming behavior](flows.md#launch-and-initial-prompt).
+- For Spookky's automatically generated branch, show Worktree and the tab count on the second row. Other branch names remain visible. Tooltips retain the full branch and path, including during exceptional lifecycle states.
 
 ## Code syntax
 
