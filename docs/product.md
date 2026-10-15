@@ -66,6 +66,7 @@ Use these names in UI and code. Do not revert to a task model that requires a wo
 | Worktrees | Explicit source and optional working branch name. Generated branch names are allowed. |
 | Terminals | Real shell, Codex CLI, and Claude Code CLI; optional initial agent prompt. |
 | Parallel work | Switch, rename, close, and split terminal tabs; preserve process and view state. |
+| Agent attention | Provider-reported activity, unread completions, workspace rollups, and optional native notifications. See [agent activity](agent-activity.md). |
 | Navigation | Compact project/workspace sidebar, project +, workspace ×, search, collapsible icon rail. |
 | File inspection | Full file tree, file search, read-only preview, external-editor action. |
 | Change inspection | Uncommitted groups and committed comparison against a selected branch; unified/split diff. |

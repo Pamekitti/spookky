@@ -52,3 +52,29 @@ Targeted verification passed 89 XCTest cases, 17 Swift Testing cases, 30 Python 
 Native AppKit captures covered 1120 by 760 points in dark appearance and 650 by 450 in light appearance. Native UI automation confirmed project collapse, keyboard expansion, focus, and draft preservation. The offscreen WebKit check passed 20 checks at desktop, 390px, and 320px widths without opening a browser window. It caught and verified fixes for project focus loss and overridden icon sizing. Four focus-dependent CSS checks were skipped because the offscreen page has no active OS keyboard window. Human pointer checks and spoken VoiceOver remain unverified.
 
 One disposable-shell sample measured 218.8 MiB app RSS and 19.4 MiB runtime/shell RSS, for a 238.1 MiB process RSS sum. App CPU averaged 2.40 percent during title reveal and avatar loading, then 0.42 percent after settling. The workload included native bitmap captures. This short sample is not a general performance result.
+
+## Agent activity verification
+
+On 15 October 2026, the activity change passed 102 XCTest cases, 17 Swift Testing cases, 30 Python tests, the repository checker, and a native Release build. Twelve hermetic launch-helper cases covered both providers. They exercised questions, child events, completion, failure, unsupported versions, disabled hooks, registration failure, and nested ownership. Literal arguments and silent malformed callbacks also passed.
+
+Minimal real turns passed with Codex CLI 0.162.1 and Claude Code 2.1.296. Both emitted working and completion hooks. A separate Codex command typed into the native app's normal interactive zsh resolved the private wrapper and produced a real unread completion. Existing user startup files and provider configuration were retained.
+
+Automated native interaction inspected a dark 1120×760 window and a light 680×480 window. It covered activity labels, workspace rollup, overflow, completion acknowledgment, Mark unread, provider controls, notification settings, child count, and the centered native Working spinner. Other activity states used synthetic provider events through the real callback and receiver.
+
+After integrating the newer sidebar controls, all 27 native sidebar fixture checks passed. Foreground native interaction confirmed the combined activity labels, workspace rollup, and completion acknowledgment. The bundle runtime audit and strict development signature verification also passed.
+
+Native notification delivery remains unverified. macOS returned "Notifications are not allowed for this application" for the isolated development build. Settings now displays that system error. Real interactive approval and question dialogs, notification click-through, app sounds, and spoken VoiceOver remain acceptance work. See [agent activity](agent-activity.md) for the implemented behavior and bounds.
+
+### Activity resource observations
+
+One local Release pass compared clean shells with no activity against simulated provider states before integration with the newer sidebar controls. Each case had a five-second warm-up and a 30-second observation. Pairs below mean no activity / reported activity. RSS is resident memory and includes shared pages. Total RSS sums the app, private runtime, and clean shells. These cases contain no real provider processes.
+
+| Terminal tabs | App RSS, MiB | Total RSS, MiB | Owned CPU, percent of one core |
+| --- | --- | --- | --- |
+| 1 | 100.2 / 109.4 | 105.7 / 116.2 | 0.89 / 0.83 |
+| 5 | 105.3 / 116.2 | 116.1 / 128.4 | 0.40 / 1.16 |
+| 10 | 123.6 / 122.6 | 145.2 / 142.1 | 0.83 / 0.76 |
+
+All six owned process sets stayed stable and the app binary stayed unchanged. The five-tab baseline lost visibility and activation before the final observation. Its CPU value is not comparable with the active case. Other cases were visible and active at both observation boundaries. This single pass does not establish a causal memory or CPU difference.
+
+Each monitored CLI retains one waiting helper. The separate idle fake-CLI observation measured 9.6 MiB median RSS for the packaged helper. Its accumulated CPU increase was below the collector's resolution over 30 seconds. Callback bursts, real provider costs, and WindowServer costs were excluded. Shared RSS pages prevent interpreting that number as unique physical-memory overhead. The [measurement command](development.md#measurement-commands) retains local JSON evidence under ignored `.cache/` state.
