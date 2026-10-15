@@ -72,14 +72,16 @@ final class AgentActivityTests: XCTestCase {
         XCTAssertEqual(preview?.count, 180); XCTAssertFalse(preview?.contains("\u{001B}") ?? true)
         XCTAssertNil(AgentHookPayload.event(data: Data(repeating: 32, count: 1_048_577), provider: .claude, bindingID: binding, invocationID: runID, secret: secret))
     }
-    func testLaunchArgumentsPreservePromptAndScopeTrustBypass() throws {
+    func testLaunchArgumentsPreservePromptAndProviderTrust() throws {
         let context = AgentTerminalContext(bindingID: binding, root: "/tmp/odd ' folder 日本語", helper: "/tmp/Spookky App's/helper")
         let invocation = AgentInvocation(context: context, provider: .codex)
         let prompt = "$(touch /tmp/should-never-run) `date`\n--dangerously-bypass-hook-trust"
         let original = ["--", prompt]
         let arguments = try AgentIntegration.hookArguments(provider: .codex, invocation: invocation, original: original)
         XCTAssertEqual(Array(arguments.suffix(2)), original)
-        XCTAssertEqual(arguments.filter { $0 == "--dangerously-bypass-hook-trust" }.count, 1)
+        XCTAssertFalse(arguments.contains("--dangerously-bypass-hook-trust"))
+        let nextInvocation = AgentInvocation(context: context, provider: .codex)
+        XCTAssertEqual(try AgentIntegration.hookArguments(provider: .codex, invocation: nextInvocation, original: original), arguments)
         let repeated = try AgentIntegration.hookArguments(provider: .codex, invocation: invocation, original: ["--dangerously-bypass-hook-trust"] + original)
         XCTAssertEqual(repeated.filter { $0 == "--dangerously-bypass-hook-trust" }.count, 1)
         XCTAssertFalse(arguments.contains("--dangerously-bypass-approvals-and-sandbox"))

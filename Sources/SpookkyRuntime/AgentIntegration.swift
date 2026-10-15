@@ -79,7 +79,7 @@ public enum AgentIntegration {
     }
 
     public static func hookArguments(provider: SessionTool, invocation: AgentInvocation, original: [String]) throws -> [String] {
-        let callback = [invocation.context.helper, "--agent-hook", invocation.path]
+        let callback = [invocation.context.helper, "--agent-hook-current"]
         var definitions: [String: [[String: Any]]] = [:]
         let events = provider == .codex
             ? ["SessionStart", "SessionEnd", "UserPromptSubmit", "PostToolUse", "PermissionRequest", "PreToolUse", "Stop", "Interrupt", "SubagentStart", "SubagentStop"]
@@ -106,7 +106,6 @@ public enum AgentIntegration {
             return String(decoding: try JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed, .withoutEscapingSlashes]), as: UTF8.self)
         }
         var prefix = [String]()
-        if !original.prefix(while: { $0 != "--" }).contains("--dangerously-bypass-hook-trust") { prefix.append("--dangerously-bypass-hook-trust") }
         for event in definitions.keys.sorted() { prefix += ["-c", "hooks." + event + "=" + (try toml(definitions[event]!))] }
         return prefix + original
     }
@@ -136,7 +135,7 @@ public enum AgentIntegration {
     public static func supported(provider: SessionTool, executable: String, root: String) -> Bool {
         struct Capability: Codable { let signature: String; let supported: Bool }
         let attributes = try? FileManager.default.attributesOfItem(atPath: executable)
-        let signature = "hooks-v1:" + executable + String(describing: attributes?[.modificationDate]) + String(describing: attributes?[.size])
+        let signature = "hooks-v2:" + executable + String(describing: attributes?[.modificationDate]) + String(describing: attributes?[.size])
         let cache = URL(fileURLWithPath: root + "/agent-capability-" + provider.rawValue + ".json")
         if let saved = try? read(Capability.self, path: cache.path), saved.signature == signature { return saved.supported }
         let help = try? ProcessRunner.run(executable, ["--help"], timeout: 3, outputLimit: 65_536)
@@ -145,7 +144,7 @@ public enum AgentIntegration {
         let range = text.range(of: "[0-9]+\\.[0-9]+\\.[0-9]+", options: .regularExpression)
         let minimum = provider == .claude ? "2.1.296" : "0.162.1"
         let compatible = range.map { String(text[$0]).compare(minimum, options: .numeric) != .orderedAscending } ?? false
-        let supported = compatible && help?.status == 0 && (provider == .claude ? help!.output.contains("--settings") : help!.output.contains("--dangerously-bypass-hook-trust"))
+        let supported = compatible && help?.status == 0 && (provider == .claude ? help!.output.contains("--settings") : help!.output.contains("--config"))
         try? PrivateFiles.write(Capability(signature: signature, supported: supported), to: cache)
         return supported
     }

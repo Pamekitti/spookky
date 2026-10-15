@@ -148,7 +148,7 @@ def run(provider, *, real=False, failure=False, mode="normal", helper=HELPER):
             assert captured[-len(original):] == original
             assert not (root / "should-not-exist").exists()
             assert process.returncode == (7 if failure else 0)
-            assert not any(flag in captured for flag in ["--dangerously-bypass-approvals-and-sandbox", "--dangerously-skip-permissions"])
+            assert not any(flag in captured for flag in ["--dangerously-bypass-hook-trust", "--dangerously-bypass-approvals-and-sandbox", "--dangerously-skip-permissions"])
             if mode != "normal":
                 assert captured == original, captured
             if mode == "normal":

@@ -129,7 +129,7 @@ Adapters cover executable detection, launching, supported resume arguments, and 
 
 Native CLI resume, supported cloud handoff, and remote control can be used inside the terminal. Historical provider references are preserved in the archived flow document. Verify them against installed CLI versions before shipping convenience controls.
 
-Do not mutate global agent configuration or overwrite user hooks. Activity hooks use per-invocation configuration and preserve existing hooks. Codex monitoring uses `--dangerously-bypass-hook-trust` for that invocation. Model approval and sandbox settings remain provider-owned. Unsupported activity detection shows unknown state. Standard CLI permissions remain usable with app hints disabled. See [agent activity](agent-activity.md).
+Do not mutate global agent configuration or overwrite user hooks. Activity hooks use per-invocation configuration and preserve existing hooks. Codex monitoring preserves the provider hook trust checks. Model approval and sandbox settings remain provider-owned. Unsupported activity detection shows unknown state. Standard CLI permissions remain usable with app hints disabled. See [agent activity](agent-activity.md).
 
 ## Persistence and recovery
 

@@ -86,6 +86,17 @@ private func runAgent(_ arguments: [String]) throws -> Never {
 }
 
 umask(0o077)
+if CommandLine.arguments == [CommandLine.arguments[0], "--agent-hook-current"] {
+    if let contextPath = ProcessInfo.processInfo.environment["SPOOKKY_ACTIVITY_CONTEXT"],
+       let owner = ProcessInfo.processInfo.environment["SPOOKKY_AGENT_OWNER"],
+       let context = try? AgentIntegration.read(AgentTerminalContext.self, path: contextPath), context.path == contextPath,
+       let invocation = try? AgentIntegration.read(AgentInvocation.self, path: context.activePath),
+       invocation.context.bindingID == context.bindingID, invocation.context.secret == context.secret,
+       invocation.context.root == context.root, invocation.id.uuidString == owner {
+        agentHook(invocation.path)
+    }
+    exit(0)
+}
 if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--agent-hook" {
     agentHook(CommandLine.arguments[2]); exit(0)
 }
