@@ -1,0 +1,71 @@
+App/AgentNotifications.swift
+  s_69ecedfcd574e0::t_852ded5fa4783d 1-146
+App/AppServices.swift
+  s_69ecedfcd574e0::t_9a1069e502d910 34-37,41,141,155,160-206
+App/WorkspaceWindowController.swift
+  s_aad90be40b2891::t_39cad38d0ca298 67-73,82,100-101,105,107-118,124,170-272,400-401,534-538,553-559,693-703,749,751,754-755,757-758,760-761,768,846,1044,1069,1114-1118,1170,1177,1277,1646-1667
+Package.swift
+  s_69ecedfcd574e0::t_be0f351f7a476b 30
+Sources/SpookkyCore/AgentActivity.swift
+  s_69ecedfcd574e0::t_80644b223a7ffc 1-205
+Sources/SpookkyCore/WorkspaceState.swift
+  s_aad90be40b2891::t_9f1d982be5b34d 74,110-116,125-165,251-254,266,277,439
+Sources/SpookkyLaunch/main.swift
+  s_69ecedfcd574e0::t_e2641624c0e944 4-86,89-91,93-95
+Sources/SpookkyPersistence/WorkspaceDatabase.swift
+  s_aad90be40b2891::t_54401bfdfd7c0c 55
+Sources/SpookkyRuntime/AgentActivitySocket.swift
+  s_69ecedfcd574e0::t_f251681dda0267 1-81
+Sources/SpookkyRuntime/AgentIntegration.swift
+  s_69ecedfcd574e0::t_99c45a5e7e6f44 1-152
+Sources/SpookkyRuntime/AgentShellIntegration.swift
+  s_69ecedfcd574e0::t_b67c219237bca1 1-51
+Sources/SpookkyWorkspace/AgentActivityResolver.swift
+  s_69ecedfcd574e0::t_a3f76cf342cc82 1-16
+Spookky.xcodeproj/project.pbxproj
+  s_69ecedfcd574e0::t_70c5b8a19e6545 3-4,73,79
+Tests/SpookkyRuntimeTests/AgentActivityTests.swift
+  s_69ecedfcd574e0::t_65432aef3b9fbc 1-214
+docs/acceptance.md
+  s_69ecedfcd574e0::t_90aa3c772ae3ca 97-110
+docs/agent-activity.md
+  s_69ecedfcd574e0::t_6235e41bb353a6 1-67
+docs/architecture.md
+  s_69ecedfcd574e0::t_6544659838dc12 132,169-174
+docs/development.md
+  s_69ecedfcd574e0::t_adce09ebe6b3e4 64-81,149,161-162
+docs/interface.md
+  s_69ecedfcd574e0::t_75b377da338476 138-143
+docs/product.md
+  s_69ecedfcd574e0::t_3b3d0687faf5d3 69
+docs/status.md
+  s_69ecedfcd574e0::t_77a33abeac808c 61-86
+scripts/benchmark_activity.py
+  s_69ecedfcd574e0::t_b3f70b8e7e18d1 1-116
+scripts/check_agent_hooks.py
+  s_69ecedfcd574e0::t_90119e1c4b7f02 1-183
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c09f37ff6cc4aab120e8dbfdb5f90e9728f1716c",
+  "prompts": {},
+  "sessions": {
+    "s_69ecedfcd574e0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14062-f3a9-78c2-a457-19b8789f45a4",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_aad90be40b2891": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a14062-f3a9-78c2-a457-19b8789f45a4",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
