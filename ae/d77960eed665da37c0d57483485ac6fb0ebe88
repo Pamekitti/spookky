@@ -1,0 +1,33 @@
+Sources/SpookkyCore/WorkspaceState.swift
+  s_aad90be40b2891::t_ba6b87429761dd 167,434
+Sources/SpookkyPersistence/WorkspaceDatabase.swift
+  s_aad90be40b2891::t_5a9312be801986 13,16,58-65,72,74,79
+Tests/SpookkyRuntimeTests/GitFoundationTests.swift
+  s_aad90be40b2891::t_571a8a20ae1e23 88,90,192-193
+Tests/SpookkyRuntimeTests/PersistenceTests.swift
+  s_aad90be40b2891::t_6625f08a180f51 81
+Tests/SpookkyRuntimeTests/SidebarTests.swift
+  s_aad90be40b2891::t_46e986f31dc019 55
+docs/agent-activity.md
+  s_aad90be40b2891::t_0b10643790d0d5 61
+docs/architecture.md
+  s_aad90be40b2891::t_5c9c0f912add09 65
+docs/status.md
+  s_aad90be40b2891::t_7b92fd7b9db723 36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "aed77960eed665da37c0d57483485ac6fb0ebe88",
+  "prompts": {},
+  "sessions": {
+    "s_aad90be40b2891": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a14062-f3a9-78c2-a457-19b8789f45a4",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
