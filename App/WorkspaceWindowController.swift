@@ -64,6 +64,13 @@ import SpookkyGit
     private var announcedError: String?
     private var renameEditor: InlineRenameEditor?
     private var paneHeaders: [UUID: ChromeStackView] = [:]
+    private var agentHeaderLabels: [UUID: NSTextField] = [:]
+    private var activityReceiver: AgentActivityReceiver?
+    private let agentNotifications = AgentNotifications()
+    private let activityRoot: URL
+    private var knownActivityBindings = Set<UUID>()
+    private var knownActivityTabs = Set<UUID>()
+    private var agentPreferencesTask: Task<Void, Never>?
     private let backgroundFixture: Bool
     private var fixtureCloseRequests: [[String: String]] = []
 
@@ -72,6 +79,7 @@ import SpookkyGit
         let paths = AppPaths(bundleID: Bundle.main.bundleIdentifier, home: FileManager.default.homeDirectoryForCurrentUser, userID: getuid())
         avatarCache = GitHubAvatarCache(directory: paths.data.appendingPathComponent("AvatarCache"))
         self.backgroundFixture = backgroundFixture
+        activityRoot = root
         let store = initialStore ?? WorkspaceStore()
         self.store = store
         try PrivateFiles.directory(root)
@@ -89,17 +97,31 @@ import SpookkyGit
         let clipboard = CommandLine.arguments.contains("--workspace-benchmark-selection")
             ? NSPasteboard(name: NSPasteboard.Name("dev.spookky.selection-fixture." + root.lastPathComponent)) : .general
         let engine = try GhosttyEngine(root: root, clipboard: clipboard)
-        launches = LaunchCoordinator(store: store, runtime: runtime, resolver: resolver)
+        launches = LaunchCoordinator(store: store, runtime: runtime,
+            resolver: AgentActivityResolver(base: resolver, root: root, helper: helper))
         surfaces = TerminalSurfaceManager(engine: engine, runtime: runtime, executable: tmux, root: root)
         diagnostics = WorkspaceDiagnostics(root: root)
         super.init()
+        store.update { $0.restoreAgentActivity() }
         buildWindow(); buildMenu()
+        services.activityPreferencesDidChange = { [weak self] preferences in self?.saveAgentPreferences(preferences) }
+        services.testAgentNotification = { [weak self] in await self?.agentNotifications.test() ?? "Notifications are unavailable." }
+        saveAgentPreferences(services.agentPreferences)
+        activityReceiver = try? AgentActivityReceiver(root: root) { [weak self] event in
+            Task { @MainActor [weak self] in self?.receiveAgentEvent(event) }
+        }
+        agentNotifications.onFocus = { [weak self] id in
+            guard let self, let workspace = store.state.workspace(containing: id) else { return }
+            window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+            selectWorkspace(workspace.id); selectTab(id); focusSelectedContent()
+        }
+        agentNotifications.watchFocus { [weak self] in self?.refreshAgentAttention(clearManual: true); self?.updateAgentAnimations() }
         services.prepareForUpdate = { [weak self] in
             guard let self else { throw LaunchError.invalid("Workspaces are unavailable.") }
             try await self.prepareForUpdate()
         }
         diagnostics?.visibility = { [weak self] in self?.window.occlusionState.contains(.visible) == true }
-        store.onChange = { [weak self] in self?.render() }
+        store.onChange = { [weak self] in self?.render(); self?.refreshAgentAttention() }
         if CommandLine.arguments.contains("--workspace-benchmark-timing") || CommandLine.arguments.contains("--workspace-benchmark-restoring") {
         diagnostics?.historyMarker = { [weak self] in
             guard let self, let id = self.store.state.selectedTab?.id else { return nil }
@@ -144,6 +166,109 @@ import SpookkyGit
             forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor in self?.observeRuntimeEvent() }
             }
+    }
+    private func saveAgentPreferences(_ preferences: AgentNotificationPreferences) {
+        let destination = activityRoot.appendingPathComponent("agent-preferences.json")
+        let previous = agentPreferencesTask
+        agentPreferencesTask = Task {
+            await previous?.value
+            try? await Task.detached { try PrivateFiles.write(preferences, to: destination) }.value
+        }
+        for tab in store.state.workspaces.flatMap(\.tabs) { agentNotifications.clear(tab.id) }
+        store.update(debounced: true) { state in
+            for provider in [SessionTool.codex, .claude] where !preferences.enabled(provider) { state.suspendAgentMonitoring(provider) }
+            if !preferences.previews { state.clearAgentPreviews() }
+        }
+        if window != nil { chromeRevision = ""; renderChrome(); refreshAgentAttention() }
+    }
+    private func agentTargetVisible(_ id: UUID) -> Bool {
+        guard NSApp.isActive, window.isKeyWindow, window.occlusionState.contains(.visible),
+              store.state.visibleTabIDs.contains(id), let surface = surfaces.view(id) else { return false }
+        return surface.window === window && !surface.isHiddenOrHasHiddenAncestor
+    }
+    private func refreshAgentAttention(clearManual: Bool = false) {
+        let tabs = Set(store.state.workspaces.flatMap(\.tabs).map(\.id))
+        for id in knownActivityTabs.subtracting(tabs) { agentNotifications.clear(id) }
+        knownActivityTabs = tabs
+        let seen = store.state.visibleTabIDs.filter { id in
+            guard agentTargetVisible(id), let activity = store.state.tab(id)?.activity else { return false }
+            return (activity.completionID != nil && activity.completionID != activity.seenCompletionID) || (clearManual && activity.manualUnread)
+        }
+        if !seen.isEmpty {
+            store.update(debounced: true) { state in for id in seen { state.acknowledgeAgent(id) } }
+            for id in seen { agentNotifications.clear(id) }
+        }
+        agentNotifications.updateBadge(store.state, preferences: services.agentPreferences)
+        let bindings = Set(store.state.workspaces.flatMap(\.tabs).compactMap { $0.binding?.id ?? $0.launch?.operationID })
+        let removed = knownActivityBindings.subtracting(bindings)
+        knownActivityBindings = bindings
+        if !removed.isEmpty {
+            let root = activityRoot
+            Task { await Task.detached {
+                for id in removed {
+                    let active = root.appendingPathComponent("agent-active-" + id.uuidString + ".json")
+                    if let invocation = try? AgentIntegration.read(AgentInvocation.self, path: active.path) {
+                        try? FileManager.default.removeItem(atPath: invocation.path)
+                    }
+                    for path in [active, root.appendingPathComponent("agent-terminal-" + id.uuidString + ".json")] {
+                        try? FileManager.default.removeItem(at: path)
+                    }
+                }
+            }.value }
+        }
+    }
+    private func receiveAgentEvent(_ event: AgentEvent) {
+        guard services.agentPreferences.enabled(event.provider) else { return }
+        var event = event
+        if !services.agentPreferences.previews { event.preview = nil }
+        let old = store.state.workspaces.flatMap(\.tabs).first { $0.binding?.id == event.bindingID || $0.launch?.operationID == event.bindingID }?.activity
+        var accepted: UUID?
+        store.update(debounced: true) { state in accepted = state.recordAgentEvent(event) }
+        guard let id = accepted, let tab = store.state.tab(id), let activity = tab.activity,
+              let workspace = store.state.workspace(containing: id), event.childID == nil else { return }
+        if event.kind == .attached { agentNotifications.requestPermission() }
+        let next = activity.displayState
+        if !next.needsAttention { agentNotifications.clear(id); return }
+        guard next != old?.displayState || (next == .finished && activity.completionID != old?.completionID) else { return }
+        let invocation = activity.invocationID
+        let preferences = services.agentPreferences
+        agentNotifications.schedule(tabID: id, state: next, workspace: workspace.title, provider: activity.provider.displayName,
+                                    preview: activity.preview, preferences: preferences) { [weak self] in
+            guard let self, let current = store.state.tab(id)?.activity,
+                  services.agentPreferences.enabled(current.provider), current.invocationID == invocation,
+                  current.displayState == next else { return false }
+            return !preferences.suppressVisible || !agentTargetVisible(id)
+        }
+    }
+    private func changeAgentAttention(_ ids: [UUID], action: String) {
+        store.update(debounced: true) { state in
+            for id in ids {
+                if action == "unread" { state.markAgentUnread(id) }
+                else if action == "read" { state.acknowledgeAgent(id) }
+                else { state.resetAgent(id) }
+            }
+        }
+        if action != "unread" { for id in ids { agentNotifications.clear(id) } }
+    }
+    private func updateAgentAnimations() {
+        for workspace in store.state.workspaces {
+            if let icon = workspaceRows[workspace.id]?.icon {
+                let lifecycle = workspace.tabs.contains { [.failed, .uncertain, .unavailable, .launching, .preparing, .reconnecting].contains($0.status) }
+                AgentIndicator.animate(icon, working: workspace.activityState == .working && !lifecycle)
+            }
+        }
+        for (id, pair) in tabPairs {
+            if let icon = pair.arrangedSubviews[1] as? NSImageView {
+                AgentIndicator.animate(icon, working: store.state.tab(id)?.activity?.displayState == .working && store.state.tab(id)?.status == .running)
+            }
+        }
+    }
+    private func addAgentActions(_ menu: NSMenu, ids: [UUID]) {
+        guard ids.contains(where: { store.state.tab($0)?.activity != nil }) else { return }
+        menu.addItem(.separator())
+        for (title, action) in [("Mark unread", "unread"), ("Mark read", "read"), ("Reset activity status", "reset")] {
+            menu.addItem(ClosureMenuItem(title) { [weak self] in self?.changeAgentAttention(ids, action: action) })
+        }
     }
     private func observeRuntimeEvent() {
         observationRequested = true
@@ -272,7 +397,8 @@ import SpookkyGit
         guard let workspace = store.state.selected else { return }
         let menu = NSMenu()
         for tab in workspace.tabs {
-            let item = ClosureMenuItem(tab.title) { [weak self] in self?.selectTab(tab.id) }
+            let title = tab.title + (tab.activity.map { " · " + $0.displayState.label } ?? "")
+            let item = ClosureMenuItem(title) { [weak self] in self?.selectTab(tab.id) }
             item.state = tab.id == workspace.selectedTabID ? .on : .off; menu.addItem(item)
         }
         menu.addItem(.separator())
@@ -405,7 +531,11 @@ import SpookkyGit
             let identity = w.id.uuidString + w.title + w.directory
             let anchor = (w.anchor?.branch ?? "") + String(describing: w.projectID)
             let tabs = w.tabs.map { tab -> String in
-                tab.id.uuidString + tab.title + tab.status.rawValue + tab.draft.tool.rawValue
+                let activity = tab.activity
+                let children = activity?.children.map(\.id).joined() ?? ""
+                return [tab.id.uuidString, tab.title, tab.status.rawValue, tab.draft.tool.rawValue,
+                        String(describing: activity?.displayState), String(activity?.unread ?? false),
+                        children, String(activity?.attached ?? false), activity?.preview ?? ""].joined(separator: "|")
             }.joined()
             return identity + anchor + w.selectedTabID.uuidString + tabs
         }.joined()
@@ -420,6 +550,13 @@ import SpookkyGit
             window.effectiveAppearance.performAsCurrentDrawingAppearance { renderChrome() }
         }
         for (id, header) in paneHeaders { header.selected = state.selected?.split != nil && state.selectedTab?.id == id }
+        for (id, label) in agentHeaderLabels {
+            let activity = state.tab(id)?.activity
+            let value = activity?.displayState ?? .idle
+            label.stringValue = value == .idle ? "" : value.label + ((activity?.children.isEmpty == false) ? " · " + AgentIndicator.childLabel(activity!.children.count) : "")
+            label.textColor = AgentIndicator.color(value); label.isHidden = label.stringValue.isEmpty
+            label.toolTip = activity.map(AgentIndicator.detail); label.setAccessibilityLabel(label.stringValue)
+        }
         let key = state.visibleTabIDs.map { id in id.uuidString + (state.tab(id)?.status.rawValue ?? "") + String(describing: state.tab(id)?.binding?.id) }.joined() + String(describing: state.selectedWorkspaceID) + String(state.selected?.split != nil && body.bounds.width >= 700)
         for id in state.visibleTabIDs {
             if let tab = state.tab(id), let w = state.workspace(containing: id) {
@@ -553,14 +690,17 @@ import SpookkyGit
             let kind = workspace.anchor?.isGit == true ? (workspace.anchor?.checkoutIdentity == workspace.anchor?.commonRepository ? "Local" : "Worktree") : (SpookkyStyle.abbreviatedPath(workspace.directory) == "~" ? "Home" : "Folder")
             let generatedBranch = WorkspaceNaming.isGeneratedBranch(branch, workspaceID: workspace.id)
             let context = workspace.anchor == nil ? "Not started" : branch == workspace.title || generatedBranch ? kind : branch ?? kind
-            row.metadata?.stringValue = attention.map { SpookkyStyle.statusLabel($0) + " · " + count } ?? context + " · " + count
-            row.metadata?.toolTip = [workspace.directory, branch,
-                attention.map(SpookkyStyle.statusLabel) ?? (branch == nil ? context : nil), count]
-                .compactMap { $0 }.joined(separator: " · ")
-            row.metadata?.textColor = attention == .failed || attention == .uncertain || attention == .unavailable ? SpookkyPalette.warning : SpookkyPalette.metadata
-            let tool = workspace.tabs.first { $0.id == workspace.selectedTabID }.map { $0.binding?.tool ?? $0.draft.tool } ?? .shell
-            row.icon?.image = NSImage(systemSymbolName: attention.flatMap(SpookkyStyle.statusSymbol) ?? SpookkyStyle.toolSymbol(tool), accessibilityDescription: nil)
-            row.icon?.contentTintColor = attention == .failed || attention == .uncertain || attention == .unavailable ? SpookkyPalette.warning : SpookkyPalette.metadata
+            let activity = attention == nil || attention == .ended ? workspace.activityState : nil
+            let working = workspace.tabs.filter { $0.activity?.displayState == .working }.count
+            let activityLabel = activity.map { $0.label + ($0 == .needsInput && working > 0 ? " · \(working) working" : "") }
+            row.metadata?.stringValue = activityLabel ?? attention.map { SpookkyStyle.statusLabel($0) + " · " + count } ?? context + " · " + count
+            row.metadata?.toolTip = [workspace.directory, branch ?? kind, count] .joined(separator: " · ") + "\n" + workspace.tabs.compactMap { $0.activity.map(AgentIndicator.detail) }.joined(separator: "\n")
+            row.metadata?.textColor = activity.map(AgentIndicator.color) ?? (attention == .failed || attention == .uncertain || attention == .unavailable ? SpookkyPalette.warning : SpookkyPalette.metadata)
+            let tool = workspace.tabs.first { $0.id == workspace.selectedTabID }.map { $0.activity?.attached == true ? $0.activity!.provider : ($0.binding?.tool ?? $0.draft.tool) } ?? .shell
+            row.icon?.image = NSImage(systemSymbolName: activity.flatMap(AgentIndicator.symbol) ?? attention.flatMap(SpookkyStyle.statusSymbol) ?? SpookkyStyle.toolSymbol(tool), accessibilityDescription: nil)
+            row.icon?.contentTintColor = row.metadata?.textColor
+            row.primary?.setAccessibilityLabel(workspace.title + " · " + (row.metadata?.stringValue ?? context))
+            row.primary?.toolTip = workspace.title + "\n" + (row.metadata?.toolTip ?? workspace.directory)
             if collapsed { row.primary?.image = row.icon?.image; row.primary?.contentTintColor = row.icon?.contentTintColor }
             row.selected = workspace.id == state.selectedWorkspaceID
         }
@@ -606,22 +746,26 @@ import SpookkyGit
                 button.title = tab.title; button.toolTip = tab.title + " · " + tab.status.rawValue
                 button.setAccessibilityLabel(button.toolTip!)
                 button.setAccessibilityValue(tab.id == workspace.selectedTabID ? "Selected" : "")
-                let tool = tab.binding?.tool ?? tab.draft.tool
+                let tool = tab.activity?.attached == true ? tab.activity!.provider : (tab.binding?.tool ?? tab.draft.tool)
                 button.image = NSImage(systemSymbolName: SpookkyStyle.toolSymbol(tool), accessibilityDescription: nil)
-                button.toolTip = tab.title + " · " + tool.displayName + " · " + SpookkyStyle.statusLabel(tab.status)
+                button.toolTip = tab.title + " · " + tool.displayName + " · " + SpookkyStyle.statusLabel(tab.status) + (tab.activity.map { "\n" + AgentIndicator.detail($0) } ?? "")
                 button.setAccessibilityLabel(button.toolTip!)
                 if let status = pair.arrangedSubviews[1] as? NSImageView {
-                    let symbol = SpookkyStyle.statusSymbol(tab.status); status.isHidden = symbol == nil
+                    let activity = [.running, .ended].contains(tab.status) ? tab.activity?.displayState : nil
+                    let symbol = activity.flatMap(AgentIndicator.symbol) ?? SpookkyStyle.statusSymbol(tab.status); status.isHidden = symbol == nil
                     status.image = symbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: nil) }
-                    status.contentTintColor = [.failed, .uncertain, .unavailable].contains(tab.status) ? SpookkyPalette.warning : SpookkyPalette.metadata
-                    status.toolTip = SpookkyStyle.statusLabel(tab.status); status.setAccessibilityLabel(SpookkyStyle.statusLabel(tab.status))
+                    status.contentTintColor = activity.map(AgentIndicator.color) ?? ([.failed, .uncertain, .unavailable].contains(tab.status) ? SpookkyPalette.warning : SpookkyPalette.metadata)
+                    status.toolTip = tab.activity.map(AgentIndicator.detail) ?? SpookkyStyle.statusLabel(tab.status); status.setAccessibilityLabel(status.toolTip!)
                 }
+                let menu = NSMenu(); menu.addItem(ClosureMenuItem("Rename tab…") { [weak self] in self?.rename(tabID: tab.id) })
+                addAgentActions(menu, ids: [tab.id]); pair.menu = menu
                 button.contentTintColor = tab.id == workspace.selectedTabID ? SpookkyPalette.text : SpookkyPalette.secondary
                 pair.selected = tab.id == workspace.selectedTabID
                 if let close = pair.arrangedSubviews.last as? ActionButton { close.setAccessibilityLabel("Close " + tab.title); close.toolTip = "Close " + tab.title }
                 if tab.id == workspace.selectedTabID { DispatchQueue.main.async { pair.scrollToVisible(pair.bounds) } }
             }
         }
+        updateAgentAnimations()
     }
     private func contextRow(title: String, symbol: String, secondarySymbol: String, help: String, selected: Bool, nested: Bool = false,
                             monogram: String? = nil, select: @escaping () -> Void, secondary: @escaping () -> Void) -> ContextRow {
@@ -699,6 +843,7 @@ import SpookkyGit
         row.secondary = { [weak self] in
             let menu = NSMenu()
             menu.addItem(ClosureMenuItem("Rename workspace…") { self?.rename(workspaceID: workspace.id) })
+            if let self { self.addAgentActions(menu, ids: self.store.state.workspaces.first { $0.id == workspace.id }?.tabs.map(\.id) ?? []) }
             menu.addItem(ClosureMenuItem("Close workspace") { self?.closeWorkspace(workspace.id) })
             if let record = self?.store.state.locations?.checkouts.first(where: { $0.location.checkoutIdentity == (workspace.anchor ?? workspace.selectedLocation).checkoutIdentity }), record.createdBy != nil {
                 menu.addItem(.separator())
@@ -896,7 +1041,7 @@ import SpookkyGit
             }
             let prepared = try await surfaces.prepare(terminals, sizes: sizes)
             guard !Task.isCancelled, let prepared, ids == store.state.visibleTabIDs else { return }
-            body.subviews.forEach { $0.removeFromSuperview() }; splitView = nil; paneHeaders.removeAll()
+            body.subviews.forEach { $0.removeFromSuperview() }; splitView = nil; paneHeaders.removeAll(); agentHeaderLabels.removeAll()
             guard !records.isEmpty else {
                 install(ActionButton("New workspace", symbol: "plus") { [weak self] in self?.newWorkspace() }, in: body)
                 return
@@ -921,6 +1066,7 @@ import SpookkyGit
             if !terminals.isEmpty { diagnostics?.record(elapsed: ProcessInfo.processInfo.systemUptime - started, warm: warm, surfaces: surfaces.count) }
             let retained = Set(store.state.workspaces.flatMap(\.tabs).map(\.id))
             composers = composers.filter { retained.contains($0.key) }
+            refreshAgentAttention()
         } catch {
             guard !Task.isCancelled, ids == store.state.visibleTabIDs else { return }
             for tab in records where tab.binding != nil {
@@ -965,7 +1111,11 @@ import SpookkyGit
             title.toolTip = directory
             let split = ActionButton("", symbol: "rectangle.split.2x1", help: "Split terminal") { [weak self] in self?.split(tab.id) }
             split.isEnabled = tab.status == .running
-            var headerViews: [NSView] = [title, NSView(), split]
+            let activityLabel = NSTextField(labelWithString: tab.activity?.displayState == .idle ? "" : tab.activity?.displayState.label ?? "")
+            activityLabel.font = .systemFont(ofSize: 11); activityLabel.textColor = tab.activity.map { AgentIndicator.color($0.displayState) } ?? SpookkyPalette.metadata
+            activityLabel.isHidden = activityLabel.stringValue.isEmpty; activityLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+            agentHeaderLabels[tab.id] = activityLabel
+            var headerViews: [NSView] = [title, NSView(), activityLabel, split]
             if tab.status == .ended {
                 headerViews.append(ActionButton("Session ended · New terminal", symbol: "plus") { [weak self] in self?.openTerminal(from: tab.id) })
             }
@@ -1017,12 +1167,14 @@ import SpookkyGit
         if store.state.selectedWorkspaceID == id { focusSelectedContent() }
         else { store.update { $0.selectWorkspace(id) } }
         scheduleRepositoryRefresh()
+        refreshAgentAttention(clearManual: true)
     }
     private func selectTab(_ id: UUID) {
         renameEditor?.cancel(); renameEditor = nil
         files.revealTerminal()
         if store.state.selectedTab?.id == id { focusSelectedContent() }
         else { store.update { $0.selectTab(id) } }
+        refreshAgentAttention(clearManual: true)
     }
     private func moveTabFocus(from id: UUID, offset: Int) {
         guard let tabs = store.state.selected?.tabs, let index = tabs.firstIndex(where: { $0.id == id }), !tabs.isEmpty else { return }
@@ -1122,7 +1274,7 @@ import SpookkyGit
             }
             return
         }
-        Task { await launches.launch(id, tool: tool) }
+        Task { await agentPreferencesTask?.value; await launches.launch(id, tool: tool) }
     }
     private func reconnect(_ id: UUID) {
         Task {
@@ -1490,6 +1642,28 @@ import SpookkyGit
             await launches.launch(id, tool: .shell)
             guard store.state.tab(id)?.binding != nil else { throw LaunchError.invalid("Benchmark launch failed.") }
             ids.append(id)
+        }
+        if CommandLine.arguments.contains("--workspace-benchmark-activity") {
+            services.agentPreferences.inputSound = false; services.agentPreferences.finishedSound = false; services.agentPreferences.failedSound = false
+            await agentPreferencesTask?.value
+            if let first = ids.first { store.update { $0.selectTab(first) } }
+            if let renderTask { await renderTask.value }
+            for (index, id) in ids.enumerated() {
+                guard let binding = store.state.tab(id)?.binding else { continue }
+                let path = root.appendingPathComponent("agent-terminal-" + binding.id.uuidString + ".json")
+                let context = try AgentIntegration.read(AgentTerminalContext.self, path: path.path)
+                let invocation = AgentInvocation(context: context, provider: index % 2 == 0 ? .codex : .claude)
+                try PrivateFiles.write(invocation, to: URL(fileURLWithPath: invocation.path))
+                try PrivateFiles.write(invocation, to: URL(fileURLWithPath: context.activePath))
+                AgentActivitySocket.send(invocation.event(.attached), socket: context.socket)
+                AgentActivitySocket.send(invocation.event([.working, .needsInput, .finished, .failed, .unsupported][index % 5]), socket: context.socket)
+            }
+            try await Task.sleep(for: .milliseconds(350))
+            let snapshot = store.state.workspaces.flatMap(\.tabs).compactMap { tab -> [String: String]? in
+                guard let activity = tab.activity else { return nil }
+                return ["tabID": tab.id.uuidString, "state": activity.displayState.rawValue, "unread": String(activity.unread)]
+            }
+            try PrivateFiles.write(snapshot, to: root.appendingPathComponent("activity-fixture.json"))
         }
         try await store.flush()
         if let renderTask { await renderTask.value }

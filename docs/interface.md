@@ -135,6 +135,12 @@ Diff additions/removals use muted green/red backgrounds plus explicit signs and 
 - Workspace titles start with a friendly two-word name. The first composer starting prompt can replace it once; manual names always win. See [naming behavior](flows.md#launch-and-initial-prompt).
 - For Spookky's automatically generated branch, show Worktree and the tab count on the second row. Other branch names remain visible. Tooltips retain the full branch and path, including during exceptional lifecycle states.
 
+## Agent attention
+
+Tabs, workspace metadata, collapsed workspace icons, and terminal headers share the [agent activity](agent-activity.md) labels. The existing 16 pt status slot holds the activity indicator. Working uses a visible-only native spinner that respects Reduce Motion. Needs input, failures, and unread completion have distinct shapes and text labels. Directory, branch, provider, and child-agent details remain available in tooltips. Lifecycle launch and attachment failures take precedence over activity hints.
+
+Right-click actions mark completion attention read or unread and reset activity. The overflow menu includes status text. Settings separates provider monitoring, banners, sounds, preview privacy, Dock count, and visible-terminal suppression. App sounds default to off because provider sound hooks remain active.
+
 ## Code syntax
 
 Files, unified diffs and split diffs share semantic syntax colors. Source text and indentation remain intact. Comments use an italic monospace face. Tabs display at four-column stops without changing copied text.

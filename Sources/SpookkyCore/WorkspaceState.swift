@@ -71,6 +71,7 @@ public struct WorkspaceTab: Codable, Identifiable, Equatable, Sendable {
     public var promptDelivery: PromptDelivery = .none
     public var exitCode: Int?
     public var viewport: SessionViewport?
+    public var activity: AgentActivity?
     public init(id: UUID = UUID(), tool: SessionTool = .shell) { self.id = id; draft = TerminalDraft(tool: tool) }
     public var isEditable: Bool { status == .draft || (status == .failed && failure?.phase == .validation) }
 }
@@ -106,11 +107,59 @@ public struct Workspace: Codable, Identifiable, Equatable, Sendable {
     public var fileView: FileViewState?
     public var split: SplitLayout?
     public var directory: String { anchor?.path ?? selectedLocation.path }
+    public var activityState: AgentActivityState? {
+        tabs.compactMap { tab -> AgentActivityState? in
+            guard let activity = tab.activity else { return nil }
+            return activity.unread && activity.displayState.priority < AgentActivityState.finished.priority ? .finished : activity.displayState
+        }.filter { $0 != .idle }.max { $0.priority < $1.priority }
+    }
+    public var needsAttention: Bool { tabs.contains { $0.activity?.needsAttention == true } }
     public init(location: WorkspaceLocation, projectID: UUID? = nil, tool: SessionTool = .shell, id: UUID = UUID(),
                 title: String = WorkspaceNaming.friendly(excluding: [])) {
         self.id = id; self.projectID = projectID; selectedLocation = location
         self.title = title; automaticTitle = .friendly
         let tab = WorkspaceTab(tool: tool); tabs = [tab]; selectedTabID = tab.id
+    }
+}
+
+extension WorkspaceState {
+    @discardableResult public mutating func recordAgentEvent(_ event: AgentEvent) -> UUID? {
+        guard event.isValid,
+              let tab = workspaces.flatMap(\.tabs).first(where: { $0.binding?.id == event.bindingID || $0.launch?.operationID == event.bindingID }),
+              ![TabStatus.draft, .preparing].contains(tab.status) else { return nil }
+        if tab.status == .ended && ![AgentEventKind.finished, .failed, .interrupted, .detached].contains(event.kind) { return nil }
+        var activity = tab.activity ?? AgentActivity(invocationID: event.invocationID, provider: event.provider)
+        if activity.invocationID != event.invocationID {
+            guard event.childID == nil else { return nil }
+            let unread = activity.unread
+            activity = AgentActivity(invocationID: event.invocationID, provider: event.provider)
+            activity.manualUnread = unread
+        }
+        guard activity.apply(event) else { return nil }
+        if tab.status == .ended { activity.disconnect() }
+        updateTab(tab.id) { $0.activity = activity }
+        return tab.id
+    }
+    public mutating func acknowledgeAgent(_ id: UUID) { updateTab(id) { $0.activity?.acknowledge() } }
+    public mutating func markAgentUnread(_ id: UUID) { updateTab(id) { $0.activity?.manualUnread = true } }
+    public mutating func resetAgent(_ id: UUID) { updateTab(id) { $0.activity?.reset() } }
+    public mutating func suspendAgentMonitoring(_ provider: SessionTool) {
+        for tab in workspaces.flatMap(\.tabs) where tab.activity?.provider == provider {
+            updateTab(tab.id) { $0.activity?.restore() }
+        }
+    }
+    public mutating func clearAgentPreviews() {
+        for tab in workspaces.flatMap(\.tabs) where tab.activity?.preview != nil {
+            updateTab(tab.id) { $0.activity?.preview = nil }
+        }
+    }
+    public mutating func restoreAgentActivity() {
+        for tab in workspaces.flatMap(\.tabs) {
+            if tab.activity != nil { updateTab(tab.id) { $0.activity?.restore() } }
+            else if let binding = tab.binding, binding.tool != .shell {
+                updateTab(tab.id) { $0.activity = AgentActivity(invocationID: binding.id, provider: binding.tool) }
+            }
+        }
     }
 }
 
@@ -199,7 +248,10 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
         case .intent(let spec, let prompt):
             guard tab.status == .preparing, tab.binding == nil,
                   tab.launch == nil || tab.launch == spec else { return }
-            updateTab(id) { $0.launch = spec; $0.status = .launching; $0.promptDelivery = prompt }
+            updateTab(id) {
+                $0.launch = spec; $0.status = .launching; $0.promptDelivery = prompt
+                if spec.tool != .shell && $0.activity == nil { $0.activity = AgentActivity(invocationID: spec.operationID, provider: spec.tool) }
+            }
             if spec.tool != .shell, prompt != .none,
                let index = workspaces.firstIndex(where: { $0.tabs.contains { $0.id == id } }),
                !workspaces[index].customTitle, workspaces[index].automaticTitle == .friendly,
@@ -211,6 +263,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
             updateTab(id) {
                 $0.binding = binding; $0.status = dead ? .ended : .running
                 $0.exitCode = exitCode; $0.failure = nil
+                if dead { $0.activity?.disconnect() }
                 if let prompt { $0.promptDelivery = prompt }
                 if !$0.customTitle { $0.title = binding.tool.displayName }
             }
@@ -221,7 +274,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
                 if clearIntent { $0.launch = nil }
                 if status == .uncertain && $0.promptDelivery != .none { $0.promptDelivery = .uncertain }
             }
-        case .terminated: updateTab(id) { $0.status = .ended; $0.binding = nil }
+        case .terminated: updateTab(id) { $0.status = .ended; $0.binding = nil; $0.activity?.disconnect() }
         }
     }
     public mutating func restoreInterruptedDrafts() {
@@ -383,7 +436,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
               Set(locations?.operations.map(\.id) ?? []).count == (locations?.operations.count ?? 0),
               Set(locations?.checkouts.map(\.id) ?? []).count == (locations?.checkouts.count ?? 0),
               (locations?.operations.allSatisfy { $0.request.destination.hasPrefix("/") && !$0.request.destination.contains("\0") } ?? true),
-              tabs.allSatisfy({ $0.viewport?.anchor?.isValid != false }), Set(workspaces.map(\.id)).count == workspaces.count,
+              tabs.allSatisfy({ $0.viewport?.anchor?.isValid != false && $0.activity?.isValid != false }), Set(workspaces.map(\.id)).count == workspaces.count,
               Set(tabs.map(\.id)).count == tabs.count, Set(projects.map(\.id)).count == projects.count,
               selectedWorkspaceID == nil || workspaces.contains(where: { $0.id == selectedWorkspaceID }),
               workspaces.allSatisfy({ w in

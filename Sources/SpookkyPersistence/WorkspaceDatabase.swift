@@ -52,7 +52,7 @@ public actor WorkspaceDatabase: WorkspacePersistence {
             guard row["version"] as Int == 3 else { throw LaunchError.invalid("This database requires a newer Spookky version.") }
             var state = try JSONDecoder().decode(WorkspaceState.self, from: row["payload"] as Data)
             guard state.version == 3 else { throw LaunchError.invalid("Workspace snapshot version does not match its database record.") }
-            try state.validate(); state.migrateWorkspaceNames(); try state.validate()
+            try state.validate(); state.version = 4; try state.validate()
             try db.execute(sql: "UPDATE workspace_snapshot SET version = 4, payload = ? WHERE id = 1", arguments: [try JSONEncoder().encode(state)])
         }
         try migrator.migrate(queue)
