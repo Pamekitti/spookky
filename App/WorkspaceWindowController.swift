@@ -551,9 +551,12 @@ import SpookkyGit
             let attention = [TabStatus.failed, .uncertain, .unavailable, .preparing, .launching, .reconnecting].first { statuses.contains($0) }
                 ?? (statuses.allSatisfy { $0 == .ended } ? .ended : nil)
             let kind = workspace.anchor?.isGit == true ? (workspace.anchor?.checkoutIdentity == workspace.anchor?.commonRepository ? "Local" : "Worktree") : (SpookkyStyle.abbreviatedPath(workspace.directory) == "~" ? "Home" : "Folder")
-            let context = workspace.anchor == nil ? "Not started" : branch == workspace.title ? kind : branch ?? kind
+            let generatedBranch = WorkspaceNaming.isGeneratedBranch(branch, workspaceID: workspace.id)
+            let context = workspace.anchor == nil ? "Not started" : branch == workspace.title || generatedBranch ? kind : branch ?? kind
             row.metadata?.stringValue = attention.map { SpookkyStyle.statusLabel($0) + " · " + count } ?? context + " · " + count
-            row.metadata?.toolTip = workspace.directory + " · " + (attention.map(SpookkyStyle.statusLabel) ?? context) + " · " + count
+            row.metadata?.toolTip = [workspace.directory, branch,
+                attention.map(SpookkyStyle.statusLabel) ?? (branch == nil ? context : nil), count]
+                .compactMap { $0 }.joined(separator: " · ")
             row.metadata?.textColor = attention == .failed || attention == .uncertain || attention == .unavailable ? SpookkyPalette.warning : SpookkyPalette.metadata
             let tool = workspace.tabs.first { $0.id == workspace.selectedTabID }.map { $0.binding?.tool ?? $0.draft.tool } ?? .shell
             row.icon?.image = NSImage(systemSymbolName: attention.flatMap(SpookkyStyle.statusSymbol) ?? SpookkyStyle.toolSymbol(tool), accessibilityDescription: nil)

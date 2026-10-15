@@ -62,6 +62,10 @@ Model plain folders, unborn repositories, regular checkouts, existing worktrees,
 
 Use stable IDs for relationships. Names, array indices, PIDs, and paths alone are insufficient identity. Store directory identity so a symlink alias or repo subdirectory does not accidentally create a second isolated-looking workspace for the same checkout.
 
+Metadata version 4 adds optional automatic-title provenance (friendly, prompt, or legacy) beside the manual-title flag. New workspace names use a fixed local word collection. A bounded scan of the composer prompt derives a title during the accepted launch-intent transition, without a model request or terminal inspection. Binding a folder does not overwrite the title. The first prompt title freezes automatic naming; manual names take precedence.
+
+The version 4 migration backs up older metadata before updating it. It replaces only automatic generic titles and preserves readable legacy names, manual names, stable IDs, drafts, and runtime bindings. It does not infer old task titles from saved provider history or start processes.
+
 ## Launch transaction
 
 ```text

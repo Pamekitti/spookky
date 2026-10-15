@@ -106,6 +106,12 @@ Creating a worktree and launching an agent are separate operations. An agent fai
 
 ## Launch and initial prompt
 
+New workspaces receive a friendly two-word name, such as Quiet Maple. Generated friendly names are unique among open workspaces; a numbered variant is used when all word combinations are occupied. Starting a shell or an agent without a prompt keeps that name.
+
+The first starting prompt supplied through Spookky's composer names the workspace once. This can happen in a later agent tab. Use the first nonempty line, collapse whitespace, and keep up to six words and 48 Unicode characters. The title is saved with accepted launch intent before process creation. Failures, retries, reconnects, and later prompts keep it. A manual rename always wins. Naming does not indicate prompt acknowledgment. Input typed directly in a CLI is not inspected.
+
+Metadata upgrade replaces automatic New workspace and workspace-xxxxxxxx labels, where the suffix is eight hexadecimal characters. Other saved names and every manual name remain intact. Folder and branch names are independent of the visible workspace title.
+
 The start page uses one composer with a tool picker. For agents, the prompt field is visible and optional. With no prompt the action opens the CLI; with text it starts the CLI with that instruction. Terminal mode has one direct launch action and a Cmd+T hint.
 
 Changing tools preserves the agent prompt draft. Shell launches never execute that text. Auth and permission prompts remain inside the provider CLI. Missing executables lead to guidance plus a working Terminal fallback.
