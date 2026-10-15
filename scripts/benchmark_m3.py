@@ -30,6 +30,9 @@ def prepare(root, dense=False):
     changed = original.replace("x", "y") if dense else original[:len(original)//2].replace("x", "y") + original[len(original)//2:]
     for name in ['sample.swift', 'other.swift']:
         (code / name).write_text(changed if name == "sample.swift" else changed.replace("y", "z"))
+    (code / 'added.swift').write_text('import AppKit\n' + ''.join(
+        f'\tprivate let added{index} = "Added file keeps the complete source line, including this trailing text."\n'
+        for index in range(40)))
 
 
 def wrapped_fixture(arguments, **kwargs):
