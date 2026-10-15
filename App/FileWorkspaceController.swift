@@ -636,7 +636,11 @@ import SpookkySyntax
             let name = column.identifier.rawValue
             let width = name == "old" || name == "new" ? diffNumberWidth : name.lowercased().contains("sign") ? 16 : textWidth
             if column.minWidth != width || column.maxWidth != width || abs(column.width - width) > 0.5 {
-                column.resizingMask = []; column.minWidth = width; column.maxWidth = width; column.width = width
+                column.resizingMask = []
+                // Assign width before tightening bounds so AppKit invalidates cached cell frames.
+                column.minWidth = min(column.minWidth, width); column.maxWidth = max(column.maxWidth, width)
+                column.width = width
+                column.minWidth = width; column.maxWidth = width
             }
         }
     }
@@ -720,8 +724,39 @@ import SpookkySyntax
         if let syntaxTask { await syntaxTask.value }
         preview.layoutSubtreeIfNeeded()
     }
+    private func columnGeometryMatchesForFixture() -> Bool {
+        diffTable.layoutSubtreeIfNeeded()
+        let visible = diffTable.rows(in: diffScroll.contentView.documentVisibleRect)
+        guard visible.length > 0 else { return false }
+        for (index, column) in diffTable.tableColumns.enumerated() {
+            guard abs(diffTable.rect(ofColumn: index).width - column.width) < 0.5 else { return false }
+            for row in visible.location..<min(NSMaxRange(visible), displayRows.count) {
+                guard let cell = diffTable.view(atColumn: index, row: row, makeIfNecessary: true) as? DiffCell,
+                      abs(cell.bounds.width - column.width) < 0.5 else { return false }
+                cell.layoutSubtreeIfNeeded()
+                if ["text", "before", "after"].contains(column.identifier.rawValue),
+                   cell.label.bounds.width < column.width - 8 { return false }
+            }
+        }
+        return true
+    }
     func interactionChecksForFixture() async throws -> [String: Bool] {
         guard CommandLine.arguments.contains("--workspace-benchmark-files") else { throw ChangesError.unsupported("Disposable file fixture required.") }
+        let wasMaximized = state.maximized
+        edit { $0.maximized = true }
+        await settleForFixture()
+        var unifiedTransition = true, splitTransition = true
+        for split in [false, true] {
+            for (path, group) in [("sample.swift", "Unstaged"), ("added.swift", "Untracked"), ("sample.swift", "Unstaged")] {
+                _ = try await previewForFixture(path: path, group: group, split: split)
+                let valid = columnGeometryMatchesForFixture() && selectedFile?.group.rawValue == group
+                    && (group == "Untracked" || splitRendered == split)
+                if split { splitTransition = splitTransition && valid }
+                else { unifiedTransition = unifiedTransition && valid }
+            }
+        }
+        edit { $0.maximized = wasMaximized; $0.splitDiff = false }
+        await settleForFixture()
         for index in 0..<12 {
             edit { $0.selectedPath = index % 2 == 0 ? "sample.swift" : "other.swift"; $0.selectedGroup = "Unstaged" }
             openSelection(); try await Task.sleep(for: .milliseconds(5))
@@ -771,7 +806,8 @@ import SpookkySyntax
         let errorSurvivedRefresh = !previewNotice.isHidden && previewNotice.stringValue == unavailableText
         await settleForFixture()
         edit { $0.preview = false; $0.sidebar = false }
-        return ["latest_selection_wins": lastSelection, "selected_rows_copy": copied, "preview_selection_survived_refresh": selectionSurvivedRefresh,
+        return ["modified_added_modified_geometry": unifiedTransition, "split_added_split_geometry": splitTransition,
+                "latest_selection_wins": lastSelection, "selected_rows_copy": copied, "preview_selection_survived_refresh": selectionSurvivedRefresh,
                 "sidebar_refresh_quiet": quietSidebar, "preview_refresh_geometry_stable": quietPreview,
                 "preview_information_control_stable": informationStable, "unavailable_preview_notice_visible": unavailableVisible,
                 "error_notice_survived_refresh": errorSurvivedRefresh,

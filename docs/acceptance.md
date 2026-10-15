@@ -44,6 +44,11 @@ The downloaded 0.1.3 DMG passed checksum verification. Build 103 is installed in
 The maintainer confirmed the physical keyboard checks on 13 October 2026. Cmd+T opens Terminal; Cmd+W then Escape cancels closure. Cmd+W then Enter closes the final tab and window without a replacement blank page. Cmd+T then reopens one terminal. Text selection, Cmd+C, and fullscreen continue to work. This confirms the targeted interaction checks on the maintainer's Mac. The broader input, accessibility, and continuity gates remain separate.
 
 - [ ] Tabs can be selected, renamed, closed, and explicitly split; active tabs stay visible in overflow.
+- [ ] Project clicks collapse/expand rows without creating workspaces or stopping processes; collapse survives restore. Project + and workspace search reveal the group.
+- [ ] Sidebar add and workspace/tab close actions reveal on hover and keyboard focus, keep fixed title alignment, and retain close confirmations.
+- [ ] Long workspace titles fade and reveal once; short titles remain still and Reduce Motion disables scrolling.
+- [ ] GitHub origin-owner avatars load without blocking UI; offline, invalid-image, and non-GitHub cases retain cached images or monograms.
+- [x] New workspace names are readable and unique. The first composer starting prompt names a workspace once, including after a shell launch. Manual names win; retries, additional prompts, and restart keep the title. Saved generic automatic labels upgrade without changing readable/manual names, paths, branches, drafts, or process identities. See [targeted naming verification](status.md#workspace-naming-verification).
 - [ ] Project/workspace context menus support right-click and keyboard access.
 - [ ] Tab/workspace switching preserves drafts, processes, output, scroll, and file selection.
 - [ ] Root directory identity and start subdirectory remain distinct.
@@ -58,6 +63,8 @@ The maintainer confirmed the physical keyboard checks on 13 October 2026. Cmd+T 
 - [ ] External branch/index edits invalidate stale reads without blocking input or moving selection.
 - [ ] Unified/split diffs, old/new line numbers, context, maximize/restore, and mouse/keyboard resizing work.
 - [ ] File previews do not execute content or follow unsafe symlinks outside the requested scope.
+
+Targeted diff check, 15 October 2026: modified → untracked → modified preserved code and gutter widths in unified and split views. The Release fixture passed all 24 checks and 100 selection cycles. Preview p95 was 100.2 ms across 30 samples; syntax readiness p95 was 163.2 ms. Native visual checks covered M → A → M in dark appearance and narrow resizing in light appearance. These checks do not establish full v1 acceptance or installed delivery.
 
 ## Failure and lifecycle checks
 
@@ -89,3 +96,17 @@ Extended continuity remains blocked by an unsent-input preservation failure. The
 - [ ] Performance report follows [the measurement protocol](performance.md).
 
 Use temporary repositories and app-specific runtime directories for destructive fixtures. Never use the user's working repositories as test data. Mark evidence with exact app/dependency/CLI versions and whether each check is automated or manual.
+
+## Agent activity checks
+
+- [x] Activity is separate from terminal lifecycle. Process presence alone stays Unknown.
+- [x] Binding, invocation, provider, and secret validation reject foreign registrations. Child events do not finish the parent.
+- [x] Stale and duplicate events, late completion after process exit, unread acknowledgment, monitoring suspension, preview privacy, and metadata migration have targeted tests.
+- [x] Both adapters preserve literal prompt arguments and avoid model permission bypasses. Hook fixtures exercise questions, child events, successful completion, and failure.
+- [x] Minimal real turns with Codex CLI 0.162.1 and Claude Code 2.1.296 produce working and completion hooks. Manual Codex launch through the native app's normal interactive zsh also produces unread completion.
+- [x] Native dark/light layouts, 1120×760 and 680×480 windows, overflow labels, completion acknowledgment, Mark unread, Settings controls, child count, and centered Working spinner were inspected through automated native interaction.
+- [ ] Real interactive approval and question dialogs are exercised for each supported CLI version.
+- [ ] Authorized native banners, app sounds, quiet-mode suppression, and exact notification click-through pass end to end.
+- [ ] Spoken VoiceOver and physical keyboard use of the new controls are checked.
+
+On 15 October 2026, macOS returned "Notifications are not allowed for this application" for the isolated development build. Settings displayed that error. Native banner and notification click-through acceptance remains open. Simulated hook payloads do not establish real provider permission-dialog compatibility. See [agent activity](agent-activity.md) and [current status](status.md).

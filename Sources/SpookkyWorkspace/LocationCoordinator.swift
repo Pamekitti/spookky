@@ -301,7 +301,7 @@ import SpookkyGit
         return result
     }
     nonisolated public static func defaultBranch(workspaceID: UUID) -> String {
-        "spookky/workspace-" + workspaceID.uuidString.prefix(8).lowercased()
+        WorkspaceNaming.defaultBranch(workspaceID: workspaceID)
     }
     nonisolated public static func defaultDestination(_ project: Project, workspaceID: UUID) -> String {
         let name = project.name.replacingOccurrences(of: "/", with: "-")

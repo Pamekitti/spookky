@@ -62,6 +62,10 @@ Model plain folders, unborn repositories, regular checkouts, existing worktrees,
 
 Use stable IDs for relationships. Names, array indices, PIDs, and paths alone are insufficient identity. Store directory identity so a symlink alias or repo subdirectory does not accidentally create a second isolated-looking workspace for the same checkout.
 
+Metadata version 5 adds optional automatic-title provenance (friendly, prompt, or legacy) beside the manual-title flag. New workspace names use a fixed local word collection. A bounded scan of the composer prompt derives a title during the accepted launch-intent transition, without a model request or terminal inspection. Binding a folder does not overwrite the title. The first prompt title freezes automatic naming; manual names take precedence.
+
+The version 4 migration backs up older metadata before updating it. It replaces only automatic generic titles and preserves readable legacy names, manual names, stable IDs, drafts, and runtime bindings. It does not infer old task titles from saved provider history or start processes.
+
 ## Launch transaction
 
 ```text
@@ -125,7 +129,7 @@ Adapters cover executable detection, launching, supported resume arguments, and 
 
 Native CLI resume, supported cloud handoff, and remote control can be used inside the terminal. Historical provider references are preserved in the archived flow document. Verify them against installed CLI versions before shipping convenience controls.
 
-Do not mutate global agent configuration or overwrite user hooks. If status hooks are later used, prefer per-session configuration, keep helper failures nonfatal, and preserve existing hooks. Unsupported activity detection shows unknown state. Standard CLI permissions must remain usable with all app hints disabled.
+Do not mutate global agent configuration or overwrite user hooks. Activity hooks use per-invocation configuration and preserve existing hooks. Codex monitoring preserves the provider hook trust checks. Model approval and sandbox settings remain provider-owned. Unsupported activity detection shows unknown state. Standard CLI permissions remain usable with app hints disabled. See [agent activity](agent-activity.md).
 
 ## Persistence and recovery
 
@@ -162,3 +166,9 @@ SpookkyGit is now the discovery and cancellable Git boundary. LocationCoordinato
 ## M3 implementation
 
 SpookkyFiles provides directory enumeration and bounded previews. SpookkyGit provides status snapshots and selected diffs through the existing read scheduler. FileWorkspaceController owns the active native file UI and its event watcher. WorkspaceWindowController composes it beside existing terminal surfaces. SQLite version 3 persists view metadata only. See [current status](status.md) for limits, migration, and verification.
+
+## Agent activity implementation
+
+AgentActivityResolver wraps executable resolution without changing LaunchCoordinator's process ownership. Private PATH wrappers also support manually entered CLI commands. Interactive zsh uses private startup delegates so user configuration can complete before the wrapper path is restored. AgentIntegration provides bounded capability detection and invocation configuration. The launch helper forwards bounded normalized hook events through AgentActivityReceiver's private datagram socket.
+
+The receiver validates the binding, invocation, provider, and secret against private active registration. WorkspaceState applies events separately from terminal lifecycle and preserves completion acknowledgments. SQLite version 4 migrates the optional per-tab activity record with a pre-migration backup. AppKit renders the existing status slots and UserNotifications handles alerts. No terminal bytes enter this model. See [agent activity](agent-activity.md) for limits and recovery semantics.

@@ -61,6 +61,24 @@ Do not point benchmarks at normal development data or the user's repositories. K
 
 The CLI resolver checks inherited PATH, a bounded login-shell PATH query, local/Homebrew locations, and installed nvm Node directories. It preserves the selected executable's adjacent interpreter directory. Lookup does not install providers or alter authentication, trust, or permission controls.
 
+## Agent activity checks
+
+```sh
+swift build --product spookky-launch
+swift test --filter AgentActivityTests
+python3 scripts/check_agent_hooks.py
+```
+
+The hook fixture executes both adapters through the actual launch helper with fake CLIs. It checks literal arguments, questions, child events, completion, failures, unsupported versions, disabled hooks, registration failure, and nested ownership. Malformed and oversized callbacks must exit successfully without output. The fixture uses private temporary files and a local socket. It sends no model requests.
+
+To exercise one minimal turn with each installed provider and its existing authentication and configuration:
+
+```sh
+python3 scripts/check_agent_hooks.py --real
+```
+
+The real check sends provider requests and can run existing user hooks. It asks for a plain OK response without tools or file changes. It proves launch, prompt, and completion callbacks for the installed versions. It does not prove interactive permission or question dialogs. See [agent activity](agent-activity.md) for configuration and runtime limits.
+
 ## Public website and releases
 
 PR CI always runs source/Python checks and the public audit. Native changes add one macOS 15 job with Swift tests, one Release build, and a bundle audit. Website changes add headless browser tests. Documentation changes skip both. Unknown paths and CI machinery changes select both areas. The source check and native check remain required; an intentionally skipped native job permits documentation PRs to merge.
@@ -105,8 +123,12 @@ python3 scripts/check_m0_input.py folders --output .cache/folders.json
 python3 scripts/check_surface_races.py --output .cache/surface-races.json
 python3 scripts/check_terminal_selection.py --output .cache/terminal-selection.json
 python3 scripts/check_workspace_close.py --output .cache/workspace-close.json
+python3 scripts/check_sidebar.py --output .cache/sidebar.json
+swift scripts/check_prototype.swift --output .cache/prototype-webkit.json
 python3 scripts/check_provider_continuity.py --output .cache/provider-interfaces.json
 ```
+
+The prototype check uses an offscreen WebKit renderer with temporary website storage. It checks navigation, drafts, icon geometry, and narrow layouts without opening a browser window. It records focus-dependent CSS checks as skipped when the offscreen page has no active OS keyboard window.
 
 Input replay uses native events, briefly selects already-enabled keyboard layouts, and restores the original selection. It needs at least two enabled layouts for its source-switch assertion. It does not establish human typing or IME composition. Provider-interface probes send no model prompts and do not prove provider responses.
 
@@ -124,6 +146,7 @@ python3 scripts/terminal_input_fixture.py --output /tmp/spookky-input-check.json
 python3 scripts/benchmark_m0.py --mode timing --output .cache/terminal-timing.json
 python3 scripts/benchmark_render_m0.py --output .cache/rendered-input.json
 python3 scripts/benchmark_m1.py --mode timing --resize --output .cache/workspace-timing.json
+python3 scripts/benchmark_activity.py --foreground --seconds 30 --output .cache/activity-benchmarks.json
 python3 scripts/benchmark_m3.py --mode diff --output .cache/diff.json
 python3 scripts/benchmark_m3.py --mode resources --panel open --output .cache/resources-open.json
 python3 scripts/benchmark_m3.py --mode resources --panel closed --output .cache/resources-closed.json
@@ -134,6 +157,8 @@ python3 scripts/benchmark_m4.py --overnight --output .cache/overnight.json
 The default M4 fixture runs ten warm-ups, 100 measured lifecycle cycles, a 30-minute workload, and a 60-second idle observation. The overnight mode is eight hours. Run measurements separately with no builds in progress. Neither mode prevents or initiates sleep. Add `--background` to keep the automated fixture behind user windows without keyboard focus or mouse input. This mode measures programmatic native attachment and excludes physical typing.
 
 `benchmark_agents_m0.py` uses a separately prepared `/tmp/spookky-m0-agent-fixture` folder trusted through normal provider flows. It opens provider interfaces without model prompts. See [performance](performance.md) for resource boundaries and [recovery](m4-recovery.md) for hands-on sleep/reboot checks.
+
+The activity measurement compares clean shells against simulated provider states at 1, 5, and 10 terminals. Both include the activity receiver. A separate idle fake CLI measures the packaged waiting helper. It excludes real provider memory, callback bursts, and WindowServer costs. Each case records visibility, activation, process stability, and the binary hash. Run it separately from builds and tests.
 
 ## Code layout
 
