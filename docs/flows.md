@@ -37,21 +37,25 @@ Open Spookky
 
 First use defaults to Home and Terminal. Later starts remember the selected tool and display it explicitly. Choosing a tool, project, or reference alone does not launch a process. Blank tabs in an unbound workspace share its eventual anchor.
 
+Opening or reopening Spookky with no remaining workspaces shows the Home start screen. Restoring existing workspaces does not add another blank workspace.
+
 ## Keyboard and mouse contract
 
 | Action | Result |
 | --- | --- |
 | Cmd+N / New workspace | Create and select an unbound workspace immediately. |
-| Project + | Create an unbound workspace with that project selected, Local by default. |
+| Project row | Toggle its workspace rows without changing the selected workspace or stopping processes. |
+| Project + | Create an unbound workspace with that project selected, Local by default, and expand the group. |
 | Cmd+T while a running/ended tab is selected | Open a blank tab in the same workspace. |
 | Cmd+T while a blank tab is selected | Open Terminal at the selected/inherited location immediately. |
 | Cmd+T with an agent prompt draft | Preserve that draft in its tab and open Terminal in another tab. |
+| Cmd+T after closing the final tab | Reopen with one Home terminal immediately. |
 | Tab-strip + | Always add a blank tab. Do not label it Cmd+T when that shortcut currently means launch Terminal. |
 | Cmd+Enter in launch composer | Launch selected tool with optional initial prompt. |
 | Enter in initial prompt | Insert a newline. |
 | Cmd+W / tab × | Close selected tab, confirming active agent/job termination. |
 | Workspace × | Close workspace, confirming active sessions; keep files and branch. |
-| Cmd+K | Find a workspace. |
+| Cmd+K | Find a workspace and reveal its parent project group. |
 | Right-click / Shift+F10 on a sidebar entry | Open secondary contextual actions. |
 | Double-click selected terminal tab | Rename its UI label. |
 | Right-sidebar toggle | Show/hide Files and Changes. Never start a process. |
@@ -101,6 +105,12 @@ New branch names can be generated. When continuing an existing branch, reuse its
 Creating a worktree and launching an agent are separate operations. An agent failure does not discard a successful worktree. Retry reuses that checkout and does not duplicate tabs or processes.
 
 ## Launch and initial prompt
+
+New workspaces receive a friendly two-word name, such as Quiet Maple. Generated friendly names are unique among open workspaces; a numbered variant is used when all word combinations are occupied. Starting a shell or an agent without a prompt keeps that name.
+
+The first starting prompt supplied through Spookky's composer names the workspace once. This can happen in a later agent tab. Use the first nonempty line, collapse whitespace, and keep up to six words and 48 Unicode characters. The title is saved with accepted launch intent before process creation. Failures, retries, reconnects, and later prompts keep it. A manual rename always wins. Naming does not indicate prompt acknowledgment. Input typed directly in a CLI is not inspected.
+
+Metadata upgrade replaces automatic New workspace and workspace-xxxxxxxx labels, where the suffix is eight hexadecimal characters. Other saved names and every manual name remain intact. Folder and branch names are independent of the visible workspace title.
 
 The start page uses one composer with a tool picker. For agents, the prompt field is visible and optional. With no prompt the action opens the CLI; with text it starts the CLI with that instruction. Terminal mode has one direct launch action and a Cmd+T hint.
 
@@ -160,7 +170,7 @@ Commits, pushes, tests, and PRs happen through the user's preferred tools. Spook
 | Event | Result |
 | --- | --- |
 | Switch tab/workspace | Preserve process and view state. |
-| Close blank/ended tab or confirmed idle shell | Close immediately. Last tab returns to a blank tab in the same workspace. |
+| Close blank/ended tab or confirmed idle shell | Close immediately. The last tab removes its workspace and selects another workspace if available. Closing the final tab closes the window. |
 | Close active agent or shell with a job | Confirm termination or cancel. If shell-job state is unknown, use a conservative close confirmation. |
 | Close workspace | Confirm active sessions, remove entry, keep checkout and branch. Closing an inactive entry preserves the active workspace. |
 | Close window | Normal macOS app behavior; processes may continue. |
@@ -171,6 +181,8 @@ Commits, pushes, tests, and PRs happen through the user's preferred tools. Spook
 | Delete app-created worktree | Separate action; check running processes, dirty/untracked work, and unmerged/unpushed commits. Confirm exact folder. Keep branch by default. |
 
 Process continuity is subject to M0 validation. A saved conversation is not a surviving process. Hidden sessions still consume resources; never kill them only because their views are hidden.
+
+In a tab/workspace close confirmation, Enter activates Close and Escape cancels. Closing the final tab closes the window without displaying a replacement landing page. First use still opens the blank Home workspace with Terminal selected.
 
 ## Recovery
 

@@ -11,8 +11,10 @@ final class GhosttyEngine {
     var keyboardTrace: FixtureInputTrace?
     private let themeRoot: URL
     private var themeGeneration = 0
+    let clipboard: NSPasteboard
 
-    init(root: URL) throws {
+    init(root: URL, clipboard: NSPasteboard = .general) throws {
+        self.clipboard = clipboard
         themeRoot = root
         let resources = Bundle.main.resourceURL!.appendingPathComponent("ghostty").path
         setenv("GHOSTTY_RESOURCES_DIR", resources, 1)
@@ -73,7 +75,7 @@ final class GhosttyEngine {
             guard let pointer else { return false }
             let view = Unmanaged<TerminalHostView>.fromOpaque(pointer).takeUnretainedValue()
             guard let surface = view.surface else { return false }
-            guard let text = NSPasteboard.general.string(forType: .string) else { return false }
+            guard let text = view.engine.clipboard.string(forType: .string) else { return false }
             text.withCString { ghostty_surface_complete_clipboard_request(surface, $0, state, false) }
             return true
         }
@@ -92,8 +94,9 @@ final class GhosttyEngine {
                 "".withCString { ghostty_surface_complete_clipboard_request(surface, $0, state, true) }
             }
         }
-        callbacks.write_clipboard_cb = { _, _, contents, count, confirmation in
-            guard let contents else { return }
+        callbacks.write_clipboard_cb = { pointer, _, contents, count, confirmation in
+            guard let pointer, let contents else { return }
+            let clipboard = Unmanaged<TerminalHostView>.fromOpaque(pointer).takeUnretainedValue().engine.clipboard
             if confirmation {
                 let alert = NSAlert()
                 alert.messageText = "Allow terminal to write the clipboard?"
@@ -103,8 +106,8 @@ final class GhosttyEngine {
             }
             for index in 0..<count {
                 if let mime = contents[index].mime, String(cString: mime) == "text/plain", let text = contents[index].data {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(String(cString: text), forType: .string)
+                    clipboard.clearContents()
+                    clipboard.setString(String(cString: text), forType: .string)
                     break
                 }
             }
@@ -167,7 +170,7 @@ final class GhosttyEngine {
         ghostty_app_set_color_scheme(app, dark ? GHOSTTY_COLOR_SCHEME_DARK : GHOSTTY_COLOR_SCHEME_LIGHT)
         for view in views {
             if let surface = view.surface {
-                ghostty_surface_update_config(surface, next)
+                view.updateConfiguration(next)
                 ghostty_surface_set_color_scheme(surface, dark ? GHOSTTY_COLOR_SCHEME_DARK : GHOSTTY_COLOR_SCHEME_LIGHT)
             }
             view.layer?.backgroundColor = (dark ? NSColor(srgbRed: 0.082, green: 0.075, blue: 0.071, alpha: 1) : NSColor(srgbRed: 0.98, green: 0.976, blue: 0.972, alpha: 1)).cgColor

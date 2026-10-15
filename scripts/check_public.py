@@ -31,6 +31,10 @@ def gitleaks():
     return binary
 
 
+def has_note_refs(refs):
+    return any(ref.startswith("refs/notes/") or re.match(r"refs/(?:audit|remotes)/[^/]+/notes/", ref) for ref in refs)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--history", action="store_true")
@@ -51,7 +55,7 @@ def main():
         if prohibited.search(text):
             errors.append("Private material in " + name)
     refs = subprocess.check_output(git + ["for-each-ref", "--format=%(refname)"], cwd=ROOT).decode().splitlines()
-    if any(ref.startswith("refs/notes/") for ref in refs):
+    if has_note_refs(refs):
         errors.append("Git notes must remain outside public refs.")
     if errors:
         raise SystemExit("\n".join(errors))

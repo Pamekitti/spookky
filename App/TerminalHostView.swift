@@ -11,6 +11,17 @@ final class TerminalHostView: NSView, NSTextInputClient {
     var onFocus: (() -> Void)?
     var onResize: ((@escaping () -> Void, @escaping () -> Void) -> Void)?
     var onViewportInteraction: (() -> Void)?
+    var applicationCapturesMouse: (() async throws -> Bool)?
+    private struct PendingMouseGesture {
+        let id = UUID()
+        let down: NSEvent
+        var drag: NSEvent?
+        var up: NSEvent?
+    }
+    private var pendingMouseGesture: PendingMouseGesture?
+    private var mouseQueryInFlight = false
+    private var nativeMouseSelection = false
+    private var pendingMouseAction: String?
     private var geometryPending = false
     private var windowObservers: [NSObjectProtocol] = []
     private var lastFocused: Bool?
@@ -52,11 +63,19 @@ final class TerminalHostView: NSView, NSTextInputClient {
     required init?(coder: NSCoder) { fatalError("Use init(engine:command:directory:)") }
     override var acceptsFirstResponder: Bool { true }
     override var isFlipped: Bool { true }
+    override var mouseDownCanMoveWindow: Bool { false }
 
     func releaseSurface() {
+        pendingMouseGesture = nil
+        pendingMouseAction = nil
         if let surface { ghostty_surface_free(surface); self.surface = nil }
         lastGeometry = nil
         lastFocused = nil; lastVisible = nil
+    }
+    func updateConfiguration(_ config: ghostty_config_t) {
+        guard let surface else { return }
+        ghostty_surface_update_config(surface, config)
+        if nativeMouseSelection { perform("toggle_mouse_reporting") }
     }
     func updateVisibility() {
         guard let surface else { return }
@@ -170,6 +189,7 @@ final class TerminalHostView: NSView, NSTextInputClient {
     }
 
     override func keyDown(with event: NSEvent) {
+        flushPendingMouseGesture()
         onViewportInteraction?()
         guard let surface else { interpretKeyEvents([event]); return }
         inputTrace?.record("key_down", event: event, text: event.characters)
@@ -268,6 +288,10 @@ final class TerminalHostView: NSView, NSTextInputClient {
     @objc func paste(_ sender: Any?) { perform("paste_from_clipboard") }
     @discardableResult func perform(_ action: String) -> Bool {
         guard let surface else { return false }
+        if pendingMouseGesture != nil, action == "copy_to_clipboard" || action == "paste_from_clipboard" {
+            pendingMouseAction = action
+            return true
+        }
         return action.withCString { ghostty_surface_binding_action(surface, $0, UInt(action.utf8.count)) }
     }
 
@@ -284,7 +308,10 @@ final class TerminalHostView: NSView, NSTextInputClient {
         let position = convert(event.locationInWindow, from: nil)
         ghostty_surface_mouse_pos(surface, position.x, position.y, modifiers(event.modifierFlags))
     }
-    override func mouseDragged(with event: NSEvent) { mouseMoved(with: event) }
+    override func mouseDragged(with event: NSEvent) {
+        if pendingMouseGesture != nil { pendingMouseGesture?.drag = event }
+        else { mouseMoved(with: event) }
+    }
     override func rightMouseDragged(with event: NSEvent) { mouseMoved(with: event) }
     private func mouse(_ event: NSEvent, state: ghostty_input_mouse_state_e, button: ghostty_input_mouse_button_e) {
         guard let surface else { return }
@@ -293,9 +320,47 @@ final class TerminalHostView: NSView, NSTextInputClient {
     }
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
-        mouse(event, state: GHOSTTY_MOUSE_PRESS, button: GHOSTTY_MOUSE_LEFT)
+        flushPendingMouseGesture()
+        guard let surface, ghostty_surface_mouse_captured(surface), let applicationCapturesMouse,
+              !mouseQueryInFlight else {
+            mouse(event, state: GHOSTTY_MOUSE_PRESS, button: GHOSTTY_MOUSE_LEFT)
+            return
+        }
+        let gesture = PendingMouseGesture(down: event)
+        pendingMouseGesture = gesture
+        let id = gesture.id
+        mouseQueryInFlight = true
+        Task { @MainActor [weak self] in
+            let captured = (try? await applicationCapturesMouse()) ?? true
+            guard let self else { return }
+            self.mouseQueryInFlight = false
+            guard self.surface != nil, self.pendingMouseGesture?.id == id else { return }
+            if !captured { self.nativeMouseSelection = self.perform("toggle_mouse_reporting") }
+            self.flushPendingMouseGesture()
+        }
     }
-    override func mouseUp(with event: NSEvent) { mouse(event, state: GHOSTTY_MOUSE_RELEASE, button: GHOSTTY_MOUSE_LEFT) }
+    private func flushPendingMouseGesture() {
+        guard let gesture = pendingMouseGesture else { return }
+        pendingMouseGesture = nil
+        mouse(gesture.down, state: GHOSTTY_MOUSE_PRESS, button: GHOSTTY_MOUSE_LEFT)
+        if let drag = gesture.drag { mouseMoved(with: drag) }
+        if let up = gesture.up { finishMouseGesture(up) }
+        if let action = pendingMouseAction {
+            pendingMouseAction = nil
+            perform(action)
+        }
+    }
+    private func finishMouseGesture(_ event: NSEvent) {
+        mouse(event, state: GHOSTTY_MOUSE_RELEASE, button: GHOSTTY_MOUSE_LEFT)
+        if nativeMouseSelection {
+            perform("toggle_mouse_reporting")
+            nativeMouseSelection = false
+        }
+    }
+    override func mouseUp(with event: NSEvent) {
+        if pendingMouseGesture != nil { pendingMouseGesture?.up = event }
+        else { finishMouseGesture(event) }
+    }
     override func rightMouseDown(with event: NSEvent) { mouse(event, state: GHOSTTY_MOUSE_PRESS, button: GHOSTTY_MOUSE_RIGHT) }
     override func rightMouseUp(with event: NSEvent) { mouse(event, state: GHOSTTY_MOUSE_RELEASE, button: GHOSTTY_MOUSE_RIGHT) }
     override func scrollWheel(with event: NSEvent) {

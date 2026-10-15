@@ -10,6 +10,20 @@ The verified development host used macOS 26.6.2, Xcode 27, Swift 6.3.3, and tmux
 
 ## Build and test
 
+After the one-time dependency setup, an ordinary native change uses these commands:
+
+```sh
+python3 scripts/check_repo.py
+swift test
+python3 scripts/dev.py run
+```
+
+Test the changed interaction in that checkout's development app. Run relevant checks once, then repeat only after relevant changes or failures. CI checks the Release build.
+
+Documentation changes need the repository checker. Python script changes add `python3 -m unittest discover -s scripts -p 'test_*.py'`. Website changes use `npm test --prefix website` after website setup. Browser tests are headless and belong to website changes, not ordinary native development.
+
+The complete commands remain available for setup and explicit verification:
+
 ```sh
 python3 scripts/build_runtime.py
 swift build --product spookky-launch
@@ -26,15 +40,20 @@ sh scripts/build_native.sh Release
 
 Build the runtime and Swift helpers before running runtime tests. `SPOOKKY_TMUX` selects an explicit runtime for development fixtures. Build native Debug and Release sequentially. [Dependency setup](../Dependencies/README.md) records the pinned Ghostty build and Xcode compatibility workarounds. Ghostty downloads and build outputs remain under ignored `.cache/` directories.
 
-Open `Spookky.xcodeproj`, select the **Spookky** scheme, and run. Normal launch opens the workspace interface. `--terminal-harness` opens the diagnostic terminal harness. To open the built Release app:
+Use the [daily development lifecycle](lifecycle.md) to keep the installed app and concurrent worktree builds separate. Build and open this checkout's development app:
 
 ```sh
-open DerivedData/Build/Products/Release/Spookky.app
+python3 scripts/dev.py run
+python3 scripts/dev.py run --configuration Release
 ```
 
 ## State and ownership
 
-Workspace metadata defaults to `~/Library/Application Support/Spookky/Development`. The normal workspace runtime root is `/tmp/spookky-m1-<uid>`. The terminal harness uses `/tmp/spookky-m0-<uid>`. `SPOOKKY_M1_ROOT`, `SPOOKKY_M1_DATA`, and `SPOOKKY_M0_ROOT` override these locations for owned fixtures.
+Open `Spookky.xcodeproj`, select the **Spookky** scheme, and run when using the debugger. Normal launch opens the workspace interface. `--terminal-harness` opens the diagnostic terminal harness. The launcher gives each checkout a distinct macOS bundle identity; Xcode's default identity remains the shared development identifier.
+
+Workspace metadata defaults to `~/Library/Application Support/Spookky/Development/<checkout-id>`. The normal runtime root is `/tmp/spookky-dev-<uid>-<checkout-id>`. The terminal harness uses `/tmp/spookky-m0-<uid>-<checkout-id>`. `python3 scripts/dev.py info` prints the exact locations. `SPOOKKY_M1_ROOT`, `SPOOKKY_M1_DATA`, and `SPOOKKY_M0_ROOT` override these locations for owned fixtures. The normal launcher sets its own roots rather than inheriting fixture overrides.
+
+Older development bundles without an embedded checkout retain the historical shared development paths. Their data is preserved.
 
 Installed releases use `dev.spookky.app`, `~/Library/Application Support/Spookky`, and `/tmp/spookky-app-<uid>`. They do not import development metadata. Debug and Release remain development configurations; Distribution creates the public identity.
 
@@ -42,7 +61,33 @@ Do not point benchmarks at normal development data or the user's repositories. K
 
 The CLI resolver checks inherited PATH, a bounded login-shell PATH query, local/Homebrew locations, and installed nvm Node directories. It preserves the selected executable's adjacent interpreter directory. Lookup does not install providers or alter authentication, trust, or permission controls.
 
+## Agent activity checks
+
+```sh
+swift build --product spookky-launch
+swift test --filter AgentActivityTests
+python3 scripts/check_agent_hooks.py
+```
+
+The hook fixture executes both adapters through the actual launch helper with fake CLIs. It checks literal arguments, questions, child events, completion, failures, unsupported versions, disabled hooks, registration failure, and nested ownership. Malformed and oversized callbacks must exit successfully without output. The fixture uses private temporary files and a local socket. It sends no model requests.
+
+To exercise one minimal turn with each installed provider and its existing authentication and configuration:
+
+```sh
+python3 scripts/check_agent_hooks.py --real
+```
+
+The real check sends provider requests and can run existing user hooks. It asks for a plain OK response without tools or file changes. It proves launch, prompt, and completion callbacks for the installed versions. It does not prove interactive permission or question dialogs. See [agent activity](agent-activity.md) for configuration and runtime limits.
+
 ## Public website and releases
+
+PR CI always runs source/Python checks and the public audit. Native changes add one macOS 15 job with Swift tests, one Release build, and a bundle audit. Website changes add headless browser tests. Documentation changes skip both. Unknown paths and CI machinery changes select both areas. The source check and native check remain required; an intentionally skipped native job permits documentation PRs to merge.
+
+After merge, main runs source checks only. It does not repeat native builds or browser tests. Dependency caches hold pinned tmux and Ghostty outputs, npm downloads, and Chromium. Keys include dependency recipes, architecture, and toolchain. Swift/Xcode build outputs and app state are not cached. Source jobs have a five-minute timeout; the native PR job has a 15-minute timeout. The actual warm native duration remains unmeasured.
+
+PR-created caches are isolated by GitHub. To share native dependencies across PRs, run **Checks → Run workflow → main** once to warm the default-branch caches. This manual run builds dependencies only. Repeat when dependency or toolchain cache keys change; ordinary main pushes never trigger it.
+
+The opt-in signed release workflow uses macOS 26 and prepares Distribution packaging. Extra build configurations and compatibility checks belong to release verification. Signed automatic delivery remains disabled while private local installers are in use.
 
 ```sh
 cd website
@@ -76,8 +121,14 @@ python3 scripts/check_m0_input.py input --mode direct --replay --output .cache/i
 python3 scripts/check_m0_input.py input --mode persistent --replay --output .cache/input-persistent.json
 python3 scripts/check_m0_input.py folders --output .cache/folders.json
 python3 scripts/check_surface_races.py --output .cache/surface-races.json
+python3 scripts/check_terminal_selection.py --output .cache/terminal-selection.json
+python3 scripts/check_workspace_close.py --output .cache/workspace-close.json
+python3 scripts/check_sidebar.py --output .cache/sidebar.json
+swift scripts/check_prototype.swift --output .cache/prototype-webkit.json
 python3 scripts/check_provider_continuity.py --output .cache/provider-interfaces.json
 ```
+
+The prototype check uses an offscreen WebKit renderer with temporary website storage. It checks navigation, drafts, icon geometry, and narrow layouts without opening a browser window. It records focus-dependent CSS checks as skipped when the offscreen page has no active OS keyboard window.
 
 Input replay uses native events, briefly selects already-enabled keyboard layouts, and restores the original selection. It needs at least two enabled layouts for its source-switch assertion. It does not establish human typing or IME composition. Provider-interface probes send no model prompts and do not prove provider responses.
 
@@ -95,6 +146,7 @@ python3 scripts/terminal_input_fixture.py --output /tmp/spookky-input-check.json
 python3 scripts/benchmark_m0.py --mode timing --output .cache/terminal-timing.json
 python3 scripts/benchmark_render_m0.py --output .cache/rendered-input.json
 python3 scripts/benchmark_m1.py --mode timing --resize --output .cache/workspace-timing.json
+python3 scripts/benchmark_activity.py --foreground --seconds 30 --output .cache/activity-benchmarks.json
 python3 scripts/benchmark_m3.py --mode diff --output .cache/diff.json
 python3 scripts/benchmark_m3.py --mode resources --panel open --output .cache/resources-open.json
 python3 scripts/benchmark_m3.py --mode resources --panel closed --output .cache/resources-closed.json
@@ -102,9 +154,11 @@ python3 scripts/benchmark_m4.py --output .cache/continuity.json
 python3 scripts/benchmark_m4.py --overnight --output .cache/overnight.json
 ```
 
-The default M4 fixture runs ten warm-ups, 100 measured lifecycle cycles, a 30-minute workload, and a 60-second idle observation. The overnight mode is eight hours. Run measurements separately with no builds in progress. Neither mode prevents or initiates sleep.
+The default M4 fixture runs ten warm-ups, 100 measured lifecycle cycles, a 30-minute workload, and a 60-second idle observation. The overnight mode is eight hours. Run measurements separately with no builds in progress. Neither mode prevents or initiates sleep. Add `--background` to keep the automated fixture behind user windows without keyboard focus or mouse input. This mode measures programmatic native attachment and excludes physical typing.
 
 `benchmark_agents_m0.py` uses a separately prepared `/tmp/spookky-m0-agent-fixture` folder trusted through normal provider flows. It opens provider interfaces without model prompts. See [performance](performance.md) for resource boundaries and [recovery](m4-recovery.md) for hands-on sleep/reboot checks.
+
+The activity measurement compares clean shells against simulated provider states at 1, 5, and 10 terminals. Both include the activity receiver. A separate idle fake CLI measures the packaged waiting helper. It excludes real provider memory, callback bursts, and WindowServer costs. Each case records visibility, activation, process stability, and the binary hash. Run it separately from builds and tests.
 
 ## Code layout
 

@@ -37,9 +37,39 @@ final class WorkspaceTests: XCTestCase {
         state.closeWorkspace(first)
         XCTAssertEqual(state.selectedWorkspaceID, second)
         state.closeTab(secondTab)
-        XCTAssertNotEqual(state.selectedTab?.id, secondTab)
-        XCTAssertNil(state.selectedTab?.binding)
-        XCTAssertEqual(state.selected?.tabs.count, 1)
+        XCTAssertTrue(state.workspaces.isEmpty)
+        XCTAssertNil(state.selectedWorkspaceID)
+        XCTAssertNil(state.selectedTab)
+    }
+
+    func testClosingLastTabSelectsAnotherWorkspaceAndPreservesItsDraft() throws {
+        var state = WorkspaceState()
+        let first = state.newWorkspace(directory: "/tmp/a")
+        let retained = try XCTUnwrap(state.selectedTab?.id)
+        state.editDraft(retained, tool: .codex, prompt: "Keep this draft")
+        state.newWorkspace(directory: "/tmp/b")
+        let closing = try XCTUnwrap(state.selectedTab?.id)
+
+        state.closeTab(closing)
+
+        XCTAssertEqual(state.workspaces.count, 1)
+        XCTAssertEqual(state.selectedWorkspaceID, first)
+        XCTAssertEqual(state.selectedTab?.id, retained)
+        XCTAssertEqual(state.selectedTab?.draft.prompt, "Keep this draft")
+    }
+
+    func testClosingLastInactiveTabPreservesActiveWorkspace() throws {
+        var state = WorkspaceState()
+        state.newWorkspace(directory: "/tmp/a")
+        let inactive = try XCTUnwrap(state.selectedTab?.id)
+        let active = state.newWorkspace(directory: "/tmp/b")
+        let selected = try XCTUnwrap(state.selectedTab?.id)
+
+        state.closeTab(inactive)
+
+        XCTAssertEqual(state.workspaces.count, 1)
+        XCTAssertEqual(state.selectedWorkspaceID, active)
+        XCTAssertEqual(state.selectedTab?.id, selected)
     }
 
     func testLaunchIntentSurvivesProviderDraftChanges() throws {

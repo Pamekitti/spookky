@@ -77,10 +77,14 @@ private struct HarnessSession {
                             guard saved == nil, args.indices.contains(index + 1), let count = Int(args[index + 1]), (0...10).contains(count),
                                   ProcessInfo.processInfo.environment["SPOOKKY_M1_DATA"] != nil,
                                   workspaceRoot.path.hasPrefix("/tmp/spookky-m1-") else { throw LaunchError.invalid("Workspace benchmarks require an isolated fixture root and a count from zero to ten.") }
-                            workspaceController = try WorkspaceWindowController(root: workspaceRoot, initialStore: store, firstUse: saved == nil, resolver: WorkspaceBenchmarkResolver())
+                            workspaceController = try WorkspaceWindowController(root: workspaceRoot, initialStore: store, resolver: WorkspaceBenchmarkResolver(),
+                                backgroundFixture: !args.contains("--workspace-benchmark-front"))
                             try await workspaceController?.benchmark(count: count, root: workspaceRoot, timing: args.contains("--workspace-benchmark-timing"))
                         } else {
-                            workspaceController = try WorkspaceWindowController(root: workspaceRoot, initialStore: store, firstUse: saved == nil)
+                            let backgroundRestore = args.contains("--workspace-benchmark-restoring") && !args.contains("--workspace-benchmark-front") &&
+                                workspaceRoot.path.hasPrefix("/tmp/spookky-m1-") && ProcessInfo.processInfo.environment["SPOOKKY_M1_DATA"] != nil
+                            workspaceController = try WorkspaceWindowController(root: workspaceRoot, initialStore: store,
+                                backgroundFixture: backgroundRestore)
                         }
                         if args.contains("--workspace-benchmark-front") || (benchmarkIndex == nil && !args.contains("--workspace-benchmark-restoring")) {
                             workspaceController?.window.makeKeyAndOrderFront(nil)
@@ -89,6 +93,7 @@ private struct HarnessSession {
                         else { workspaceController?.window.orderBack(nil) }
                     } catch {
                         if CommandLine.arguments.contains("--workspace-benchmark-count") {
+                            workspaceController?.recordBenchmarkFailure(root: workspaceRoot)
                             fputs(error.localizedDescription + "\n", stderr)
                             _exit(1)
                         }
@@ -102,7 +107,9 @@ private struct HarnessSession {
                 }
                 return
             }
-            root = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SPOOKKY_M0_ROOT"] ?? "/tmp/spookky-m0-\(getuid())")
+            let paths = AppPaths(bundleID: Bundle.main.bundleIdentifier, home: FileManager.default.homeDirectoryForCurrentUser, userID: getuid())
+            let suffix = paths.developmentID.map { "-" + $0 } ?? ""
+            root = URL(fileURLWithPath: ProcessInfo.processInfo.environment["SPOOKKY_M0_ROOT"] ?? "/tmp/spookky-m0-\(getuid())\(suffix)")
             try PrivateFiles.directory(root)
             let helper = Bundle.main.executableURL!.deletingLastPathComponent().appendingPathComponent("spookky-launch").path
             runtime = try TmuxRuntime(executable: PackagedRuntime.tmux(), helper: helper, root: root)
@@ -622,6 +629,9 @@ private struct HarnessSession {
                 command = ShellCommand.render([helper, "--request", request.path])
             } else { return }
             let view = try TerminalHostView(engine: engine, command: command, directory: root.path)
+            if let binding = sessions[index].binding, let runtime {
+                view.applicationCapturesMouse = { try await runtime.applicationCapturesMouse(binding) }
+            }
             if id == inputFixtureID {
                 view.inputTrace = fixtureInputTrace
             }

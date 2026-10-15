@@ -33,4 +33,6 @@ Settings contains **Prototype scenarios** for deterministic failures and Reset s
 
 Try a quick Home terminal, a project worktree with an optional agent prompt, and several tabs with file changes. Assess details freely as keep/change/remove. There is no required review or commit sequence.
 
+New sample workspaces use friendly names and can be named once by the first composer prompt. Manual renames remain fixed. Older prototype snapshots without rename metadata keep their saved titles because their original naming source is unknown. Native metadata records that source and can migrate known automatic generic labels safely.
+
 See [interface specification](../docs/interface.md), [current flows](../docs/flows.md), and [current status](../docs/status.md).

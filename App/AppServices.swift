@@ -31,9 +31,14 @@ import SpookkyCore
     private var preparing = false
     private(set) var installingUpdate = false
     var prepareForUpdate: (() async throws -> Void)?
+    var agentPreferences = AgentNotificationPreferences()
+    var activityPreferencesDidChange: ((AgentNotificationPreferences) -> Void)?
+    var testAgentNotification: (() async -> String)?
+    private var activityChecks: [ObjectIdentifier: (Bool) -> Void] = [:]
 
     override init() {
         super.init()
+        if let data = UserDefaults.standard.data(forKey: "agentNotifications"), let saved = try? JSONDecoder().decode(AgentNotificationPreferences.self, from: data) { agentPreferences = saved }
         let preview = Bundle.main.object(forInfoDictionaryKey: "SpookkyReleaseChannel") as? String == "preview"
         UserDefaults.standard.register(defaults: ["receivePreviewUpdates": preview])
         if Bundle.main.bundleIdentifier == "dev.spookky.app",
@@ -133,7 +138,7 @@ import SpookkyCore
 
     @objc private func showSettings() {
         if let settings { refreshSettings(); settings.makeKeyAndOrderFront(nil); return }
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 230), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 540), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Spookky Settings"; window.isReleasedWhenClosed = false
         let checks = NSButton(checkboxWithTitle: "Check for updates automatically", target: self, action: #selector(changeChecks(_:)))
         checks.state = controller?.updater.automaticallyChecksForUpdates == true ? .on : .off
@@ -147,11 +152,58 @@ import SpookkyCore
         updateChecks = checks; updateDownloads = downloads; previewUpdates = previews
         let detail = NSTextField(wrappingLabelWithString: controller == nil ? "Update settings are available in signed public releases." : "Updates check once a day while Spookky runs. Restarting keeps your terminal sessions running.")
         detail.textColor = .secondaryLabelColor
-        let stack = NSStackView(views: [checks, downloads, previews, detail]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 14
+        let stack = NSStackView(views: [checks, downloads, previews, detail, activitySettings()]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false; window.contentView!.addSubview(stack)
         NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: window.contentView!.leadingAnchor, constant: 24), stack.trailingAnchor.constraint(equalTo: window.contentView!.trailingAnchor, constant: -24), stack.topAnchor.constraint(equalTo: window.contentView!.topAnchor, constant: 24)])
         settings = window; window.center(); window.makeKeyAndOrderFront(nil)
     }
+    private func activitySettings() -> NSView {
+        activityChecks.removeAll()
+        func check(_ title: String, _ key: WritableKeyPath<AgentNotificationPreferences, Bool>) -> NSButton {
+            let button = NSButton(checkboxWithTitle: title, target: self, action: #selector(changeActivity(_:)))
+            button.state = agentPreferences[keyPath: key] ? .on : .off
+            activityChecks[ObjectIdentifier(button)] = { [weak self] value in self?.agentPreferences[keyPath: key] = value }
+            return button
+        }
+        let title = NSTextField(labelWithString: "Activity and notifications"); title.font = .systemFont(ofSize: 13, weight: .medium)
+        let providers = NSStackView(views: [check("Codex", \.codex), check("Claude Code", \.claude)]); providers.spacing = 20
+        let grid = NSGridView(views: [
+            [NSTextField(labelWithString: "Notify me"), NSTextField(labelWithString: "Banner"), NSTextField(labelWithString: "App sound")],
+            [NSTextField(labelWithString: "Needs input"), check("", \.inputBanner), check("", \.inputSound)],
+            [NSTextField(labelWithString: "Turn finished"), check("", \.finishedBanner), check("", \.finishedSound)],
+            [NSTextField(labelWithString: "Failed"), check("", \.failedBanner), check("", \.failedSound)]
+        ])
+        grid.columnSpacing = 22; grid.rowSpacing = 8
+        for row in 1...3 {
+            for column in 1...2 {
+                grid.cell(atColumnIndex: column, rowIndex: row).contentView?.setAccessibilityLabel(["Needs input", "Turn finished", "Failed"][row - 1] + (column == 1 ? " banner" : " app sound"))
+            }
+        }
+        let sounds = NSPopUpButton(); sounds.addItems(withTitles: ["Glass", "Tink", "Ping", "Pop", "Submarine"])
+        sounds.selectItem(withTitle: agentPreferences.sound); sounds.target = self; sounds.action = #selector(changeActivitySound(_:)); sounds.setAccessibilityLabel("Notification sound")
+        let volume = NSSlider(value: Double(agentPreferences.volume), minValue: 0, maxValue: 1, target: self, action: #selector(changeActivityVolume(_:)))
+        volume.setAccessibilityLabel("Notification volume"); volume.widthAnchor.constraint(equalToConstant: 150).isActive = true
+        let soundRow = NSStackView(views: [sounds, volume]); soundRow.spacing = 12
+        let note = NSTextField(wrappingLabelWithString: "Monitoring begins on the next agent launch. Codex skips hook trust review for launches in Spookky. Existing CLI sound hooks stay active.")
+        note.font = .systemFont(ofSize: 11); note.textColor = .secondaryLabelColor
+        let testResult = NSTextField(wrappingLabelWithString: ""); testResult.font = .systemFont(ofSize: 11); testResult.textColor = .secondaryLabelColor
+        let test = ActionButton("Test notification") { [weak self, weak testResult] in
+            Task { testResult?.stringValue = await self?.testAgentNotification?() ?? "Notifications are unavailable." }
+        }
+        let stack = NSStackView(views: [title, providers, grid, soundRow,
+            check("Show message previews", \.previews), check("Show Dock attention count", \.dockBadge),
+            check("Stay quiet while viewing the terminal", \.suppressVisible), note, test, testResult])
+        stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 10
+        note.widthAnchor.constraint(equalToConstant: 392).isActive = true
+        return stack
+    }
+    private func saveActivityPreferences() {
+        if let data = try? JSONEncoder().encode(agentPreferences) { UserDefaults.standard.set(data, forKey: "agentNotifications") }
+        activityPreferencesDidChange?(agentPreferences)
+    }
+    @objc private func changeActivity(_ sender: NSButton) { activityChecks[ObjectIdentifier(sender)]?(sender.state == .on); saveActivityPreferences() }
+    @objc private func changeActivitySound(_ sender: NSPopUpButton) { agentPreferences.sound = sender.titleOfSelectedItem ?? "Glass"; saveActivityPreferences() }
+    @objc private func changeActivityVolume(_ sender: NSSlider) { agentPreferences.volume = sender.floatValue; saveActivityPreferences() }
     private func refreshSettings() {
         updateChecks?.state = controller?.updater.automaticallyChecksForUpdates == true ? .on : .off
         updateDownloads?.state = controller?.updater.automaticallyDownloadsUpdates == true ? .on : .off

@@ -11,7 +11,7 @@ Spookky has a native terminal, workspace navigation, project and worktree operat
 | Locations and worktrees | Local, existing folders, create/clone, source selection, and explicit worktree operations implemented |
 | Files and changes | File tree, bounded previews, syntax colors, Git comparison scopes, and native diffs implemented |
 | Continuity | Short crash/reopen and reattachment checks pass; extended continuity remains blocked |
-| Distribution | Signing for distribution, notarization, runtime packaging, installation, and updates remain pending |
+| Distribution | Private local installation and signed release/update preparation implemented; signed delivery remains unverified |
 
 ## Next gates
 
@@ -20,7 +20,7 @@ Spookky has a native terminal, workspace navigation, project and worktree operat
 3. Verify provider responses and explicit history resume against supported CLI versions without changing their permissions.
 4. Exercise sleep, wake, reboot, and private-runtime failure with disposable sessions and recorded process identities.
 5. Confirm supported macOS versions and reproducible installation. Package the runtime and required dependency notices before distributing an app.
-6. Define the release and update process. Add CI only for commands that work on the chosen runner.
+6. Verify the signed release and update process in [the development lifecycle](lifecycle.md). Add CI only for commands that work on the chosen runner.
 
 ## Change acceptance
 
@@ -28,4 +28,4 @@ Use [acceptance](acceptance.md) and [performance](performance.md) to choose chec
 
 Preserve immediate shell access, drafts, process ownership, and workspace scope. Keep UI, scanning, Git operations, and persistence within the [architecture boundaries](architecture.md).
 
-Publication of source is separate from release readiness. The public repository does not grant an open-source license for original application code. Third-party attribution and licenses remain intact.
+Publication of source is separate from release readiness. Original code, documentation, and artwork use the MIT license. Third-party attribution and licenses remain intact.

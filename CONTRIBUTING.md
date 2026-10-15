@@ -18,6 +18,12 @@ Run the checks in [development](docs/development.md). Explain what changed, why,
 
 Keep Swift process launches as argument arrays. Never interpolate a path or prompt into a shell command. Operate only on Spookky's owned runtime and isolated test folders.
 
+## Open a pull request
+
+Use the repository's [ship skill](.agents/skills/ship/SKILL.md) for the standard delivery procedure. It groups changes into logical commits, rebases onto current main, verifies the affected behavior, audits public source, and opens a PR. It preserves the installed daily app.
+
+Claude Code exposes this shared skill as `/ship` through `.claude/skills/ship`. In Codex, invoke the repository's `$ship` skill or select **Ship Spookky** through `/skills`. If a personal skill has the same name, choose the one from this repository. See [Codex skill discovery](https://learn.chatgpt.com/docs/build-skills) and [Claude Code skills](https://code.claude.com/docs/en/skills).
+
 ## Review and license
 
 The maintainer reviews incoming changes. Keep pull requests focused and follow the [code of conduct](CODE_OF_CONDUCT.md). Contributions are accepted under the [MIT license](LICENSE). Retain third-party notices and document adopted dependencies in [THIRD_PARTY.md](THIRD_PARTY.md).

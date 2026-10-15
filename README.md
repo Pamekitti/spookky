@@ -36,7 +36,7 @@ Speed, bounded resource use, and reliable recovery guide the implementation. Per
 
 ## Status
 
-Spookky is an early development preview. The native app and a simulated HTML prototype are included. There is no packaged release yet.
+Spookky is an early development preview. The native app and a simulated HTML prototype are included. Private local installers support daily use. A signed public release is not available yet.
 
 Development currently targets Apple Silicon. The native build targets macOS 14, but compatibility with older systems has not been verified. Long-running session continuity, hands-on input and accessibility, provider compatibility, and distribution have remaining checks. See [current status](docs/status.md).
 
@@ -56,6 +56,8 @@ sh scripts/build_native.sh
 ```
 
 Open `Spookky.xcodeproj`, select the **Spookky** scheme, and run. Registration and opening a project never install its dependencies or run setup scripts.
+
+For daily development inside Spookky, use `python3 scripts/dev.py run` from each worktree. See the [development lifecycle](docs/lifecycle.md) for isolation and the main-to-installed-app update path.
 
 Git and agent CLIs are optional installations. Spookky does not open Apple's developer-tools installer when Git is absent.
 

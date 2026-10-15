@@ -108,16 +108,21 @@ def timing(resize=False, *, binary=NATIVE_BINARY, extra_arguments=(), prepare=No
                             "rss_mib_first_middle_last_medians": [statistics.median(memory[:block]), statistics.median(memory[block:2*block]), statistics.median(memory[2*block:])] if len(memory) >= 3 else [],
                             "maximum_surface_count": max(r["surfaceCount"] for r in rows),
                             "boundary": "Workspace selection to attached, laid out and focused native view. Excludes first terminal bytes and rendered-display latency."}
-        expected = json.loads((fixture.root / "fixture-history.json").read_text())["expected_history_marker"]
+        initial_marker = json.loads((fixture.root / "fixture-history.json").read_text())["expected_history_marker"]
         def identities():
             return subprocess.check_output([TMUX, "-S", str(fixture.root / "socket"), "list-panes", "-a", "-F", "#{session_name} #{pane_pid}"], text=True)
         before = identities()
+        visible_before = request_cpu(fixture).get("history_marker")
+        if not isinstance(visible_before, int):
+            raise RuntimeError("The pre-crash native viewport marker is unavailable.")
+        expected = visible_before
         fixture.process.kill(); fixture.process.wait()
         environment = dict(os.environ, SPOOKKY_M1_ROOT=str(fixture.root), SPOOKKY_M1_DATA=str(fixture.root / "metadata"))
         with (fixture.root / "app.log").open("a") as log:
             fixture.process = subprocess.Popen([str(binary), "--workspace", "--workspace-measure", "--workspace-benchmark-restoring", *extra_arguments], env=environment, stdout=log, stderr=log)
             deadline = time.monotonic() + 30
             restored = None
+            observed = {}
             while time.monotonic() < deadline:
                 try:
                     observed = request_cpu(fixture)
@@ -131,7 +136,10 @@ def timing(resize=False, *, binary=NATIVE_BINARY, extra_arguments=(), prepare=No
                       "no_extra_workspace": len(state["workspaces"]) == 1,
                       "no_extra_tabs": len(state["workspaces"][0]["tabs"]) == 4}
             result["crash_restore"] = {"checks": checks, "failure_count": sum(not value for value in checks.values()),
-                                      "expected_history_marker": expected, "boundary": "Real app crash and metadata reload, private process identities, and Ghostty terminal-state viewport. Not rendered-display latency."}
+                                      "expected_history_marker": expected, "initial_history_marker": initial_marker,
+                                      "pre_crash_history_marker": visible_before,
+                                      "last_observed_history_marker": observed.get("history_marker"),
+                                      "boundary": "Real app crash and metadata reload, private process identities, and Ghostty terminal-state viewport. Not rendered-display latency."}
         return result
 
 

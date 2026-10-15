@@ -1,19 +1,27 @@
 import Foundation
+import CryptoKit
 
 public struct AppPaths: Sendable {
     public let data: URL
     public let runtime: URL
     public let production: Bool
+    public let developmentID: String?
 
-    public init(bundleID: String?, home: URL, userID: UInt32, environment: [String: String] = ProcessInfo.processInfo.environment) {
+    public init(bundleID: String?, home: URL, userID: UInt32, environment: [String: String] = ProcessInfo.processInfo.environment,
+                developmentCheckout: String? = Bundle.main.object(forInfoDictionaryKey: "SpookkyDevelopmentCheckout") as? String) {
         production = bundleID == "dev.spookky.app"
+        if !production, let checkout = developmentCheckout, !checkout.isEmpty {
+            let canonical = URL(fileURLWithPath: checkout).standardizedFileURL.resolvingSymlinksInPath().path
+            developmentID = String(SHA256.hash(data: Data(canonical.utf8)).map { String(format: "%02x", $0) }.joined().prefix(16))
+        } else { developmentID = nil }
         let support = home.appendingPathComponent("Library/Application Support/Spookky")
         if production {
             data = support
             runtime = URL(fileURLWithPath: "/tmp/spookky-app-\(userID)")
         } else {
-            data = environment["SPOOKKY_M1_DATA"].map { URL(fileURLWithPath: $0) } ?? support.appendingPathComponent("Development")
-            runtime = URL(fileURLWithPath: environment["SPOOKKY_M1_ROOT"] ?? "/tmp/spookky-m1-\(userID)")
+            let development = support.appendingPathComponent("Development")
+            data = environment["SPOOKKY_M1_DATA"].map { URL(fileURLWithPath: $0) } ?? developmentID.map { development.appendingPathComponent($0) } ?? development
+            runtime = URL(fileURLWithPath: environment["SPOOKKY_M1_ROOT"] ?? developmentID.map { "/tmp/spookky-dev-\(userID)-\($0)" } ?? "/tmp/spookky-m1-\(userID)")
         }
     }
 }
