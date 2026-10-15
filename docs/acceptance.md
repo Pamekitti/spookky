@@ -64,6 +64,8 @@ The maintainer confirmed the physical keyboard checks on 13 October 2026. Cmd+T 
 - [ ] Unified/split diffs, old/new line numbers, context, maximize/restore, and mouse/keyboard resizing work.
 - [ ] File previews do not execute content or follow unsafe symlinks outside the requested scope.
 
+Targeted diff check, 15 October 2026: modified → untracked → modified preserved code and gutter widths in unified and split views. The Release fixture passed all 24 checks and 100 selection cycles. Preview p95 was 100.2 ms across 30 samples; syntax readiness p95 was 163.2 ms. Native visual checks covered M → A → M in dark appearance and narrow resizing in light appearance. These checks do not establish full v1 acceptance or installed delivery.
+
 ## Failure and lifecycle checks
 
 Extended continuity remains blocked by an unsent-input preservation failure. The cause of the missing fixture panes is unresolved. See [current status](status.md).
