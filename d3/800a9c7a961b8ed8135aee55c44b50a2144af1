@@ -1,0 +1,19 @@
+App/AppServices.swift
+  s_aad90be40b2891::t_d2a55ff9ee012a 187
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d3800a9c7a961b8ed8135aee55c44b50a2144af1",
+  "prompts": {},
+  "sessions": {
+    "s_aad90be40b2891": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a14062-f3a9-78c2-a457-19b8789f45a4",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
