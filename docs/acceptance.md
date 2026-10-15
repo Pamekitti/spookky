@@ -44,6 +44,10 @@ The downloaded 0.1.3 DMG passed checksum verification. Build 103 is installed in
 The maintainer confirmed the physical keyboard checks on 13 October 2026. Cmd+T opens Terminal; Cmd+W then Escape cancels closure. Cmd+W then Enter closes the final tab and window without a replacement blank page. Cmd+T then reopens one terminal. Text selection, Cmd+C, and fullscreen continue to work. This confirms the targeted interaction checks on the maintainer's Mac. The broader input, accessibility, and continuity gates remain separate.
 
 - [ ] Tabs can be selected, renamed, closed, and explicitly split; active tabs stay visible in overflow.
+- [ ] Project clicks collapse/expand rows without creating workspaces or stopping processes; collapse survives restore. Project + and workspace search reveal the group.
+- [ ] Sidebar add and workspace/tab close actions reveal on hover and keyboard focus, keep fixed title alignment, and retain close confirmations.
+- [ ] Long workspace titles fade and reveal once; short titles remain still and Reduce Motion disables scrolling.
+- [ ] GitHub origin-owner avatars load without blocking UI; offline, invalid-image, and non-GitHub cases retain cached images or monograms.
 - [ ] Project/workspace context menus support right-click and keyboard access.
 - [ ] Tab/workspace switching preserves drafts, processes, output, scroll, and file selection.
 - [ ] Root directory identity and start subdirectory remain distinct.

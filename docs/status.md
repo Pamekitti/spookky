@@ -42,3 +42,13 @@ The rebuild check exposed bundled tmux clients exiting with SIGKILL after helper
 The release workflow YAML was parsed locally. Its successful-main trigger, exact source checkout, opt-in variable, and protected release environment were inspected. The workflow was not run on GitHub. The active path remains private local installers. Signed automatic delivery is deferred. See the [development lifecycle](lifecycle.md).
 
 See [acceptance](acceptance.md) for the full requirement matrix and [development](development.md) for reproducible commands. The source is MIT-licensed. A signed public installer is not available yet.
+
+## Sidebar controls, 14 October 2026
+
+Project rows expand and collapse without creating workspaces. Separate add controls create workspaces. Workspace and tab close controls reveal on hover or keyboard focus. Long workspace titles fade and reveal in one pass. GitHub origin-owner avatars use a bounded asynchronous cache with monogram fallbacks.
+
+Targeted verification passed 89 XCTest cases, 17 Swift Testing cases, 30 Python tests after rebasing onto current main, the Release build, and the repository checker. The native sidebar fixture passed 27 checks. It covered hover hit-testing, focus retention, button accessibility roles, a 24-point tab close target, title animation, and preservation of a real shell process and unsent input. Collapsing a project releases its workspace views and retains its project control. The existing native close fixture passed all 12 checks. These results do not complete the full acceptance suite.
+
+Native AppKit captures covered 1120 by 760 points in dark appearance and 650 by 450 in light appearance. Native UI automation confirmed project collapse, keyboard expansion, focus, and draft preservation. The offscreen WebKit check passed 20 checks at desktop, 390px, and 320px widths without opening a browser window. It caught and verified fixes for project focus loss and overridden icon sizing. Four focus-dependent CSS checks were skipped because the offscreen page has no active OS keyboard window. Human pointer checks and spoken VoiceOver remain unverified.
+
+One disposable-shell sample measured 218.8 MiB app RSS and 19.4 MiB runtime/shell RSS, for a 238.1 MiB process RSS sum. App CPU averaged 2.40 percent during title reveal and avatar loading, then 0.42 percent after settling. The workload included native bitmap captures. This short sample is not a general performance result.
