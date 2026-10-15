@@ -184,7 +184,7 @@ import SpookkyCore
         let volume = NSSlider(value: Double(agentPreferences.volume), minValue: 0, maxValue: 1, target: self, action: #selector(changeActivityVolume(_:)))
         volume.setAccessibilityLabel("Notification volume"); volume.widthAnchor.constraint(equalToConstant: 150).isActive = true
         let soundRow = NSStackView(views: [sounds, volume]); soundRow.spacing = 12
-        let note = NSTextField(wrappingLabelWithString: "Monitoring begins on the next agent launch. Codex skips hook trust review for launches in Spookky. Existing CLI sound hooks stay active.")
+        let note = NSTextField(wrappingLabelWithString: "Monitoring begins on the next agent launch. Codex keeps its normal hook trust review. Existing CLI sound hooks stay active.")
         note.font = .systemFont(ofSize: 11); note.textColor = .secondaryLabelColor
         let testResult = NSTextField(wrappingLabelWithString: ""); testResult.font = .systemFont(ofSize: 11); testResult.textColor = .secondaryLabelColor
         let test = ActionButton("Test notification") { [weak self, weak testResult] in
