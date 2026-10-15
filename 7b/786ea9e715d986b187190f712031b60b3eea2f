@@ -1,0 +1,19 @@
+Tests/SpookkyRuntimeTests/SidebarTests.swift
+  s_ce530409cfeab0::t_4bd931effe38f5 55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7b786ea9e715d986b187190f712031b60b3eea2f",
+  "prompts": {},
+  "sessions": {
+    "s_ce530409cfeab0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1361b-6436-7c00-b5fb-3d42b2a79592",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
