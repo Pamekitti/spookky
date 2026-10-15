@@ -23,7 +23,7 @@ jobs:
       - name: Select affected checks
         id: scope
         run: python3 scripts/check_scope.py --event "$GITHUB_EVENT_PATH" --github-output "$GITHUB_OUTPUT"
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
           cache: ${{ github.event_name == 'pull_request' && steps.scope.outputs.website == 'true' && 'npm' || '' }}
