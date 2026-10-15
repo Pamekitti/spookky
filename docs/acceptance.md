@@ -96,3 +96,17 @@ Extended continuity remains blocked by an unsent-input preservation failure. The
 - [ ] Performance report follows [the measurement protocol](performance.md).
 
 Use temporary repositories and app-specific runtime directories for destructive fixtures. Never use the user's working repositories as test data. Mark evidence with exact app/dependency/CLI versions and whether each check is automated or manual.
+
+## Agent activity checks
+
+- [x] Activity is separate from terminal lifecycle. Process presence alone stays Unknown.
+- [x] Binding, invocation, provider, and secret validation reject foreign registrations. Child events do not finish the parent.
+- [x] Stale and duplicate events, late completion after process exit, unread acknowledgment, monitoring suspension, preview privacy, and metadata migration have targeted tests.
+- [x] Both adapters preserve literal prompt arguments and avoid model permission bypasses. Hook fixtures exercise questions, child events, successful completion, and failure.
+- [x] Minimal real turns with Codex CLI 0.162.1 and Claude Code 2.1.296 produce working and completion hooks. Manual Codex launch through the native app's normal interactive zsh also produces unread completion.
+- [x] Native dark/light layouts, 1120×760 and 680×480 windows, overflow labels, completion acknowledgment, Mark unread, Settings controls, child count, and centered Working spinner were inspected through automated native interaction.
+- [ ] Real interactive approval and question dialogs are exercised for each supported CLI version.
+- [ ] Authorized native banners, app sounds, quiet-mode suppression, and exact notification click-through pass end to end.
+- [ ] Spoken VoiceOver and physical keyboard use of the new controls are checked.
+
+On 15 October 2026, macOS returned "Notifications are not allowed for this application" for the isolated development build. Settings displayed that error. Native banner and notification click-through acceptance remains open. Simulated hook payloads do not establish real provider permission-dialog compatibility. See [agent activity](agent-activity.md) and [current status](status.md).

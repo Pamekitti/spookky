@@ -108,7 +108,7 @@ final class WorkspaceNamingTests: XCTestCase {
         }
         let database = try WorkspaceDatabase(path: path)
         let loaded = try await database.load(), restored = try XCTUnwrap(loaded)
-        XCTAssertEqual(restored.version, 4)
+        XCTAssertEqual(restored.version, 5)
         XCTAssertEqual(restored.workspaces.map(\.id), legacy.workspaces.map(\.id))
         XCTAssertEqual(restored.workspaces.map(\.tabs), legacy.workspaces.map(\.tabs))
         XCTAssertEqual(restored.workspaces.map(\.selectedLocation), legacy.workspaces.map(\.selectedLocation))
@@ -119,7 +119,47 @@ final class WorkspaceNamingTests: XCTestCase {
         try await database.save(restored)
         let reopened = try WorkspaceDatabase(path: path)
         let again = try await reopened.load(); XCTAssertEqual(again, restored)
-        let backup = try XCTUnwrap(FileManager.default.contentsOfDirectory(atPath: root.path).first { $0.contains("pre-v4") })
+        let backup = try XCTUnwrap(FileManager.default.contentsOfDirectory(atPath: root.path).first { $0.contains("pre-v5") })
+        let preserved = try DatabaseQueue(path: root.appendingPathComponent(backup).path)
+        let bytes = try await preserved.read { try Data.fetchOne($0, sql: "SELECT payload FROM workspace_snapshot") }
+        XCTAssertEqual(bytes, payload)
+    }
+
+    func testActivityOnlyVersionFourMigrationPreservesUnreadAndDraft() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try PrivateFiles.directory(root)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = root.appendingPathComponent("state.sqlite").path
+        var state = WorkspaceState(); state.version = 4
+        let workspace = state.newWorkspace(directory: "/tmp")
+        state.renameWorkspace(workspace, "New workspace")
+        let tab = state.selectedTab!.id
+        let spec = try LaunchSpec(tool: .codex, executable: "/bin/cat", directory: "/tmp")
+        state.apply(.preparing, to: tab); state.apply(.intent(spec, .none), to: tab)
+        state.recordAgentEvent(AgentEvent(bindingID: spec.operationID, invocationID: UUID(), secret: UUID(), provider: .codex, kind: .finished))
+        state.newTab()
+        state.editDraft(state.selectedTab!.id, tool: .claude, prompt: "Retain unsent 日本語")
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(state)) as? [String: Any])
+        var workspaces = try XCTUnwrap(object["workspaces"] as? [[String: Any]])
+        workspaces[0].removeValue(forKey: "automaticTitle"); workspaces[0]["customTitle"] = false
+        object["workspaces"] = workspaces
+        let payload = try JSONSerialization.data(withJSONObject: object)
+        let queue = try DatabaseQueue(path: path)
+        try await queue.write { db in
+            try db.execute(sql: "CREATE TABLE workspace_snapshot (id INTEGER PRIMARY KEY, version INTEGER NOT NULL, payload BLOB NOT NULL)")
+            try db.execute(sql: "CREATE TABLE grdb_migrations (identifier TEXT NOT NULL PRIMARY KEY)")
+            for version in 1...4 { try db.execute(sql: "INSERT INTO grdb_migrations VALUES (?)", arguments: ["workspace-v\(version)"]) }
+            try db.execute(sql: "INSERT INTO workspace_snapshot VALUES (1, 4, ?)", arguments: [payload])
+        }
+        let database = try WorkspaceDatabase(path: path)
+        let loaded = try await database.load(), restored = try XCTUnwrap(loaded)
+        XCTAssertEqual(restored.version, 5)
+        XCTAssertEqual(restored.selected?.automaticTitle, .friendly)
+        XCTAssertFalse(WorkspaceNaming.isGeneric(restored.selected!.title))
+        XCTAssertEqual(restored.workspaces[0].tabs, state.workspaces[0].tabs)
+        XCTAssertTrue(restored.tab(tab)?.activity?.unread == true)
+        XCTAssertEqual(restored.selectedTab?.draft.prompt, "Retain unsent 日本語")
+        let backup = try XCTUnwrap(FileManager.default.contentsOfDirectory(atPath: root.path).first { $0.contains("pre-v5") })
         let preserved = try DatabaseQueue(path: root.appendingPathComponent(backup).path)
         let bytes = try await preserved.read { try Data.fetchOne($0, sql: "SELECT payload FROM workspace_snapshot") }
         XCTAssertEqual(bytes, payload)
@@ -137,13 +177,13 @@ final class WorkspaceNamingTests: XCTestCase {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let path = root.appendingPathComponent("state.sqlite").path
-        var state = WorkspaceState(); state.version = 5; state.newWorkspace(directory: "/tmp")
+        var state = WorkspaceState(); state.version = 6; state.newWorkspace(directory: "/tmp")
         let payload = try JSONEncoder().encode(state), queue = try DatabaseQueue(path: path)
         try await queue.write { db in
             try db.execute(sql: "CREATE TABLE workspace_snapshot (id INTEGER PRIMARY KEY, version INTEGER NOT NULL, payload BLOB NOT NULL)")
             try db.execute(sql: "CREATE TABLE grdb_migrations (identifier TEXT NOT NULL PRIMARY KEY)")
             try db.execute(sql: "INSERT INTO grdb_migrations VALUES ('workspace-v1'), ('workspace-v2'), ('workspace-v3')")
-            try db.execute(sql: "INSERT INTO workspace_snapshot VALUES (1, 5, ?)", arguments: [payload])
+            try db.execute(sql: "INSERT INTO workspace_snapshot VALUES (1, 6, ?)", arguments: [payload])
         }
         XCTAssertThrowsError(try WorkspaceDatabase(path: path))
         let bytes = try await queue.read { try Data.fetchOne($0, sql: "SELECT payload FROM workspace_snapshot") }

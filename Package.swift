@@ -27,7 +27,7 @@ let package = Package(
         .target(name: "SpookkyGit", dependencies: ["SpookkyCore", "SpookkyFiles"]),
         .target(name: "SpookkyWorkspace", dependencies: ["SpookkyCore", "SpookkyRuntime", "SpookkyGit"]),
         .target(name: "SpookkyPersistence", dependencies: ["SpookkyCore", "SpookkyWorkspace", .product(name: "GRDB", package: "GRDB.swift")]),
-        .executableTarget(name: "SpookkyLaunch", dependencies: ["SpookkyCore"]),
+        .executableTarget(name: "SpookkyLaunch", dependencies: ["SpookkyCore", "SpookkyRuntime"]),
         .executableTarget(name: "SpookkyRuntimeCheck", dependencies: ["SpookkyCore", "SpookkyRuntime"]),
         .testTarget(name: "SpookkyRuntimeTests", dependencies: ["SpookkyCore", "SpookkyRuntime", "SpookkyWorkspace", "SpookkyPersistence", "SpookkyGit", "SpookkyFiles", "SpookkySyntax"])
     ]
