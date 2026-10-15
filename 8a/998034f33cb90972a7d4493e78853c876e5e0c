@@ -1,0 +1,43 @@
+App/AgentNotifications.swift
+  s_ce530409cfeab0::t_059c5f180c3bb6 1-146
+App/AppServices.swift
+  s_0c78300150652f::t_9ebf34376b7187 34-37,41,141,155,160-206
+App/WorkspaceWindowController.swift
+  s_ce530409cfeab0::t_78640ccae10352 62-68,75,93-94,98,100-111,117,156-258,385-386,517-523,530-536,619-629,668,670,673-674,676-677,679-680,687,757,785,810,855-859,911,918,1013,1376-1397
+Spookky.xcodeproj/project.pbxproj
+  s_0c78300150652f::t_8552e3c524a9f7 3-4,71,77
+scripts/benchmark_activity.py
+  s_cb35f5d0617a39::t_25efa7f3711f16 1-116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8a998034f33cb90972a7d4493e78853c876e5e0c",
+  "prompts": {},
+  "sessions": {
+    "s_0c78300150652f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1361b-6436-7c00-b5fb-3d42b2a79592",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_cb35f5d0617a39": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a135fe-93f8-73f0-aa5c-fcb91e3fbe6c",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_ce530409cfeab0": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1361b-6436-7c00-b5fb-3d42b2a79592",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
