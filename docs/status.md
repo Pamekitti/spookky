@@ -33,7 +33,7 @@ Unknown activity stays unknown. A running process does not prove an agent is wor
 
 ## Workspace naming verification
 
-On 14 October 2026, new workspaces received unique friendly names. The first composer starting prompt assigned a bounded title once, including from a later agent tab. Manual names remained fixed. Metadata version 4 replaced known generic automatic labels and preserved readable names, drafts, IDs, and bindings with a pre-migration backup.
+On 14 October 2026, new workspaces received unique friendly names. The first composer starting prompt assigned a bounded title once, including from a later agent tab. Manual names remained fixed. Metadata version 5 replaced known generic automatic labels and preserved readable names, drafts, IDs, and bindings with a pre-migration backup.
 
 The full Swift run passed 90 XCTest cases and 17 Swift Testing cases. Seven targeted naming tests then passed, including an additional future-snapshot rejection test. The 22 Python tests, repository checker, and native Debug build passed. Native GUI checks verified shell input, a later-tab prompt rename, manual rename precedence, and crash/reopen with the same four fixture process identities. Desktop and 320px prototype layouts were checked. Local provider fixtures received the full multiline prompts; this does not establish real-provider compatibility or extended continuity.
 

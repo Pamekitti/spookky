@@ -207,8 +207,8 @@ final class AgentActivityTests: XCTestCase {
         }
         let database = try WorkspaceDatabase(path: path)
         let restored = try await database.load()
-        XCTAssertEqual(restored?.version, 4); XCTAssertEqual(restored?.workspaces, old.workspaces)
+        XCTAssertEqual(restored?.version, 5); XCTAssertEqual(restored?.workspaces, old.workspaces)
         XCTAssertNil(restored?.selectedTab?.activity)
-        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: root.path).contains { $0.contains("pre-v4") })
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: root.path).contains { $0.contains("pre-v5") })
     }
 }

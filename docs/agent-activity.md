@@ -58,7 +58,7 @@ Only the latest top-level CLI invocation in a terminal owns its activity. Use se
 
 ## State and runtime cost
 
-SQLite metadata version 4 adds one bounded activity record per tab and completion acknowledgment IDs. Migration creates a private pre-v4 backup. Child presence is transient and capped at 64 records per terminal. Restored activity becomes Unknown until a fresh event arrives. Restoring does not launch agents, resend prompts, or replay notifications.
+SQLite metadata version 5 adds one bounded activity record per tab and completion acknowledgment IDs. Migration creates a private pre-v5 backup. Child presence is transient and capped at 64 records per terminal. Restored activity becomes Unknown until a fresh event arrives. Restoring does not launch agents, resend prompts, or replay notifications.
 
 The app owns one private local datagram socket. Each monitored CLI has one waiting launch helper. Each provider event briefly starts a callback helper. There is no transcript scan or periodic status poll. Callback input is capped at 1 MiB; socket messages are capped at 8 KiB. Socket errors and malformed callbacks produce no output and exit successfully. A monitoring registration failure starts the original CLI without injected hooks.
 

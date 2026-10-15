@@ -164,7 +164,7 @@ extension WorkspaceState {
 }
 
 public struct WorkspaceState: Codable, Equatable, Sendable {
-    public var version = 4
+    public var version = 5
     public var locations: LocationMetadata?
     public var projectDraft: ProjectCreationDraft?
     public private(set) var projects: [Project] = []
@@ -344,7 +344,6 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
                 workspaces[index].automaticTitle = .friendly
             } else { workspaces[index].automaticTitle = .legacy }
         }
-        version = 4
     }
     public mutating func renameTab(_ id: UUID, _ name: String) {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -432,7 +431,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     public func validate() throws {
         let tabs = workspaces.flatMap(\.tabs)
         for operation in locations?.operations ?? [] { try operation.request.validate() }
-        guard [1, 2, 3, 4].contains(version),
+        guard [1, 2, 3, 4, 5].contains(version),
               Set(locations?.operations.map(\.id) ?? []).count == (locations?.operations.count ?? 0),
               Set(locations?.checkouts.map(\.id) ?? []).count == (locations?.checkouts.count ?? 0),
               (locations?.operations.allSatisfy { $0.request.destination.hasPrefix("/") && !$0.request.destination.contains("\0") } ?? true),
