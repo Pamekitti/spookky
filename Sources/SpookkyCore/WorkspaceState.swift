@@ -98,6 +98,7 @@ public struct Workspace: Codable, Identifiable, Equatable, Sendable {
     public var anchor: WorkspaceLocation?
     public var title: String
     public var customTitle = false
+    public var automaticTitle: AutomaticWorkspaceTitle?
     public var tabs: [WorkspaceTab]
     public var selectedTabID: UUID
     public var locationDraft: LocationDraft?
@@ -105,15 +106,16 @@ public struct Workspace: Codable, Identifiable, Equatable, Sendable {
     public var fileView: FileViewState?
     public var split: SplitLayout?
     public var directory: String { anchor?.path ?? selectedLocation.path }
-    public init(location: WorkspaceLocation, projectID: UUID? = nil, tool: SessionTool = .shell, id: UUID = UUID()) {
+    public init(location: WorkspaceLocation, projectID: UUID? = nil, tool: SessionTool = .shell, id: UUID = UUID(),
+                title: String = WorkspaceNaming.friendly(excluding: [])) {
         self.id = id; self.projectID = projectID; selectedLocation = location
-        title = "New workspace"
+        self.title = title; automaticTitle = .friendly
         let tab = WorkspaceTab(tool: tool); tabs = [tab]; selectedTabID = tab.id
     }
 }
 
 public struct WorkspaceState: Codable, Equatable, Sendable {
-    public var version = 3
+    public var version = 4
     public var locations: LocationMetadata?
     public var projectDraft: ProjectCreationDraft?
     public private(set) var projects: [Project] = []
@@ -141,7 +143,8 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
         newWorkspace(location: WorkspaceLocation(path: directory))
     }
     @discardableResult public mutating func newWorkspace(location: WorkspaceLocation, projectID: UUID? = nil) -> UUID {
-        let workspace = Workspace(location: location, projectID: projectID, tool: lastTool)
+        let workspace = Workspace(location: location, projectID: projectID, tool: lastTool,
+                                  title: WorkspaceNaming.friendly(excluding: workspaces.map(\.title)))
         workspaces.append(workspace); selectedWorkspaceID = workspace.id
         if let projectID { setProjectCollapsed(projectID, false) }
         return workspace.id
@@ -197,6 +200,12 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
             guard tab.status == .preparing, tab.binding == nil,
                   tab.launch == nil || tab.launch == spec else { return }
             updateTab(id) { $0.launch = spec; $0.status = .launching; $0.promptDelivery = prompt }
+            if spec.tool != .shell, prompt != .none,
+               let index = workspaces.firstIndex(where: { $0.tabs.contains { $0.id == id } }),
+               !workspaces[index].customTitle, workspaces[index].automaticTitle == .friendly,
+               let title = WorkspaceNaming.promptTitle(tab.draft.prompt) {
+                workspaces[index].title = title; workspaces[index].automaticTitle = .prompt
+            }
         case .observed(let binding, let dead, let exitCode, let prompt):
             guard tab.launch?.operationID == binding.id || tab.binding?.id == binding.id else { return }
             updateTab(id) {
@@ -257,10 +266,6 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     public mutating func bindWorkspace(_ id: UUID) {
         guard let index = workspaces.firstIndex(where: { $0.id == id }), workspaces[index].anchor == nil else { return }
         workspaces[index].anchor = workspaces[index].selectedLocation
-        if !workspaces[index].customTitle {
-            let path = workspaces[index].selectedLocation.path
-            workspaces[index].title = path == FileManager.default.homeDirectoryForCurrentUser.path ? "Home" : URL(fileURLWithPath: path).lastPathComponent
-        }
         if let projectID = workspaces[index].projectID, let p = projects.firstIndex(where: { $0.id == projectID }) { projects[p].lastUsed = Date() }
     }
     @discardableResult public mutating func registerProject(_ location: WorkspaceLocation) -> UUID {
@@ -278,6 +283,15 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     public mutating func renameWorkspace(_ id: UUID, _ name: String) {
         guard let index = workspaces.firstIndex(where: { $0.id == id }), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         workspaces[index].title = name; workspaces[index].customTitle = true
+    }
+    public mutating func migrateWorkspaceNames() {
+        for index in workspaces.indices where workspaces[index].automaticTitle == nil {
+            if !workspaces[index].customTitle && WorkspaceNaming.isGeneric(workspaces[index].title) {
+                workspaces[index].title = WorkspaceNaming.friendly(excluding: workspaces.map(\.title))
+                workspaces[index].automaticTitle = .friendly
+            } else { workspaces[index].automaticTitle = .legacy }
+        }
+        version = 4
     }
     public mutating func renameTab(_ id: UUID, _ name: String) {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -365,7 +379,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     public func validate() throws {
         let tabs = workspaces.flatMap(\.tabs)
         for operation in locations?.operations ?? [] { try operation.request.validate() }
-        guard [1, 2, 3].contains(version),
+        guard [1, 2, 3, 4].contains(version),
               Set(locations?.operations.map(\.id) ?? []).count == (locations?.operations.count ?? 0),
               Set(locations?.checkouts.map(\.id) ?? []).count == (locations?.checkouts.count ?? 0),
               (locations?.operations.allSatisfy { $0.request.destination.hasPrefix("/") && !$0.request.destination.contains("\0") } ?? true),
