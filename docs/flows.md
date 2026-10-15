@@ -44,7 +44,8 @@ Opening or reopening Spookky with no remaining workspaces shows the Home start s
 | Action | Result |
 | --- | --- |
 | Cmd+N / New workspace | Create and select an unbound workspace immediately. |
-| Project + | Create an unbound workspace with that project selected, Local by default. |
+| Project row | Toggle its workspace rows without changing the selected workspace or stopping processes. |
+| Project + | Create an unbound workspace with that project selected, Local by default, and expand the group. |
 | Cmd+T while a running/ended tab is selected | Open a blank tab in the same workspace. |
 | Cmd+T while a blank tab is selected | Open Terminal at the selected/inherited location immediately. |
 | Cmd+T with an agent prompt draft | Preserve that draft in its tab and open Terminal in another tab. |
@@ -54,7 +55,7 @@ Opening or reopening Spookky with no remaining workspaces shows the Home start s
 | Enter in initial prompt | Insert a newline. |
 | Cmd+W / tab × | Close selected tab, confirming active agent/job termination. |
 | Workspace × | Close workspace, confirming active sessions; keep files and branch. |
-| Cmd+K | Find a workspace. |
+| Cmd+K | Find a workspace and reveal its parent project group. |
 | Right-click / Shift+F10 on a sidebar entry | Open secondary contextual actions. |
 | Double-click selected terminal tab | Rename its UI label. |
 | Right-sidebar toggle | Show/hide Files and Changes. Never start a process. |
@@ -104,6 +105,12 @@ New branch names can be generated. When continuing an existing branch, reuse its
 Creating a worktree and launching an agent are separate operations. An agent failure does not discard a successful worktree. Retry reuses that checkout and does not duplicate tabs or processes.
 
 ## Launch and initial prompt
+
+New workspaces receive a friendly two-word name, such as Quiet Maple. Generated friendly names are unique among open workspaces; a numbered variant is used when all word combinations are occupied. Starting a shell or an agent without a prompt keeps that name.
+
+The first starting prompt supplied through Spookky's composer names the workspace once. This can happen in a later agent tab. Use the first nonempty line, collapse whitespace, and keep up to six words and 48 Unicode characters. The title is saved with accepted launch intent before process creation. Failures, retries, reconnects, and later prompts keep it. A manual rename always wins. Naming does not indicate prompt acknowledgment. Input typed directly in a CLI is not inspected.
+
+Metadata upgrade replaces automatic New workspace and workspace-xxxxxxxx labels, where the suffix is eight hexadecimal characters. Other saved names and every manual name remain intact. Folder and branch names are independent of the visible workspace title.
 
 The start page uses one composer with a tool picker. For agents, the prompt field is visible and optional. With no prompt the action opens the CLI; with text it starts the CLI with that instruction. Terminal mode has one direct launch action and a Cmd+T hint.
 

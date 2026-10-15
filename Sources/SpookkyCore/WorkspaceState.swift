@@ -43,6 +43,7 @@ public struct Project: Codable, Identifiable, Equatable, Sendable {
     public var location: WorkspaceLocation
     public var preferredSource: String?
     public var lastUsed: Date?
+    public var isCollapsed: Bool?
     public init(id: UUID = UUID(), name: String, location: WorkspaceLocation) {
         self.id = id; self.name = name; self.location = location
     }
@@ -70,6 +71,7 @@ public struct WorkspaceTab: Codable, Identifiable, Equatable, Sendable {
     public var promptDelivery: PromptDelivery = .none
     public var exitCode: Int?
     public var viewport: SessionViewport?
+    public var activity: AgentActivity?
     public init(id: UUID = UUID(), tool: SessionTool = .shell) { self.id = id; draft = TerminalDraft(tool: tool) }
     public var isEditable: Bool { status == .draft || (status == .failed && failure?.phase == .validation) }
 }
@@ -97,6 +99,7 @@ public struct Workspace: Codable, Identifiable, Equatable, Sendable {
     public var anchor: WorkspaceLocation?
     public var title: String
     public var customTitle = false
+    public var automaticTitle: AutomaticWorkspaceTitle?
     public var tabs: [WorkspaceTab]
     public var selectedTabID: UUID
     public var locationDraft: LocationDraft?
@@ -104,15 +107,64 @@ public struct Workspace: Codable, Identifiable, Equatable, Sendable {
     public var fileView: FileViewState?
     public var split: SplitLayout?
     public var directory: String { anchor?.path ?? selectedLocation.path }
-    public init(location: WorkspaceLocation, projectID: UUID? = nil, tool: SessionTool = .shell, id: UUID = UUID()) {
+    public var activityState: AgentActivityState? {
+        tabs.compactMap { tab -> AgentActivityState? in
+            guard let activity = tab.activity else { return nil }
+            return activity.unread && activity.displayState.priority < AgentActivityState.finished.priority ? .finished : activity.displayState
+        }.filter { $0 != .idle }.max { $0.priority < $1.priority }
+    }
+    public var needsAttention: Bool { tabs.contains { $0.activity?.needsAttention == true } }
+    public init(location: WorkspaceLocation, projectID: UUID? = nil, tool: SessionTool = .shell, id: UUID = UUID(),
+                title: String = WorkspaceNaming.friendly(excluding: [])) {
         self.id = id; self.projectID = projectID; selectedLocation = location
-        title = "New workspace"
+        self.title = title; automaticTitle = .friendly
         let tab = WorkspaceTab(tool: tool); tabs = [tab]; selectedTabID = tab.id
     }
 }
 
+extension WorkspaceState {
+    @discardableResult public mutating func recordAgentEvent(_ event: AgentEvent) -> UUID? {
+        guard event.isValid,
+              let tab = workspaces.flatMap(\.tabs).first(where: { $0.binding?.id == event.bindingID || $0.launch?.operationID == event.bindingID }),
+              ![TabStatus.draft, .preparing].contains(tab.status) else { return nil }
+        if tab.status == .ended && ![AgentEventKind.finished, .failed, .interrupted, .detached].contains(event.kind) { return nil }
+        var activity = tab.activity ?? AgentActivity(invocationID: event.invocationID, provider: event.provider)
+        if activity.invocationID != event.invocationID {
+            guard event.childID == nil else { return nil }
+            let unread = activity.unread
+            activity = AgentActivity(invocationID: event.invocationID, provider: event.provider)
+            activity.manualUnread = unread
+        }
+        guard activity.apply(event) else { return nil }
+        if tab.status == .ended { activity.disconnect() }
+        updateTab(tab.id) { $0.activity = activity }
+        return tab.id
+    }
+    public mutating func acknowledgeAgent(_ id: UUID) { updateTab(id) { $0.activity?.acknowledge() } }
+    public mutating func markAgentUnread(_ id: UUID) { updateTab(id) { $0.activity?.manualUnread = true } }
+    public mutating func resetAgent(_ id: UUID) { updateTab(id) { $0.activity?.reset() } }
+    public mutating func suspendAgentMonitoring(_ provider: SessionTool) {
+        for tab in workspaces.flatMap(\.tabs) where tab.activity?.provider == provider {
+            updateTab(tab.id) { $0.activity?.restore() }
+        }
+    }
+    public mutating func clearAgentPreviews() {
+        for tab in workspaces.flatMap(\.tabs) where tab.activity?.preview != nil {
+            updateTab(tab.id) { $0.activity?.preview = nil }
+        }
+    }
+    public mutating func restoreAgentActivity() {
+        for tab in workspaces.flatMap(\.tabs) {
+            if tab.activity != nil { updateTab(tab.id) { $0.activity?.restore() } }
+            else if let binding = tab.binding, binding.tool != .shell {
+                updateTab(tab.id) { $0.activity = AgentActivity(invocationID: binding.id, provider: binding.tool) }
+            }
+        }
+    }
+}
+
 public struct WorkspaceState: Codable, Equatable, Sendable {
-    public var version = 3
+    public var version = 5
     public var locations: LocationMetadata?
     public var projectDraft: ProjectCreationDraft?
     public private(set) var projects: [Project] = []
@@ -140,15 +192,29 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
         newWorkspace(location: WorkspaceLocation(path: directory))
     }
     @discardableResult public mutating func newWorkspace(location: WorkspaceLocation, projectID: UUID? = nil) -> UUID {
-        let workspace = Workspace(location: location, projectID: projectID, tool: lastTool)
-        workspaces.append(workspace); selectedWorkspaceID = workspace.id; return workspace.id
+        let workspace = Workspace(location: location, projectID: projectID, tool: lastTool,
+                                  title: WorkspaceNaming.friendly(excluding: workspaces.map(\.title)))
+        workspaces.append(workspace); selectedWorkspaceID = workspace.id
+        if let projectID { setProjectCollapsed(projectID, false) }
+        return workspace.id
     }
     public mutating func setFileView(_ view: FileViewState, workspaceID: UUID) {
         guard view.isValid, let index = workspaces.firstIndex(where: { $0.id == workspaceID }) else { return }
         workspaces[index].fileView = view
     }
     public mutating func selectWorkspace(_ id: UUID) {
-        if workspaces.contains(where: { $0.id == id }) { selectedWorkspaceID = id }
+        if let workspace = workspaces.first(where: { $0.id == id }) {
+            selectedWorkspaceID = id
+            if let projectID = workspace.projectID { setProjectCollapsed(projectID, false) }
+        }
+    }
+    public mutating func setProjectCollapsed(_ id: UUID, _ collapsed: Bool) {
+        guard let index = projects.firstIndex(where: { $0.id == id }) else { return }
+        projects[index].isCollapsed = collapsed
+    }
+    public mutating func toggleProjectCollapsed(_ id: UUID) {
+        guard let project = projects.first(where: { $0.id == id }) else { return }
+        setProjectCollapsed(id, project.isCollapsed != true)
     }
     public mutating func selectTab(_ id: UUID) {
         guard let index = workspaces.firstIndex(where: { $0.id == selectedWorkspaceID }),
@@ -182,12 +248,22 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
         case .intent(let spec, let prompt):
             guard tab.status == .preparing, tab.binding == nil,
                   tab.launch == nil || tab.launch == spec else { return }
-            updateTab(id) { $0.launch = spec; $0.status = .launching; $0.promptDelivery = prompt }
+            updateTab(id) {
+                $0.launch = spec; $0.status = .launching; $0.promptDelivery = prompt
+                if spec.tool != .shell && $0.activity == nil { $0.activity = AgentActivity(invocationID: spec.operationID, provider: spec.tool) }
+            }
+            if spec.tool != .shell, prompt != .none,
+               let index = workspaces.firstIndex(where: { $0.tabs.contains { $0.id == id } }),
+               !workspaces[index].customTitle, workspaces[index].automaticTitle == .friendly,
+               let title = WorkspaceNaming.promptTitle(tab.draft.prompt) {
+                workspaces[index].title = title; workspaces[index].automaticTitle = .prompt
+            }
         case .observed(let binding, let dead, let exitCode, let prompt):
             guard tab.launch?.operationID == binding.id || tab.binding?.id == binding.id else { return }
             updateTab(id) {
                 $0.binding = binding; $0.status = dead ? .ended : .running
                 $0.exitCode = exitCode; $0.failure = nil
+                if dead { $0.activity?.disconnect() }
                 if let prompt { $0.promptDelivery = prompt }
                 if !$0.customTitle { $0.title = binding.tool.displayName }
             }
@@ -198,7 +274,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
                 if clearIntent { $0.launch = nil }
                 if status == .uncertain && $0.promptDelivery != .none { $0.promptDelivery = .uncertain }
             }
-        case .terminated: updateTab(id) { $0.status = .ended; $0.binding = nil }
+        case .terminated: updateTab(id) { $0.status = .ended; $0.binding = nil; $0.activity?.disconnect() }
         }
     }
     public mutating func restoreInterruptedDrafts() {
@@ -243,10 +319,6 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     public mutating func bindWorkspace(_ id: UUID) {
         guard let index = workspaces.firstIndex(where: { $0.id == id }), workspaces[index].anchor == nil else { return }
         workspaces[index].anchor = workspaces[index].selectedLocation
-        if !workspaces[index].customTitle {
-            let path = workspaces[index].selectedLocation.path
-            workspaces[index].title = path == FileManager.default.homeDirectoryForCurrentUser.path ? "Home" : URL(fileURLWithPath: path).lastPathComponent
-        }
         if let projectID = workspaces[index].projectID, let p = projects.firstIndex(where: { $0.id == projectID }) { projects[p].lastUsed = Date() }
     }
     @discardableResult public mutating func registerProject(_ location: WorkspaceLocation) -> UUID {
@@ -264,6 +336,14 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     public mutating func renameWorkspace(_ id: UUID, _ name: String) {
         guard let index = workspaces.firstIndex(where: { $0.id == id }), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
         workspaces[index].title = name; workspaces[index].customTitle = true
+    }
+    public mutating func migrateWorkspaceNames() {
+        for index in workspaces.indices where workspaces[index].automaticTitle == nil {
+            if !workspaces[index].customTitle && WorkspaceNaming.isGeneric(workspaces[index].title) {
+                workspaces[index].title = WorkspaceNaming.friendly(excluding: workspaces.map(\.title))
+                workspaces[index].automaticTitle = .friendly
+            } else { workspaces[index].automaticTitle = .legacy }
+        }
     }
     public mutating func renameTab(_ id: UUID, _ name: String) {
         guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -351,11 +431,11 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     public func validate() throws {
         let tabs = workspaces.flatMap(\.tabs)
         for operation in locations?.operations ?? [] { try operation.request.validate() }
-        guard [1, 2, 3].contains(version),
+        guard [1, 2, 3, 4, 5].contains(version),
               Set(locations?.operations.map(\.id) ?? []).count == (locations?.operations.count ?? 0),
               Set(locations?.checkouts.map(\.id) ?? []).count == (locations?.checkouts.count ?? 0),
               (locations?.operations.allSatisfy { $0.request.destination.hasPrefix("/") && !$0.request.destination.contains("\0") } ?? true),
-              tabs.allSatisfy({ $0.viewport?.anchor?.isValid != false }), Set(workspaces.map(\.id)).count == workspaces.count,
+              tabs.allSatisfy({ $0.viewport?.anchor?.isValid != false && $0.activity?.isValid != false }), Set(workspaces.map(\.id)).count == workspaces.count,
               Set(tabs.map(\.id)).count == tabs.count, Set(projects.map(\.id)).count == projects.count,
               selectedWorkspaceID == nil || workspaces.contains(where: { $0.id == selectedWorkspaceID }),
               workspaces.allSatisfy({ w in

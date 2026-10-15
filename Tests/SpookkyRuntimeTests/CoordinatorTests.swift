@@ -45,6 +45,27 @@ private actor FailedPersistence: WorkspacePersistence {
 }
 
 @MainActor final class CoordinatorTests: XCTestCase {
+    func testConcurrentStartingPromptsNameWorkspaceOnce() async throws {
+        let store = WorkspaceStore(), runtime = FixtureRuntime()
+        store.update { $0.newWorkspace(directory: "/tmp") }
+        let first = try XCTUnwrap(store.state.selectedTab?.id)
+        store.update { $0.editDraft(first, tool: .codex, prompt: "Fix login timeout"); $0.newTab() }
+        let second = try XCTUnwrap(store.state.selectedTab?.id)
+        store.update { $0.editDraft(second, tool: .claude, prompt: "Repair file previews") }
+        let coordinator = LaunchCoordinator(store: store, runtime: runtime, resolver: FixtureResolver())
+        async let a: Void = coordinator.launch(first)
+        async let b: Void = coordinator.launch(second)
+        _ = await (a, b)
+        let title = try XCTUnwrap(store.state.selected?.title)
+        XCTAssertTrue(["Fix login timeout", "Repair file previews"].contains(title))
+        XCTAssertEqual(store.state.selected?.automaticTitle, .prompt)
+        let count = await runtime.count(); XCTAssertEqual(count, 2)
+        await coordinator.reconcile(first); await coordinator.reconcile(second)
+        XCTAssertEqual(store.state.selected?.title, title)
+        store.update { $0.newTab(); $0.editDraft($0.selectedTab!.id, tool: .codex, prompt: "A third task") }
+        await coordinator.launch(store.state.selectedTab!.id)
+        XCTAssertEqual(store.state.selected?.title, title)
+    }
     func testRepeatedLaunchAndWorkspaceSwitch() async throws {
         let store = WorkspaceStore(), runtime = FixtureRuntime()
         store.update { $0.newWorkspace(directory: "/tmp") }
