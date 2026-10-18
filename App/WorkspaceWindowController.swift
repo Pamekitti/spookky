@@ -1395,6 +1395,9 @@ import SpookkyGit
         let auxiliary = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 240), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         auxiliary.isReleasedWhenClosed = false
         auxiliary.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        for _ in 0..<50 { if NSApp.keyWindow === auxiliary { break }; try await Task.sleep(for: .milliseconds(20)) }
+        checks["auxiliary_window_receives_key_focus"] = NSApp.keyWindow === auxiliary
         closeSelectedTab()
         checks["close_auxiliary_window_preserves_conversation"] = !auxiliary.isVisible && store.state.selectedWorkspaceID == workspaceID && store.state.selected?.viewClosed != true
         window.makeKeyAndOrderFront(nil)
