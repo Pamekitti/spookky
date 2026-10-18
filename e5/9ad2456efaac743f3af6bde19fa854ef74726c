@@ -1,0 +1,21 @@
+docs/acceptance.md
+  s_53d4e1c28831bf::t_634389298e3897 31
+docs/status.md
+  s_53d4e1c28831bf::t_a01ea3343a5c17 11,13,15-19,60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e59ad2456efaac743f3af6bde19fa854ef74726c",
+  "prompts": {},
+  "sessions": {
+    "s_53d4e1c28831bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
