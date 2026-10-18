@@ -6,7 +6,7 @@ import SpookkyRuntime
 @MainActor enum WorkspaceCloseFixture {
     static func run(window: NSWindow, state: () -> WorkspaceState, runtime: any SessionRuntime,
                     view: (UUID) -> TerminalHostView?, command: (NSEvent) -> Bool, reopen: () -> Void,
-                    openTerminal: () -> Void, supportingView: () -> NSView?, selectWorkspace: (UUID) -> Void,
+                    openTerminal: () -> Void, openBrowser: (UUID) -> Void, supportingView: () -> NSView?, selectWorkspace: (UUID) -> Void,
                     openSupportingTerminal: () -> Void, reopenSupportingTerminal: (UUID) -> Void,
                     prepareStop: () -> Void, stop: () -> Void, setAppearance: (WorkspaceAppearance) -> Void,
                     support: (UUID?, SupportingLayout?) -> Void, host: SupportingContentFixtureHost,
@@ -65,6 +65,9 @@ import SpookkyRuntime
         try await send("t", code: 17)
         try await wait("Browser target missing") { state().selected?.support?.tabs.count == 1 }
         let firstBrowser = state().selected!.support!.selectedTabID!
+        checks["cmd_t_opens_start_page_without_cli"] = state().selected?.support?.selected?.target == .startPage && state().selected?.tabs.count == 1
+        try await capture("supporting-new-tab", width: 1120, height: 760, appearance: .darkAqua)
+        openBrowser(firstBrowser)
         guard let form = host.fields[firstBrowser] else { throw LaunchError.invalid("Content host not installed") }
         checks["new_browser_focuses_support_content"] = form.currentEditor() != nil
         form.stringValue = "Unsent supporting form"
@@ -72,6 +75,7 @@ import SpookkyRuntime
         window.makeFirstResponder(form)
         checks["cmd_t_browser_without_cli"] = state().selected?.tabs.count == 1 && state().primaryTerminalID == primaryID && state().selected?.support?.selected?.target == .browser(url: "about:blank")
         try await send("t", code: 17)
+        openBrowser(state().selected!.support!.selectedTabID!)
         guard command(try key("]", code: 30, modifiers: [.command, .shift])) else { throw LaunchError.invalid("Supporting tab shortcut unhandled") }
         checks["support_tab_shortcut_cycles_targets"] = state().selected?.support?.selectedTabID == firstBrowser
         support(firstBrowser, nil)
@@ -95,13 +99,10 @@ import SpookkyRuntime
         checks["support_close_keeps_unsent_input"] = view(primaryID)?.visibleText().contains("SPOOKKY_FOUNDATION_UNSENT") == true
         if let primary = view(primaryID) { window.makeFirstResponder(primary) }
         try await send("w", code: 13)
-        try await wait("Primary close did not return to landing") { window.isVisible && state().selectedWorkspaceID == landingID && state().selected?.isLanding == true }
+        try await wait("Primary Cmd+W did not close the window") { !window.isVisible }
         let afterHide = try await runtime.inspect(binding)
-        checks["primary_close_retains_process_and_records"] = afterHide?.processID == before?.processID && state().workspaces.first { $0.id == workspaceID }?.viewClosed == true && state().tab(primaryID)?.binding == binding
-        checks["last_view_close_shows_landing"] = state().selected?.isLanding == true && state().selectedTab?.isEditable == true
-        try await send("w", code: 13)
-        try await wait("Landing Cmd+W did not close the window") { !window.isVisible }
-        checks["landing_cmd_w_closes_window"] = state().selectedWorkspaceID == landingID && state().tab(primaryID)?.binding == binding
+        checks["primary_cmd_w_closes_window_without_hiding_thread"] = afterHide?.processID == before?.processID && state().selectedWorkspaceID == workspaceID && state().workspaces.first { $0.id == workspaceID }?.viewClosed != true
+        checks["primary_close_retains_process_and_records"] = state().tab(primaryID)?.binding == binding
         selectWorkspace(workspaceID); reopen()
         try await wait("Primary did not reattach") { view(primaryID) != nil && window.isVisible }
         let afterReopen = try await runtime.inspect(binding)
@@ -155,6 +156,9 @@ import SpookkyRuntime
         checks["explicit_stop_ends_only_owned_primary"] = supportingAfterStop?.processID == supportBefore?.processID && stopped == nil && retained?.primaryTerminalID == primaryID && retained?.support?.tabs.count == 1
         try await send("n", code: 45)
         checks["cmd_n_restores_landing_draft"] = state().workspaces.count == 2 && state().selectedWorkspaceID == landingID && state().selected?.isLanding == true && state().selectedTab?.binding == nil
+        try await send("w", code: 13)
+        try await wait("Landing Cmd+W did not close the window") { !window.isVisible }
+        checks["landing_cmd_w_closes_window"] = state().selectedWorkspaceID == landingID && state().selectedTab?.isEditable == true
         try state().validate()
         checks["metadata_valid"] = true
         try PrivateFiles.write(checks, to: root.appendingPathComponent("close-checks.json"))

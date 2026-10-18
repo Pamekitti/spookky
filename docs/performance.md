@@ -190,3 +190,24 @@ Empty readiness excludes provider discovery, first-frame rendering and an intera
 The large-diff fixture passed 24 checks with 30 measured selections, 100 lifecycle cycles, diff p95 115.9 ms and syntax p95 207.9 ms. The virtualized sidebar fixture mounted fewer than 100 views for 5,000 metadata rows. Reports and binary hashes remain in private ignored evidence.
 
 The focus-polish Release binary `69e576adba23` passed 262 native assertions across workflow, browser/artifact and file fixtures. The file run retained 100 selection cycles and all buffer, watcher and surface bounds. After five warm-ups, 30 selections measured 103.7 ms median and 107.3 ms p95. Syntax readiness measured 169.1 ms median and 172.5 ms p95. These use the same native readiness boundary and exclude physical display latency. Existing user sessions remained running. This run does not establish a causal performance improvement from the style changes.
+
+
+## Persistent thread revision, 18 October 2026
+
+The Release code at `7ec529c` was compared with the installed simplified build from `0d147b3`. The baseline copy uses an isolated development identity. [The reports](evidence/persistent-threads/measurements.json) record binary hashes and the installed source-diff hash. User agents remained running.
+
+| Measurement | Samples per build | Previous installed code | Thread revision |
+| --- | ---: | ---: | ---: |
+| Empty process readiness, median / p95 | 10 | 277.4 / 1170.1 ms | 292.5 / 1606.8 ms |
+| Warm thread selection, p95 | 35 | 17.7 ms | 27.7 ms |
+| Recreated terminal selection, p95 | 105 | 62.8 ms | 58.8 ms |
+| Four-shell app RSS, median | 265 / 264 | 133.3 MiB | 122.0 MiB |
+| App plus owned runtime/shell RSS, median | 265 / 264 | 151.5 MiB | 132.7 MiB |
+| App physical footprint observation | 1 | 81.3M | 85.5M |
+| Idle CPU, percent of one core | 60 seconds | 0.45% | 0.50% |
+
+Performance is mixed. Warm switching and startup were slower; RSS was lower and physical footprint was higher. Ten startup samples do not establish a stable tail-latency estimate. The slow first samples remain included. Both resource windows followed five seconds of warm-up and retained four processes and one visible terminal surface. The windows were visible and active at both CPU boundaries. Both crash/restore and wrapped-resize checks passed without extra workspaces or processes.
+
+Selection ends at native attachment, layout and focus. It excludes first terminal bytes and physical display latency. Empty readiness excludes provider discovery, first-frame rendering and an interactive CLI. Both workloads disable user-config following and use clean shells. Filesystem caches may be warm. RSS sums distinct processes and includes shared pages; physical footprint is a separate observation. These paired local samples do not establish active-provider, browser or overnight costs.
+
+The final file/diff fixture passed 24 checks and 100 selection cycles. Thirty observations after five warm-ups measured diff readiness at 104.1 ms median and 110.3 ms p95. Syntax readiness measured 167.3 ms median and 177.0 ms p95. Its preview, metadata, watcher and surface bounds passed.

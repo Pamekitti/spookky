@@ -4,6 +4,42 @@ import SpookkyCore
 import SpookkyRuntime
 
 @MainActor final class TerminalSurfaceManager {
+    private let appearanceFollower: GhosttyAppearanceFollower
+    private var appearanceTask: Task<Void, Never>?
+    private var appearancePending = false
+    private var desiredProfile: GhosttyAppearanceProfile?
+    private var desiredAppearance: GhosttyAppearance { (darkTheme == false ? desiredProfile?.light : desiredProfile?.dark) ?? GhosttyAppearance(export: "") }
+    private var acceptedAppearance: GhosttyAppearance?
+    private var acceptedFontSize: Double?
+    var onAppearanceStatus: ((String) -> Void)?
+    func startFollowingAppearance() {
+        appearanceFollower.onAppearance = { [weak self] appearance in self?.desiredProfile = appearance; self?.refreshAppearance() }
+        appearanceFollower.onError = { [weak self] in self?.onAppearanceStatus?($0) }
+        appearanceFollower.start()
+    }
+    func stopFollowingAppearance() { appearanceFollower.stop(); appearanceTask?.cancel() }
+    func refreshAppearance() {
+        appearancePending = true
+        guard appearanceTask == nil else { return }
+        appearanceTask = Task { [weak self] in
+            guard let self else { return }
+            defer { appearanceTask = nil }
+            while appearancePending && !Task.isCancelled {
+                appearancePending = false
+                let candidate = desiredAppearance, display = DisplayMetrics.preferences
+                let fontSize = display.terminalFontSize(base: candidate.fontSize)
+                do {
+                    if acceptedAppearance != candidate || acceptedFontSize != fontSize {
+                        try await engine.applyAppearance(candidate, preferences: display, views: { [weak self] in Array(self?.views.values ?? [:].values) })
+                        acceptedAppearance = candidate; acceptedFontSize = fontSize
+                    }
+                    onAppearanceStatus?("Following Ghostty appearance. Font adjustment applies only to Spookky.")
+                } catch {
+                    onAppearanceStatus?(error.localizedDescription)
+                }
+            }
+        }
+    }
     private let engine: GhosttyEngine
     private let runtime: any SessionRuntime
     private let root: URL
@@ -25,6 +61,7 @@ import SpookkyRuntime
     var onViewportFailure: ((UUID, Error) -> Void)?
 
     init(engine: GhosttyEngine, runtime: any SessionRuntime, executable: String, root: URL) {
+        appearanceFollower = GhosttyAppearanceFollower(cache: root.appendingPathComponent("terminal-appearance.json"))
         self.engine = engine; self.runtime = runtime; self.executable = executable; self.root = root
     }
     func invalidate() { generation += 1 }
@@ -164,9 +201,7 @@ import SpookkyRuntime
     }
     func setTheme(dark: Bool) {
         guard darkTheme != dark else { return }; darkTheme = dark
-        Task {
-            do { try await engine.setTheme(dark: dark, views: Array(views.values)) }
-            catch { darkTheme = nil }
-        }
+        if desiredProfile != nil { refreshAppearance() }
+        engine.setTheme(dark: dark, views: Array(views.values))
     }
 }

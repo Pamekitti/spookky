@@ -8,7 +8,7 @@ final class FadingTitleButton: ActionButton {
     private let fade = CAGradientLayer()
     private var animationKey = ""
     override init(_ title: String, symbol: String? = nil, help: String? = nil,
-                  height: CGFloat = SpookkyStyle.controlHeight, action: @escaping () -> Void) {
+                  height: CGFloat? = nil, action: @escaping () -> Void) {
         super.init(title, symbol: symbol, help: help, height: height, action: action)
         wantsLayer = true
         clip.masksToBounds = true; clip.addSublayer(text); layer?.addSublayer(clip)
@@ -31,7 +31,7 @@ final class FadingTitleButton: ActionButton {
     override func drawTitle(in content: NSRect, tint: NSColor) {
         var layerColor = tint
         effectiveAppearance.performAsCurrentDrawingAppearance { layerColor = tint.usingColorSpace(.deviceRGB) ?? tint }
-        let label = NSAttributedString(string: title, attributes: [.font: font ?? NSFont.systemFont(ofSize: 13), .foregroundColor: layerColor])
+        let label = NSAttributedString(string: title, attributes: [.font: font ?? NSFont.systemFont(ofSize: SpookkyStyle.points(13)), .foregroundColor: layerColor])
         let size = label.size(), width = max(0, content.width)
         let overflow = max(0, size.width - width)
         let reducedMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion

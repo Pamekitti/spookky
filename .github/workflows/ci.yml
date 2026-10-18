@@ -67,7 +67,7 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: .cache/runtime
-          key: runtime-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('Dependencies/manifest.json', 'scripts/build_runtime.py') }}
+          key: runtime-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('Dependencies/manifest.json', 'scripts/build_runtime.py', 'scripts/check_tmux_focus.py', 'Dependencies/patches/tmux-focus-*') }}
       - name: Cache pinned terminal library
         id: ghostty
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -76,7 +76,7 @@ jobs:
             .cache/dependencies/ghostty/macos/GhosttyKit.xcframework
             .cache/dependencies/ghostty/zig-out/share/ghostty
             .cache/dependencies/ghostty/zig-out/share/terminfo
-          key: ghostty-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('Dependencies/manifest.json', 'scripts/build_ghostty.py', 'scripts/collect_notices.py', 'scripts/merge_macos_archives.py') }}
+          key: ghostty-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('Dependencies/manifest.json', 'scripts/build_ghostty.py', 'Dependencies/patches/appearance-export.zig', 'scripts/collect_notices.py', 'scripts/merge_macos_archives.py') }}
       - run: brew install cmake pkgconf
       - run: python3 scripts/build_runtime.py
       - if: github.event_name == 'pull_request'

@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / ".cache/dependencies/ghostty"
 DESTINATION = ROOT / "Dependencies/licenses"
 MAC_PACKAGES = {"freetype", "harfbuzz", "libpng", "zlib", "oniguruma", "glslang", "spirv-cross", "simdutf", "highway", "utfcpp", "wuffs", "dcimgui"}
-ROOT_PACKAGES = {"libxev", "vaxis", "z2d", "zig_objc", "uucode", "zf", "jetbrains_mono", "nerd_fonts_symbols_only"}
+ROOT_PACKAGES = {"libxev", "vaxis", "z2d", "zig_objc", "uucode", "zf", "jetbrains_mono", "nerd_fonts_symbols_only", "iterm2_themes"}
 
 
 def main():
@@ -39,6 +39,7 @@ def main():
                 name = "Ghostty-" + component + "-" + "-".join(relative.parts) + ".txt"
                 (DESTINATION / name).write_bytes(path.read_bytes())
                 names.append(name)
+            if component == "iterm2_themes": names.append("iTerm2-Color-Schemes.txt")
             if component == "z2d": names += ["z2d.txt", "z2d-COPYING.txt"]
             if component == "dcimgui-bindings": names.append("DearBindings.txt")
             if not names: raise SystemExit("Missing dependency notice: " + component)

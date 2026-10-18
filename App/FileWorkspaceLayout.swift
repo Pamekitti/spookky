@@ -15,6 +15,7 @@ final class FileWorkspaceLayout: NSView {
     init(terminal: NSView, sidebar: NSView, preview: NSView) {
         self.terminal = terminal; self.sidebar = sidebar; self.preview = preview
         super.init(frame: .zero)
+        DisplayMetrics.registerRoot(self)
         [terminal, preview, divider, sidebar].forEach { addSubview($0) }
         divider.onMove = { [weak self] x in
             guard let self else { return }
@@ -32,8 +33,8 @@ final class FileWorkspaceLayout: NSView {
             terminal.isHidden = true; divider.isHidden = true
             sidebar.isHidden = !showSidebar; preview.isHidden = !showPreview
             let side: CGFloat = showSidebar ? (showPreview ? min(SpookkyStyle.fileSidebarWidth, bounds.width * 0.38) : bounds.width) : 0
-            sidebar.frame = NSRect(x: 0, y: 0, width: side, height: bounds.height)
-            preview.frame = NSRect(x: side, y: 0, width: max(0, bounds.width - side), height: bounds.height)
+            sidebar.frame = NSRect(x: bounds.width - side, y: 0, width: side, height: bounds.height)
+            preview.frame = NSRect(x: 0, y: 0, width: max(0, bounds.width - side), height: bounds.height)
             onPreviewWidth?(preview.bounds.width)
             return
         }
@@ -55,13 +56,14 @@ final class FileWorkspaceLayout: NSView {
 final class FileDivider: NSView {
     var onMove: ((CGFloat) -> Void)?
     var onKey: ((Double) -> Void)?
+    var onReset: (() -> Void)?
     override var acceptsFirstResponder: Bool { true }
     override func becomeFirstResponder() -> Bool { let result = super.becomeFirstResponder(); needsDisplay = true; return result }
     override func resignFirstResponder() -> Bool { let result = super.resignFirstResponder(); needsDisplay = true; return result }
     override init(frame: NSRect) { super.init(frame: frame); setAccessibilityElement(true); setAccessibilityRole(.splitter); setAccessibilityLabel("Resize file preview") }
     required init?(coder: NSCoder) { fatalError() }
     override func resetCursorRects() { addCursorRect(bounds, cursor: .resizeLeftRight) }
-    override func mouseDown(with event: NSEvent) { window?.makeFirstResponder(self) }
+    override func mouseDown(with event: NSEvent) { if event.clickCount == 2 { onReset?() }; window?.makeFirstResponder(self) }
     override func mouseDragged(with event: NSEvent) { onMove?(superview?.convert(event.locationInWindow, from: nil).x ?? 0) }
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 123 { onKey?(-0.05) } else if event.keyCode == 124 { onKey?(0.05) } else { super.keyDown(with: event) }
@@ -100,9 +102,9 @@ final class FileTable: NSTableView {
 
 final class FileListCell: NSTableCellView {
     private let icon = NSImageView()
-    private let name = NSTextField(labelWithString: "")
-    private let parent = NSTextField(labelWithString: "")
-    private let status = NSTextField(labelWithString: "")
+    private let name = SpookkyStyle.label( "")
+    private let parent = SpookkyStyle.label( "")
+    private let status = SpookkyStyle.label( "")
     private var indent: NSLayoutConstraint!
     private var nameLeading: NSLayoutConstraint!
     override init(frame: NSRect) {
@@ -111,18 +113,18 @@ final class FileListCell: NSTableCellView {
         icon.symbolConfiguration = NSImage.SymbolConfiguration(pointSize: 12, weight: .regular)
         icon.contentTintColor = SpookkyPalette.secondary; icon.setAccessibilityElement(false)
         name.lineBreakMode = .byTruncatingMiddle
-        parent.font = .systemFont(ofSize: 11); parent.textColor = SpookkyPalette.secondary; parent.lineBreakMode = .byTruncatingMiddle
-        status.font = .monospacedSystemFont(ofSize: 10, weight: .medium); status.textColor = SpookkyPalette.secondary
+        parent.font = .systemFont(ofSize: SpookkyStyle.points(11)); parent.textColor = SpookkyPalette.secondary; parent.lineBreakMode = .byTruncatingMiddle
+        status.font = .monospacedSystemFont(ofSize: SpookkyStyle.points(10), weight: .medium); status.textColor = SpookkyPalette.secondary
         status.setContentCompressionResistancePriority(.required, for: .horizontal)
         parent.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         name.setContentCompressionResistancePriority(NSLayoutConstraint.Priority(751), for: .horizontal)
-        indent = icon.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8)
-        nameLeading = name.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 28)
-        NSLayoutConstraint.activate([indent, icon.widthAnchor.constraint(equalToConstant: 14), icon.heightAnchor.constraint(equalToConstant: 14),
+        indent = icon.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8).displayScaled()
+        nameLeading = name.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 28).displayScaled()
+        NSLayoutConstraint.activate([indent, icon.widthAnchor.constraint(equalToConstant: 14).displayScaled(), icon.heightAnchor.constraint(equalToConstant: 14).displayScaled(),
             icon.centerYAnchor.constraint(equalTo: centerYAnchor), nameLeading,
-            name.centerYAnchor.constraint(equalTo: centerYAnchor), parent.leadingAnchor.constraint(equalTo: name.trailingAnchor, constant: 6),
-            parent.centerYAnchor.constraint(equalTo: centerYAnchor), parent.trailingAnchor.constraint(lessThanOrEqualTo: status.leadingAnchor, constant: -8),
-            status.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8), status.centerYAnchor.constraint(equalTo: centerYAnchor)])
+            name.centerYAnchor.constraint(equalTo: centerYAnchor), parent.leadingAnchor.constraint(equalTo: name.trailingAnchor, constant: 6).displayScaled(),
+            parent.centerYAnchor.constraint(equalTo: centerYAnchor), parent.trailingAnchor.constraint(lessThanOrEqualTo: status.leadingAnchor, constant: -8).displayScaled(),
+            status.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8).displayScaled(), status.centerYAnchor.constraint(equalTo: centerYAnchor)])
         textField = name
     }
     override var backgroundStyle: NSView.BackgroundStyle {
@@ -137,8 +139,8 @@ final class FileListCell: NSTableCellView {
         icon.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil); icon.isHidden = group
         icon.contentTintColor = symbol == "chevron.left.forwardslash.chevron.right" ? SpookkyPalette.syntax(.function) : SpookkyPalette.secondary
         let offset = CGFloat(min(depth, 30)) * 12
-        indent.constant = 8 + offset; nameLeading.constant = (group ? 8 : 28) + offset
-        name.font = .systemFont(ofSize: group ? 11 : 12, weight: group ? .medium : .regular)
+        DisplayMetrics.registerBase(8 + offset, for: indent); DisplayMetrics.registerBase((group ? 8 : 28) + offset, for: nameLeading)
+        name.font = .systemFont(ofSize: SpookkyStyle.points(group ? 11 : 12), weight: group ? .medium : .regular)
         name.textColor = group ? SpookkyPalette.secondary : SpookkyPalette.text
         self.status.stringValue = status == "Added" ? "A" : status == "Deleted" ? "D" : status
         let statusName: String
@@ -157,14 +159,30 @@ final class FileListCell: NSTableCellView {
 }
 
 final class DiffCell: NSTableCellView {
-    static let codeFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-    static let commentFont = NSFont(descriptor: codeFont.fontDescriptor.withSymbolicTraits(.italic), size: 12) ?? codeFont
-    static let codeParagraph: NSParagraphStyle = {
-        let value = NSMutableParagraphStyle(); value.tabStops = []
-        value.defaultTabInterval = (" " as NSString).size(withAttributes: [.font: codeFont]).width * 4
-        return value
-    }()
-    let label = NSTextField(labelWithString: "")
+    private struct Typography {
+        let size: CGFloat
+        let code: NSFont
+        let comment: NSFont
+        let paragraph: NSParagraphStyle
+        init(size: CGFloat) {
+            self.size = size
+            code = NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
+            comment = NSFont(descriptor: code.fontDescriptor.withSymbolicTraits(.italic), size: size) ?? code
+            let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []
+            paragraph.defaultTabInterval = (" " as NSString).size(withAttributes: [.font: code]).width * 4
+            self.paragraph = paragraph
+        }
+    }
+    private static var cachedTypography = Typography(size: SpookkyStyle.points(12))
+    private static var typography: Typography {
+        let size = SpookkyStyle.points(12)
+        if cachedTypography.size != size { cachedTypography = Typography(size: size) }
+        return cachedTypography
+    }
+    static var codeFont: NSFont { typography.code }
+    static var commentFont: NSFont { typography.comment }
+    static var codeParagraph: NSParagraphStyle { typography.paragraph }
+    let label = SpookkyStyle.label( "")
     private let number: Bool
     private let sign: Bool
     init(identifier: NSUserInterfaceItemIdentifier, number: Bool, sign: Bool) {

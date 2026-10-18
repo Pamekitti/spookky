@@ -191,13 +191,13 @@ final class ConversationWorkspaceTests: XCTestCase {
         let path = root.appendingPathComponent("state.sqlite").path
         let queue = try legacyDatabase(path, payload: payload)
         let database = try WorkspaceDatabase(path: path), loaded = try await database.load()
-        XCTAssertEqual(loaded?.version, 7); XCTAssertEqual(loaded?.workspaces.count, 2)
+        XCTAssertEqual(loaded?.version, 8); XCTAssertEqual(loaded?.workspaces.count, 2)
         for tab in state.workspaces.flatMap(\.tabs) { XCTAssertEqual(loaded?.tab(tab.id), tab) }
         let backup = try XCTUnwrap(FileManager.default.contentsOfDirectory(atPath: root.path).first { $0.contains("pre-v6") })
         let backupQueue = try DatabaseQueue(path: root.appendingPathComponent(backup).path)
         let backupBytes = try await backupQueue.read { try Data.fetchOne($0, sql: "SELECT payload FROM workspace_snapshot") }
         let migratedVersion = try await queue.read { try Int.fetchOne($0, sql: "SELECT version FROM workspace_snapshot") }
-        XCTAssertEqual(backupBytes, payload); XCTAssertEqual(migratedVersion, 7)
+        XCTAssertEqual(backupBytes, payload); XCTAssertEqual(migratedVersion, 8)
         let reopened = try WorkspaceDatabase(path: path), again = try await reopened.load(); XCTAssertEqual(loaded, again)
     }
     func testInterruptedAndInvalidMigrationPreserveOriginalPayloadAndVersion() throws {

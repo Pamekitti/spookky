@@ -28,7 +28,7 @@ The goal is to make parallel AI development easier to manage while keeping the t
 - A ready-to-type landing composer and immediate shell access.
 - Retained global and project drafts with optional prompts and provider/folder choices.
 - Optional projects and worktrees.
-- A primary conversation with supporting files, Changes, browser previews, artifacts and shells.
+- Persistent threads with local pinning and archiving, plus supporting files, Changes, browser previews, artifacts and shells.
 - File browsing, read-only previews, syntax colors, and unified or split diffs.
 - Five recent conversations per project, paged history search, provider titles/icons, and continuation on selection.
 - Ordinary shells, Codex CLI, and Claude Code CLI with their own authentication and permissions.
@@ -77,7 +77,7 @@ Open [the local preview](http://127.0.0.1:48766/). The prototype never executes 
 ## Documentation
 
 - [Product](docs/product.md) and [flows](docs/flows.md)
-- [Conversation workspaces](docs/conversation-workspaces.md), [history](docs/session-history.md), and [continuation](docs/session-continuation.md)
+- [Persistent threads](docs/persistent-threads.md), [conversation workspaces](docs/conversation-workspaces.md), [history](docs/session-history.md), and [continuation](docs/session-continuation.md)
 - [Interface](docs/interface.md) and [architecture](docs/architecture.md)
 - [Development](docs/development.md) and [build plan](docs/build-plan.md)
 - [Acceptance](docs/acceptance.md), [status](docs/status.md), and [performance protocol](docs/performance.md)

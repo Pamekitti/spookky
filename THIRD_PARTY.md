@@ -12,7 +12,7 @@ Spookky's application interface and engineering documents were authored for this
 | Standalone preview template | Generated visualization export wrapper, preserved from the existing prototype export; keep its embedded notices/runtime text intact |
 | Prototype icons | Lucide, loaded from the existing pinned CDN URL in the preview template; no provider logos imported |
 
-The native app links Ghostty 1.3.1. Its exact revision, MIT notice, resources, and build-only compatibility and source-path patches are documented in [Dependencies/README.md](Dependencies/README.md).
+The native app links Ghostty 1.3.1. Its exact revision, MIT notice, resources, and compatibility, source-path and read-only appearance bridge patches are documented in [Dependencies/README.md](Dependencies/README.md).
 
 The native keyboard bridge adapts Ghostty's macOS `SurfaceView_AppKit.swift`, `NSEvent+Extension.swift`, `Ghostty.Input.swift`, and `KeyboardLayout.swift` at that same pinned revision. It retains modifier translation, native text, composition, input-source identity, and command redispatch behavior. The upstream MIT notice is included in `Dependencies/licenses/Ghostty.txt` and the app bundle.
 
@@ -49,3 +49,5 @@ The DMG layout build uses ds_store 1.3.3 and mac_alias 2.2.3 under MIT. Their pa
 The OpenAI mark used for Codex and the Claude mark come from [Simple Icons 13.21.0](https://github.com/simple-icons/simple-icons/tree/3fd92a7d0656c3d780bccdf7b5a3e9b9991dd6e5), commit `3fd92a7d0656c3d780bccdf7b5a3e9b9991dd6e5`. The SVG paths are unchanged. Asset catalogs render them as monochrome templates for native appearance and contrast. The project dedicates its icons under [CC0 1.0](Dependencies/licenses/SimpleIcons.txt). Brand marks remain the property of their respective owners. They identify the CLI provider and do not imply endorsement.
 
 Source files: [OpenAI](https://github.com/simple-icons/simple-icons/blob/3fd92a7d0656c3d780bccdf7b5a3e9b9991dd6e5/icons/openai.svg) and [Claude](https://github.com/simple-icons/simple-icons/blob/3fd92a7d0656c3d780bccdf7b5a3e9b9991dd6e5/icons/claude.svg).
+
+Bundled Ghostty themes come from [iTerm2-Color-Schemes at fc73ce39746540b6d5ec6b91e304785431401d85](https://github.com/mbadolato/iTerm2-Color-Schemes/tree/fc73ce39746540b6d5ec6b91e304785431401d85). The pinned archive hash is in Ghostty's dependency inventory. Its [license](Dependencies/licenses/iTerm2-Color-Schemes.txt) is included in the app bundle.

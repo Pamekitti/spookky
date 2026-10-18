@@ -23,11 +23,24 @@ def run(args, **kwargs):
 def main():
     CACHE.mkdir(parents=True, exist_ok=True)
     source = CACHE / "ghostty"
+    if source.is_symlink():
+        raise SystemExit("Use a checkout-local Ghostty source directory before applying the pinned build patches.")
     if not source.exists():
         run(["git", "clone", "--depth", "1", "--branch", "v1.3.1", "https://github.com/ghostty-org/ghostty.git", str(source)])
     actual = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"], text=True).strip()
     if actual != REVISION:
         raise SystemExit("Ghostty checkout does not match the pinned revision.")
+    # Narrow parser bridge, kept as a reviewable patch against the pinned source.
+    api = source / "src/config/CApi.zig"
+    marker = "// BEGIN SPOOKKY APPEARANCE BRIDGE"
+    contents = api.read_text().split(marker)[0].rstrip()
+    api.write_text(contents + "\n\n" + marker + "\n" + (ROOT / "Dependencies/patches/appearance-export.zig").read_text())
+    header = source / "include/ghostty.h"
+    contents = header.read_text()
+    declarations = "bool spookky_config_load_default_files(ghostty_config_t);\nghostty_string_s spookky_config_export_appearance(ghostty_config_t, bool);\n"
+    if "bool spookky_config_load_default_files" not in contents:
+        contents = contents.replace("ghostty_config_t ghostty_config_new();", declarations + "ghostty_config_t ghostty_config_new();")
+        header.write_text(contents)
     zig = CACHE / "zig-aarch64-macos-0.15.2" / "zig"
     if not zig.exists():
         archive = CACHE / "zig-0.15.2.tar.xz"
@@ -78,11 +91,14 @@ def main():
         elif previous in contents:
             step.write_text(contents.replace(previous, patched))
         elif patched not in contents:
-            raise SystemExit("Unexpected upstream archive build step; compatibility patch was not applied.")
+            pattern = r'run_step\.addArgs\(&\.\{ "[^"\n]+/\.cache/tools/libtool", "-static", "-o" \}\);'
+            contents, count = re.subn(pattern, lambda _: patched, contents)
+            if count != 1: raise SystemExit("Unexpected upstream archive build step; compatibility patch was not applied.")
+            step.write_text(contents)
         env["PATH"] = str(tools) + ":" + env.get("PATH", "")
         print("Using compatible SDK for Zig:", compatible, flush=True)
     run([str(zig), "build", "-Doptimize=ReleaseFast", "-Dapp-runtime=none", "-Demit-macos-app=false",
-         "-Dxcframework-target=native", "-Dsentry=false", "-Demit-docs=false", "-Demit-themes=false", "-Di18n=false", "-j4"], cwd=source, env=env)
+         "-Dxcframework-target=native", "-Dsentry=false", "-Demit-docs=false", "-Demit-themes=true", "-Di18n=false", "-j4"], cwd=source, env=env)
     run([sys.executable, ROOT / "scripts/collect_notices.py"])
 
 

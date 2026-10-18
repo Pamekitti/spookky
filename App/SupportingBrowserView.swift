@@ -6,7 +6,7 @@ import SpookkyFiles
 @MainActor final class SupportingBrowserView: NSView, WKNavigationDelegate, WKUIDelegate, NSTextFieldDelegate {
     let webView: WKWebView
     let address = ChromeTextField()
-    private let status = NSTextField(labelWithString: "")
+    private let status = SpookkyStyle.label( "")
     private let toolbar = NSStackView()
     private var observations: [NSKeyValueObservation] = []
     private var externalURL: URL?
@@ -29,28 +29,31 @@ import SpookkyFiles
         webView = WKWebView(frame: .zero, configuration: configuration)
         self.update = update
         super.init(frame: .zero)
+        DisplayMetrics.registerRoot(self)
+        webView.pageZoom = DisplayMetrics.preferences.zoom
         webView.navigationDelegate = self; webView.uiDelegate = self
         webView.setAccessibilityLabel("Browser page")
+        address.font = .systemFont(ofSize: SpookkyStyle.points(13))
         address.placeholderString = "Address or localhost URL"; address.delegate = self
         address.target = self; address.action = #selector(navigateFromAddress)
         address.setAccessibilityLabel("Browser address")
         address.lineBreakMode = .byTruncatingTail
-        status.font = .systemFont(ofSize: 11); status.textColor = .secondaryLabelColor
+        status.font = .systemFont(ofSize: SpookkyStyle.points(11)); status.textColor = .secondaryLabelColor
         status.lineBreakMode = .byTruncatingTail; status.setAccessibilityLabel("Browser status")
-        toolbar.orientation = .horizontal; toolbar.spacing = 4
+        toolbar.orientation = .horizontal; toolbar.spacing = SpookkyStyle.points(4)
         [back, forward, reload, address].forEach { toolbar.addArrangedSubview($0) }
         [toolbar, webView, status, external].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; addSubview($0) }
-        [back, forward, reload].forEach { $0.widthAnchor.constraint(equalToConstant: 26).isActive = true }
+        [back, forward, reload].forEach { $0.widthAnchor.constraint(equalToConstant: 26).displayScaled().isActive = true }
         address.setContentHuggingPriority(.defaultLow, for: .horizontal)
         external.isHidden = true
         NSLayoutConstraint.activate([
-            toolbar.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6), toolbar.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
-            toolbar.topAnchor.constraint(equalTo: topAnchor, constant: 5), toolbar.heightAnchor.constraint(equalToConstant: 28),
-            status.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8), status.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -5),
-            status.trailingAnchor.constraint(lessThanOrEqualTo: external.leadingAnchor, constant: -4),
-            external.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6), external.centerYAnchor.constraint(equalTo: status.centerYAnchor),
+            toolbar.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6).displayScaled(), toolbar.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6).displayScaled(),
+            toolbar.topAnchor.constraint(equalTo: topAnchor, constant: 5).displayScaled(), toolbar.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
+            status.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8).displayScaled(), status.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -5).displayScaled(),
+            status.trailingAnchor.constraint(lessThanOrEqualTo: external.leadingAnchor, constant: -4).displayScaled(),
+            external.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6).displayScaled(), external.centerYAnchor.constraint(equalTo: status.centerYAnchor),
             webView.leadingAnchor.constraint(equalTo: leadingAnchor), webView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            webView.topAnchor.constraint(equalTo: toolbar.bottomAnchor, constant: 5), webView.bottomAnchor.constraint(equalTo: status.topAnchor, constant: -5)
+            webView.topAnchor.constraint(equalTo: toolbar.bottomAnchor, constant: 5).displayScaled(), webView.bottomAnchor.constraint(equalTo: status.topAnchor, constant: -5).displayScaled()
         ])
         observations = [webView.observe(\.title, options: [.new]) { [weak self] _, _ in Task { @MainActor [weak self] in self?.metadataChanged() } },
                         webView.observe(\.url, options: [.new]) { [weak self] _, _ in Task { @MainActor [weak self] in self?.metadataChanged() } },

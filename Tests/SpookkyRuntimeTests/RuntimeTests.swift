@@ -64,6 +64,35 @@ import SpookkyRuntime
         #expect(try await runtime.inspect(survivor)?.processID == original.processID)
     }
 
+    @Test func restoredServerEnablesFocusEventsWithoutRestartingItsProcess() async throws {
+        let (runtime, root) = try fixture()
+        let socket = await runtime.socket
+        let tmux = try PackagedRuntime.tmux()
+        defer { _ = try? ProcessRunner.run(tmux, ["-S", socket, "kill-server"]); try? FileManager.default.removeItem(at: root) }
+        let binding = try await runtime.create(LaunchSpec(tool: .shell, executable: "/bin/cat", directory: root.path))
+        let before = try #require(await runtime.inspect(binding))
+        #expect(try ProcessRunner.run(tmux, ["-S", socket, "set-option", "-g", "focus-events", "off"]).status == 0)
+        let helper = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/spookky-launch").path
+        let restored = try TmuxRuntime(executable: tmux, helper: helper, root: root)
+        let after = try #require(await restored.inspect(binding))
+        #expect(after.processID == before.processID && !after.dead)
+        #expect(try ProcessRunner.run(tmux, ["-S", socket, "show-option", "-gv", "focus-events"]).output.trimmingCharacters(in: .whitespacesAndNewlines) == "on")
+    }
+
+    @Test func legacyServerKeepsItsProcessWithoutUnsafeFocusForwarding() async throws {
+        let (runtime, root) = try fixture()
+        let socket = await runtime.socket, tmux = try PackagedRuntime.tmux()
+        defer { _ = try? ProcessRunner.run(tmux, ["-S", socket, "kill-server"]); try? FileManager.default.removeItem(at: root) }
+        let binding = try await runtime.create(LaunchSpec(tool: .shell, executable: "/bin/cat", directory: root.path))
+        let before = try #require(await runtime.inspect(binding))
+        #expect(try ProcessRunner.run(tmux, ["-S", socket, "set-option", "-gu", "@spookky-focus-guard"]).status == 0)
+        let helper = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/spookky-launch").path
+        let restored = try TmuxRuntime(executable: tmux, helper: helper, root: root)
+        let after = try #require(await restored.inspect(binding))
+        #expect(after.processID == before.processID && !after.dead)
+        #expect(try ProcessRunner.run(tmux, ["-S", socket, "show-option", "-gv", "focus-events"]).output.trimmingCharacters(in: .whitespacesAndNewlines) == "off")
+    }
+
     @Test func mouseRoutingPreservesApplicationInputAndNativeHistorySelection() async throws {
         let (runtime, root) = try fixture()
         let socket = await runtime.socket

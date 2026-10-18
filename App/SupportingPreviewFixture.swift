@@ -15,7 +15,8 @@ import SpookkyRuntime
     }
     static func run(window: NSWindow, host: BrowserArtifactContentHost,
                     state: () -> WorkspaceState, mutate: ((inout WorkspaceState) -> Void) -> Void,
-                    command: (NSEvent) -> Bool, openTerminal: () -> Void, terminal: () -> TerminalHostView?,
+                    command: (NSEvent) -> Bool, submitAddress: (UUID, String) -> Void,
+                    openTerminal: () -> Void, terminal: () -> TerminalHostView?,
                     runtime: any SessionRuntime, root: URL) async throws {
         guard let fixtureURL = ProcessInfo.processInfo.environment["SPOOKKY_BROWSER_FIXTURE_URL"],
               let original = state().selectedWorkspaceID else { throw LaunchError.invalid("Browser fixture URL or workspace missing") }
@@ -66,6 +67,9 @@ import SpookkyRuntime
         checks["localhost_real_title_url"] = first.webView.url?.absoluteString == fixtureURL
         checks["cmd_t_without_agent"] = command(try key("t", code: 17)) && state().workspaces.flatMap(\.tabs).allSatisfy { $0.binding == nil }
         let blankID = state().selected!.support!.selectedTabID!
+        checks["new_tab_starts_as_tools_page"] = state().selected?.support?.selected?.target == .startPage
+        submitAddress(blankID, "about:blank")
+        await Task.yield()
         weak var blankReference: SupportingBrowserView?
         do {
             guard let blank = browser(blankID) else { throw LaunchError.invalid("Blank browser missing") }
@@ -92,6 +96,12 @@ import SpookkyRuntime
         mutate { $0.setSupportingLayout(.fullWidth) }
         mutate { $0.setSupportingLayout(.split) }
         checks["unsent_form_survives_layouts"] = try await js(first, "document.querySelector('input').value") == initial
+        checks["app_zoom_command_from_browser"] = command(try key("+", code: 24))
+        await Task.yield()
+        checks["browser_page_zoom_tracks_app"] = abs(first.webView.pageZoom - 1.1) < 0.001
+        checks["browser_form_and_focus_survive_zoom"] = try await js(first, "document.querySelector('input').value") == initial && browser(ids[0]) === first
+        checks["actual_size_command_from_browser"] = command(try key("0", code: 29)) && abs(first.webView.pageZoom - 1) < 0.001
+
         window.makeFirstResponder(first.webView)
         checks["cmd_l_focuses_address"] = command(try key("l", code: 37)) && first.address.currentEditor() != nil && state().selected?.support?.layout == .split
         first.navigate(fixtureURL.replacingOccurrences(of: "index.html", with: "second.html"))
@@ -149,7 +159,10 @@ import SpookkyRuntime
             try await wait("Artifact failed: " + type) {
                 let all = descendants(view)
                 switch type {
-                case "markdown": return all.contains { ($0 as? NSTextView)?.string.contains("<script>literal</script>") == true }
+                case "markdown": return all.contains {
+                    guard let web = $0 as? WKWebView else { return false }
+                    return web.title == "Markdown preview" && !web.configuration.defaultWebpagePreferences.allowsContentJavaScript
+                }
                 case "html": return all.contains { ($0 as? WKWebView)?.title == "Local HTML" }
                 case "image": return all.contains { ($0 as? NSImageView)?.image != nil }
                 default: return all.contains { ($0 as? PDFView)?.document?.pageCount == 1 }

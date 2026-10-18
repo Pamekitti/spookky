@@ -18,15 +18,16 @@ import SpookkyFiles
     init(path: String) {
         self.path = path
         super.init(frame: .zero)
+        DisplayMetrics.registerRoot(self)
         [status, content, external].forEach { $0.translatesAutoresizingMaskIntoConstraints = false; addSubview($0) }
-        status.font = .systemFont(ofSize: 11); status.textColor = .secondaryLabelColor
+        status.font = .systemFont(ofSize: SpookkyStyle.points(11)); status.textColor = .secondaryLabelColor
         status.setAccessibilityLabel("Artifact status")
         NSLayoutConstraint.activate([
-            status.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8), status.topAnchor.constraint(equalTo: topAnchor, constant: 6),
-            status.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-            external.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8), external.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
+            status.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8).displayScaled(), status.topAnchor.constraint(equalTo: topAnchor, constant: 6).displayScaled(),
+            status.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8).displayScaled(),
+            external.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8).displayScaled(), external.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6).displayScaled(),
             content.leadingAnchor.constraint(equalTo: leadingAnchor), content.trailingAnchor.constraint(equalTo: trailingAnchor),
-            content.topAnchor.constraint(equalTo: status.bottomAnchor, constant: 6), content.bottomAnchor.constraint(equalTo: external.topAnchor, constant: -6)
+            content.topAnchor.constraint(equalTo: status.bottomAnchor, constant: 6).displayScaled(), content.bottomAnchor.constraint(equalTo: external.topAnchor, constant: -6).displayScaled()
         ])
         task = Task { [weak self] in
             do {
@@ -46,18 +47,29 @@ import SpookkyFiles
     private func display(_ payload: ArtifactPayload) async throws {
         status.stringValue = payload.url.lastPathComponent
         switch payload.kind {
-        case .text, .markdown:
+        case .markdown:
+            let source = FileService.decode(payload.data).text
+            let html = try await Task.detached { try MarkdownDocument.html(source) }.value
+            try Task.checkCancellation()
+            let configuration = WKWebViewConfiguration()
+            configuration.websiteDataStore = .nonPersistent()
+            configuration.defaultWebpagePreferences.allowsContentJavaScript = false
+            let view = WKWebView(frame: .zero, configuration: configuration)
+            view.navigationDelegate = self; view.pageZoom = DisplayMetrics.preferences.zoom
+            view.setAccessibilityLabel("Markdown artifact, read only")
+            webView = view; view.loadHTMLString(html, baseURL: nil); install(view)
+        case .text:
             let preview = FileService.decode(payload.data)
             guard preview.notice == nil || !preview.text.isEmpty else { status.stringValue = preview.notice ?? "Text unavailable"; return }
             let text = NSTextView()
             text.isEditable = false; text.isSelectable = true; text.drawsBackground = false
-            text.font = .monospacedSystemFont(ofSize: 12, weight: .regular); text.textColor = .labelColor
+            text.font = .monospacedSystemFont(ofSize: SpookkyStyle.points(12), weight: .regular); text.textColor = .labelColor
             text.textContainerInset = NSSize(width: 12, height: 10)
             text.autoresizingMask = [.width]; text.isVerticallyResizable = true; text.isHorizontallyResizable = false
             text.textContainer?.widthTracksTextView = true
             // Native text treats HTML, script, and link strings as data; no Markdown web bridge.
             text.string = preview.text
-            text.setAccessibilityLabel(payload.kind == .markdown ? "Markdown artifact, read only" : "Text artifact, read only")
+            text.setAccessibilityLabel("Text artifact, read only")
             let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.documentView = text; scroll.drawsBackground = false
             install(scroll)
             if let notice = preview.notice { status.stringValue += " · " + notice }
@@ -67,12 +79,13 @@ import SpookkyFiles
                   let width = info[kCGImagePropertyPixelWidth] as? Int, let height = info[kCGImagePropertyPixelHeight] as? Int,
                   width > 0, height > 0, Double(width) * Double(height) <= 40_000_000,
                   let image = NSImage(data: payload.data) else { status.stringValue = "Image unavailable or exceeds 40 million pixels."; return }
-            let view = NSImageView(); view.imageScaling = .scaleProportionallyUpOrDown; view.image = image
+            let view = ArtifactImageView(image: image)
             view.setAccessibilityLabel("Image artifact: " + payload.url.lastPathComponent); install(view)
         case .pdf:
             guard let document = PDFDocument(data: payload.data) else { status.stringValue = "This PDF could not be read."; return }
             let view = PDFView(); view.autoScales = true; view.document = document
             view.setAccessibilityLabel("PDF artifact: " + payload.url.lastPathComponent); install(view)
+            content.layoutSubtreeIfNeeded(); view.autoScales = false; view.scaleFactor = view.scaleFactorForSizeToFit * DisplayMetrics.preferences.zoom
         case .html:
             let configuration = WKWebViewConfiguration()
             configuration.websiteDataStore = .nonPersistent()
@@ -83,6 +96,7 @@ import SpookkyFiles
             guard !Task.isCancelled else { return }
             if let blocker { configuration.userContentController.add(blocker) }
             let view = WKWebView(frame: .zero, configuration: configuration)
+            view.pageZoom = DisplayMetrics.preferences.zoom
             webView = view
             view.navigationDelegate = self; view.setAccessibilityLabel("Local HTML artifact, isolated inline scripts")
             install(view)
@@ -102,4 +116,35 @@ import SpookkyFiles
     }
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { status.stringValue = "HTML preview process ended. Close and reopen this tab to retry." }
     func dispose() { task?.cancel(); task = nil; webView?.stopLoading(); webView?.navigationDelegate = nil }
+}
+
+@MainActor private final class ArtifactImageView: NSScrollView {
+    private let picture = NSImageView()
+    private let canvas = NSView()
+    private let image: NSImage
+    init(image: NSImage) {
+        self.image = image; super.init(frame: .zero)
+        picture.image = image; picture.imageScaling = .scaleProportionallyUpOrDown
+        canvas.addSubview(picture); documentView = canvas; hasVerticalScroller = true; hasHorizontalScroller = true
+        autohidesScrollers = true; drawsBackground = false
+    }
+    required init?(coder: NSCoder) { fatalError("Use init") }
+    override func layout() {
+        super.layout()
+        let fit = min(contentSize.width / max(1, image.size.width), contentSize.height / max(1, image.size.height))
+        let size = NSSize(width: max(contentSize.width, image.size.width * fit * DisplayMetrics.preferences.zoom),
+                          height: max(contentSize.height, image.size.height * fit * DisplayMetrics.preferences.zoom))
+        let pictureSize = NSSize(width: image.size.width * fit * DisplayMetrics.preferences.zoom, height: image.size.height * fit * DisplayMetrics.preferences.zoom)
+        picture.frame = NSRect(x: (size.width - pictureSize.width) / 2, y: (size.height - pictureSize.height) / 2, width: pictureSize.width, height: pictureSize.height)
+        if canvas.frame.size != size {
+            let old = canvas.frame.size
+            let center = NSPoint(x: contentView.bounds.midX / max(1, old.width), y: contentView.bounds.midY / max(1, old.height))
+            canvas.setFrameSize(size)
+            if old.width > 0 && old.height > 0 {
+                contentView.scroll(to: NSPoint(x: max(0, min(size.width - contentSize.width, center.x * size.width - contentSize.width / 2)),
+                                               y: max(0, min(size.height - contentSize.height, center.y * size.height - contentSize.height / 2))))
+                reflectScrolledClipView(contentView)
+            }
+        }
+    }
 }

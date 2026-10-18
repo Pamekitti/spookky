@@ -31,6 +31,30 @@ import SpookkyCore
     private var preparing = false
     private(set) var installingUpdate = false
     var prepareForUpdate: (() async throws -> Void)?
+    var displayPreferences = DisplayPreferences()
+    var displayPreferencesDidChange: ((DisplayPreferences) -> Void)?
+    var terminalAppearanceMessage = "Following Ghostty appearance" { didSet { appearanceStatus?.stringValue = terminalAppearanceMessage } }
+    private weak var appearanceStatus: NSTextField?
+    var persistsDisplayPreferences = true
+    private var displaySave: Task<Void, Never>?
+    func changeDisplay(_ edit: (inout DisplayPreferences) -> Void) {
+        let old = displayPreferences
+        edit(&displayPreferences); displayPreferences.normalize()
+        guard old != displayPreferences else { return }
+        displayPreferencesDidChange?(displayPreferences)
+        guard persistsDisplayPreferences else { return }
+        displaySave?.cancel()
+        displaySave = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled, let self else { return }
+            if let data = try? JSONEncoder().encode(displayPreferences) { UserDefaults.standard.set(data, forKey: "displayPreferences") }
+        }
+    }
+    func flushDisplayPreferences() {
+        guard persistsDisplayPreferences else { return }
+        displaySave?.cancel(); displaySave = nil
+        if let data = try? JSONEncoder().encode(displayPreferences) { UserDefaults.standard.set(data, forKey: "displayPreferences") }
+    }
     var agentPreferences = AgentNotificationPreferences()
     var activityPreferencesDidChange: ((AgentNotificationPreferences) -> Void)?
     var testAgentNotification: (() async -> String)?
@@ -39,6 +63,9 @@ import SpookkyCore
     override init() {
         super.init()
         if let data = UserDefaults.standard.data(forKey: "agentNotifications"), let saved = try? JSONDecoder().decode(AgentNotificationPreferences.self, from: data) { agentPreferences = saved }
+        if let data = UserDefaults.standard.data(forKey: "displayPreferences"), let saved = try? JSONDecoder().decode(DisplayPreferences.self, from: data) {
+            displayPreferences = saved; displayPreferences.normalize()
+        }
         let preview = Bundle.main.object(forInfoDictionaryKey: "SpookkyReleaseChannel") as? String == "preview"
         UserDefaults.standard.register(defaults: ["receivePreviewUpdates": preview])
         if Bundle.main.bundleIdentifier == "dev.spookky.app",
@@ -138,7 +165,7 @@ import SpookkyCore
 
     @objc private func showSettings() {
         if let settings { refreshSettings(); settings.makeKeyAndOrderFront(nil); return }
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 540), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 680), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Spookky Settings"; window.isReleasedWhenClosed = false
         let checks = ChromeButton(checkboxWithTitle: "Check for updates automatically", target: self, action: #selector(changeChecks(_:)))
         checks.state = controller?.updater.automaticallyChecksForUpdates == true ? .on : .off
@@ -152,10 +179,38 @@ import SpookkyCore
         updateChecks = checks; updateDownloads = downloads; previewUpdates = previews
         let detail = ChromeTextField(wrappingLabelWithString: controller == nil ? "Update settings are available in signed public releases." : "Updates check once a day while Spookky runs. Restarting keeps your terminal sessions running.")
         detail.textColor = .secondaryLabelColor
-        let stack = NSStackView(views: [checks, downloads, previews, detail, activitySettings()]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12
-        stack.translatesAutoresizingMaskIntoConstraints = false; window.contentView!.addSubview(stack)
-        NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: window.contentView!.leadingAnchor, constant: 24), stack.trailingAnchor.constraint(equalTo: window.contentView!.trailingAnchor, constant: -24), stack.topAnchor.constraint(equalTo: window.contentView!.topAnchor, constant: 24)])
+        let stack = NSStackView(views: [checks, downloads, previews, detail, displaySettings(), activitySettings()]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = SpookkyStyle.points(12)
+        let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.drawsBackground = false
+        scroll.translatesAutoresizingMaskIntoConstraints = false; window.contentView!.addSubview(scroll)
+        let document = SettingsDocumentView(); document.translatesAutoresizingMaskIntoConstraints = false
+        scroll.documentView = document; stack.translatesAutoresizingMaskIntoConstraints = false; document.addSubview(stack)
+        NSLayoutConstraint.activate([
+            scroll.leadingAnchor.constraint(equalTo: window.contentView!.leadingAnchor), scroll.trailingAnchor.constraint(equalTo: window.contentView!.trailingAnchor),
+            scroll.topAnchor.constraint(equalTo: window.contentView!.topAnchor), scroll.bottomAnchor.constraint(equalTo: window.contentView!.bottomAnchor),
+            document.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
+            stack.leadingAnchor.constraint(equalTo: document.leadingAnchor, constant: 24).displayScaled(),
+            stack.trailingAnchor.constraint(equalTo: document.trailingAnchor, constant: -24).displayScaled(),
+            stack.topAnchor.constraint(equalTo: document.topAnchor, constant: 24).displayScaled(),
+            stack.bottomAnchor.constraint(equalTo: document.bottomAnchor, constant: -24).displayScaled()
+        ])
+        DisplayMetrics.registerRoot(window.contentView!)
         settings = window; window.center(); window.makeKeyAndOrderFront(nil)
+    }
+    private func displaySettings() -> NSView {
+        let label = ChromeTextField(wrappingLabelWithString: terminalAppearanceMessage)
+        label.font = .systemFont(ofSize: SpookkyStyle.points(11)); appearanceStatus = label
+        let size = ChromePopUpButton()
+        for value in -8...20 { size.addItem(withTitle: "\(value > 0 ? "+" : "")\(value) pt") }
+        size.selectItem(at: Int(displayPreferences.terminalFontAdjustment) + 8)
+        size.target = self; size.action = #selector(changeTerminalSize(_:)); size.setAccessibilityLabel("Terminal font adjustment")
+        let reset = ActionButton("Reset interface size") { [weak self] in self?.changeDisplay { $0.zoom = 1 } }
+        let row = NSStackView(views: [SpookkyStyle.label( "Terminal font adjustment"), size, reset])
+        row.orientation = .vertical; row.alignment = .leading
+        let stack = NSStackView(views: [label, row]); stack.orientation = .vertical; stack.alignment = .leading
+        return stack
+    }
+    @objc private func changeTerminalSize(_ sender: NSPopUpButton) {
+        changeDisplay { $0.terminalFontAdjustment = Double(sender.indexOfSelectedItem - 8) }
     }
     private func activitySettings() -> NSView {
         activityChecks.removeAll()
@@ -165,13 +220,13 @@ import SpookkyCore
             activityChecks[ObjectIdentifier(button)] = { [weak self] value in self?.agentPreferences[keyPath: key] = value }
             return button
         }
-        let title = NSTextField(labelWithString: "Activity and notifications"); title.font = .systemFont(ofSize: 13, weight: .medium)
-        let providers = NSStackView(views: [check("Codex", \.codex), check("Claude Code", \.claude)]); providers.spacing = 20
+        let title = SpookkyStyle.label( "Activity and notifications"); title.font = .systemFont(ofSize: SpookkyStyle.points(13), weight: .medium)
+        let providers = NSStackView(views: [check("Codex", \.codex), check("Claude Code", \.claude)]); providers.spacing = SpookkyStyle.points(20)
         let grid = NSGridView(views: [
-            [NSTextField(labelWithString: "Notify me"), NSTextField(labelWithString: "Banner"), NSTextField(labelWithString: "App sound")],
-            [NSTextField(labelWithString: "Needs input"), check("", \.inputBanner), check("", \.inputSound)],
-            [NSTextField(labelWithString: "Turn finished"), check("", \.finishedBanner), check("", \.finishedSound)],
-            [NSTextField(labelWithString: "Failed"), check("", \.failedBanner), check("", \.failedSound)]
+            [SpookkyStyle.label( "Notify me"), SpookkyStyle.label( "Banner"), SpookkyStyle.label( "App sound")],
+            [SpookkyStyle.label( "Needs input"), check("", \.inputBanner), check("", \.inputSound)],
+            [SpookkyStyle.label( "Turn finished"), check("", \.finishedBanner), check("", \.finishedSound)],
+            [SpookkyStyle.label( "Failed"), check("", \.failedBanner), check("", \.failedSound)]
         ])
         grid.columnSpacing = 22; grid.rowSpacing = 8
         for row in 1...3 {
@@ -183,19 +238,19 @@ import SpookkyCore
         sounds.selectItem(withTitle: agentPreferences.sound); sounds.target = self; sounds.action = #selector(changeActivitySound(_:)); sounds.setAccessibilityLabel("Notification sound")
         let volume = NSSlider(value: Double(agentPreferences.volume), minValue: 0, maxValue: 1, target: self, action: #selector(changeActivityVolume(_:)))
         SpookkyStyle.suppressFocusRing(volume)
-        volume.setAccessibilityLabel("Notification volume"); volume.widthAnchor.constraint(equalToConstant: 150).isActive = true
-        let soundRow = NSStackView(views: [sounds, volume]); soundRow.spacing = 12
+        volume.setAccessibilityLabel("Notification volume"); volume.widthAnchor.constraint(equalToConstant: 150).displayScaled().isActive = true
+        let soundRow = NSStackView(views: [sounds, volume]); soundRow.spacing = SpookkyStyle.points(12)
         let note = ChromeTextField(wrappingLabelWithString: "Monitoring begins on the next agent launch. Codex keeps its normal hook trust review. Existing CLI sound hooks stay active.")
-        note.font = .systemFont(ofSize: 11); note.textColor = .secondaryLabelColor
-        let testResult = ChromeTextField(wrappingLabelWithString: ""); testResult.font = .systemFont(ofSize: 11); testResult.textColor = .secondaryLabelColor
+        note.font = .systemFont(ofSize: SpookkyStyle.points(11)); note.textColor = .secondaryLabelColor
+        let testResult = ChromeTextField(wrappingLabelWithString: ""); testResult.font = .systemFont(ofSize: SpookkyStyle.points(11)); testResult.textColor = .secondaryLabelColor
         let test = ActionButton("Test notification") { [weak self, weak testResult] in
             Task { testResult?.stringValue = await self?.testAgentNotification?() ?? "Notifications are unavailable." }
         }
         let stack = NSStackView(views: [title, providers, grid, soundRow,
             check("Show message previews", \.previews), check("Show Dock attention count", \.dockBadge),
             check("Stay quiet while viewing the terminal", \.suppressVisible), note, test, testResult])
-        stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 10
-        note.widthAnchor.constraint(equalToConstant: 392).isActive = true
+        stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = SpookkyStyle.points(10)
+        note.widthAnchor.constraint(equalToConstant: 392).displayScaled().isActive = true
         return stack
     }
     private func saveActivityPreferences() {
@@ -228,9 +283,13 @@ import SpookkyCore
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 480), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Spookky Licenses"; window.isReleasedWhenClosed = false
         let scroll = NSScrollView(frame: window.contentView!.bounds); scroll.autoresizingMask = [.width, .height]; scroll.hasVerticalScroller = true
-        let view = NSTextView(frame: scroll.bounds); view.isEditable = false; view.string = text; view.font = .systemFont(ofSize: 12)
+        let view = NSTextView(frame: scroll.bounds); view.isEditable = false; view.string = text; view.font = .systemFont(ofSize: SpookkyStyle.points(12))
         view.textContainerInset = NSSize(width: 20, height: 20); view.autoresizingMask = [.width]; view.isVerticallyResizable = true
         view.textContainer?.widthTracksTextView = true; scroll.documentView = view; window.contentView!.addSubview(scroll)
-        licenses = window; window.center(); window.makeKeyAndOrderFront(nil)
+        DisplayMetrics.registerRoot(window.contentView!); licenses = window; window.center(); window.makeKeyAndOrderFront(nil)
     }
+}
+
+private final class SettingsDocumentView: NSView {
+    override var isFlipped: Bool { true }
 }

@@ -56,27 +56,31 @@ final class WorkspaceRootView: NSView {
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); onAppearance?() }
 }
 
-enum SpookkyStyle {
-    static let controlHeight: CGFloat = 28
-    static let compactHeight: CGFloat = 24
-    static let headerHeight: CGFloat = 40
-    static let workspaceRowHeight: CGFloat = 32
-    static let sidebarWidth: CGFloat = 232
-    static let railWidth: CGFloat = 58
-    static let fileSidebarWidth: CGFloat = 248
-    static let composerWidth: CGFloat = 800
-    static let composerRadius: CGFloat = 13
-    static let cornerRadius: CGFloat = 8
-    static let iconSlot: CGFloat = 16
-    static let leadingIconSize: CGFloat = 14
-    static let utilityIconSize: CGFloat = 14
-    static let iconLabelGap: CGFloat = 6
-    static let controlInset: CGFloat = 8
+@MainActor enum SpookkyStyle {
+    static func points(_ value: CGFloat) -> CGFloat { DisplayMetrics.points(value) }
+    static var controlHeight: CGFloat { points(28) }
+    static var compactHeight: CGFloat { points(24) }
+    static var headerHeight: CGFloat { points(40) }
+    static var workspaceRowHeight: CGFloat { points(32) }
+    static var sidebarWidth: CGFloat { points(232) }
+    static var sidebarOuterInset: CGFloat { points(12) }
+    static var fileSidebarWidth: CGFloat { points(248) }
+    static var composerWidth: CGFloat { points(800) }
+    static var composerRadius: CGFloat { points(13) }
+    static var cornerRadius: CGFloat { points(8) }
+    static var iconSlot: CGFloat { points(16) }
+    static var leadingIconSize: CGFloat { points(14) }
+    static var utilityIconSize: CGFloat { points(14) }
+    static var iconLabelGap: CGFloat { points(6) }
+    static var controlInset: CGFloat { points(8) }
     static func configure(_ control: NSControl, size: CGFloat = 12) {
         suppressFocusRing(control)
-        control.font = .systemFont(ofSize: size)
+        control.font = .systemFont(ofSize: points(size))
         control.controlSize = .small
         if let popup = control as? NSPopUpButton { popup.isBordered = false }
+    }
+    static func label(_ text: String) -> NSTextField {
+        let field = NSTextField(labelWithString: text); field.font = .systemFont(ofSize: points(13)); return field
     }
     static func suppressFocusRing(_ control: NSControl) {
         control.focusRingType = .none; control.cell?.focusRingType = .none
@@ -86,10 +90,10 @@ enum SpookkyStyle {
         return path == home ? "~" : path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
     }
     static func fieldGroup(_ title: String, control: NSControl) -> NSStackView {
-        let label = NSTextField(labelWithString: title)
-        label.font = .systemFont(ofSize: 11); label.textColor = SpookkyPalette.metadata
+        let label = SpookkyStyle.label( title)
+        label.font = .systemFont(ofSize: SpookkyStyle.points(11)); label.textColor = SpookkyPalette.metadata
         let group = NSStackView(views: [label, control])
-        group.orientation = .vertical; group.alignment = .leading; group.spacing = 4
+        group.orientation = .vertical; group.alignment = .leading; group.spacing = SpookkyStyle.points(4)
         group.setContentHuggingPriority(.required, for: .vertical)
         control.heightAnchor.constraint(equalToConstant: controlHeight).isActive = true
         control.widthAnchor.constraint(equalTo: group.widthAnchor).isActive = true
@@ -100,7 +104,7 @@ enum SpookkyStyle {
         let letters = words.count > 1 ? String(words.prefix(2).compactMap(\.first)) : String(title.prefix(2))
         return NSImage(size: NSSize(width: 16, height: 16), flipped: false) { bounds in
             SpookkyPalette.selected.setFill(); NSBezierPath(roundedRect: bounds, xRadius: 4, yRadius: 4).fill()
-            let value = NSAttributedString(string: letters.uppercased(), attributes: [.font: NSFont.systemFont(ofSize: 8, weight: .semibold), .foregroundColor: SpookkyPalette.secondary])
+            let value = NSAttributedString(string: letters.uppercased(), attributes: [.font: NSFont.systemFont(ofSize: SpookkyStyle.points(8), weight: .semibold), .foregroundColor: SpookkyPalette.secondary])
             let size = value.size(); value.draw(at: NSPoint(x: (16 - size.width) / 2, y: (16 - size.height) / 2)); return true
         }
     }
@@ -115,6 +119,7 @@ enum SpookkyStyle {
     }
     static func supportingSymbol(_ target: SupportingTarget) -> String {
         switch target {
+        case .startPage: "globe"
         case .changes: "arrow.triangle.branch"
         case .file: "doc.text"
         case .browser: "globe"
@@ -159,8 +164,37 @@ final class ChromeTextField: NSTextField {
     required init?(coder: NSCoder) { super.init(coder: coder); SpookkyStyle.suppressFocusRing(self) }
 }
 final class ChromeSearchField: NSSearchField {
-    override init(frame: NSRect = .zero) { super.init(frame: frame); SpookkyStyle.suppressFocusRing(self) }
+    override init(frame: NSRect = .zero) {
+        super.init(frame: frame); cell = ChromeSearchCell(textCell: "")
+        isEditable = true; isSelectable = true
+        isBezeled = false; drawsBackground = false; cell?.lineBreakMode = .byTruncatingTail
+        (cell as? NSSearchFieldCell)?.searchButtonCell?.imageScaling = .scaleProportionallyUpOrDown
+        (cell as? NSSearchFieldCell)?.cancelButtonCell?.imageScaling = .scaleProportionallyUpOrDown
+        font = .systemFont(ofSize: SpookkyStyle.points(13))
+        SpookkyStyle.suppressFocusRing(self)
+    }
     required init?(coder: NSCoder) { super.init(coder: coder); SpookkyStyle.suppressFocusRing(self) }
+    override func draw(_ dirtyRect: NSRect) {
+        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: bounds.height / 2, yRadius: bounds.height / 2)
+        SpookkyPalette.raised.setFill(); path.fill()
+        SpookkyPalette.border.setStroke(); path.lineWidth = 1; path.stroke()
+        super.draw(dirtyRect)
+    }
+}
+final class ChromeSearchCell: NSSearchFieldCell {
+    override func searchTextRect(forBounds rect: NSRect) -> NSRect {
+        let height = ceil((font?.ascender ?? 10) - (font?.descender ?? -3) + 4)
+        let inset = SpookkyStyle.points(28)
+        return NSRect(x: rect.minX + inset, y: rect.midY - height / 2, width: max(0, rect.width - inset * 2), height: height)
+    }
+    override func searchButtonRect(forBounds rect: NSRect) -> NSRect {
+        let size = SpookkyStyle.points(14)
+        return NSRect(x: rect.minX + SpookkyStyle.points(8), y: rect.midY - size / 2, width: size, height: size)
+    }
+    override func cancelButtonRect(forBounds rect: NSRect) -> NSRect {
+        let size = SpookkyStyle.points(14)
+        return NSRect(x: rect.maxX - SpookkyStyle.points(22), y: rect.midY - size / 2, width: size, height: size)
+    }
 }
 final class ChromePopUpButton: NSPopUpButton {
     override init(frame: NSRect = .zero, pullsDown: Bool = false) { super.init(frame: frame, pullsDown: pullsDown); SpookkyStyle.suppressFocusRing(self) }
@@ -272,7 +306,7 @@ final class PromptTextView: NSTextView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         if string.isEmpty {
-            NSAttributedString(string: "Start a session…", attributes: [.font: font ?? NSFont.systemFont(ofSize: 14), .foregroundColor: SpookkyPalette.secondary])
+            NSAttributedString(string: "Start a session…", attributes: [.font: font ?? NSFont.systemFont(ofSize: SpookkyStyle.points(14)), .foregroundColor: SpookkyPalette.secondary])
                 .draw(at: NSPoint(x: textContainerInset.width + 5, y: textContainerInset.height))
         }
     }
@@ -297,6 +331,7 @@ class ActionButton: NSButton {
     var onHoverChange: ((Bool) -> Void)?
     private var keyboardFocused = false
     private var receivingPointer = false
+    private var iconCache: (source: NSImage, color: NSColor, size: CGFloat, image: NSImage)?
     var showsKeyboardFocus: Bool { keyboardFocused && window?.firstResponder === self && window?.isKeyWindow == true }
     private let targetHeight: CGFloat
     var isRevealed: Bool { !revealOnInteraction || interactionActive || keyboardFocused }
@@ -309,27 +344,29 @@ class ActionButton: NSButton {
     override func hitTest(_ point: NSPoint) -> NSView? { isRevealed ? super.hitTest(point) : nil }
     private var hovered = false
     private var tracking: NSTrackingArea?
-    init(_ title: String, symbol: String? = nil, help: String? = nil, height: CGFloat = SpookkyStyle.controlHeight, action: @escaping () -> Void) {
-        handler = action; targetHeight = height
+    init(_ title: String, symbol: String? = nil, help: String? = nil, height: CGFloat? = nil, action: @escaping () -> Void) {
+        let height = height ?? SpookkyStyle.controlHeight
+        handler = action; targetHeight = height / DisplayMetrics.preferences.zoom
         super.init(frame: .zero)
         self.title = title; target = self; self.action = #selector(invoke)
-        isBordered = false; SpookkyStyle.suppressFocusRing(self); font = .systemFont(ofSize: 13)
+        isBordered = false; SpookkyStyle.suppressFocusRing(self); font = .systemFont(ofSize: SpookkyStyle.points(13))
         if let symbol { image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil); imagePosition = title.isEmpty ? .imageOnly : .imageLeading }
         compactUtility = symbol == "plus" || symbol == "xmark"
         toolTip = help ?? title; setAccessibilityLabel(help ?? title)
-        heightAnchor.constraint(greaterThanOrEqualToConstant: height).isActive = true
+        heightAnchor.constraint(greaterThanOrEqualToConstant: height).displayScaled(alreadyScaled: true).isActive = true
     }
     required init?(coder: NSCoder) { fatalError("Use init") }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override var isOpaque: Bool { false }
     override var alignmentRectInsets: NSEdgeInsets {
         // Custom symbol buttons have no native bezel outside their declared target.
         compactUtility && title.isEmpty ? NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0) : super.alignmentRectInsets
     }
     override var intrinsicContentSize: NSSize {
-        let text = (title as NSString).size(withAttributes: [.font: font ?? NSFont.systemFont(ofSize: 13)]).width
+        let text = (title as NSString).size(withAttributes: [.font: font ?? NSFont.systemFont(ofSize: SpookkyStyle.points(13))]).width
         let iconWidth = image == nil ? 0 : SpookkyStyle.iconSlot + SpookkyStyle.iconLabelGap
-        return NSSize(width: title.isEmpty ? targetHeight :
-            ceil(text) + 1 + 2 * contentInset + iconWidth + (menuIndicator ? 16 : 0), height: targetHeight)
+        return NSSize(width: title.isEmpty ? SpookkyStyle.points(targetHeight) :
+            ceil(text) + 1 + 2 * contentInset + iconWidth + (menuIndicator ? 16 : 0), height: SpookkyStyle.points(targetHeight))
     }
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -353,7 +390,7 @@ class ActionButton: NSButton {
     override func draw(_ dirtyRect: NSRect) {
         let pressed = cell?.isHighlighted == true
         let compact = compactUtility && title.isEmpty
-        let fillBounds = compact ? NSRect(x: bounds.midX - 10, y: bounds.midY - 10, width: 20, height: 20) : bounds.insetBy(dx: 1, dy: 1)
+        let fillBounds = compact ? NSRect(x: bounds.midX - SpookkyStyle.points(10), y: bounds.midY - SpookkyStyle.points(10), width: SpookkyStyle.points(20), height: SpookkyStyle.points(20)) : bounds.insetBy(dx: 1, dy: 1)
         let shape = NSBezierPath(roundedRect: fillBounds, xRadius: compact ? 5 : SpookkyStyle.cornerRadius, yRadius: compact ? 5 : SpookkyStyle.cornerRadius)
         let fill: NSColor = switch emphasis {
         case .primary: SpookkyPalette.text
@@ -386,7 +423,7 @@ class ActionButton: NSButton {
         if let image {
             let utility = title.isEmpty
             let config = NSImage.SymbolConfiguration(
-                pointSize: utility ? (compactUtility ? 12 : SpookkyStyle.utilityIconSize) : SpookkyStyle.leadingIconSize,
+                pointSize: utility ? (compactUtility ? SpookkyStyle.points(12) : SpookkyStyle.utilityIconSize) : SpookkyStyle.leadingIconSize,
                 weight: utility && !compactUtility ? .medium : .regular).applying(.init(paletteColors: [tint]))
             let symbol = image.withSymbolConfiguration(config) ?? image
             let slot = NSRect(x: utility ? bounds.midX - SpookkyStyle.iconSlot / 2 : content.minX,
@@ -396,14 +433,18 @@ class ActionButton: NSButton {
             let drawn = NSRect(x: slot.midX - size.width * scale / 2, y: slot.midY - size.height * scale / 2,
                 width: size.width * scale, height: size.height * scale)
             if image.isTemplate {
-                // Custom drawing must tint template assets explicitly.
-                let tinted = NSImage(size: symbol.size, flipped: false) { bounds in
-                    symbol.draw(in: bounds)
-                    tint.setFill(); bounds.fill(using: .sourceAtop)
-                    return true
+                let resolved = tint.usingColorSpace(.deviceRGB) ?? tint
+                let cached: NSImage
+                if let iconCache, iconCache.source === image, iconCache.color == resolved, iconCache.size == SpookkyStyle.iconSlot {
+                    cached = iconCache.image
+                } else {
+                    cached = NSImage(size: symbol.size, flipped: false) { bounds in
+                        symbol.draw(in: bounds); resolved.setFill(); bounds.fill(using: .sourceAtop); return true
+                    }
+                    iconCache = (image, resolved, SpookkyStyle.iconSlot, cached)
                 }
-                tinted.draw(in: drawn)
-            } else { symbol.draw(in: drawn) }
+                cached.draw(in: backingAligned(drawn))
+            } else { symbol.draw(in: backingAligned(drawn)) }
             if !utility {
                 let width = SpookkyStyle.iconSlot + SpookkyStyle.iconLabelGap
                 content.origin.x += width; content.size.width = max(0, content.width - width)
@@ -411,10 +452,14 @@ class ActionButton: NSButton {
         }
         drawTitle(in: content, tint: tint)
     }
+    private func backingAligned(_ rect: NSRect) -> NSRect {
+        let backing = convertToBacking(rect)
+        return convertFromBacking(NSRect(x: backing.minX.rounded(), y: backing.minY.rounded(), width: backing.width.rounded(), height: backing.height.rounded()))
+    }
     func drawTitle(in content: NSRect, tint: NSColor) {
         guard !title.isEmpty else { return }
         let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byTruncatingTail; paragraph.alignment = alignment
-        let label = NSAttributedString(string: title, attributes: [.font: font ?? NSFont.systemFont(ofSize: 13), .foregroundColor: tint, .paragraphStyle: paragraph])
+        let label = NSAttributedString(string: title, attributes: [.font: font ?? NSFont.systemFont(ofSize: SpookkyStyle.points(13)), .foregroundColor: tint, .paragraphStyle: paragraph])
         let h = label.size().height
         label.draw(in: NSRect(x: content.minX, y: bounds.midY - h / 2, width: content.width, height: h))
     }
@@ -514,7 +559,7 @@ private final class ComposerDocumentView: NSView {
     private let locationPopover = NSPopover()
     private let locationPanel = NSStackView()
     private let projectPicker = ActionButton("Choose project", symbol: "folder", action: {})
-    private let directory = NSTextField(labelWithString: "")
+    private let directory = SpookkyStyle.label( "")
     private let locationActions = NSStackView()
     private let chooseFolder = ActionButton("Use folder once…", action: {})
     private let addProject = ActionButton("Add project…", symbol: "plus", action: {})
@@ -535,9 +580,10 @@ private final class ComposerDocumentView: NSView {
     init(tabID: UUID) {
         self.tabID = tabID
         super.init(frame: .zero)
-        prompt.font = .systemFont(ofSize: 14)
+        prompt.font = .systemFont(ofSize: SpookkyStyle.points(14))
         prompt.isRichText = false; prompt.allowsUndo = true; prompt.isAutomaticQuoteSubstitutionEnabled = false
         prompt.isAutomaticDashSubstitutionEnabled = false
+        DisplayMetrics.registerRoot(self)
         prompt.textContainerInset = NSSize(width: 12, height: 12)
         prompt.delegate = self; prompt.drawsBackground = false; prompt.textColor = SpookkyPalette.text
         prompt.onFocusChange = { [weak card] in card?.needsDisplay = true }
@@ -546,44 +592,44 @@ private final class ComposerDocumentView: NSView {
         promptScroll.borderType = .noBorder; promptScroll.drawsBackground = false
         prompt.isVerticallyResizable = true; prompt.isHorizontallyResizable = false
         prompt.autoresizingMask = [.width]; prompt.textContainer?.widthTracksTextView = true
-        promptHeight = promptScroll.heightAnchor.constraint(equalToConstant: 80); promptHeight.isActive = true
+        promptHeight = promptScroll.heightAnchor.constraint(equalToConstant: 80).displayScaled(); promptHeight.isActive = true
         promptScroll.autohidesScrollers = true
         picker.menuIndicator = true; folder.menuIndicator = true
         picker.handler = { [weak self] in self?.chooseTool() }
         folder.handler = { [weak self] in self?.showLocationPicker() }
         launch.handler = { [weak self] in self?.onLaunch?() }
         launch.emphasis = .primary
-        launchWidth = launch.widthAnchor.constraint(equalToConstant: SpookkyStyle.controlHeight); launchWidth.isActive = true
+        launchWidth = launch.widthAnchor.constraint(equalToConstant: SpookkyStyle.controlHeight).displayScaled(alreadyScaled: true); launchWidth.isActive = true
         let spacer = NSView(); spacer.setContentHuggingPriority(.init(1), for: .horizontal)
         for view in [picker, folder, spacer, launch] { controls.addArrangedSubview(view) }
-        controls.spacing = 4; controls.alignment = .centerY
-        controls.edgeInsets = NSEdgeInsets(top: 0, left: 12, bottom: 8, right: 12)
-        controls.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).isActive = true
-        picker.widthAnchor.constraint(greaterThanOrEqualToConstant: SpookkyStyle.controlHeight).isActive = true
-        folder.widthAnchor.constraint(greaterThanOrEqualToConstant: SpookkyStyle.controlHeight).isActive = true
-        folder.widthAnchor.constraint(lessThanOrEqualToConstant: 300).isActive = true
+        controls.spacing = SpookkyStyle.points(4); controls.alignment = .centerY
+        controls.edgeInsets = NSEdgeInsets(top: 0, left: SpookkyStyle.points(12), bottom: SpookkyStyle.points(8), right: SpookkyStyle.points(12))
+        controls.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).displayScaled(alreadyScaled: true).isActive = true
+        picker.widthAnchor.constraint(greaterThanOrEqualToConstant: SpookkyStyle.controlHeight).displayScaled(alreadyScaled: true).isActive = true
+        folder.widthAnchor.constraint(greaterThanOrEqualToConstant: SpookkyStyle.controlHeight).displayScaled(alreadyScaled: true).isActive = true
+        folder.widthAnchor.constraint(lessThanOrEqualToConstant: 300).displayScaled().isActive = true
         folder.lineBreakMode = .byTruncatingMiddle
         folder.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         picker.setContentCompressionResistancePriority(.required, for: .horizontal)
-        card.orientation = .vertical; card.alignment = .leading; card.spacing = 4
+        card.orientation = .vertical; card.alignment = .leading; card.spacing = SpookkyStyle.points(4)
         card.raised = true; card.cornerRadius = SpookkyStyle.composerRadius
-        card.setAccessibilityLabel("New session"); card.setAccessibilityRole(.group)
+        card.setAccessibilityLabel("New chat"); card.setAccessibilityRole(.group)
         card.addArrangedSubview(promptScroll); card.addArrangedSubview(controls)
         promptScroll.widthAnchor.constraint(equalTo: card.widthAnchor).isActive = true
         controls.widthAnchor.constraint(equalTo: card.widthAnchor).isActive = true
         terminal.handler = { [weak self] in self?.onTerminal?() }
         terminal.emphasis = .quiet
-        terminalRow.addArrangedSubview(terminal); terminalRow.addArrangedSubview(NSView()); terminalRow.spacing = 8
-        message.font = .systemFont(ofSize: 11); message.textColor = SpookkyPalette.warning
+        terminalRow.addArrangedSubview(terminal); terminalRow.addArrangedSubview(NSView()); terminalRow.spacing = SpookkyStyle.points(8)
+        message.font = .systemFont(ofSize: SpookkyStyle.points(11)); message.textColor = SpookkyPalette.warning
         message.maximumNumberOfLines = 3
         let stack = NSStackView(views: [message, card, terminalRow])
-        stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 8
+        stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = SpookkyStyle.points(8)
         let scroll = NSScrollView(), document = ComposerDocumentView()
         scroll.drawsBackground = false; scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true
         scroll.documentView = document
         scroll.translatesAutoresizingMaskIntoConstraints = false; document.translatesAutoresizingMaskIntoConstraints = false
         addSubview(scroll); stack.translatesAutoresizingMaskIntoConstraints = false; document.addSubview(stack)
-        let preferredWidth = stack.widthAnchor.constraint(equalTo: document.widthAnchor, constant: -48)
+        let preferredWidth = stack.widthAnchor.constraint(equalTo: document.widthAnchor, constant: -48).displayScaled()
         preferredWidth.priority = .defaultHigh
         let preferredHeight = document.heightAnchor.constraint(equalTo: scroll.contentView.heightAnchor)
         preferredHeight.priority = .defaultLow
@@ -593,12 +639,12 @@ private final class ComposerDocumentView: NSView {
             document.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor), document.topAnchor.constraint(equalTo: scroll.contentView.topAnchor),
             document.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
             document.heightAnchor.constraint(greaterThanOrEqualTo: scroll.contentView.heightAnchor),
-            document.heightAnchor.constraint(greaterThanOrEqualTo: stack.heightAnchor, constant: 48), preferredHeight,
-            stack.centerXAnchor.constraint(equalTo: document.centerXAnchor), stack.bottomAnchor.constraint(equalTo: document.bottomAnchor, constant: -24),
-            stack.topAnchor.constraint(greaterThanOrEqualTo: document.topAnchor, constant: 24),
-            stack.widthAnchor.constraint(lessThanOrEqualToConstant: SpookkyStyle.composerWidth),
-            stack.leadingAnchor.constraint(greaterThanOrEqualTo: document.leadingAnchor, constant: 24),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: document.trailingAnchor, constant: -24), preferredWidth,
+            document.heightAnchor.constraint(greaterThanOrEqualTo: stack.heightAnchor, constant: 48).displayScaled(), preferredHeight,
+            stack.centerXAnchor.constraint(equalTo: document.centerXAnchor), stack.bottomAnchor.constraint(equalTo: document.bottomAnchor, constant: -24).displayScaled(),
+            stack.topAnchor.constraint(greaterThanOrEqualTo: document.topAnchor, constant: 24).displayScaled(),
+            stack.widthAnchor.constraint(lessThanOrEqualToConstant: SpookkyStyle.composerWidth).displayScaled(alreadyScaled: true),
+            stack.leadingAnchor.constraint(greaterThanOrEqualTo: document.leadingAnchor, constant: 24).displayScaled(),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: document.trailingAnchor, constant: -24).displayScaled(), preferredWidth,
             card.widthAnchor.constraint(equalTo: stack.widthAnchor), terminalRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             message.widthAnchor.constraint(equalTo: stack.widthAnchor)
         ])
@@ -614,11 +660,11 @@ private final class ComposerDocumentView: NSView {
         scroll.documentView = document; scroll.translatesAutoresizingMaskIntoConstraints = false
         document.translatesAutoresizingMaskIntoConstraints = false
         controller.view.addSubview(scroll)
-        locationPanel.orientation = .vertical; locationPanel.alignment = .leading; locationPanel.spacing = 12
+        locationPanel.orientation = .vertical; locationPanel.alignment = .leading; locationPanel.spacing = SpookkyStyle.points(12)
         locationPanel.translatesAutoresizingMaskIntoConstraints = false; document.addSubview(locationPanel)
-        let title = NSTextField(labelWithString: "Folder and project")
-        title.font = .systemFont(ofSize: 13, weight: .medium); title.textColor = SpookkyPalette.text
-        directory.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+        let title = SpookkyStyle.label( "Folder and project")
+        title.font = .systemFont(ofSize: SpookkyStyle.points(13), weight: .medium); title.textColor = SpookkyPalette.text
+        directory.font = .monospacedSystemFont(ofSize: SpookkyStyle.points(11), weight: .regular)
         directory.textColor = SpookkyPalette.metadata; directory.lineBreakMode = .byTruncatingMiddle
         projectPicker.menuIndicator = true; projectPicker.setAccessibilityLabel("Choose project")
         projectPicker.handler = { [weak self] in
@@ -631,7 +677,7 @@ private final class ComposerDocumentView: NSView {
         }
         locate.handler = { [weak self] in self?.locationPopover.performClose(nil); self?.onLocate?() }
         for view in [chooseFolder, addProject] { locationActions.addArrangedSubview(view) }
-        locationActions.spacing = 8
+        locationActions.spacing = SpookkyStyle.points(8)
         for view in [title, directory, projectPicker, locationOptions, locationActions, locate] { locationPanel.addArrangedSubview(view) }
         for view in [directory, projectPicker, locationOptions, locationActions] { view.widthAnchor.constraint(equalTo: locationPanel.widthAnchor).isActive = true }
         NSLayoutConstraint.activate([
@@ -639,11 +685,12 @@ private final class ComposerDocumentView: NSView {
             scroll.topAnchor.constraint(equalTo: controller.view.topAnchor), scroll.bottomAnchor.constraint(equalTo: controller.view.bottomAnchor),
             document.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor), document.topAnchor.constraint(equalTo: scroll.contentView.topAnchor),
             document.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
-            locationPanel.leadingAnchor.constraint(equalTo: document.leadingAnchor, constant: 12),
-            locationPanel.trailingAnchor.constraint(equalTo: document.trailingAnchor, constant: -12),
-            locationPanel.topAnchor.constraint(equalTo: document.topAnchor, constant: 12),
-            locationPanel.bottomAnchor.constraint(equalTo: document.bottomAnchor, constant: -12)
+            locationPanel.leadingAnchor.constraint(equalTo: document.leadingAnchor, constant: 12).displayScaled(),
+            locationPanel.trailingAnchor.constraint(equalTo: document.trailingAnchor, constant: -12).displayScaled(),
+            locationPanel.topAnchor.constraint(equalTo: document.topAnchor, constant: 12).displayScaled(),
+            locationPanel.bottomAnchor.constraint(equalTo: document.bottomAnchor, constant: -12).displayScaled()
         ])
+        DisplayMetrics.registerRoot(controller.view)
         locationPopover.contentViewController = controller
     }
 
@@ -700,17 +747,17 @@ private final class ComposerDocumentView: NSView {
     }
 
     private func configureFooter() {
-        let tool = currentTool ?? .codex, compact = card.bounds.width > 0 && card.bounds.width < 280
+        let tool = currentTool ?? .codex, compact = card.bounds.width > 0 && card.bounds.width < SpookkyStyle.points(280)
         let providerTitle = compact ? "" : tool == .claude ? "Claude" : tool.displayName
         if picker.title != providerTitle { picker.title = providerTitle }
         let title = compact ? "" : folderTitle
         if folder.title != title { folder.title = title }
-        let launchTitle = tool == .shell && card.bounds.width >= 380 ? "Open Terminal" : ""
+        let launchTitle = tool == .shell && card.bounds.width >= SpookkyStyle.points(380) ? "Open Terminal" : ""
         if launch.title != launchTitle { launch.title = launchTitle }
         let width = launchTitle.isEmpty ? SpookkyStyle.controlHeight : launch.intrinsicContentSize.width
         if abs(launchWidth.constant - width) > 0.5 { launchWidth.constant = width }
-        let inset: CGFloat = compact ? 8 : 12
-        if controls.edgeInsets.left != inset { controls.edgeInsets = NSEdgeInsets(top: 0, left: inset, bottom: 8, right: inset) }
+        let inset = SpookkyStyle.points(compact ? 8 : 12)
+        if controls.edgeInsets.left != inset { controls.edgeInsets = NSEdgeInsets(top: 0, left: inset, bottom: SpookkyStyle.points(8), right: inset) }
     }
     private func showLocationPicker() {
         if locationPopover.isShown { locationPopover.performClose(nil); return }
@@ -779,7 +826,7 @@ private final class ComposerDocumentView: NSView {
         guard let manager = prompt.layoutManager, let container = prompt.textContainer, promptScroll.contentSize.width > 0 else { return }
         manager.ensureLayout(for: container)
         let content = manager.usedRect(for: container).height + prompt.textContainerInset.height * 2
-        let height = max(80, min(content, 300, max(80, bounds.height / 2)))
+        let height = max(SpookkyStyle.points(80), min(content, SpookkyStyle.points(300), max(SpookkyStyle.points(80), bounds.height / 2)))
         if abs(promptHeight.constant - height) > 0.5 { promptHeight.constant = height }
     }
     func textDidChange(_ notification: Notification) { resizePrompt(); onDraft?(nil, prompt.string) }
@@ -809,6 +856,12 @@ final class WorkspaceHeaderView: NSView {
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
 }
 final class TabStripScrollView: NSScrollView {
+    override func scrollWheel(with event: NSEvent) {
+        let delta = abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) ? event.scrollingDeltaX : event.scrollingDeltaY
+        let maximum = max(0, (documentView?.bounds.width ?? 0) - contentView.bounds.width)
+        contentView.scroll(to: NSPoint(x: min(maximum, max(0, contentView.bounds.minX - delta * (event.hasPreciseScrollingDeltas ? 1 : 10))), y: 0))
+        reflectScrolledClipView(contentView)
+    }
     override var mouseDownCanMoveWindow: Bool { false }
     override func mouseDown(with event: NSEvent) { (window as? WorkspaceNativeWindow)?.dragHeader(with: event) }
     override func hitTest(_ point: NSPoint) -> NSView? {
@@ -822,6 +875,22 @@ final class WorkspaceNativeWindow: NSWindow {
     var allowsHeaderDragging = true
     override var canBecomeKey: Bool { acceptsUserFocus && super.canBecomeKey }
     override var canBecomeMain: Bool { acceptsUserFocus && super.canBecomeMain }
+    var onPointerMove: ((NSEvent) -> Void)?
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .mouseMoved || event.type == .leftMouseDragged { onPointerMove?(event) }
+        super.sendEvent(event)
+    }
+    func positionWindowButtons(headerHeight: CGFloat) {
+        guard !styleMask.contains(.fullScreen), let content = contentView else { return }
+        let buttons = [ButtonType.closeButton, .miniaturizeButton, .zoomButton].compactMap { standardWindowButton($0) }
+        guard let first = buttons.first, let parent = first.superview else { return }
+        let origin = content.convert(NSPoint(x: 20, y: content.bounds.height - headerHeight / 2), to: parent)
+        let offset = origin.x - first.frame.minX
+        for button in buttons {
+            let point = NSPoint(x: button.frame.minX + offset, y: origin.y - button.frame.height / 2)
+            if button.frame.origin != point { button.setFrameOrigin(point) }
+        }
+    }
     var onCommand: ((NSEvent) -> Bool)?
     func dragHeader(with event: NSEvent) {
         guard allowsHeaderDragging, !styleMask.contains(.fullScreen) else { return }

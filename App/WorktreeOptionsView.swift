@@ -29,7 +29,7 @@ import SpookkyWorkspace
     override init(frame: NSRect) {
         super.init(frame: frame)
         orientation = .vertical; alignment = .leading; spacing = 8
-        top.spacing = 8; branchRow.spacing = 8
+        top.spacing = SpookkyStyle.points(8); branchRow.spacing = SpookkyStyle.points(8)
         for control in [mode, checkout, source, branchMode, existing] { control.target = self; control.action = #selector(changed); SpookkyStyle.configure(control) }
         mode.menu?.autoenablesItems = false; checkout.menu?.autoenablesItems = false
         mode.addItems(withTitles: ["Local", "New worktree"])
@@ -38,9 +38,9 @@ import SpookkyWorkspace
         source.setAccessibilityLabel("Starting reference"); branchMode.setAccessibilityLabel("Working branch mode")
         existing.setAccessibilityLabel("Existing local branch")
         branch.placeholderString = "Branch name"; branch.setAccessibilityLabel("New branch name"); branch.delegate = self
-        destination.setAccessibilityLabel("Worktree destination"); destination.delegate = self; destination.font = .systemFont(ofSize: 11)
+        destination.setAccessibilityLabel("Worktree destination"); destination.delegate = self; destination.font = .systemFont(ofSize: SpookkyStyle.points(11))
         cached.target = self; cached.action = #selector(changed)
-        detail.font = .systemFont(ofSize: 11); detail.textColor = .secondaryLabelColor
+        detail.font = .systemFont(ofSize: SpookkyStyle.points(11)); detail.textColor = .secondaryLabelColor
         checkoutGroup = SpookkyStyle.fieldGroup("Checkout", control: checkout)
         sourceGroup = SpookkyStyle.fieldGroup("Starting reference", control: source)
         destinationGroup = SpookkyStyle.fieldGroup("Destination", control: destination)
@@ -52,10 +52,10 @@ import SpookkyWorkspace
         top.widthAnchor.constraint(equalTo: widthAnchor).isActive = true
         branchRow.widthAnchor.constraint(equalTo: widthAnchor).isActive = true
         for field in [branch, destination] { SpookkyStyle.configure(field); field.bezelStyle = .roundedBezel }
-        destination.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+        destination.font = .monospacedSystemFont(ofSize: SpookkyStyle.points(11), weight: .regular)
         detail.textColor = SpookkyPalette.secondary
-        mode.widthAnchor.constraint(equalToConstant: 140).isActive = true
-        for control in [checkout, source, existing, branch] { control.widthAnchor.constraint(equalToConstant: 180).isActive = true }
+        mode.widthAnchor.constraint(equalToConstant: 140).displayScaled().isActive = true
+        for control in [checkout, source, existing, branch] { control.widthAnchor.constraint(equalToConstant: 180).displayScaled().isActive = true }
         destinationGroup.widthAnchor.constraint(equalTo: widthAnchor).isActive = true
         detail.widthAnchor.constraint(equalTo: widthAnchor).isActive = true
     }

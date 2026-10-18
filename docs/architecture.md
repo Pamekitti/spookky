@@ -50,7 +50,7 @@ The launch coordinator, Git services, and persistence are app modules. A separat
 | --- | --- |
 | Project | Stable ID, name, registered directory ID, preferred source reference, last-used time |
 | Directory/Checkout | Stable ID, canonical path, selected path, Git common-dir identity, worktree identity, current branch, kind, ownership, availability |
-| Workspace | Stable ID, nullable anchor ID, conversation ID, primary terminal ID, alias, landing context, supporting panel and closed-view state |
+| Workspace | Stable ID, nullable anchor ID, conversation ID, primary terminal ID, alias, landing context, supporting panel and local thread presentation preferences |
 | ConversationCatalogRecord | Provider/session key, metadata, project association, local alias and optional retained workspace/terminal IDs |
 | SupportingTab | Stable ID, content target, title, optional file/comparison view state |
 | LaunchDraft | Workspace/tab ID, selected project/location/mode/ref, branch mode/name, tool, optional prompt |
@@ -64,7 +64,7 @@ Model plain folders, unborn repositories, regular checkouts, existing worktrees,
 
 Use stable IDs for relationships. Names, array indices, PIDs, and paths alone are insufficient identity. Store directory identity so a symlink alias or repo subdirectory does not accidentally create a second isolated-looking workspace for the same checkout.
 
-Metadata version 7 separates paged provider history from open workspace records. Its earlier version 6 layer separates conversation ownership from supporting content. File tabs retain their own selected path and comparison context. Selecting a tab updates the existing native file controller's data without changing checkout scope or terminal ownership. Older descriptors without this optional context use the workspace's retained file state. Migration backs up the database and preserves terminal bindings and drafts. See [conversation workspaces](conversation-workspaces.md).
+Metadata version 8 adds local pin/archive/project preferences and persistent thread navigation. Version 7 separated paged provider history from retained workspace records. Its earlier version 6 layer separates conversation ownership from supporting content. File tabs retain their own selected path and comparison context. Selecting a tab updates the existing native file controller's data without changing checkout scope or terminal ownership. Older descriptors without this optional context use the workspace's retained file state. Migration backs up the database and preserves terminal bindings and drafts. See [conversation workspaces](conversation-workspaces.md).
 
 Metadata version 5 adds optional automatic-title provenance (friendly, prompt, or legacy) beside the manual-title flag. New workspace names use a fixed local word collection. A bounded scan of the composer prompt derives a title during the accepted launch-intent transition, without a model request or terminal inspection. Binding a folder does not overwrite the title. The first prompt title freezes automatic naming; manual names take precedence.
 
@@ -185,7 +185,7 @@ The receiver validates the binding, invocation, provider, and secret against pri
 
 `HistoryQuery` carries project/folder filters, search text, a limit and a provider continuation cursor. `HistoryPage` returns metadata, another cursor and partial-result notices. `SessionCatalog` merges provider pages off the UI thread. `ConversationHistoryCatalog` resolves only the requested folders and persists those records. Filesystem observation requests debounced refreshes; activation and manual refresh recover missed events. See [history limits](session-history.md).
 
-`landingContext` distinguishes one global draft and one per project. Landing drafts stay outside ordinary session rows. Starting an agent promotes the selected draft at launch intent. Supporting shells retain it. Closing the final session view selects landing; Cmd+W on landing closes the window. `lastViewedAt` selects among already-open views without resuming saved history.
+`landingContext` distinguishes one global draft and one per project. Landing drafts stay outside ordinary session rows. Starting an agent promotes the selected draft at launch intent. Supporting shells retain it. Cmd+W on primary or landing closes the window while preserving thread and runtime records. Thread visits populate Recents; archiving the selected thread selects landing without stopping its process.
 
 Workspaces retain primary terminal UUIDs, optional conversation IDs, anchors, drafts, aliases and supporting state. Supporting targets identify Changes, individual files, browsers, artifacts or shell backing records. Full view selection remains distinct from the last selected support. The shared 40-point header reparents retained views when layout changes and never launches a process.
 

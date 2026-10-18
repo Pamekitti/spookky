@@ -2,6 +2,18 @@
 
 Spookky is an early native macOS development preview. The terminal, workspace, project/worktree, file/diff, and metadata layers are implemented. Daily-use and distribution acceptance remain incomplete.
 
+## Persistent threads and supporting tools, 18 October 2026
+
+Conversations now remain selectable threads. The primary heading has no close target. Cmd+W there closes the window while preserving selection and execution. Supporting tabs close independently. New chat focuses the retained composer; New tab offers address/search and supporting tools. Files uses a native searchable picker, Changes owns its review state, and Markdown artifacts have a read-only semantic preview. Project avatars and provider marks remain.
+
+Local pin, archive, project assignment and window back/forward navigation share stable thread identities. Version 8 makes a consistent backup before migration. It preserves drafts, aliases, bindings, launch intents and supporting descriptors. Five-row project pages, ten-row expansion and collapse reset remain lazy. The shared search-field cell now preserves native editability.
+
+The final Release passed 1,899 automated native assertions and nine manual accessibility checks. Swift passed 294 of 297 cases, with three opt-in cases skipped. All 30 Python tests, Release build and bundle audits passed. The native matrix covered Split/Full, both appearances, narrow/wide windows and 80%, 100%, 150% and 200% zoom. Screenshots, exact source and measured limits are in [the evidence](evidence/persistent-threads/README.md).
+
+The first native identity failure exposed a tmux focus-out null-session crash. A regression probe reproduces the crash in the pinned original parser and passes six events with the guard. New servers use that guard. Older surviving servers keep their processes and disable unsafe focus forwarding. No user agent was stopped to replace a private server.
+
+These checks do not establish full standalone-provider visual parity, physical display transitions, IME composition, spoken VoiceOver or overnight continuity. Browser forms survive live switching; browser-process or app restart may lose unsent web input. The historical results below describe earlier revisions.
+
 ## Session workflow revision, 18 October 2026
 
 Metadata version 7 separates requested provider history from open workspaces. The sidebar uses five recent entries per project, ten-entry expansion, paged search and one-line virtualized rows. Global and project landing drafts retain their own provider, folder and prompt. Closing the final session view returns to the composer. Shared bounded tabs join in Full view and align to the divider in Split view. Changes and individual file tabs have separate responsibilities.
@@ -136,3 +148,7 @@ One local Release pass compared clean shells with no activity against simulated 
 All six owned process sets stayed stable and the app binary stayed unchanged. The five-tab baseline lost visibility and activation before the final observation. Its CPU value is not comparable with the active case. Other cases were visible and active at both observation boundaries. This single pass does not establish a causal memory or CPU difference.
 
 Each monitored CLI retains one waiting helper. The separate idle fake-CLI observation measured 9.6 MiB median RSS for the packaged helper. Its accumulated CPU increase was below the collector's resolution over 30 seconds. Callback bursts, real provider costs, and WindowServer costs were excluded. Shared RSS pages prevent interpreting that number as unique physical-memory overhead. The [measurement command](development.md#measurement-commands) retains local JSON evidence under ignored `.cache/` state.
+
+## Native interface polish
+
+The next native-interface change adds shared zoom, resizable sidebar geometry, full-height tab targets, typed activity indicators and Ghostty appearance following. [Verification and screenshots](evidence/native-interface/README.md) record the measured behavior and remaining provider/display limits. This is a development build; the installed app remains separate.

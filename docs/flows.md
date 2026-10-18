@@ -6,8 +6,8 @@ Status: current product behavior. [Current status](status.md) records implementa
 
 ```text
 Open Spookky
-  Returning user -> restore the last open view
-  Nothing open   -> retained landing composer, input focused
+  Returning user -> restore the last selected thread
+  No selection   -> retained landing composer, input focused
   Cmd+N          -> global landing draft
   Project +      -> project landing draft
                        |
@@ -22,7 +22,7 @@ Open Spookky
 
 The bottom composer is at most 800 points wide with 24-point outer padding. Provider and folder choices sit inside it. Selecting a provider, folder or source does not launch a process. Worktree controls stay in the folder/location popover. An empty prompt is valid. Enter inserts a newline.
 
-First use selects Codex. New sessions then remember the last agent choice independently of shell launches. Restored drafts retain their saved provider and text. Once running, the provider's real TUI replaces the composer and owns subsequent input.
+First use selects Codex. New chats then remember the last agent choice independently of shell launches. Restored drafts retain their saved provider and text. Once running, the provider's real TUI replaces the composer and owns subsequent input.
 
 The global landing and each project landing retain separate drafts. Showing one creates no agent or history entry. Starting an agent promotes its draft into a session. Restoring state never launches every saved conversation. A plain Home shell requires no project or provider account.
 
@@ -30,22 +30,22 @@ The global landing and each project landing retain separate drafts. Showing one 
 
 | Action | Result |
 | --- | --- |
-| Cmd+N / New session | Select the retained global landing draft and focus its composer. |
+| Cmd+N / New chat | Select the retained global landing draft and focus its composer. |
 | Project row | Toggle its workspace rows without changing the selected workspace or stopping processes. |
 | Project + | Select that project's retained landing draft, Local by default, and expand its group. |
-| Cmd+T | Open and select a persisted browser supporting tab. Keep the primary CLI and draft. |
-| Supporting + | Choose Browser, Files, Changes, Artifact or Terminal. |
+| Cmd+T | Open and select a New tab page. Keep the primary CLI and draft. |
+| Supporting + | Open New tab with address/search, Changes, Files, Terminal and Open artifact. |
 | Cmd+Enter in launch composer | Launch selected tool with optional initial prompt. |
 | Enter in initial prompt | Insert a newline. |
-| Cmd+W | Close the focused supporting tab or session view. The last session returns to landing. On landing, close the window. |
-| Close view | Contextual session action. Keep history, processes, files and branch. |
+| Cmd+W | Close the focused supporting tab. On Conversation or landing, close the window and retain the thread. |
+| Archive thread | Hide it from ordinary navigation. Keep provider history, processes, files and branch. |
 | Cmd+K | Focus the single history search field, including older uncached conversations. |
 | Right-click / Shift+F10 on a sidebar entry | Open secondary contextual actions. |
 | Double-click selected terminal tab | Rename its UI label. |
 | Full view | Join the primary tab first and supporting tabs on one row. Selected content fills the area below. |
 | Primary tab in Full view | Show the primary TUI full width. Keep supporting tabs visible. |
 | Split view | Show the primary left and last selected support right. Retain split width and live state. |
-| Panel toggle | Collapse/restore supporting content. Never start a process. |
+| Cmd+L / View menu | Collapse/restore supporting content. Never start a process. |
 
 Native shortcuts must be registered deliberately. Ordinary CLI keys and provider shortcuts pass through to the terminal. Escape closes the current menu/dialog and restores focus. Switching a tab preserves process state, draft, scroll, and pane selection.
 
@@ -93,7 +93,7 @@ Creating a worktree and launching an agent are separate operations. An agent fai
 
 ## Launch and initial prompt
 
-Landing drafts are titled New session and stay outside ordinary session history. Agent launch promotes the draft to a named session. Existing friendly names and explicit aliases remain intact. Standalone shells keep a terminal label.
+Landing drafts are titled New chat and stay outside ordinary session history. Agent launch promotes the draft to a named session. Existing friendly names and explicit aliases remain intact. Standalone shells keep a terminal label.
 
 The first starting prompt supplied through Spookky's composer names the workspace once. Agent launches use a primary conversation workspace. Use the first nonempty line, collapse whitespace, and keep up to six words and 48 Unicode characters. The title is saved with accepted launch intent before process creation. Failures, retries, reconnects, and later prompts keep it. A manual rename always wins. Naming does not indicate prompt acknowledgment. Input typed directly in a CLI is not inspected.
 
@@ -156,11 +156,13 @@ Commits, pushes, tests, and PRs happen through the user's preferred tools. Spook
 
 ## Close and return
 
+[Persistent threads](persistent-threads.md) defines the current navigation and local archive behavior.
+
 | Event | Result |
 | --- | --- |
 | Switch tab/workspace | Preserve process and view state. |
 | Close supporting tab | Select the nearest left support, otherwise the next support, otherwise primary. Retain any terminal backing record and process. |
-| Close primary/workspace view | Retain history, primary terminal, drafts and support metadata. Select the most recently used already-open view, otherwise the landing composer. |
+| Primary conversation | No close button or close-thread action. Cmd+W closes its window and retains selection and execution. |
 | Cmd+W on landing | Close the window. The landing tab itself has no close button. |
 | Stop primary terminal | Confirm, verify runtime ownership, then terminate only that primary terminal. Retain history and supporting tabs. |
 | Close window | Retain UI restore records and processes. |
@@ -172,7 +174,7 @@ Commits, pushes, tests, and PRs happen through the user's preferred tools. Spook
 
 Process continuity is subject to M0 validation. A saved conversation is not a surviving process. Hidden sessions still consume resources; never kill them only because their views are hidden.
 
-View closure needs no termination confirmation. Stop uses a separate confirmation with Stop and Cancel. Reopening a retained entry reattaches its terminal without resending a prompt. First use shows the focused landing composer with direct shell access.
+Supporting-view and window closure need no termination confirmation. Stop uses a separate confirmation with Stop and Cancel. Reopening a retained entry reattaches its terminal without resending a prompt. First use shows the focused landing composer with direct shell access.
 
 ## Recovery
 
