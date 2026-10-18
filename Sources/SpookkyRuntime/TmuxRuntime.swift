@@ -40,6 +40,7 @@ public actor TmuxRuntime: SessionViewportRuntime, SessionMouseRuntime {
         bind-key -T root S-PageUp copy-mode -u
         set -g mouse on
         set -g focus-events on
+        set -g @spookky-focus-guard 1
         set -g extended-keys on
         set -g extended-keys-format csi-u
         set -g history-limit 5000
@@ -134,7 +135,10 @@ public actor TmuxRuntime: SessionViewportRuntime, SessionMouseRuntime {
         if !configurationApplied {
             configurationApplied = true
             do {
-                var commands = ["set-option", "-g", "focus-events", "on"]
+                let capability = try await command(["show-option", "-gqv", "@spookky-focus-guard"])
+                guard capability.status == 0 else { throw LaunchError.command(capability.error) }
+                let guardedFocus = capability.output.trimmingCharacters(in: .whitespacesAndNewlines) == "1"
+                var commands = ["set-option", "-g", "focus-events", guardedFocus ? "on" : "off"]
                 if let eventHook {
                     for name in Self.eventHookNames {
                         commands += [";", "set-hook", "-g", name, eventHook]
