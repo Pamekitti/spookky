@@ -136,3 +136,7 @@ One local Release pass compared clean shells with no activity against simulated 
 All six owned process sets stayed stable and the app binary stayed unchanged. The five-tab baseline lost visibility and activation before the final observation. Its CPU value is not comparable with the active case. Other cases were visible and active at both observation boundaries. This single pass does not establish a causal memory or CPU difference.
 
 Each monitored CLI retains one waiting helper. The separate idle fake-CLI observation measured 9.6 MiB median RSS for the packaged helper. Its accumulated CPU increase was below the collector's resolution over 30 seconds. Callback bursts, real provider costs, and WindowServer costs were excluded. Shared RSS pages prevent interpreting that number as unique physical-memory overhead. The [measurement command](development.md#measurement-commands) retains local JSON evidence under ignored `.cache/` state.
+
+## Native interface polish
+
+The next native-interface change adds shared zoom, resizable sidebar geometry, full-height tab targets, typed activity indicators and Ghostty appearance following. [Verification and screenshots](evidence/native-interface/README.md) record the measured behavior and remaining provider/display limits. This is a development build; the installed app remains separate.

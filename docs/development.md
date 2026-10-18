@@ -208,3 +208,7 @@ python3 scripts/check_workspace_close.py --binary DerivedData/Build/Products/Deb
 ```
 
 The close fixture uses disposable metadata and a private runtime socket. It checks the browser-target shortcut seam, real shell input, retained closure and reattachment. Browser rendering is outside this fixture. Acquire the shared GUI verification lock before running it when coordinating several worktrees. Development builds now bound Xcode and Swift compiler jobs to two.
+
+## Display regression checks
+
+Run `python3 scripts/check_sidebar.py --display --output .cache/display-checks.json` against the Release build for the light/dark zoom and hit-target matrix. Use disposable state and serialize native GUI fixtures. The matrix includes Ghostty theme variants, recursive includes, invalid-config recovery and creation of a previously missing config directory. It does not replace physical display-transition or provider visual-parity checks.
