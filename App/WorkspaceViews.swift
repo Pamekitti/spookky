@@ -93,7 +93,7 @@ final class WorkspaceRootView: NSView {
         let label = SpookkyStyle.label( title)
         label.font = .systemFont(ofSize: SpookkyStyle.points(11)); label.textColor = SpookkyPalette.metadata
         let group = NSStackView(views: [label, control])
-        group.orientation = .vertical; group.alignment = .leading; group.spacing = 4
+        group.orientation = .vertical; group.alignment = .leading; group.spacing = SpookkyStyle.points(4)
         group.setContentHuggingPriority(.required, for: .vertical)
         control.heightAnchor.constraint(equalToConstant: controlHeight).isActive = true
         control.widthAnchor.constraint(equalTo: group.widthAnchor).isActive = true
@@ -600,8 +600,8 @@ private final class ComposerDocumentView: NSView {
         launchWidth = launch.widthAnchor.constraint(equalToConstant: SpookkyStyle.controlHeight).displayScaled(alreadyScaled: true); launchWidth.isActive = true
         let spacer = NSView(); spacer.setContentHuggingPriority(.init(1), for: .horizontal)
         for view in [picker, folder, spacer, launch] { controls.addArrangedSubview(view) }
-        controls.spacing = 4; controls.alignment = .centerY
-        controls.edgeInsets = NSEdgeInsets(top: 0, left: 12, bottom: 8, right: 12)
+        controls.spacing = SpookkyStyle.points(4); controls.alignment = .centerY
+        controls.edgeInsets = NSEdgeInsets(top: 0, left: SpookkyStyle.points(12), bottom: SpookkyStyle.points(8), right: SpookkyStyle.points(12))
         controls.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).displayScaled(alreadyScaled: true).isActive = true
         picker.widthAnchor.constraint(greaterThanOrEqualToConstant: SpookkyStyle.controlHeight).displayScaled(alreadyScaled: true).isActive = true
         folder.widthAnchor.constraint(greaterThanOrEqualToConstant: SpookkyStyle.controlHeight).displayScaled(alreadyScaled: true).isActive = true
@@ -609,7 +609,7 @@ private final class ComposerDocumentView: NSView {
         folder.lineBreakMode = .byTruncatingMiddle
         folder.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         picker.setContentCompressionResistancePriority(.required, for: .horizontal)
-        card.orientation = .vertical; card.alignment = .leading; card.spacing = 4
+        card.orientation = .vertical; card.alignment = .leading; card.spacing = SpookkyStyle.points(4)
         card.raised = true; card.cornerRadius = SpookkyStyle.composerRadius
         card.setAccessibilityLabel("New session"); card.setAccessibilityRole(.group)
         card.addArrangedSubview(promptScroll); card.addArrangedSubview(controls)
@@ -617,11 +617,11 @@ private final class ComposerDocumentView: NSView {
         controls.widthAnchor.constraint(equalTo: card.widthAnchor).isActive = true
         terminal.handler = { [weak self] in self?.onTerminal?() }
         terminal.emphasis = .quiet
-        terminalRow.addArrangedSubview(terminal); terminalRow.addArrangedSubview(NSView()); terminalRow.spacing = 8
+        terminalRow.addArrangedSubview(terminal); terminalRow.addArrangedSubview(NSView()); terminalRow.spacing = SpookkyStyle.points(8)
         message.font = .systemFont(ofSize: SpookkyStyle.points(11)); message.textColor = SpookkyPalette.warning
         message.maximumNumberOfLines = 3
         let stack = NSStackView(views: [message, card, terminalRow])
-        stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 8
+        stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = SpookkyStyle.points(8)
         let scroll = NSScrollView(), document = ComposerDocumentView()
         scroll.drawsBackground = false; scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true
         scroll.documentView = document
@@ -658,7 +658,7 @@ private final class ComposerDocumentView: NSView {
         scroll.documentView = document; scroll.translatesAutoresizingMaskIntoConstraints = false
         document.translatesAutoresizingMaskIntoConstraints = false
         controller.view.addSubview(scroll)
-        locationPanel.orientation = .vertical; locationPanel.alignment = .leading; locationPanel.spacing = 12
+        locationPanel.orientation = .vertical; locationPanel.alignment = .leading; locationPanel.spacing = SpookkyStyle.points(12)
         locationPanel.translatesAutoresizingMaskIntoConstraints = false; document.addSubview(locationPanel)
         let title = SpookkyStyle.label( "Folder and project")
         title.font = .systemFont(ofSize: SpookkyStyle.points(13), weight: .medium); title.textColor = SpookkyPalette.text
@@ -675,7 +675,7 @@ private final class ComposerDocumentView: NSView {
         }
         locate.handler = { [weak self] in self?.locationPopover.performClose(nil); self?.onLocate?() }
         for view in [chooseFolder, addProject] { locationActions.addArrangedSubview(view) }
-        locationActions.spacing = 8
+        locationActions.spacing = SpookkyStyle.points(8)
         for view in [title, directory, projectPicker, locationOptions, locationActions, locate] { locationPanel.addArrangedSubview(view) }
         for view in [directory, projectPicker, locationOptions, locationActions] { view.widthAnchor.constraint(equalTo: locationPanel.widthAnchor).isActive = true }
         NSLayoutConstraint.activate([
@@ -745,17 +745,17 @@ private final class ComposerDocumentView: NSView {
     }
 
     private func configureFooter() {
-        let tool = currentTool ?? .codex, compact = card.bounds.width > 0 && card.bounds.width < 280
+        let tool = currentTool ?? .codex, compact = card.bounds.width > 0 && card.bounds.width < SpookkyStyle.points(280)
         let providerTitle = compact ? "" : tool == .claude ? "Claude" : tool.displayName
         if picker.title != providerTitle { picker.title = providerTitle }
         let title = compact ? "" : folderTitle
         if folder.title != title { folder.title = title }
-        let launchTitle = tool == .shell && card.bounds.width >= 380 ? "Open Terminal" : ""
+        let launchTitle = tool == .shell && card.bounds.width >= SpookkyStyle.points(380) ? "Open Terminal" : ""
         if launch.title != launchTitle { launch.title = launchTitle }
         let width = launchTitle.isEmpty ? SpookkyStyle.controlHeight : launch.intrinsicContentSize.width
         if abs(launchWidth.constant - width) > 0.5 { launchWidth.constant = width }
-        let inset: CGFloat = compact ? 8 : 12
-        if controls.edgeInsets.left != inset { controls.edgeInsets = NSEdgeInsets(top: 0, left: inset, bottom: 8, right: inset) }
+        let inset = SpookkyStyle.points(compact ? 8 : 12)
+        if controls.edgeInsets.left != inset { controls.edgeInsets = NSEdgeInsets(top: 0, left: inset, bottom: SpookkyStyle.points(8), right: inset) }
     }
     private func showLocationPicker() {
         if locationPopover.isShown { locationPopover.performClose(nil); return }

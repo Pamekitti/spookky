@@ -29,7 +29,7 @@ import SpookkyWorkspace
     override init(frame: NSRect) {
         super.init(frame: frame)
         orientation = .vertical; alignment = .leading; spacing = 8
-        top.spacing = 8; branchRow.spacing = 8
+        top.spacing = SpookkyStyle.points(8); branchRow.spacing = SpookkyStyle.points(8)
         for control in [mode, checkout, source, branchMode, existing] { control.target = self; control.action = #selector(changed); SpookkyStyle.configure(control) }
         mode.menu?.autoenablesItems = false; checkout.menu?.autoenablesItems = false
         mode.addItems(withTitles: ["Local", "New worktree"])

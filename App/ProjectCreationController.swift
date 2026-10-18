@@ -34,7 +34,7 @@ import SpookkyWorkspace
         panel.title = draft.mode == .clone ? "Clone repository" : "Create project"
         alert.messageText = panel.title
         panel.isReleasedWhenClosed = false; panel.delegate = self
-        let stack = NSStackView(); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12
+        let stack = NSStackView(); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = SpookkyStyle.points(12)
         stack.frame = NSRect(x: 0, y: 0, width: 400, height: draft.mode == .clone ? 250 : 200)
         stack.widthAnchor.constraint(equalToConstant: 400).displayScaled().isActive = true
         alert.accessoryView = stack

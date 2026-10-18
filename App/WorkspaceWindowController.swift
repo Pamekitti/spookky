@@ -486,8 +486,8 @@ import SpookkyGit
 
         sidebarToggle.handler = { [weak self] in self?.toggleWorkspaceSidebar() }
         tabOverflow.handler = { [weak self] in self?.showTabOverflow() }
-        rail.orientation = .vertical; rail.alignment = .leading; rail.spacing = 4
-        rail.edgeInsets = NSEdgeInsets(top: 8, left: 8, bottom: 12, right: 8)
+        rail.orientation = .vertical; rail.alignment = .leading; rail.spacing = SpookkyStyle.points(4)
+        rail.edgeInsets = NSEdgeInsets(top: SpookkyStyle.points(8), left: SpookkyStyle.points(8), bottom: SpookkyStyle.points(12), right: SpookkyStyle.points(8))
         railScroll.contentView = WorkspaceSidebarClipView()
         railScroll.automaticallyAdjustsContentInsets = false; railScroll.contentInsets = .init()
         railScroll.documentView = rail; railScroll.hasVerticalScroller = false; railScroll.hasHorizontalScroller = false
@@ -495,7 +495,7 @@ import SpookkyGit
         railScroll.autohidesScrollers = true
         railScroll.drawsBackground = true; railScroll.backgroundColor = SpookkyPalette.sidebar
         tabs.orientation = .horizontal; tabs.spacing = 0; tabs.alignment = .centerY
-        tabs.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 8)
+        tabs.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: SpookkyStyle.points(8))
         tabScroll.documentView = tabs; tabScroll.hasHorizontalScroller = false; tabScroll.autohidesScrollers = true; tabScroll.drawsBackground = false
         tabScroll.automaticallyAdjustsContentInsets = false
         tabScroll.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
@@ -578,7 +578,7 @@ import SpookkyGit
         let mainWidth = workspaceLayout.joinsPrimary ? 0 : workspaceLayout.isSplit ? max(0, splitStart - tabStart - 5) : min(tabs.fittingSize.width, available)
         let supportStart = workspaceLayout.joinsPrimary ? tabStart : workspaceLayout.isSplit ? splitStart : tabStart + mainWidth
         let supportWidth = max(0, content.bounds.width - SpookkyStyle.points(20) - supportStart)
-        let overflowing = tabs.fittingSize.width > mainWidth || workspaceLayout.headerFittingWidth > supportWidth
+        let overflowing = (!workspaceLayout.joinsPrimary && tabs.fittingSize.width > mainWidth) || workspaceLayout.headerFittingWidth > supportWidth
         tabOverflow.isHidden = !overflowing
         if overflowWidth.constant != (overflowing ? SpookkyStyle.points(28) : 0) { overflowWidth.constant = overflowing ? SpookkyStyle.points(28) : 0 }
         if !workspaceLayout.joinsPrimary { for item in tabPairs.values { item.availableWidth = mainWidth } }
@@ -1392,6 +1392,12 @@ import SpookkyGit
         if let renderTask { await renderTask.value }
         checks["overflow_cmd_w_closes_browser_not_workspace"] = store.state.selectedWorkspaceID == workspaceID && store.state.selected?.viewClosed != true && store.state.selected?.support?.tabs.contains(where: { $0.id == overflowBrowser }) == false
         checks["overflow_close_preserves_primary_input"] = surfaces.view(primary)?.visibleText().contains("IDENTITY_KEEP") == true
+        let auxiliary = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 320, height: 240), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        auxiliary.isReleasedWhenClosed = false
+        auxiliary.makeKeyAndOrderFront(nil)
+        closeSelectedTab()
+        checks["close_auxiliary_window_preserves_conversation"] = !auxiliary.isVisible && store.state.selectedWorkspaceID == workspaceID && store.state.selected?.viewClosed != true
+        window.makeKeyAndOrderFront(nil)
         if let firstFile { store.update { $0.selectSupport(firstFile) } }
         if let renderTask { await renderTask.value }
         await files.settleForFixture()
@@ -1748,7 +1754,8 @@ import SpookkyGit
             checks.merge(try await DisplayPolishFixture.check(window: window, root: root, sidebar: conversationSidebar,
                 apply: { preferences in self.services.changeDisplay { $0 = preferences } },
                 tabs: { Array(self.tabPairs.values) + self.workspaceLayout.tabItems },
-                layout: { mode in self.store.update { $0.setSupportingLayout(mode) } }), uniquingKeysWith: { _, new in new })
+                layout: { mode in self.store.update { $0.setSupportingLayout(mode) } },
+                setAppearance: { appearance in self.store.update { $0.appearance = appearance } }), uniquingKeysWith: { _, new in new })
         }
         try PrivateFiles.write(resources, to: root.appendingPathComponent("sidebar-resources.json"))
         try PrivateFiles.write(interactionDetails, to: root.appendingPathComponent("sidebar-interaction-diagnostics.json"))
@@ -1815,7 +1822,7 @@ import SpookkyGit
             let details = ChromeTextField(wrappingLabelWithString: error ?? "Open this saved conversation in its original folder.")
             details.textColor = SpookkyPalette.secondary
             let stack = NSStackView(views: [message, details, action]); stack.orientation = .vertical; stack.alignment = .leading
-            stack.spacing = 12; stack.edgeInsets = NSEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
+            stack.spacing = SpookkyStyle.points(12); stack.edgeInsets = NSEdgeInsets(top: SpookkyStyle.points(24), left: SpookkyStyle.points(24), bottom: SpookkyStyle.points(24), right: SpookkyStyle.points(24))
             install(stack, in: container)
         } else if tab.isEditable || tab.status == .preparing || tab.status == .launching {
             let composer = composers[tab.id] ?? LaunchComposerView(tabID: tab.id); composers[tab.id] = composer
@@ -1869,17 +1876,17 @@ import SpookkyGit
             if store.state.selected?.split != nil {
                 headerViews.append(ActionButton("", symbol: "rectangle", help: "Show one terminal; keep both sessions") { [weak self] in self?.store.update { $0.collapseSplit() } })
             }
-            let header = ChromeStackView(views: headerViews); header.spacing = 8; header.cornerRadius = 0
+            let header = ChromeStackView(views: headerViews); header.spacing = SpookkyStyle.points(8); header.cornerRadius = 0
             header.selected = store.state.selected?.split != nil && store.state.selectedTab?.id == tab.id
             paneHeaders[tab.id] = header
-            header.edgeInsets = NSEdgeInsets(top: 4, left: 12, bottom: 4, right: 8)
+            header.edgeInsets = NSEdgeInsets(top: SpookkyStyle.points(4), left: SpookkyStyle.points(12), bottom: SpookkyStyle.points(4), right: SpookkyStyle.points(8))
             let content: NSView
             if let surface, tab.status == .running || tab.status == .ended { content = surface }
             else {
                 let message = ChromeTextField(wrappingLabelWithString: tab.failure?.message ?? "Session " + tab.status.rawValue)
                 message.font = .systemFont(ofSize: SpookkyStyle.points(13)); message.textColor = SpookkyPalette.text
                 let stack = NSStackView(views: [message])
-                stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12; stack.edgeInsets = NSEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
+                stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = SpookkyStyle.points(12); stack.edgeInsets = NSEdgeInsets(top: SpookkyStyle.points(24), left: SpookkyStyle.points(24), bottom: SpookkyStyle.points(24), right: SpookkyStyle.points(24))
                 if tab.status != .ended || tab.binding != nil {
                     stack.addArrangedSubview(ActionButton(tab.binding != nil ? "Reconnect" : "Check session", symbol: "arrow.clockwise") { [weak self] in self?.reconnect(tab.id) })
                 }
@@ -2252,6 +2259,10 @@ import SpookkyGit
         window.makeFirstResponder(historySearch)
     }
     @objc private func closeSelectedTab() {
+        if let keyWindow = NSApp.keyWindow, keyWindow !== window {
+            keyWindow.performClose(nil)
+            return
+        }
         if workspaceLayout.hasFocus, workspaceLayout.showsSupportingContent, let id = store.state.selected?.support?.selectedTabID {
             store.update { $0.closeSupport(id) }; focusSupportingContent()
         } else if store.state.selected?.isLanding == true { window.performClose(nil) }

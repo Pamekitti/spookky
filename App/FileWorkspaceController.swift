@@ -108,11 +108,13 @@ import SpookkySyntax
         scope.font = .systemFont(ofSize: SpookkyStyle.points(11)); scope.textColor = SpookkyPalette.metadata; scope.lineBreakMode = .byTruncatingMiddle
         status.font = .systemFont(ofSize: SpookkyStyle.points(11)); status.textColor = SpookkyPalette.secondary; status.maximumNumberOfLines = 2
         status.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        let scopeRow = NSStackView(views: [scope, NSView(), status]); scopeRow.spacing = 8
+        let scopeRow = NSStackView(views: [scope, NSView(), status]); scopeRow.spacing = SpookkyStyle.points(8)
         scopeRow.heightAnchor.constraint(greaterThanOrEqualToConstant: 24).displayScaled().isActive = true
         let refreshButton = ActionButton("", symbol: "arrow.clockwise", help: "Refresh files and changes") { [weak self] in self?.refresh() }
-        let tools = NSStackView(views: [search, refreshButton]); tools.spacing = 4
+        let tools = NSStackView(views: [search, refreshButton]); tools.spacing = SpookkyStyle.points(4)
         refreshButton.widthAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true
+        search.widthAnchor.constraint(equalTo: tools.widthAnchor, constant: -32).displayScaled().isActive = true
+        search.heightAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true
         search.setContentHuggingPriority(.defaultLow, for: .horizontal)
         search.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         fileTable.style = .plain; fileTable.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
@@ -141,8 +143,8 @@ import SpookkySyntax
         }
         fileScroll.documentView = fileTable; fileScroll.hasVerticalScroller = true; fileScroll.autohidesScrollers = true
         let sideStack = NSStackView(views: [scopeRow, comparison, reference, tools, fileScroll])
-        sideStack.orientation = .vertical; sideStack.alignment = .centerX; sideStack.spacing = 4
-        sideStack.edgeInsets = NSEdgeInsets(top: 8, left: 0, bottom: 0, right: 0)
+        sideStack.orientation = .vertical; sideStack.alignment = .centerX; sideStack.spacing = SpookkyStyle.points(4)
+        sideStack.edgeInsets = NSEdgeInsets(top: SpookkyStyle.points(8), left: 0, bottom: 0, right: 0)
         pin(sideStack, to: sidebar)
         for view in [scopeRow, comparison, reference, tools] { view.widthAnchor.constraint(equalTo: sideStack.widthAnchor, constant: -16).displayScaled().isActive = true }
         fileScroll.widthAnchor.constraint(equalTo: sideStack.widthAnchor).isActive = true
@@ -177,13 +179,13 @@ import SpookkySyntax
         previewOverflow.isHidden = true
         diffTable.onMenu = { _ in previewMenu() }
         for button in [informationButton, contextButton, unifiedButton, layoutButton, open, reveal, previewOverflow] { button.widthAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true }
-        let inspection = NSStackView(views: [informationButton, contextButton]); inspection.spacing = 4; inspectionControls = inspection
+        let inspection = NSStackView(views: [informationButton, contextButton]); inspection.spacing = SpookkyStyle.points(4); inspectionControls = inspection
         let layouts = NSStackView(views: [unifiedButton, layoutButton]); layouts.spacing = 0; layoutControls = layouts
-        let external = NSStackView(views: [open, reveal, previewOverflow]); external.spacing = 4
-        let header = NSStackView(views: [title, NSView(), inspection, layouts, external]); header.spacing = 8
+        let external = NSStackView(views: [open, reveal, previewOverflow]); external.spacing = SpookkyStyle.points(4)
+        let header = NSStackView(views: [title, NSView(), inspection, layouts, external]); header.spacing = SpookkyStyle.points(8)
         comparisonCaptions.addArrangedSubview(oldCaption); comparisonCaptions.addArrangedSubview(newCaption)
-        comparisonCaptions.distribution = .fillEqually; comparisonCaptions.spacing = 8
-        comparisonCaptions.edgeInsets = NSEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
+        comparisonCaptions.distribution = .fillEqually; comparisonCaptions.spacing = SpookkyStyle.points(8)
+        comparisonCaptions.edgeInsets = NSEdgeInsets(top: 0, left: SpookkyStyle.points(8), bottom: 0, right: SpookkyStyle.points(8))
         for caption in [oldCaption, newCaption] { caption.font = .systemFont(ofSize: SpookkyStyle.points(11)); caption.textColor = SpookkyPalette.metadata; caption.lineBreakMode = .byTruncatingMiddle }
         comparisonCaptions.heightAnchor.constraint(equalToConstant: 24).displayScaled().isActive = true
         informationButton.isHidden = true
@@ -216,7 +218,7 @@ import SpookkySyntax
         }
         diffTable.onKey = { [weak self] event in if event.keyCode == 53 { self?.closePreview(); return true }; return false }
         diffScroll.documentView = diffTable; diffScroll.hasVerticalScroller = true; diffScroll.hasHorizontalScroller = true; diffScroll.autohidesScrollers = true
-        let stack = NSStackView(views: [header, comparisonCaptions, stage, previewNotice, diffScroll]); stack.orientation = .vertical; stack.alignment = .centerX; stack.spacing = 4
+        let stack = NSStackView(views: [header, comparisonCaptions, stage, previewNotice, diffScroll]); stack.orientation = .vertical; stack.alignment = .centerX; stack.spacing = SpookkyStyle.points(4)
         stack.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0); pin(stack, to: preview)
         [header, previewNotice].forEach { $0.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -16).displayScaled().isActive = true }
         stage.widthAnchor.constraint(lessThanOrEqualToConstant: 200).displayScaled().isActive = true

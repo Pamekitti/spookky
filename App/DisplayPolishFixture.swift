@@ -5,7 +5,7 @@ import SpookkyRuntime
 @MainActor enum DisplayPolishFixture {
     static func check(window: NSWindow, root: URL, sidebar: WorkspaceSidebarView,
                       apply: (DisplayPreferences) -> Void, tabs: () -> [WorkspaceTabView],
-                      layout: (SupportingLayout) -> Void) async throws -> [String: Bool] {
+                      layout: (SupportingLayout) -> Void, setAppearance: (WorkspaceAppearance) -> Void) async throws -> [String: Bool] {
         var checks: [String: Bool] = [:]
         var hitDetails: [String: String] = [:]
         let light = root.appendingPathComponent("appearance-light"), dark = root.appendingPathComponent("appearance-dark")
@@ -51,10 +51,8 @@ import SpookkyRuntime
         checks["new_config_in_new_directory_detected"] = fileChanges == 1
         let originalFrame = window.frame
         defer { apply(DisplayPreferences()); window.setFrame(originalFrame, display: true) }
-        let originalAppearance = window.appearance
-        defer { window.appearance = originalAppearance }
-        for appearance in [NSAppearance.Name.aqua, .darkAqua] {
-            window.appearance = NSAppearance(named: appearance)
+        for appearance in [WorkspaceAppearance.light, .dark] {
+            setAppearance(appearance)
         for zoom in [0.8, 1.0, 1.5, 2.0] {
             for width in [650, 1440] {
                 var display = DisplayPreferences(); display.zoom = zoom
@@ -64,6 +62,7 @@ import SpookkyRuntime
                     layout(mode); await Task.yield(); window.contentView?.layoutSubtreeIfNeeded()
                     window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
                     await Task.yield()
+                    checks["effective_appearance_\(appearance.rawValue)"] = window.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == (appearance == .light ? .aqua : .darkAqua)
                     let key = "\(appearance.rawValue)-\(Int(zoom * 100))-\(width)-\(mode.rawValue)"
                     checks["tab_height_" + key] = tabs().filter { !$0.isHiddenOrHasHiddenAncestor }.allSatisfy { abs($0.bounds.height - SpookkyStyle.headerHeight) < 1 }
                     checks["tab_children_fit_" + key] = tabs().filter { !$0.isHiddenOrHasHiddenAncestor }.allSatisfy { $0.bounds.contains($0.titleButton.frame) && $0.bounds.contains($0.closeButton.frame) }

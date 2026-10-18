@@ -179,7 +179,7 @@ import SpookkyCore
         updateChecks = checks; updateDownloads = downloads; previewUpdates = previews
         let detail = ChromeTextField(wrappingLabelWithString: controller == nil ? "Update settings are available in signed public releases." : "Updates check once a day while Spookky runs. Restarting keeps your terminal sessions running.")
         detail.textColor = .secondaryLabelColor
-        let stack = NSStackView(views: [checks, downloads, previews, detail, displaySettings(), activitySettings()]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12
+        let stack = NSStackView(views: [checks, downloads, previews, detail, displaySettings(), activitySettings()]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = SpookkyStyle.points(12)
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.drawsBackground = false
         scroll.translatesAutoresizingMaskIntoConstraints = false; window.contentView!.addSubview(scroll)
         let document = SettingsDocumentView(); document.translatesAutoresizingMaskIntoConstraints = false
@@ -221,7 +221,7 @@ import SpookkyCore
             return button
         }
         let title = SpookkyStyle.label( "Activity and notifications"); title.font = .systemFont(ofSize: SpookkyStyle.points(13), weight: .medium)
-        let providers = NSStackView(views: [check("Codex", \.codex), check("Claude Code", \.claude)]); providers.spacing = 20
+        let providers = NSStackView(views: [check("Codex", \.codex), check("Claude Code", \.claude)]); providers.spacing = SpookkyStyle.points(20)
         let grid = NSGridView(views: [
             [SpookkyStyle.label( "Notify me"), SpookkyStyle.label( "Banner"), SpookkyStyle.label( "App sound")],
             [SpookkyStyle.label( "Needs input"), check("", \.inputBanner), check("", \.inputSound)],
@@ -239,7 +239,7 @@ import SpookkyCore
         let volume = NSSlider(value: Double(agentPreferences.volume), minValue: 0, maxValue: 1, target: self, action: #selector(changeActivityVolume(_:)))
         SpookkyStyle.suppressFocusRing(volume)
         volume.setAccessibilityLabel("Notification volume"); volume.widthAnchor.constraint(equalToConstant: 150).displayScaled().isActive = true
-        let soundRow = NSStackView(views: [sounds, volume]); soundRow.spacing = 12
+        let soundRow = NSStackView(views: [sounds, volume]); soundRow.spacing = SpookkyStyle.points(12)
         let note = ChromeTextField(wrappingLabelWithString: "Monitoring begins on the next agent launch. Codex keeps its normal hook trust review. Existing CLI sound hooks stay active.")
         note.font = .systemFont(ofSize: SpookkyStyle.points(11)); note.textColor = .secondaryLabelColor
         let testResult = ChromeTextField(wrappingLabelWithString: ""); testResult.font = .systemFont(ofSize: SpookkyStyle.points(11)); testResult.textColor = .secondaryLabelColor
@@ -249,7 +249,7 @@ import SpookkyCore
         let stack = NSStackView(views: [title, providers, grid, soundRow,
             check("Show message previews", \.previews), check("Show Dock attention count", \.dockBadge),
             check("Stay quiet while viewing the terminal", \.suppressVisible), note, test, testResult])
-        stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 10
+        stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = SpookkyStyle.points(10)
         note.widthAnchor.constraint(equalToConstant: 392).displayScaled().isActive = true
         return stack
     }
