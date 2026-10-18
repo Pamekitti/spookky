@@ -98,7 +98,7 @@ The maintainer confirmed the physical keyboard checks on 13 October 2026. Cmd+T 
 
 Targeted diff check, 15 October 2026: modified → untracked → modified preserved code and gutter widths in unified and split views. The Release fixture passed all 24 checks and 100 selection cycles. Preview p95 was 100.2 ms across 30 samples; syntax readiness p95 was 163.2 ms. Native visual checks covered M → A → M in dark appearance and narrow resizing in light appearance. These checks do not establish full v1 acceptance or installed delivery.
 
-Current file/diff verification passed all 24 assertions and 100 selection cycles. Selected-diff readiness measured 115.9 ms p95 across 30 observations; syntax readiness measured 207.9 ms p95. Preview, metadata, surface and watcher bounds passed. These checks preserve file/Changes context, terminal drafts, selected rows and focus during continuous edits. They do not complete the broader Git scenarios above.
+Current file/diff verification passed all 24 assertions and 100 selection cycles. Selected-diff readiness measured 107.3 ms p95 across 30 observations; syntax readiness measured 172.5 ms p95. Preview, metadata, surface and watcher bounds passed. These checks preserve file/Changes context, terminal drafts, selected rows and focus during continuous edits. They do not complete the broader Git scenarios above.
 
 ## Failure and lifecycle checks
 
