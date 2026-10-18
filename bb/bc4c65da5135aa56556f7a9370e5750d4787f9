@@ -1,0 +1,61 @@
+Sources/SpookkyCore/ConversationWorkspace.swift
+  s_838c2c51966810::t_a5bd91691f97b7 68,100-107,113-117
+Sources/SpookkyCore/HistoryCatalog.swift
+  s_cdf46ccee2ecc1::t_9c42f7b4040ae4 1-97
+Sources/SpookkyCore/WorkspaceState.swift
+  s_cdf46ccee2ecc1::t_a34159adb95c13 118-119,201,249,251,263-265,372-376,431-437,549
+Sources/SpookkyPersistence/WorkspaceDatabase.swift
+  s_cdf46ccee2ecc1::t_daf6a51406ea06 6,13,16-17,75-86,93,95,100,108-191
+Sources/SpookkyWorkspace/CodexHistoryReader.swift
+  s_53d4e1c28831bf::t_e752a3d4e763b6 9-44,79-81,105-106,117
+Sources/SpookkyWorkspace/ConversationHistoryCatalog.swift
+  s_cdf46ccee2ecc1::t_44f5c5bc57a408 1-92
+Sources/SpookkyWorkspace/HistoryPersistence.swift
+  s_cdf46ccee2ecc1::t_c22e4ea78c629d 1-71
+Sources/SpookkyWorkspace/HistoryQuery.swift
+  s_53d4e1c28831bf::t_16e434591d5652 1-70
+Tests/SpookkyRuntimeTests/HistoryCatalogPersistenceTests.swift
+  s_cdf46ccee2ecc1::t_b826783bd01582 1-131
+Tests/SpookkyRuntimeTests/HistoryMetadataMergeTests.swift
+  s_53d4e1c28831bf::t_c13603765c5e38 1-182
+Tests/SpookkyRuntimeTests/HistoryQueryTests.swift
+  s_53d4e1c28831bf::t_c91b0098540ce0 1-223
+Tests/SpookkyRuntimeTests/SessionCatalogTests.swift
+  s_cdf46ccee2ecc1::t_db2eb61e11ddca 139,147-158,171-172,178-182
+Tests/SpookkyRuntimeTests/SupportingFileContextTests.swift
+  s_838c2c51966810::t_b8f0cf6efe53b8 23,27-29,33-36
+Tests/SpookkyRuntimeTests/WorkspaceSelectionTests.swift
+  s_cdf46ccee2ecc1::t_8e64c6c02f7b15 57-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bbbc4c65da5135aa56556f7a9370e5750d4787f9",
+  "prompts": {},
+  "sessions": {
+    "s_53d4e1c28831bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_838c2c51966810": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a142b1-e5c5-7e13-a59a-a9eb95fb8e59",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_cdf46ccee2ecc1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
