@@ -1,0 +1,75 @@
+Sources/SpookkyGit/GitExecutor.swift
+  s_cdf46ccee2ecc1::t_a374d6f15210e3 200,202-213,215,221,227
+Sources/SpookkyRuntime/ProviderOwnership.swift
+  s_cdf46ccee2ecc1::t_c7b7dfbab79664 1-102
+Sources/SpookkyWorkspace/ClaudeHistoryReader.swift
+  s_cdf46ccee2ecc1::t_0a38f3006aeece 1-80
+Sources/SpookkyWorkspace/CodexProjectClient.swift
+  s_cdf46ccee2ecc1::t_a6aa11cd46e9ef 1-209
+Sources/SpookkyWorkspace/ConversationCatalogReconciler.swift
+  s_cdf46ccee2ecc1::t_fcc15280191db8 1-29
+Sources/SpookkyWorkspace/ConversationContinuation.swift
+  s_cdf46ccee2ecc1::t_6cfb4fbd59c796 1-110
+Sources/SpookkyWorkspace/ConversationExecutionCheck.swift
+  s_cdf46ccee2ecc1::t_c06f1024b52fb0 1-12
+Sources/SpookkyWorkspace/ConversationSidebarPage.swift
+  s_f6b9c0cec5348d::t_7eab3de59d0d3a 1-28
+Sources/SpookkyWorkspace/ProjectAssociationBatch.swift
+  s_cdf46ccee2ecc1::t_91103e6ae5d431 1-119
+Sources/SpookkyWorkspace/ProjectAssociationCoordinator.swift
+  s_cdf46ccee2ecc1::t_54b6ea4a893fc3 1-116
+Sources/SpookkyWorkspace/ProjectAssociationResolver.swift
+  s_cdf46ccee2ecc1::t_e6a53712f0124b 1-71
+Sources/SpookkyWorkspace/SessionCatalog.swift
+  s_cdf46ccee2ecc1::t_66c0f27326afc4 1-84
+Tests/SpookkyRuntimeTests/ConversationCatalogReconcilerTests.swift
+  s_cdf46ccee2ecc1::t_ffac27888f00a4 1-98
+Tests/SpookkyRuntimeTests/ConversationContinuationTests.swift
+  s_f6b9c0cec5348d::t_d9a41ed04c3bf7 1-210
+Tests/SpookkyRuntimeTests/GitFoundationTests.swift
+  s_cdf46ccee2ecc1::t_94202f15a894b8 88-89,91,193-194
+Tests/SpookkyRuntimeTests/ProjectAssociationBatchTests.swift
+  s_cdf46ccee2ecc1::t_32ba549cb41c97 1-264
+Tests/SpookkyRuntimeTests/ProjectAssociationTests.swift
+  s_cdf46ccee2ecc1::t_8e9ff1573c502e 1-244
+Tests/SpookkyRuntimeTests/ProviderContinuationTests.swift
+  s_cdf46ccee2ecc1::t_b3596edd5e2a67 1-95
+Tests/SpookkyRuntimeTests/ProviderOwnershipTests.swift
+  s_cdf46ccee2ecc1::t_3955f5de2daf52 1-72
+docs/project-association.md
+  s_cdf46ccee2ecc1::t_d2fd2d64b07d26 1-56
+docs/provider-ownership.md
+  s_cdf46ccee2ecc1::t_a1a73ae258ad64 1-40
+docs/session-continuation.md
+  s_cdf46ccee2ecc1::t_e162d306c66c0c 1-60
+docs/session-history.md
+  s_cdf46ccee2ecc1::t_e51ed0090056b4 1-51
+scripts/check_codex_project_association.py
+  s_cdf46ccee2ecc1::t_1b095da44a81ef 1-172
+scripts/check_provider_ownership.py
+  s_cdf46ccee2ecc1::t_252ae8c3c64645 1-270
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1e932000b5c5d35ee84e618d7113c238ec3270cb",
+  "prompts": {},
+  "sessions": {
+    "s_cdf46ccee2ecc1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_f6b9c0cec5348d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a14a77-8d6c-7cb1-8f16-dfc625a6d5ac",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
