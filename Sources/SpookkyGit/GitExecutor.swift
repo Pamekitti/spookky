@@ -197,24 +197,34 @@ public actor GitScheduler {
     private var reads = 0
     private var writes = Set<String>()
     private var destinations = Set<String>()
-    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var waiters: [UUID: CheckedContinuation<Void, Error>] = [:]
     public init() {}
-    private func wait() async { await withCheckedContinuation { waiters.append($0) } }
-    private func wake() { let current = waiters; waiters = []; current.forEach { $0.resume() } }
+    private func wait() async throws {
+        let id = UUID()
+        try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                guard !Task.isCancelled else { continuation.resume(throwing: CancellationError()); return }
+                waiters[id] = continuation
+            }
+        } onCancel: { Task { await self.cancelWaiter(id) } }
+    }
+    private func cancelWaiter(_ id: UUID) { waiters.removeValue(forKey: id)?.resume(throwing: CancellationError()) }
+    private func wake() { let current = waiters; waiters.removeAll(); current.values.forEach { $0.resume() } }
     public func read<T: Sendable>(_ body: @Sendable () async throws -> T) async throws -> T {
-        while reads >= 2 { await wait(); try Task.checkCancellation() }
+        while reads >= 2 { try await wait(); try Task.checkCancellation() }
         try Task.checkCancellation(); reads += 1
         defer { reads -= 1; wake() }
         return try await body()
     }
     public func write<T: Sendable>(repository: String, _ body: @Sendable () async throws -> T) async throws -> T {
-        while writes.contains(repository) { await wait(); try Task.checkCancellation() }
+        while writes.contains(repository) { try await wait(); try Task.checkCancellation() }
         try Task.checkCancellation(); writes.insert(repository)
         defer { writes.remove(repository); wake() }
         return try await body()
     }
     public func destination<T: Sendable>(_ path: String, _ body: @Sendable () async throws -> T) async throws -> T {
-        while destinations.contains(path) { await wait(); try Task.checkCancellation() }
+        while destinations.contains(path) { try await wait(); try Task.checkCancellation() }
         try Task.checkCancellation(); destinations.insert(path)
         defer { destinations.remove(path); wake() }
         return try await body()

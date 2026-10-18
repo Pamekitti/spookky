@@ -17,6 +17,9 @@ public protocol ExecutableResolver: Sendable {
     public func isBusy(_ id: UUID) -> Bool { operations.contains(id) }
 
     public func launch(_ id: UUID, tool: SessionTool? = nil) async {
+        await performLaunch(id, tool: tool)
+    }
+    private func performLaunch(_ id: UUID, tool: SessionTool? = nil, prepared: LaunchSpec? = nil, resuming: Bool = false) async {
         guard !operations.contains(id), let tab = store.state.tab(id),
               let workspace = store.state.workspace(containing: id),
               tab.binding == nil, tab.isEditable || tab.status == .preparing || (tab.status == .failed && tab.launch != nil) else { return }
@@ -25,7 +28,7 @@ public protocol ExecutableResolver: Sendable {
         var starting = false
         do {
             let spec: LaunchSpec
-            if let frozen = tab.launch { spec = frozen }
+            if let frozen = tab.launch ?? prepared { spec = frozen }
             else {
                 spec = try await resolver.resolve(tool ?? tab.draft.tool,
                     directory: tab.startDirectory ?? workspace.directory,
@@ -33,13 +36,13 @@ public protocol ExecutableResolver: Sendable {
             }
             store.update {
                 $0.bindWorkspace(workspace.id)
-                $0.apply(.intent(spec, tab.draft.prompt.isEmpty || spec.tool == .shell ? .none : .pending), to: id)
+                $0.apply(.intent(spec, resuming || tab.draft.prompt.isEmpty || spec.tool == .shell ? .none : .pending), to: id)
             }
             try await store.flush()
             starting = true
             let binding = try await runtime.create(spec)
             store.update { $0.apply(.observed(binding, dead: false, exitCode: nil,
-                prompt: tab.draft.prompt.isEmpty || spec.tool == .shell ? PromptDelivery.none : .suppliedToProcess), to: id) }
+                prompt: resuming || tab.draft.prompt.isEmpty || spec.tool == .shell ? PromptDelivery.none : .suppliedToProcess), to: id) }
             try await store.flush()
         } catch {
             if starting {
@@ -62,6 +65,29 @@ public protocol ExecutableResolver: Sendable {
             } else { fail(id, status: .failed, phase: .validation, error: error, clearIntent: true) }
         }
     }
+    /// Explicit history continuation carries no initial prompt, including a retained composer draft.
+    public func resume(_ id: UUID, conversation: ConversationMetadata) async {
+        guard !operations.contains(id), conversation.availability == .local,
+              UUID(uuidString: conversation.id.sessionID) != nil, conversation.id.provider != .shell,
+              let tab = store.state.tab(id) else { return }
+        let fresh = tab.isEditable && tab.binding == nil && tab.launch == nil && tab.draft.prompt.isEmpty
+        let ended = tab.status == .ended && tab.promptDelivery != .pending && tab.promptDelivery != .uncertain
+        guard fresh || ended else { return }
+        do {
+            let base = try await resolver.resolve(conversation.id.provider, directory: conversation.directory, prompt: nil)
+            guard store.state.tab(id) == tab else { return }
+            let arguments = try ProviderContinuationCapabilities.resumeArguments(provider: conversation.id.provider,
+                sessionID: conversation.id.sessionID, originalDirectory: conversation.directory)
+            let spec = try LaunchSpec(operationID: base.operationID, tool: conversation.id.provider, executable: base.executable,
+                arguments: base.arguments + arguments, directory: conversation.directory, environment: base.environment)
+            store.update {
+                if ended { $0.prepareEndedConversationResume(id) }
+                $0.editDraft(id, tool: conversation.id.provider)
+            }
+            await performLaunch(id, prepared: spec, resuming: true)
+        } catch { fail(id, status: .failed, phase: .validation, error: error, clearIntent: true) }
+    }
+
     public func reconcile(_ id: UUID) async {
         guard !operations.contains(id), let tab = store.state.tab(id) else { return }
         if tab.status == .ended && tab.binding == nil { return }

@@ -85,9 +85,10 @@ final class GitFoundationTests: XCTestCase {
         let database = try WorkspaceDatabase(path: path)
         let loaded = try await database.load()
         let restored = try XCTUnwrap(loaded)
-        XCTAssertEqual(restored.version, 5); XCTAssertEqual(restored.workspaces, old.workspaces)
+        XCTAssertEqual(restored.version, 6); XCTAssertEqual(Set(restored.workspaces.flatMap(\.tabs).map(\.id)), Set(old.workspaces.flatMap(\.tabs).map(\.id)))
+        for tab in old.workspaces.flatMap(\.tabs) { XCTAssertEqual(restored.tab(tab.id), tab) }
         XCTAssertEqual(restored.projects, old.projects); XCTAssertEqual(restored.locations?.checkouts.count, 1)
-        let backup = try XCTUnwrap(FileManager.default.contentsOfDirectory(atPath: root.path).first { $0.contains("pre-v5") && $0.hasSuffix("sqlite") })
+        let backup = try XCTUnwrap(FileManager.default.contentsOfDirectory(atPath: root.path).first { $0.contains("pre-v6") && $0.hasSuffix("sqlite") })
         let backupQueue = try DatabaseQueue(path: root.appendingPathComponent(backup).path)
         let version = try await backupQueue.read { try Int.fetchOne($0, sql: "SELECT version FROM workspace_snapshot") }
         XCTAssertEqual(version, 1)
@@ -189,8 +190,8 @@ extension GitFoundationTests {
             try db.execute(sql: "INSERT INTO workspace_snapshot VALUES (1, 2, ?)", arguments: [payload])
         }
         let db = try WorkspaceDatabase(path: path), state = try await db.load()
-        XCTAssertEqual(state?.version, 5); XCTAssertEqual(state?.workspaces, old.workspaces)
-        let backup = try XCTUnwrap(FileManager.default.contentsOfDirectory(atPath: root.path).first { $0.contains("pre-v5") && $0.hasSuffix("sqlite") })
+        XCTAssertEqual(state?.version, 6); XCTAssertEqual(state?.workspaces.flatMap(\.tabs), old.workspaces.flatMap(\.tabs))
+        let backup = try XCTUnwrap(FileManager.default.contentsOfDirectory(atPath: root.path).first { $0.contains("pre-v6") && $0.hasSuffix("sqlite") })
         let preserved = try DatabaseQueue(path: root.appendingPathComponent(backup).path)
         let bytes = try await preserved.read { try Data.fetchOne($0, sql: "SELECT payload FROM workspace_snapshot") }
         XCTAssertEqual(bytes, payload)
