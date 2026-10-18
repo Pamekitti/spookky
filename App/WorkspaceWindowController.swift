@@ -444,7 +444,7 @@ import SpookkyGit
         (window as? WorkspaceNativeWindow)?.onCommand = { [weak self] in self?.handleCommand($0) ?? false }
         let rootView = WorkspaceRootView(); window.contentView = rootView
         rootView.onAppearance = { [weak self] in self?.render() }
-        rootView.onLayout = { [weak self] in self?.updateHeaderGeometry() }
+        rootView.onBeforeLayout = { [weak self] in self?.updateHeaderGeometry() }
         window.isMovableByWindowBackground = false
         let content = window.contentView!
         let workspaceBody = workspaceLayout
@@ -539,7 +539,7 @@ import SpookkyGit
         sidebarToggle.setAccessibilityLabel(sidebarToggle.toolTip!)
         sidebarToggle.setAccessibilityValue(collapsed ? "Collapsed" : "Expanded")
         let available = max(0, content.bounds.width - tabStart - codeTarget - 24)
-        let splitStart = width + workspaceLayout.primaryPaneWidth + 5
+        let splitStart = width + workspaceLayout.primaryPaneWidth(in: max(0, content.bounds.width - width)) + 5
         let mainWidth = workspaceLayout.isSplit ? max(0, splitStart - tabStart - 5) : min(tabs.fittingSize.width, available * 0.45)
         let supportStart = workspaceLayout.isSplit ? splitStart : tabStart + mainWidth
         let supportWidth = max(0, content.bounds.width - codeTarget - 20 - supportStart)

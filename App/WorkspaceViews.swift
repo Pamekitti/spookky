@@ -49,8 +49,9 @@ enum SpookkyPalette {
 }
 final class WorkspaceRootView: NSView {
     var onAppearance: (() -> Void)?
+    var onBeforeLayout: (() -> Void)?
     var onLayout: (() -> Void)?
-    override func layout() { super.layout(); onLayout?() }
+    override func layout() { onBeforeLayout?(); super.layout(); onLayout?() }
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); onAppearance?() }
 }
 

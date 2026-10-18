@@ -26,8 +26,9 @@ import SpookkyCore
     private var stripKey = ""
     var headerFittingWidth: CGFloat { strip.fittingSize.width + 60 }
     var isSplit: Bool { state.layout == .split && !state.tabs.isEmpty }
-    var primaryPaneWidth: CGFloat {
-        isSplit ? max(160, min(bounds.width - 200, bounds.width * state.fraction)) : bounds.width
+    var primaryPaneWidth: CGFloat { primaryPaneWidth(in: bounds.width) }
+    func primaryPaneWidth(in width: CGFloat) -> CGFloat {
+        isSplit ? max(160, min(width - 200, width * state.fraction)) : width
     }
     var showsSupportingContent: Bool {
         guard !state.tabs.isEmpty, state.layout != .collapsed else { return false }
