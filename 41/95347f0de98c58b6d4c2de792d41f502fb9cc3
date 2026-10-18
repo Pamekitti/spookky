@@ -1,0 +1,31 @@
+App/SupportingPreviewFixture.swift
+  s_ad847420e7bcaa::t_0ad45d6de7ae5a 61-62
+App/WorkspaceWindowController.swift
+  s_53d4e1c28831bf::t_5c3e026d6e88b7 34,976,1028-1029,1414-1421,1754,1821,1850-1852,1865-1867,1869-1875,1877-1879,1932,2103,2154,2182
+Tests/SpookkyRuntimeTests/HistoryCatalogPersistenceTests.swift
+  s_ad847420e7bcaa::t_d9f8b2c8bdf7d9 18-45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4195347f0de98c58b6d4c2de792d41f502fb9cc3",
+  "prompts": {},
+  "sessions": {
+    "s_53d4e1c28831bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_ad847420e7bcaa": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a142b1-e5c5-7e13-a59a-a9eb95fb8e59",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
