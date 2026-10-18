@@ -46,12 +46,14 @@ import AppKit
 
     override init(frame: NSRect) {
         super.init(frame: frame)
+        table.style = .plain
         table.headerView = nil; table.backgroundColor = .clear; table.intercellSpacing = .zero
         table.selectionHighlightStyle = .none; table.focusRingType = .none
         table.allowsMultipleSelection = false; table.allowsEmptySelection = true
         table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
         table.autoresizingMask = [.width]
         let column = NSTableColumn(identifier: .init("session"))
+        column.minWidth = 0
         column.resizingMask = .autoresizingMask; table.addTableColumn(column)
         table.delegate = self; table.dataSource = self
         table.target = self; table.action = #selector(clickedRow)
@@ -60,7 +62,10 @@ import AppKit
         table.onFocusChange = { [weak self] in self?.focusChanged() }
         table.onContextMenu = { [weak self] row in self?.contextMenu(row: row) }
         table.setAccessibilityLabel("Projects and conversations")
-        scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true
+        scroll.contentView = WorkspaceSidebarClipView()
+        scroll.automaticallyAdjustsContentInsets = false; scroll.contentInsets = .init()
+        scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = false
+        scroll.horizontalScrollElasticity = .none; scroll.autohidesScrollers = true
         scroll.scrollerStyle = .overlay; scroll.drawsBackground = false; scroll.borderType = .noBorder
         scroll.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(geometryChanged),
@@ -72,6 +77,7 @@ import AppKit
     override func becomeFirstResponder() -> Bool { window?.makeFirstResponder(table) == true }
     override func layout() {
         super.layout(); scroll.frame = bounds
+        table.setFrameSize(NSSize(width: scroll.contentSize.width, height: table.frame.height))
         if let column = table.tableColumns.first { column.width = scroll.contentSize.width }
         reconcileHover()
     }
@@ -228,6 +234,17 @@ import AppKit
         guard items.indices.contains(row), items[row].kind != .section else { return nil }
         focus(row: row, scrollIntoView: false)
         return onContextMenu?(items[row].id)
+    }
+}
+
+@MainActor final class WorkspaceSidebarClipView: NSClipView {
+    override func scroll(to newOrigin: NSPoint) {
+        super.scroll(to: NSPoint(x: 0, y: newOrigin.y))
+    }
+    override func constrainBoundsRect(_ proposedBounds: NSRect) -> NSRect {
+        var constrained = super.constrainBoundsRect(proposedBounds)
+        constrained.origin.x = 0
+        return constrained
     }
 }
 

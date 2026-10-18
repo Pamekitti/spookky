@@ -464,7 +464,11 @@ import SpookkyGit
         tabOverflow.handler = { [weak self] in self?.showTabOverflow() }
         rail.orientation = .vertical; rail.alignment = .leading; rail.spacing = 4
         rail.edgeInsets = NSEdgeInsets(top: 8, left: 8, bottom: 12, right: 8)
-        railScroll.documentView = rail; railScroll.hasVerticalScroller = false; railScroll.autohidesScrollers = true
+        railScroll.contentView = WorkspaceSidebarClipView()
+        railScroll.automaticallyAdjustsContentInsets = false; railScroll.contentInsets = .init()
+        railScroll.documentView = rail; railScroll.hasVerticalScroller = false; railScroll.hasHorizontalScroller = false
+        railScroll.horizontalScrollElasticity = .none; railScroll.verticalScrollElasticity = .none
+        railScroll.autohidesScrollers = true
         railScroll.drawsBackground = true; railScroll.backgroundColor = SpookkyPalette.sidebar
         tabs.orientation = .horizontal; tabs.spacing = 0; tabs.alignment = .centerY
         tabs.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 8)
@@ -1483,6 +1487,12 @@ import SpookkyGit
         }
         let tabClose = pair.closeButton
         checks["single_line_conversation_row"] = cell.subviews.compactMap { $0 as? NSTextField }.count == 1 && abs(cell.bounds.height - 32) < 0.5
+        let projectIcon = sidebarCellForFixture(projectKey)?.subviews.compactMap { $0 as? NSImageView }.first
+        let conversationIcon = cell.subviews.compactMap { $0 as? NSImageView }.first
+        checks["project_content_starts_at_sixteen_points"] = projectIcon.map { abs($0.convert($0.bounds, to: conversationSidebar).minX - 16) < 0.5 } == true
+        checks["conversation_has_only_one_indentation_level"] = conversationIcon.map { abs($0.convert($0.bounds, to: conversationSidebar).minX - 32) < 0.5 } == true
+        railScroll.contentView.scroll(to: NSPoint(x: 120, y: 0)); railScroll.reflectScrolledClipView(railScroll.contentView)
+        checks["fixed_sidebar_controls_cannot_scroll_sideways"] = railScroll.contentView.bounds.minX == 0 && railScroll.horizontalScrollElasticity == .none
         checks["full_title_in_accessibility_and_tooltip"] = cell.toolTip?.contains(name) == true && cell.accessibilityLabel()?.contains(name) == true
         checks["conversation_context_menu_replaces_close"] = conversationSidebar.onContextMenu?(workspaceKey)?.items.contains { $0.title == "Close conversation view" } == true
         checks["compact_tab_close_target"] = abs(tabClose.frame.width - 24) < 0.5 && abs(tabClose.frame.height - 24) < 0.5
@@ -1532,6 +1542,15 @@ import SpookkyGit
         let afterY = sidebarCellForFixture(focusedID).map { $0.convert($0.bounds, to: window.contentView).minY }
         checks["refresh_preserves_scroll_anchor_and_focus"] = conversationSidebar.focusedItemID == focusedID && beforeY != nil && afterY != nil && abs(beforeY! - afterY!) < 1
         if let scroller = conversationSidebar.subviews.first as? NSScrollView, let table = scroller.documentView as? NSTableView {
+            let origin = scroller.contentView.bounds.origin
+            for x in [CGFloat(120), -120] {
+                scroller.contentView.scroll(to: NSPoint(x: x, y: origin.y))
+                scroller.reflectScrolledClipView(scroller.contentView)
+            }
+            checks["sidebar_rejects_horizontal_scroll_and_bounce"] = scroller.contentView.bounds.minX == 0 &&
+                !scroller.hasHorizontalScroller && scroller.horizontalScrollElasticity == .none
+            checks["sidebar_column_matches_viewport_width"] = table.style == .plain &&
+                abs(table.frame.width - scroller.contentSize.width) < 0.5 && abs(table.tableColumns[0].width - scroller.contentSize.width) < 0.5
             window.makeFirstResponder(nil)
             let local = conversationSidebar.convert(NSPoint(x: 28, y: conversationSidebar.bounds.midY), to: nil)
             let previousPointer = conversationSidebar.pointerLocation
