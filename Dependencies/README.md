@@ -29,3 +29,9 @@ Spookky's native keyboard bridge adapts Ghostty's macOS input implementation at 
 ## Read-only appearance bridge
 
 [appearance-export.zig](patches/appearance-export.zig) extends the pinned C API with passive configuration loading and a bounded appearance export. It uses Ghostty's default-path ordering, include handling, conditional theme replay and typed formatter. It does not load app command-line arguments, create a configuration template, or create a surface/process. Exported settings exclude commands, environment, keybindings and window behavior. Both theme variants retain explicit user overrides. The result owns its bytes and uses Ghostty's existing string-free API. The build includes pinned theme resources.
+
+## tmux focus-event backport
+
+[The focus patch](patches/tmux-focus-null-session.patch) guards the pinned parser when a focus event arrives after a client loses its session or current window. A native identity fixture captured an EXC_BAD_ACCESS at the unguarded focus-out dereference. This matches the call site described in [upstream issue 5022](https://github.com/tmux/tmux/issues/5022). Focus forwarding remains enabled for provider TUIs.
+
+The runtime build runs [a parser probe](patches/tmux-focus-probe.c) through [its build harness](../scripts/check_tmux_focus.py). It feeds six real focus sequences across detached, windowless and attached client states. The original parser exits with SIGSEGV; the guarded parser must preserve focus flags and invoke attached-window updates. Server callbacks are isolated by probe stubs. The patch, probe and harness participate in the build fingerprint. Existing private servers retain their loaded executable until they exit; replacing the app does not restart them.

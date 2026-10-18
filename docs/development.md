@@ -212,3 +212,13 @@ The close fixture uses disposable metadata and a private runtime socket. It chec
 ## Display regression checks
 
 Run `python3 scripts/check_sidebar.py --display --output .cache/display-checks.json` against the Release build for the light/dark zoom and hit-target matrix. Use disposable state and serialize native GUI fixtures. The matrix includes Ghostty theme variants, recursive includes, invalid-config recovery and creation of a previously missing config directory. It does not replace physical display-transition or provider visual-parity checks.
+
+## Private-runtime focus regression
+
+`python3 scripts/build_runtime.py` applies the documented tmux focus-event backport and runs its parser regression before accepting a new runtime build. To repeat the parser check against the configured local sources, run:
+
+```sh
+python3 scripts/check_tmux_focus.py --source .cache/runtime-build/tmux/tmux-3.6b
+```
+
+The probe uses disposable buffers and isolated server callbacks. It does not connect to a user socket or terminate a process. A dependency-cache hit retains the previously verified build fingerprint.

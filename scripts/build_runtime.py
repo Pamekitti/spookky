@@ -6,12 +6,14 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tarfile
 
 ROOT = Path(__file__).resolve().parents[1]
 CACHE = ROOT / ".cache/runtime-build"
 PREFIX = ROOT / ".cache/runtime"
 MANIFEST = json.loads((ROOT / "Dependencies/manifest.json").read_text())
+FOCUS_PATCH = ROOT / "Dependencies/patches/tmux-focus-null-session.patch"
 
 
 def run(arguments, **kwargs):
@@ -41,9 +43,11 @@ def main():
             raise SystemExit("Runtime builds require " + tool + ". See docs/development.md.")
     CACHE.mkdir(parents=True, exist_ok=True)
     PREFIX.mkdir(parents=True, exist_ok=True)
-    fingerprint = hashlib.sha256(json.dumps(MANIFEST, sort_keys=True).encode()).hexdigest()
+    fingerprint = hashlib.sha256(json.dumps(MANIFEST, sort_keys=True).encode() + FOCUS_PATCH.read_bytes() +
+                                 (ROOT / "Dependencies/patches/tmux-focus-probe.c").read_bytes() +
+                                 (ROOT / "scripts/check_tmux_focus.py").read_bytes()).hexdigest()
     stamp = PREFIX / "build.json"
-    if stamp.exists() and json.loads(stamp.read_text()).get("fingerprint") == fingerprint and json.loads(stamp.read_text()).get("recipe") == 4:
+    if stamp.exists() and json.loads(stamp.read_text()).get("fingerprint") == fingerprint and json.loads(stamp.read_text()).get("recipe") == 5:
         audit(PREFIX / "bin/tmux")
         print("Pinned runtime already built.")
         return
@@ -77,6 +81,13 @@ def main():
     shutil.copy2(utf8 / "libutf8proc.a", PREFIX / "lib")
     shutil.copy2(utf8 / "utf8proc.h", PREFIX / "include")
     tmux = source("tmux")
+    pending = subprocess.run(["patch", "--forward", "--batch", "--dry-run", "-p1", "-i", str(FOCUS_PATCH)], cwd=tmux, capture_output=True)
+    if pending.returncode == 0:
+        run(["patch", "--forward", "--batch", "-p1", "-i", FOCUS_PATCH], cwd=tmux)
+    else:
+        applied = subprocess.run(["patch", "--reverse", "--force", "--dry-run", "-p1", "-i", str(FOCUS_PATCH)], cwd=tmux, capture_output=True)
+        if applied.returncode:
+            raise SystemExit("Pinned tmux focus patch does not match its source.")
     env["LIBEVENT_CFLAGS"] = env["CPPFLAGS"]
     env["LIBEVENT_LIBS"] = str(PREFIX / "lib/libevent_core.a")
     env["LIBNCURSES_CFLAGS"] = env["CPPFLAGS"]
@@ -85,6 +96,7 @@ def main():
     env["LIBUTF8PROC_LIBS"] = str(PREFIX / "lib/libutf8proc.a")
     run(["./configure", "--prefix=" + str(PREFIX), "--sysconfdir=/etc", "--enable-utf8proc"], cwd=tmux, env=env)
     run(["make", "-j4"], cwd=tmux, env=env)
+    run([sys.executable, ROOT / "scripts/check_tmux_focus.py", "--source", tmux], env=env)
     (PREFIX / "bin").mkdir(exist_ok=True)
     shutil.copy2(tmux / "tmux", PREFIX / "bin/tmux.pending")
     os.replace(PREFIX / "bin/tmux.pending", PREFIX / "bin/tmux")
@@ -93,7 +105,7 @@ def main():
     for name, path in [("tmux", tmux / "COPYING"), ("libevent", event / "LICENSE"),
                        ("ncurses", ncurses / "COPYING"), ("utf8proc", utf8 / "LICENSE.md")]:
         shutil.copy2(path, licenses / (name + ".txt"))
-    stamp.write_text(json.dumps({"fingerprint": fingerprint, "recipe": 4, "pins": MANIFEST}, indent=2) + "\n")
+    stamp.write_text(json.dumps({"fingerprint": fingerprint, "recipe": 5, "pins": MANIFEST}, indent=2) + "\n")
     print("Built self-contained tmux:", PREFIX / "bin/tmux")
 
 
