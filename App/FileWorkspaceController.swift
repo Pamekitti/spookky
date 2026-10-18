@@ -20,10 +20,10 @@ import SpookkySyntax
     private let watcher = WorkspaceFileWatcher()
     private let fileTable = FileTable(), diffTable = FileTable()
     private let fileScroll = NSScrollView(), diffScroll = NSScrollView()
-    private let search = NSSearchField()
-    private let comparison = NSPopUpButton(), reference = NSPopUpButton(), stage = NSPopUpButton()
-    private let scope = NSTextField(labelWithString: ""), status = NSTextField(wrappingLabelWithString: ""), title = NSTextField(labelWithString: "")
-    private let previewNotice = NSTextField(wrappingLabelWithString: "")
+    private let search = ChromeSearchField()
+    private let comparison = ChromePopUpButton(), reference = ChromePopUpButton(), stage = ChromePopUpButton()
+    private let scope = NSTextField(labelWithString: ""), status = ChromeTextField(wrappingLabelWithString: ""), title = NSTextField(labelWithString: "")
+    private let previewNotice = ChromeTextField(wrappingLabelWithString: "")
     private let informationButton = ActionButton("", symbol: "info.circle", help: "Preview information", action: {})
     private let informationPopover = NSPopover()
     private var secondaryPreviewActions: [ActionButton] = []
@@ -188,7 +188,7 @@ import SpookkySyntax
         informationButton.isHidden = true
         informationButton.handler = { [weak self] in
             guard let self else { return }
-            let text = NSTextField(wrappingLabelWithString: previewInformation)
+            let text = ChromeTextField(wrappingLabelWithString: previewInformation)
             text.font = .systemFont(ofSize: 12)
             let height = max(32, ceil((previewInformation as NSString).boundingRect(with: NSSize(width: 256, height: 600), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: text.font!]).height) + 8)
             text.frame = NSRect(x: 12, y: 12, width: 256, height: height)

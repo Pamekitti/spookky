@@ -86,7 +86,7 @@ final class GhosttyEngine {
             guard let pointer, let text else { return }
             let view = Unmanaged<TerminalHostView>.fromOpaque(pointer).takeUnretainedValue()
             guard let surface = view.surface else { return }
-            let alert = NSAlert()
+            let alert = ChromeAlert()
             alert.messageText = "Allow terminal clipboard access?"
             alert.informativeText = "The terminal requested a clipboard operation."
             alert.addButton(withTitle: "Allow")
@@ -101,7 +101,7 @@ final class GhosttyEngine {
             guard let pointer, let contents else { return }
             let clipboard = Unmanaged<TerminalHostView>.fromOpaque(pointer).takeUnretainedValue().engine.clipboard
             if confirmation {
-                let alert = NSAlert()
+                let alert = ChromeAlert()
                 alert.messageText = "Allow terminal to write the clipboard?"
                 alert.addButton(withTitle: "Allow")
                 alert.addButton(withTitle: "Cancel")

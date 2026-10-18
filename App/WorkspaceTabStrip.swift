@@ -102,8 +102,7 @@ import AppKit
         DispatchQueue.main.async { [weak self] in self?.updateInteraction() }
     }
     private var containsKeyboardFocus: Bool {
-        guard window?.isKeyWindow == true, let responder = window?.firstResponder as? NSView else { return false }
-        return responder === titleButton || responder === closeButton
+        titleButton.showsKeyboardFocus || closeButton.showsKeyboardFocus
     }
     private func updateAppearance() {
         titleButton.selected = selected
@@ -117,8 +116,8 @@ import AppKit
         needsDisplay = true
     }
     override func draw(_ dirtyRect: NSRect) {
-        if selected || hovered {
-            (selected ? SpookkyPalette.selected : SpookkyPalette.hover).setFill(); bounds.fill()
+        if selected || hovered || containsKeyboardFocus {
+            (containsKeyboardFocus ? SpookkyPalette.keyboardFocus : selected ? SpookkyPalette.selected : SpookkyPalette.hover).setFill(); bounds.fill()
         }
         SpookkyPalette.border.setFill()
         NSRect(x: bounds.width - 1, y: 0, width: 1, height: bounds.height).fill()

@@ -4,15 +4,15 @@ import SpookkyGit
 import SpookkyWorkspace
 
 @MainActor final class WorktreeOptionsView: NSStackView, NSTextFieldDelegate {
-    private let mode = NSPopUpButton()
-    private let checkout = NSPopUpButton()
-    private let source = NSPopUpButton()
-    private let branchMode = NSPopUpButton()
-    private let existing = NSPopUpButton()
-    private let branch = NSTextField()
-    private let destination = NSTextField()
-    private let cached = NSButton(checkboxWithTitle: "Use cached reference", target: nil, action: nil)
-    private let detail = NSTextField(wrappingLabelWithString: "")
+    private let mode = ChromePopUpButton()
+    private let checkout = ChromePopUpButton()
+    private let source = ChromePopUpButton()
+    private let branchMode = ChromePopUpButton()
+    private let existing = ChromePopUpButton()
+    private let branch = ChromeTextField()
+    private let destination = ChromeTextField()
+    private let cached = ChromeButton(checkboxWithTitle: "Use cached reference", target: nil, action: nil)
+    private let detail = ChromeTextField(wrappingLabelWithString: "")
     private let top = ResponsiveStackView()
     private let branchRow = ResponsiveStackView()
     private var checkoutGroup: NSStackView!

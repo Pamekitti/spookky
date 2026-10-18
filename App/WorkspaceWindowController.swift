@@ -43,7 +43,7 @@ import SpookkyGit
     let conversationSidebar = WorkspaceSidebarView(frame: .zero)
     private var sidebarRecords: [String: ConversationCatalogRecord] = [:]
     private var projectImages: [UUID: NSImage] = [:]
-    let historySearch = NSSearchField()
+    let historySearch = ChromeSearchField()
     let launches: LaunchCoordinator
     let surfaces: TerminalSurfaceManager
     private lazy var projectAssociations = ProjectAssociationCoordinator(store: store)
@@ -348,7 +348,7 @@ import SpookkyGit
                       window.attachedSheet == nil, continuations.isCurrent(target) else { return }
                 let previousResponder = window.firstResponder
                 let guide = presentation.guide
-                let alert = NSAlert()
+                let alert = ChromeAlert()
                 alert.messageText = "Continue " + target.provider.displayName + " elsewhere"
                 alert.informativeText = presentation.capabilities.version + ". Commands target the primary conversation."
                 let instructions = NSTextView(frame: NSRect(x: 0, y: 0, width: 480, height: 280))
@@ -658,7 +658,7 @@ import SpookkyGit
                 self?.store.update(debounced: true) { $0.updateSupport(tabID, target: target, title: title, workspaceID: workspaceID) }
             }) { workspaceLayout.show(view) }
             else if key != supportContentKey {
-                let label = NSTextField(wrappingLabelWithString: "This supporting view is unavailable in this build.")
+                let label = ChromeTextField(wrappingLabelWithString: "This supporting view is unavailable in this build.")
                 label.alignment = .center; workspaceLayout.show(label)
             }
         }
@@ -1514,6 +1514,23 @@ import SpookkyGit
         checks["collapse_preserves_project_keyboard_focus"] = conversationSidebar.focusedItemID == projectKey && (window.firstResponder as? NSView)?.isDescendant(of: conversationSidebar) == true
         (window.firstResponder as? NSView)?.keyDown(with: try key(36, "\r"))
         checks["expand_restores_rows"] = sidebarCellForFixture(workspaceKey) != nil
+        if let scroller = conversationSidebar.subviews.first as? NSScrollView, let table = scroller.documentView as? NSTableView,
+           let projectCell = sidebarCellForFixture(projectKey) {
+            let point = projectCell.convert(NSPoint(x: 60, y: projectCell.bounds.midY), to: nil)
+            let time = ProcessInfo.processInfo.systemUptime
+            guard let down = NSEvent.mouseEvent(with: .leftMouseDown, location: point, modifierFlags: [], timestamp: time,
+                windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 1),
+                  let up = NSEvent.mouseEvent(with: .leftMouseUp, location: point, modifierFlags: [], timestamp: time + 0.01,
+                windowNumber: window.windowNumber, context: nil, eventNumber: 2, clickCount: 1, pressure: 0) else { throw LaunchError.invalid("Project click fixture unavailable.") }
+            NSApp.postEvent(up, atStart: true)
+            table.mouseDown(with: down)
+            await Task.yield()
+            checks["project_mouse_click_toggles_without_selection_or_keyboard_fill"] = store.state.projects.first { $0.id == projectID }?.isCollapsed == true &&
+                table.selectedRow == -1 && conversationSidebar.keyboardFocusItemID == nil && store.state.selectedWorkspaceID == workspaceID
+            conversationSidebar.focusItem(projectKey)
+            (window.firstResponder as? NSView)?.keyDown(with: try key(36, "\r"))
+            checks["keyboard_navigation_restores_neutral_focus_after_mouse_click"] = conversationSidebar.keyboardFocusItemID == projectKey && sidebarCellForFixture(workspaceKey) != nil
+        }
         let bindings = store.state.workspaces.flatMap(\.tabs).compactMap(\.binding)
         conversationSidebar.onAddProjectSession?(projectKey)
         if let renderTask { await renderTask.value }
@@ -1632,6 +1649,33 @@ import SpookkyGit
         conversationSidebar.onActivate?(projectKey)
         checks["collapse_preserves_terminal_input"] = surface.visibleText().contains("SPOOKKY_SIDEBAR_UNSENT")
         checks["agent_draft_survives_shell_and_collapse"] = store.state.tab(original.selectedTabID)?.draft == original.tabs[0].draft
+        func nativeControls(_ view: NSView) -> [NSControl] { (view as? NSControl).map { [$0] } ?? view.subviews.flatMap(nativeControls) }
+        let controls = nativeControls(window.contentView!).filter { control in
+            if let field = control as? NSTextField { return field.isEditable || field.isSelectable }
+            return control is NSButton || control is NSTableView
+        }
+        checks["native_chrome_controls_have_no_focus_ring"] = !controls.isEmpty && controls.allSatisfy { $0.focusRingType == .none && $0.cell?.focusRingType != .exterior }
+        let nativeAlert = ChromeAlert()
+        let standardControls: [NSControl] = [ChromeTextField(), ChromeSearchField(), ChromePopUpButton(), ChromeButton(), nativeAlert.addButton(withTitle: "Done")]
+        checks["shared_native_control_defaults_suppress_focus_rings"] = standardControls.allSatisfy { $0.focusRingType == .none && $0.cell?.focusRingType == NSFocusRingType.none }
+        interactionDetails["native_control_focus_types"] = controls.map { String(describing: type(of: $0)) + ":" + String($0.focusRingType.rawValue) + ":" + String(describing: $0.cell?.focusRingType) }.joined(separator: ", ")
+        let action = ActionButton("Keyboard action", action: {})
+        let intrinsicSize = action.intrinsicContentSize
+        let buttonFrame = NSRect(x: 24, y: 24, width: 140, height: 28)
+        action.frame = buttonFrame; window.contentView?.addSubview(action); window.makeFirstResponder(action)
+        checks["keyboard_button_feedback_keeps_bounds_and_intrinsic_size"] = action.showsKeyboardFocus && action.frame == buttonFrame && action.intrinsicContentSize == intrinsicSize && action.focusRingType == .none
+        action.removeFromSuperview(); window.makeFirstResponder(surface)
+        NSApp.sendAction(NSSelectorFromString("showSettings"), to: services, from: nil)
+        if let settings = NSApp.windows.first(where: { $0.title == "Spookky Settings" }), let content = settings.contentView {
+            let settingsControls = nativeControls(content).filter { control in
+                if let field = control as? NSTextField { return field.isEditable || field.isSelectable }
+                return control is NSButton || control is NSSlider
+            }
+            checks["settings_controls_have_no_focus_ring"] = settingsControls.contains { $0 is NSSlider } && settingsControls.allSatisfy {
+                $0.focusRingType == .none && $0.cell?.focusRingType == NSFocusRingType.none
+            }
+            settings.close(); window.makeKeyAndOrderFront(nil); window.makeFirstResponder(surface)
+        } else { checks["settings_controls_have_no_focus_ring"] = false }
         func cpuSeconds() -> Double {
             var usage = rusage(); _ = getrusage(RUSAGE_SELF, &usage)
             return Double(usage.ru_utime.tv_sec + usage.ru_stime.tv_sec) + Double(usage.ru_utime.tv_usec + usage.ru_stime.tv_usec) / 1_000_000
@@ -1702,14 +1746,14 @@ import SpookkyGit
         let container = NSView()
         if let workspace = store.state.workspace(containing: tab.id), workspace.primaryTerminalID == tab.id,
            workspace.catalogMetadata != nil, tab.binding == nil, tab.launch == nil {
-            let message = NSTextField(wrappingLabelWithString: workspace.catalogMetadata?.displayTitle ?? workspace.title)
+            let message = ChromeTextField(wrappingLabelWithString: workspace.catalogMetadata?.displayTitle ?? workspace.title)
             message.font = .systemFont(ofSize: 15, weight: .medium)
             let identity = workspace.conversationID
             let opening = identity.map { continuingConversations.contains($0) } ?? false
             let error = identity.flatMap { continuationErrors[$0] }
             let action = ActionButton(opening ? "Opening conversation…" : error == nil ? "Continue saved conversation" : "Retry", symbol: opening ? "clock" : "arrow.up.forward") { [weak self] in self?.openConversationWorkspace(workspace.id) }
             action.isEnabled = !opening
-            let details = NSTextField(wrappingLabelWithString: error ?? "Open this saved conversation in its original folder.")
+            let details = ChromeTextField(wrappingLabelWithString: error ?? "Open this saved conversation in its original folder.")
             details.textColor = SpookkyPalette.secondary
             let stack = NSStackView(views: [message, details, action]); stack.orientation = .vertical; stack.alignment = .leading
             stack.spacing = 12; stack.edgeInsets = NSEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
@@ -1773,7 +1817,7 @@ import SpookkyGit
             let content: NSView
             if let surface, tab.status == .running || tab.status == .ended { content = surface }
             else {
-                let message = NSTextField(wrappingLabelWithString: tab.failure?.message ?? "Session " + tab.status.rawValue)
+                let message = ChromeTextField(wrappingLabelWithString: tab.failure?.message ?? "Session " + tab.status.rawValue)
                 message.font = .systemFont(ofSize: 13); message.textColor = SpookkyPalette.text
                 let stack = NSStackView(views: [message])
                 stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12; stack.edgeInsets = NSEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
@@ -2062,9 +2106,9 @@ import SpookkyGit
     private func deleteWorktree(_ record: CheckoutRecord) {
         do {
             let request = try locations.deletionRequest(record)
-            let alert = NSAlert(); alert.messageText = "Delete worktree?"
+            let alert = ChromeAlert(); alert.messageText = "Delete worktree?"
             alert.informativeText = request.destination + "\n\nType the exact folder path. Spookky checks session ownership, edits, locks, and merged/pushed commits. The branch is kept."
-            let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 400, height: 24))
+            let field = ChromeTextField(frame: NSRect(x: 0, y: 0, width: 400, height: 24))
             field.placeholderString = "Exact folder path"; field.setAccessibilityLabel("Confirm exact worktree path")
             alert.accessoryView = field; alert.window.initialFirstResponder = field
             alert.addButton(withTitle: "Delete worktree").hasDestructiveAction = true
@@ -2121,8 +2165,8 @@ import SpookkyGit
         let button = tabID.flatMap { tabPairs[$0]?.titleButton }
         guard let button else {
             if let workspaceID, let workspace = store.state.workspaces.first(where: { $0.id == workspaceID }) {
-                let panel = NSAlert(); panel.messageText = "Rename in Spookky"
-                let field = NSTextField(string: workspace.displayTitle); field.frame = NSRect(x: 0, y: 0, width: 320, height: 28)
+                let panel = ChromeAlert(); panel.messageText = "Rename in Spookky"
+                let field = ChromeTextField(string: workspace.displayTitle); field.frame = NSRect(x: 0, y: 0, width: 320, height: 28)
                 panel.accessoryView = field; panel.window.initialFirstResponder = field
                 panel.addButton(withTitle: "Save"); panel.addButton(withTitle: "Cancel")
                 panel.beginSheetModal(for: window) { [weak self] result in
@@ -2179,7 +2223,7 @@ import SpookkyGit
         }
     }
     private func confirm(_ title: String, _ message: String, action: String = "Close") async -> Bool {
-        let alert = NSAlert(); alert.messageText = title; alert.informativeText = message
+        let alert = ChromeAlert(); alert.messageText = title; alert.informativeText = message
         let close = alert.addButton(withTitle: action)
         close.keyEquivalent = "\r"; close.keyEquivalentModifierMask = []
         let cancel = alert.addButton(withTitle: "Cancel")
@@ -2194,7 +2238,7 @@ import SpookkyGit
         }
     }
     private func alert(_ title: String, _ message: String) {
-        let alert = NSAlert(); alert.messageText = title; alert.informativeText = message
+        let alert = ChromeAlert(); alert.messageText = title; alert.informativeText = message
         if window.isVisible { alert.beginSheetModal(for: window) } else { alert.runModal() }
     }
     func prepareForUpdate() async throws {
@@ -2218,7 +2262,7 @@ import SpookkyGit
             do {
                 try await store.flush()
                 if live && !services.installingUpdate {
-                    let alert = NSAlert(); alert.messageText = "Quit Spookky?"
+                    let alert = ChromeAlert(); alert.messageText = "Quit Spookky?"
                     alert.informativeText = "Choose whether your terminal sessions should keep running. Ending terminals may leave work running on a shared provider server or in the background. Use the provider’s own Stop or Interrupt control to stop that work first."
                     alert.addButton(withTitle: "Keep running and quit"); alert.addButton(withTitle: "Cancel")
                     alert.addButton(withTitle: "End terminals and quit").hasDestructiveAction = true
@@ -2893,8 +2937,8 @@ import SpookkyGit
         return menu
     }
     private func renameHistoryRecord(_ record: ConversationCatalogRecord) {
-        let panel = NSAlert(); panel.messageText = "Rename in Spookky"
-        let field = NSTextField(string: record.displayTitle); field.frame = NSRect(x: 0, y: 0, width: 320, height: 28)
+        let panel = ChromeAlert(); panel.messageText = "Rename in Spookky"
+        let field = ChromeTextField(string: record.displayTitle); field.frame = NSRect(x: 0, y: 0, width: 320, height: 28)
         panel.accessoryView = field; panel.window.initialFirstResponder = field
         panel.addButton(withTitle: "Save"); panel.addButton(withTitle: "Cancel")
         panel.beginSheetModal(for: window) { [weak self] result in

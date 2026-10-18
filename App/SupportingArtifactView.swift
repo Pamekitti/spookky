@@ -6,7 +6,7 @@ import SpookkyFiles
 
 @MainActor final class SupportingArtifactView: NSView, WKNavigationDelegate {
     private let path: String
-    private let status = NSTextField(wrappingLabelWithString: "Loading artifact…")
+    private let status = ChromeTextField(wrappingLabelWithString: "Loading artifact…")
     private let content = NSView()
     private var task: Task<Void, Never>?
     private var webView: WKWebView?

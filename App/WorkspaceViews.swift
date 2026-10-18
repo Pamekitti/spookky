@@ -27,6 +27,7 @@ enum SpookkyPalette {
     static let ring = color("3a3837", "a1a1a1")
     static let selected = foregroundWash(dark: 0.10, light: 0.06)
     static let hover = foregroundWash(dark: 0.07, light: 0.04)
+    static let keyboardFocus = foregroundWash(dark: 0.16, light: 0.10)
     static let text = color("eae8e6", "0a0a0a")
     static let secondary = color("a8a5a3", "4a4847")
     static let metadata = color("9a9795", "605e5d")
@@ -72,9 +73,13 @@ enum SpookkyStyle {
     static let iconLabelGap: CGFloat = 6
     static let controlInset: CGFloat = 8
     static func configure(_ control: NSControl, size: CGFloat = 12) {
+        suppressFocusRing(control)
         control.font = .systemFont(ofSize: size)
         control.controlSize = .small
         if let popup = control as? NSPopUpButton { popup.isBordered = false }
+    }
+    static func suppressFocusRing(_ control: NSControl) {
+        control.focusRingType = .none; control.cell?.focusRingType = .none
     }
     static func abbreviatedPath(_ path: String) -> String {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
@@ -149,6 +154,28 @@ enum SpookkyStyle {
     }
 }
 
+final class ChromeTextField: NSTextField {
+    override init(frame: NSRect = .zero) { super.init(frame: frame); SpookkyStyle.suppressFocusRing(self) }
+    required init?(coder: NSCoder) { super.init(coder: coder); SpookkyStyle.suppressFocusRing(self) }
+}
+final class ChromeSearchField: NSSearchField {
+    override init(frame: NSRect = .zero) { super.init(frame: frame); SpookkyStyle.suppressFocusRing(self) }
+    required init?(coder: NSCoder) { super.init(coder: coder); SpookkyStyle.suppressFocusRing(self) }
+}
+final class ChromePopUpButton: NSPopUpButton {
+    override init(frame: NSRect = .zero, pullsDown: Bool = false) { super.init(frame: frame, pullsDown: pullsDown); SpookkyStyle.suppressFocusRing(self) }
+    required init?(coder: NSCoder) { super.init(coder: coder); SpookkyStyle.suppressFocusRing(self) }
+}
+final class ChromeButton: NSButton {
+    override init(frame: NSRect = .zero) { super.init(frame: frame); SpookkyStyle.suppressFocusRing(self) }
+    required init?(coder: NSCoder) { super.init(coder: coder); SpookkyStyle.suppressFocusRing(self) }
+}
+final class ChromeAlert: NSAlert {
+    @discardableResult override func addButton(withTitle title: String) -> NSButton {
+        let button = super.addButton(withTitle: title); SpookkyStyle.suppressFocusRing(button); return button
+    }
+}
+
 final class ChromeStackView: NSStackView {
     var selected = false { didSet { if selected != oldValue { needsDisplay = true } } }
     var raised = false
@@ -180,9 +207,7 @@ final class ChromeStackView: NSStackView {
         let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: cornerRadius, yRadius: cornerRadius)
         (raised ? SpookkyPalette.raised : selected ? SpookkyPalette.selected : interactionActive ? SpookkyPalette.hover : .clear).setFill(); path.fill()
         if raised {
-            let focused = (window?.firstResponder as? NSView)?.isDescendant(of: self) == true
-            (focused ? NSColor.keyboardFocusIndicatorColor : SpookkyPalette.border).setStroke()
-            path.lineWidth = focused ? 2 : 1; path.stroke()
+            SpookkyPalette.border.setStroke(); path.lineWidth = 1; path.stroke()
         }
         if drawsTrailingBorder { SpookkyPalette.border.setFill(); NSRect(x: bounds.width - 1, y: 0, width: 1, height: bounds.height).fill() }
     }
@@ -190,7 +215,7 @@ final class ChromeStackView: NSStackView {
 }
 
 final class InlineRenameEditor: NSObject, NSTextFieldDelegate {
-    private let field = NSTextField()
+    private let field = ChromeTextField()
     private weak var button: ActionButton?
     private let completion: (String?, Bool) -> Void
     private var finished = false
@@ -271,6 +296,8 @@ class ActionButton: NSButton {
     var onFocusChange: ((Bool) -> Void)?
     var onHoverChange: ((Bool) -> Void)?
     private var keyboardFocused = false
+    private var receivingPointer = false
+    var showsKeyboardFocus: Bool { keyboardFocused && window?.firstResponder === self && window?.isKeyWindow == true }
     private let targetHeight: CGFloat
     var isRevealed: Bool { !revealOnInteraction || interactionActive || keyboardFocused }
     func updateInteractionVisibility() {
@@ -286,7 +313,7 @@ class ActionButton: NSButton {
         handler = action; targetHeight = height
         super.init(frame: .zero)
         self.title = title; target = self; self.action = #selector(invoke)
-        isBordered = false; focusRingType = .none; font = .systemFont(ofSize: 13)
+        isBordered = false; SpookkyStyle.suppressFocusRing(self); font = .systemFont(ofSize: 13)
         if let symbol { image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil); imagePosition = title.isEmpty ? .imageOnly : .imageLeading }
         compactUtility = symbol == "plus" || symbol == "xmark"
         toolTip = help ?? title; setAccessibilityLabel(help ?? title)
@@ -315,7 +342,7 @@ class ActionButton: NSButton {
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
     override func becomeFirstResponder() -> Bool {
         let result = super.becomeFirstResponder()
-        if result { keyboardFocused = true; updateInteractionVisibility(); onFocusChange?(true) }
+        if result { keyboardFocused = !receivingPointer; updateInteractionVisibility(); onFocusChange?(keyboardFocused) }
         needsDisplay = true; return result
     }
     override func resignFirstResponder() -> Bool {
@@ -332,12 +359,12 @@ class ActionButton: NSButton {
         case .primary: SpookkyPalette.text
         case .secondary: SpookkyPalette.raised
         case .destructive: SpookkyPalette.destructive
-        case .quiet: pressed || selected ? SpookkyPalette.selected : hovered ? SpookkyPalette.hover : .clear
+        case .quiet: pressed || selected ? SpookkyPalette.selected : showsKeyboardFocus ? SpookkyPalette.keyboardFocus : hovered ? SpookkyPalette.hover : .clear
         }
-        if emphasis != .quiet || drawsInteractionFill && (selected || pressed || hovered && isEnabled) {
+        if emphasis != .quiet || drawsInteractionFill && (selected || pressed || (hovered || showsKeyboardFocus) && isEnabled) {
             fill.withAlphaComponent(fill.alphaComponent * (isEnabled ? 1 : 0.45)).setFill(); shape.fill()
         }
-        if emphasis != .quiet, isEnabled, pressed || hovered {
+        if emphasis != .quiet, isEnabled, pressed || hovered || showsKeyboardFocus {
             let overlay = emphasis == .secondary ? (pressed ? SpookkyPalette.selected : SpookkyPalette.hover)
                 : SpookkyPalette.background.withAlphaComponent(pressed ? 0.15 : 0.08)
             overlay.setFill(); shape.fill()
@@ -383,9 +410,6 @@ class ActionButton: NSButton {
             }
         }
         drawTitle(in: content, tint: tint)
-        if window?.firstResponder === self, window?.isKeyWindow == true {
-            NSColor.keyboardFocusIndicatorColor.setStroke(); shape.lineWidth = 2; shape.stroke()
-        }
     }
     func drawTitle(in content: NSRect, tint: NSColor) {
         guard !title.isEmpty else { return }
@@ -397,6 +421,7 @@ class ActionButton: NSButton {
     @objc private func invoke() { handler?() }
     override var acceptsFirstResponder: Bool { true }
     override func keyDown(with event: NSEvent) {
+        keyboardFocused = true; updateInteractionVisibility(); onFocusChange?(true)
         if event.keyCode == 109, event.modifierFlags.contains(.shift), let menu = onContextMenu?() {
             menu.popUp(positioning: nil, at: NSPoint(x: 0, y: bounds.height), in: self)
             if window?.attachedSheet == nil { window?.makeFirstResponder(self) }
@@ -407,6 +432,8 @@ class ActionButton: NSButton {
         } else { super.keyDown(with: event) }
     }
     override func mouseDown(with event: NSEvent) {
+        receivingPointer = true; keyboardFocused = false; updateInteractionVisibility(); onFocusChange?(false)
+        defer { receivingPointer = false }
         if event.clickCount == 2, let onDoubleClick { onDoubleClick() } else { super.mouseDown(with: event) }
     }
 }
@@ -481,7 +508,7 @@ private final class ComposerDocumentView: NSView {
     private let promptScroll = NSScrollView()
     private var promptHeight: NSLayoutConstraint!
     private var launchWidth: NSLayoutConstraint!
-    private let message = NSTextField(wrappingLabelWithString: "")
+    private let message = ChromeTextField(wrappingLabelWithString: "")
     private let terminalRow = NSStackView()
     private let terminal = ActionButton("Open Terminal", symbol: "terminal", help: "Open Terminal and keep this session draft", action: {})
     private let locationPopover = NSPopover()

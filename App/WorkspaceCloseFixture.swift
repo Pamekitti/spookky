@@ -166,7 +166,7 @@ import SpookkyRuntime
     var fields: [UUID: NSTextField] = [:]
     func view(for tab: SupportingTab, workspace: Workspace, update: @escaping (SupportingTarget, String?) -> Void) -> NSView? {
         if let field = fields[tab.id] { return field }
-        let field = NSTextField(string: "")
+        let field = ChromeTextField(string: "")
         field.placeholderString = "Disposable content-host form fixture"
         fields[tab.id] = field
         return field

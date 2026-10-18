@@ -5,7 +5,7 @@ import SpookkyFiles
 
 @MainActor final class SupportingBrowserView: NSView, WKNavigationDelegate, WKUIDelegate, NSTextFieldDelegate {
     let webView: WKWebView
-    let address = NSTextField()
+    let address = ChromeTextField()
     private let status = NSTextField(labelWithString: "")
     private let toolbar = NSStackView()
     private var observations: [NSKeyValueObservation] = []

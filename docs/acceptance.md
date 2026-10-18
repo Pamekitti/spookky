@@ -28,13 +28,14 @@ For S01-S12, exercise Terminal, Codex without/with a prompt, and Claude Code wit
 
 ## Version 7 workflow checks
 
-The version 7 production code passed 193 automated native workflow assertions, 39 browser/artifact and cold-restore assertions, and 24 file/diff assertions. The full Swift run passed 281 cases with three opt-in cases skipped. All 30 Python tests and the repository checker passed. Native fixtures use programmatic pointer and keyboard events; they do not establish physical typing, IME composition or spoken VoiceOver.
+The version 7 production code passed 199 automated native workflow assertions, 39 browser/artifact and cold-restore assertions, and 24 file/diff assertions. The full Swift run passed 281 cases with three opt-in cases skipped. All 30 Python tests and the repository checker passed. Native fixtures use programmatic pointer and keyboard events; they do not establish physical typing, IME composition or spoken VoiceOver.
 
 - [x] First use and final-view closure show the landing composer without an intermediate button or blank window.
 - [x] Cmd+N and project + select independent drafts. Persistence tests retain both through database restart.
 - [x] Five recent entries and repeated ten-entry expansion work independently per project. Search includes older uncached history.
 - [x] Startup, project expansion, pagination and search start zero conversation agents.
 - [x] Native scroll checks reconcile a stationary pointer, one hover and one selected row, with static titles and preserved keyboard focus.
+- [x] Project clicks toggle without selecting the header. App-owned controls suppress focus rings, and keyboard feedback preserves control geometry.
 - [x] Shared tabs remain bounded, aligned and selectable in Split/Full layouts at narrow and wide sizes in both themes.
 - [x] File and Changes tabs preserve independent preview/diff context without duplicated mode or close controls.
 - [x] Last support/session closure selects the correct neighbor or landing and preserves processes and drafts.

@@ -35,8 +35,10 @@ import AppKit
     private var items: [WorkspaceSidebarItem] = []
     private var indexByID: [String: Int] = [:]
     private var collapsed = false
+    private var keyboardNavigation = false
     private(set) var hoveredItemID: String?
     private(set) var focusedItemID: String?
+    var keyboardFocusItemID: String? { hasKeyboardFocus && keyboardNavigation ? focusedItemID : nil }
     var itemCount: Int { items.count }
     var visibleCellCount: Int {
         var count = 0
@@ -48,7 +50,7 @@ import AppKit
         super.init(frame: frame)
         table.style = .plain
         table.headerView = nil; table.backgroundColor = .clear; table.intercellSpacing = .zero
-        table.selectionHighlightStyle = .none; table.focusRingType = .none
+        table.selectionHighlightStyle = .none; SpookkyStyle.suppressFocusRing(table)
         table.allowsMultipleSelection = false; table.allowsEmptySelection = true
         table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
         table.autoresizingMask = [.width]
@@ -60,7 +62,7 @@ import AppKit
         table.onPointerChange = { [weak self] in self?.reconcileHover() }
         table.onKey = { [weak self] key in self?.handleKey(key) }
         table.onFocusChange = { [weak self] in self?.focusChanged() }
-        table.onContextMenu = { [weak self] row in self?.contextMenu(row: row) }
+        table.onContextMenu = { [weak self] row in self?.keyboardNavigation = false; return self?.contextMenu(row: row) }
         table.setAccessibilityLabel("Projects and conversations")
         scroll.contentView = WorkspaceSidebarClipView()
         scroll.automaticallyAdjustsContentInsets = false; scroll.contentInsets = .init()
@@ -120,13 +122,14 @@ import AppKit
         let row = (id ?? focusedItemID).flatMap { indexByID[$0] } ?? items.firstIndex(where: { $0.kind != .section })
         if let row { focus(row: row) }
         window?.makeFirstResponder(table)
+        keyboardNavigation = true; refreshVisibleRows()
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int { items.count }
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
         switch items[row].kind { case .project: 28; case .conversation, .more: 32; case .section: 28 }
     }
-    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool { items[row].kind != .section }
+    func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool { items[row].kind == .conversation }
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? { WorkspaceSidebarRow() }
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         let identifier = NSUserInterfaceItemIdentifier("workspace-sidebar-cell")
@@ -143,7 +146,7 @@ import AppKit
     }
     private func configure(_ cell: WorkspaceSidebarCell, row: Int) {
         let item = items[row]
-        let focused = hasKeyboardFocus && focusedItemID == item.id
+        let focused = keyboardFocusItemID == item.id
         cell.configure(item, collapsed: collapsed, interactionActive: hoveredItemID == item.id || focused)
         cell.onAccessory = { [weak self] anchor in
             guard let self, let current = indexByID[item.id] else { return }
@@ -155,6 +158,7 @@ import AppKit
         }
         cell.onFocus = { [weak self] focused in
             guard let self else { return }
+            keyboardNavigation = focused
             if focused { focusedItemID = item.id }
             DispatchQueue.main.async { [weak self] in self?.refreshVisibleRows() }
         }
@@ -163,7 +167,7 @@ import AppKit
     private func refreshRow(_ row: Int) {
         guard items.indices.contains(row) else { return }
         let item = items[row]
-        let focused = hasKeyboardFocus && focusedItemID == item.id
+        let focused = keyboardFocusItemID == item.id
         if let view = table.rowView(atRow: row, makeIfNecessary: false) as? WorkspaceSidebarRow {
             view.modelSelected = item.selected; view.hovered = hoveredItemID == item.id; view.keyboardFocused = focused
             view.needsDisplay = true
@@ -191,10 +195,12 @@ import AppKit
         }
     }
     private func focusChanged() {
+        if NSApp.currentEvent?.type == .keyDown { keyboardNavigation = true }
         if focusedItemID == nil { focusedItemID = items.first(where: { $0.selected })?.id ?? items.first(where: { $0.kind != .section })?.id }
         DispatchQueue.main.async { [weak self] in self?.refreshVisibleRows() }
     }
     @objc private func clickedRow() {
+        keyboardNavigation = false
         let row = table.clickedRow
         guard items.indices.contains(row), items[row].kind != .section else { return }
         focus(row: row, scrollIntoView: false); activate(row: row)
@@ -214,6 +220,7 @@ import AppKit
         }
     }
     private func handleKey(_ key: UInt16) {
+        keyboardNavigation = true
         guard !items.isEmpty else { return }
         let current = focusedItemID.flatMap { indexByID[$0] } ?? 0
         if key == 36 || key == 49 || key == 76 { activate(row: current); return }
@@ -285,8 +292,9 @@ import AppKit
     override func drawBackground(in dirtyRect: NSRect) {
         let rect = bounds.insetBy(dx: 8, dy: 0.5)
         let path = NSBezierPath(roundedRect: rect, xRadius: SpookkyStyle.cornerRadius, yRadius: SpookkyStyle.cornerRadius)
-        if modelSelected || hovered { (modelSelected ? SpookkyPalette.selected : SpookkyPalette.hover).setFill(); path.fill() }
-        if keyboardFocused { NSColor.keyboardFocusIndicatorColor.setStroke(); path.lineWidth = 2; path.stroke() }
+        if modelSelected || hovered || keyboardFocused {
+            (modelSelected ? SpookkyPalette.selected : keyboardFocused ? SpookkyPalette.keyboardFocus : SpookkyPalette.hover).setFill(); path.fill()
+        }
     }
     override func drawSelection(in dirtyRect: NSRect) {}
     override func drawSeparator(in dirtyRect: NSRect) {}
