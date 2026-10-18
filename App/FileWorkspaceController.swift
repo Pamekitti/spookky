@@ -242,7 +242,14 @@ import SpookkySyntax
     }
     private func edit(_ body: (inout FileViewState) -> Void) {
         guard let id = workspaceID else { return }; var next = state; body(&next)
-        store.update(debounced: true) { $0.setFileView(next, workspaceID: id) }
+        store.update(debounced: true) { state in
+            state.setFileView(next, workspaceID: id)
+            state.setSupportingFileView(next, workspaceID: id)
+            if next.preview, let path = next.selectedPath {
+                state.openSupport(.file(path: path), title: (path as NSString).lastPathComponent, workspaceID: id, fileView: next)
+            }
+            if next.maximized != self.state.maximized { state.setSupportingLayout(next.maximized ? .fullWidth : .split, workspaceID: id) }
+        }
     }
     var hasFocus: Bool {
         guard let view = layout.window?.firstResponder as? NSView else { return false }
@@ -250,6 +257,7 @@ import SpookkySyntax
         return view.isDescendant(of: sidebar) || view.isDescendant(of: preview) || view === layout.divider
     }
     func revealTerminal() {
+        if layout.supportingOnly { return }
         let narrow = (layout.window?.frame.width ?? 0) < 800
         let hidden = layout.terminal.isHidden, fileFocused = hasFocus
         if hidden || (narrow && state.sidebar) {
@@ -264,8 +272,21 @@ import SpookkySyntax
     func toggle() { edit { $0.sidebar.toggle() } }
     func suspend() { watcher.stop(); loadTask?.cancel(); previewTask?.cancel(); releaseSyntax(); clearSyntaxCache() }
     func update(_ workspace: Workspace?, operation: UUID?) {
-        var next = workspace?.fileView ?? FileViewState()
-        let narrow = (layout.window?.frame.width ?? 1_000) < 800
+        var next = workspace?.support?.selected?.fileView ?? workspace?.fileView ?? FileViewState()
+        if layout.supportingOnly {
+            let panel = workspace?.support
+            let hidden = panel?.layout == .collapsed || (panel?.layout == .fullWidth && panel?.resolvedFullWidthSelection == .primary)
+            next.maximized = panel?.layout == .fullWidth && !hidden
+            if hidden { next.sidebar = false; next.preview = false }
+            else {
+                switch workspace?.support?.selected?.target {
+                case .changes: next.sidebar = true
+                case .file(let path): next.selectedPath = path; next.preview = true
+                default: next.sidebar = false; next.preview = false
+                }
+            }
+        }
+        let narrow = !layout.supportingOnly && (layout.window?.frame.width ?? 1_000) < 800
         let enteringNarrow = narrow && (wasNarrow != true || workspaceID != workspace?.id)
         wasNarrow = narrow
         if enteringNarrow && next.sidebar && next.preview, let workspace {
@@ -278,6 +299,8 @@ import SpookkySyntax
         let nextRoot = pending ? "" : location?.scopePath ?? ""
         let switched = workspaceID != workspace?.id || nextRoot != root
         let visibilityChanged = next.sidebar != state.sidebar || next.preview != state.preview
+        let contextChanged = next.changes != state.changes || next.againstBranch != state.againstBranch || next.reference != state.reference
+        let selectionChanged = next.selectedPath != state.selectedPath || next.selectedGroup != state.selectedGroup
         let operationChanged = operation != lastOperation
         workspaceID = workspace?.id; root = nextRoot; identity = location?.checkoutIdentity ?? ""; state = next; lastOperation = operation
         layout.showSidebar = state.sidebar; layout.showPreview = state.preview; layout.maximized = state.maximized; layout.fraction = state.fraction; layout.needsLayout = true
@@ -306,7 +329,8 @@ import SpookkySyntax
         }
         if state.sidebar || state.preview, !root.isEmpty, layout.window?.isVisible == true {
             watcher.watch(Array(Set([root, location?.checkoutIdentity, location?.commonRepository].compactMap { $0 })).sorted())
-            if switched || visibilityChanged || operationChanged { refresh() }
+            if switched || visibilityChanged || operationChanged || contextChanged { refresh() }
+            else if selectionChanged { openSelection() }
         } else { suspend(); if pending { setStatus("Files will appear after worktree creation.") } }
     }
     private func setStatus(_ text: String) { status.isHidden = text.isEmpty; status.stringValue = text; status.toolTip = text; status.setAccessibilityValue(text) }
@@ -413,7 +437,12 @@ import SpookkySyntax
         openSelection()
         if (layout.window?.frame.width ?? 0) < 800 { layout.window?.makeFirstResponder(diffTable) }
     }
-    private func closePreview() { edit { $0.preview = false; $0.maximized = false }; previewTask?.cancel(); releaseSyntax(); clearSyntaxCache(); onFocusTerminal() }
+    private func closePreview() {
+        if layout.supportingOnly, let id = workspaceID, let target = store.state.selected?.support?.selectedTabID {
+            store.update { $0.closeSupport(target, workspaceID: id) }
+        } else { edit { $0.preview = false; $0.maximized = false } }
+        previewTask?.cancel(); releaseSyntax(); clearSyntaxCache(); onFocusTerminal()
+    }
     private func openSelection() {
         guard state.preview, let path = state.selectedPath, !root.isEmpty else { return }
         let contextLabel = context == 3 ? "Show more context" : "Hide surrounding context"
@@ -724,6 +753,11 @@ import SpookkySyntax
         if let syntaxTask { await syntaxTask.value }
         preview.layoutSubtreeIfNeeded()
     }
+    func previewMatchesForFixture(path: String, text: String) -> Bool {
+        guard CommandLine.arguments.contains("--workspace-benchmark-count") else { return false }
+        return title.stringValue == path && diff.contains { $0.text.contains(text) } &&
+            diffTable.numberOfRows == displayRows.count && !displayRows.isEmpty
+    }
     private func columnGeometryMatchesForFixture() -> Bool {
         diffTable.layoutSubtreeIfNeeded()
         let visible = diffTable.rows(in: diffScroll.contentView.documentVisibleRect)
@@ -806,6 +840,7 @@ import SpookkySyntax
         let errorSurvivedRefresh = !previewNotice.isHidden && previewNotice.stringValue == unavailableText
         await settleForFixture()
         edit { $0.preview = false; $0.sidebar = false }
+        if layout.supportingOnly, let workspaceID { store.update { $0.setSupportingLayout(.collapsed, workspaceID: workspaceID) } }
         return ["modified_added_modified_geometry": unifiedTransition, "split_added_split_geometry": splitTransition,
                 "latest_selection_wins": lastSelection, "selected_rows_copy": copied, "preview_selection_survived_refresh": selectionSurvivedRefresh,
                 "sidebar_refresh_quiet": quietSidebar, "preview_refresh_geometry_stable": quietPreview,

@@ -43,3 +43,9 @@ Sparkle 2.10.0 is pinned through Xcode at `eef1a539a373c1f1a320624b1130fc5de7b2e
 The Spookky ghost artwork is original project artwork under MIT. The Contributor Covenant 2.1 policy uses its 2021 CC BY 4.0 source and retains attribution. Its license is in `docs/licenses/ContributorCovenant-CC-BY-4.0.txt`. Test tools are development dependencies and are not packaged in the app or website.
 
 The DMG layout build uses ds_store 1.3.3 and mac_alias 2.2.3 under MIT. Their package archives are hash-pinned in `scripts/release-requirements.txt`. They write Finder metadata during packaging and are not included in the application.
+
+## Provider marks
+
+The OpenAI mark used for Codex and the Claude mark come from [Simple Icons 13.21.0](https://github.com/simple-icons/simple-icons/tree/3fd92a7d0656c3d780bccdf7b5a3e9b9991dd6e5), commit `3fd92a7d0656c3d780bccdf7b5a3e9b9991dd6e5`. The SVG paths are unchanged. Asset catalogs render them as monochrome templates for native appearance and contrast. The project dedicates its icons under [CC0 1.0](Dependencies/licenses/SimpleIcons.txt). Brand marks remain the property of their respective owners. They identify the CLI provider and do not imply endorsement.
+
+Source files: [OpenAI](https://github.com/simple-icons/simple-icons/blob/3fd92a7d0656c3d780bccdf7b5a3e9b9991dd6e5/icons/openai.svg) and [Claude](https://github.com/simple-icons/simple-icons/blob/3fd92a7d0656c3d780bccdf7b5a3e9b9991dd6e5/icons/claude.svg).

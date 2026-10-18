@@ -5,6 +5,7 @@ final class FileWorkspaceLayout: NSView {
     let sidebar: NSView
     let preview: NSView
     let divider = FileDivider()
+    var supportingOnly = false
     var showSidebar = false
     var showPreview = false
     var maximized = false
@@ -27,6 +28,15 @@ final class FileWorkspaceLayout: NSView {
     required init?(coder: NSCoder) { fatalError() }
     override func layout() {
         super.layout()
+        if supportingOnly {
+            terminal.isHidden = true; divider.isHidden = true
+            sidebar.isHidden = !showSidebar; preview.isHidden = !showPreview
+            let side: CGFloat = showSidebar ? (showPreview ? min(180, bounds.width * 0.38) : bounds.width) : 0
+            sidebar.frame = NSRect(x: 0, y: 0, width: side, height: bounds.height)
+            preview.frame = NSRect(x: side, y: 0, width: max(0, bounds.width - side), height: bounds.height)
+            onPreviewWidth?(preview.bounds.width)
+            return
+        }
         let narrow = (window?.frame.width ?? bounds.width) < 800
         let sidebarWidth: CGFloat = showSidebar && !narrow ? SpookkyStyle.fileSidebarWidth : 0
         let available = bounds.width - sidebarWidth

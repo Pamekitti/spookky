@@ -9,6 +9,7 @@ final class TerminalHostView: NSView, NSTextInputClient {
     var onTitle: ((String) -> Void)?
     var onExit: ((Bool) -> Void)?
     var onFocus: (() -> Void)?
+    var onOpenURL: ((URL) -> Bool)?
     var onResize: ((@escaping () -> Void, @escaping () -> Void) -> Void)?
     var onViewportInteraction: (() -> Void)?
     var applicationCapturesMouse: (() async throws -> Bool)?

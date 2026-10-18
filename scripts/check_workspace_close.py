@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check first launch, shortcut routing, and final-tab closure in an owned app."""
+"""Check supporting targets, view closure, and retained terminal ownership."""
 import argparse
 import hashlib
 import json
@@ -19,39 +19,33 @@ def main():
     digest = hashlib.sha256(args.binary.read_bytes()).hexdigest()
     with native_fixture(['--workspace-benchmark-count', '0', '--workspace-benchmark-close', '--workspace-benchmark-front'],
                         prefix='spookky-m1-close-', binary=args.binary, workspace=True) as fixture:
-        fixture.wait_ready(90, 'Native workspace close failed')
+        try:
+            fixture.wait_ready(90, 'Native workspace close failed')
+        except Exception:
+            import shutil
+            for name in ['app.log', 'continuity-failure.json', 'close-checks.json', 'foundation-dark-wide.png', 'foundation-light-narrow.png']:
+                source = fixture.root / name
+                if source.exists():
+                    shutil.copy2(source, Path(args.output).parent / ('failed-' + name))
+            raise
         checks = json.loads((fixture.root / 'close-checks.json').read_text())
-        required = {'first_launch_blank_home', 'final_blank_closes_window', 'cmd_t_reopens_one_terminal',
-                    'native_shell_input', 'cmd_t_running_adds_blank', 'close_blank_retains_shell',
-                    'escape_keeps_shell_and_focus', 'enter_closes_final_without_replacement',
-                    'reopen_shows_home_landing', 'cmd_n_reopens_blank', 'empty_state_valid'}
+        required = {'blank_home_draft', 'primary_terminal_focus', 'native_terminal_input', 'cmd_t_browser_without_cli', 'new_browser_focuses_support_content',
+                    'two_browser_targets_distinct', 'support_tab_shortcut_cycles_targets', 'support_host_retains_form_on_switch',
+                    'full_width_and_collapse_preserve_form', 'panel_toggle_restores_selected_form', 'support_form_field_focused', 'support_close_keeps_primary_process',
+                    'support_close_keeps_unsent_input', 'primary_close_retains_process_and_records',
+                    'reopen_same_process_without_prompt', 'reopen_retains_support_and_input',
+                    'window_close_retains_restore_records', 'stop_cancel_preserves_owned_process',
+                    'explicit_stop_ends_only_owned_primary', 'closed_shell_is_discoverable',
+                    'reopen_support_shell_reuses_binding_and_input', 'cmd_n_independent_draft', 'metadata_valid'}
+        for image in ['foundation-dark-wide.png', 'foundation-light-narrow.png']:
+            import shutil
+            shutil.copy2(fixture.root / image, Path(args.output).parent / image)
         if set(checks) != required:
             raise SystemExit('Close fixture is stale or its report is incomplete')
-        fixture.process.terminate()
-        fixture.process.wait(timeout=5)
         database = fixture.root / 'metadata/workspace.sqlite'
         with sqlite3.connect(database) as connection:
             saved = json.loads(connection.execute('SELECT payload FROM workspace_snapshot').fetchone()[0])
-        if saved['workspaces']:
-            raise SystemExit('Final-tab closure did not persist the empty state')
-        environment = os.environ.copy()
-        environment.update(SPOOKKY_M1_ROOT=str(fixture.root), SPOOKKY_M1_DATA=str(fixture.root / 'metadata'))
-        with (fixture.root / 'reopen.log').open('w') as log:
-            fixture.process = subprocess.Popen([str(args.binary), '--workspace-benchmark-restoring'], env=environment,
-                                               stdout=log, stderr=log)
-            deadline = time.monotonic() + 10
-            restored = None
-            while time.monotonic() < deadline:
-                if fixture.process.poll() is not None:
-                    raise SystemExit('Saved-empty startup failed')
-                with sqlite3.connect(database) as connection:
-                    restored = json.loads(connection.execute('SELECT payload FROM workspace_snapshot').fetchone()[0])
-                if len(restored['workspaces']) == 1:
-                    break
-                time.sleep(0.02)
-        workspaces = restored['workspaces'] if restored else []
-        tabs = workspaces[0]['tabs'] if len(workspaces) == 1 else []
-        checks['saved_empty_startup_shows_landing'] = len(tabs) == 1 and tabs[0]['status'] == 'draft' and not tabs[0].get('binding')
+        checks['retained_metadata_persisted'] = saved['version'] == 6 and len(saved['workspaces']) == 2
     result = {'binary_sha256': digest, 'checks': checks, 'failure_count': sum(not value for value in checks.values()),
               'boundary': 'Native shortcuts, AppKit keyboard event dispatch, and disposable shells. Physical keyboard confirmation remains separate.'}
     result['binary_changed_during_run'] = hashlib.sha256(args.binary.read_bytes()).hexdigest() != digest

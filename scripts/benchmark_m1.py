@@ -32,13 +32,30 @@ def request_cpu(fixture):
     raise RuntimeError("CPU observation did not arrive.")
 
 
-def resources(count, seconds, split=False, foreground=False):
+def startup():
+    samples = []
+    for _ in range(30):
+        started = time.monotonic()
+        with native_fixture(["--workspace", "--workspace-measure", "--workspace-benchmark-count", "0"],
+                            prefix="spookky-m1-start-", workspace=True) as fixture:
+            fixture.wait_ready(90, "Empty workspace startup did not become ready.", poll_interval=0.005)
+            samples.append((time.monotonic() - started) * 1000)
+    return {**summarize(samples), "failure_count": 0,
+            "boundary": "Fresh process and private fixture setup through empty workspace readiness. Excludes first rendered frame, provider discovery and first interactive CLI; filesystem caches may be warm."}
+
+
+def resources(count, seconds, split=False, foreground=False, conversations=False):
     arguments = ["--workspace", "--workspace-measure", "--workspace-benchmark-count", str(count)]
     if split: arguments.append("--workspace-benchmark-split")
     if foreground: arguments.append("--workspace-benchmark-front")
+    if conversations: arguments.append("--workspace-benchmark-conversations")
     with native_fixture(arguments,
                         prefix="spookky-m1-bench-", workspace=True) as fixture:
         fixture.wait_ready(90, "Workspace fixture did not become ready.")
+        if conversations:
+            ready = json.loads((fixture.root / "ready.json").read_text())
+            if ready.get("workspace_count") != max(1, count):
+                raise RuntimeError("Conversation fixture did not create independent workspaces.")
         return measure_settled(fixture, count, seconds, split, foreground)
 
 
@@ -74,6 +91,7 @@ def measure_settled(fixture, count, seconds, split=False, foreground=False):
             "app_rss_mib_median": statistics.median(s["app_rss_mib"] for s in samples),
             "total_rss_mib_median": statistics.median(s["total_rss_mib"] for s in samples),
             "surface_count": ready["surface_count"],
+            "workspace_count": ready.get("workspace_count"),
             "split": split, "app_physical_footprint_observation": footprint_lines,
             "physical_footprint_available": footprint.returncode == 0 and bool(footprint_lines),
             "requested_foreground": foreground,
@@ -87,7 +105,8 @@ def measure_settled(fixture, count, seconds, split=False, foreground=False):
             "cpu_boundary_note": "Reaped app children include runtime queries triggered by lifecycle events. Boundary snapshots are requested once before and after the observation through a directory-event watcher. Its timestamps are reported separately from the ps boundaries. Live app clients and private server/shells are counted separately."}
 
 
-def timing(resize=False, *, binary=NATIVE_BINARY, extra_arguments=(), prepare=None):
+def timing(resize=False, *, binary=NATIVE_BINARY, extra_arguments=(), prepare=None, conversations=False):
+    if conversations: extra_arguments = (*extra_arguments, "--workspace-benchmark-conversations")
     arguments = ["--workspace", "--workspace-measure", "--workspace-benchmark-count", "4", "--workspace-benchmark-timing", *extra_arguments]
     if resize: arguments.append("--workspace-benchmark-resize")
     with native_fixture(arguments,
@@ -108,6 +127,11 @@ def timing(resize=False, *, binary=NATIVE_BINARY, extra_arguments=(), prepare=No
                             "rss_mib_first_middle_last_medians": [statistics.median(memory[:block]), statistics.median(memory[block:2*block]), statistics.median(memory[2*block:])] if len(memory) >= 3 else [],
                             "maximum_surface_count": max(r["surfaceCount"] for r in rows),
                             "boundary": "Workspace selection to attached, laid out and focused native view. Excludes first terminal bytes and rendered-display latency."}
+        if conversations:
+            switches = json.loads((fixture.root / "conversation-selection-timings.json").read_text())
+            for name, key in [("warm_selection", "warm"), ("recreated_surface_selection", "recreated")]:
+                result[name].update(summarize(switches[key][5:]))
+                result[name]["boundary"] = "Before selecting an independent workspace through native attachment/layout/focus, including synchronous sidebar work. Excludes first terminal bytes and rendered-display latency."
         initial_marker = json.loads((fixture.root / "fixture-history.json").read_text())["expected_history_marker"]
         def identities():
             return subprocess.check_output([TMUX, "-S", str(fixture.root / "socket"), "list-panes", "-a", "-F", "#{session_name} #{pane_pid}"], text=True)
@@ -133,8 +157,8 @@ def timing(resize=False, *, binary=NATIVE_BINARY, extra_arguments=(), prepare=No
                 time.sleep(0.05)
             state = json.loads(sqlite3.connect(fixture.root / "metadata/workspace.sqlite").execute("SELECT payload FROM workspace_snapshot").fetchone()[0])
             checks = {"same_processes": before == identities(), "same_visible_history_marker": restored is not None,
-                      "no_extra_workspace": len(state["workspaces"]) == 1,
-                      "no_extra_tabs": len(state["workspaces"][0]["tabs"]) == 4}
+                      "no_extra_workspace": len(state["workspaces"]) == (4 if conversations else 1),
+                      "no_extra_tabs": sum(len(workspace["tabs"]) for workspace in state["workspaces"]) == 4}
             result["crash_restore"] = {"checks": checks, "failure_count": sum(not value for value in checks.values()),
                                       "expected_history_marker": expected, "initial_history_marker": initial_marker,
                                       "pre_crash_history_marker": visible_before,
@@ -146,29 +170,35 @@ def timing(resize=False, *, binary=NATIVE_BINARY, extra_arguments=(), prepare=No
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--seconds", type=int, default=60)
-    parser.add_argument("--mode", choices=["resources", "timing", "all"], default="all")
+    parser.add_argument("--mode", choices=["resources", "timing", "startup", "all"], default="all")
     parser.add_argument("--sessions", nargs="+", type=int, choices=[0, 1, 5, 10], default=[0, 1, 5, 10])
     parser.add_argument("--split", action="store_true")
     parser.add_argument("--foreground", action="store_true")
     parser.add_argument("--resize", action="store_true")
+    parser.add_argument("--conversations", action="store_true", help="Use one primary shell per conversation workspace")
     parser.add_argument("--output", default=".cache/m1-benchmarks.json")
     args = parser.parse_args()
     if args.seconds < 1: parser.error("--seconds must be positive")
+    if args.conversations and args.split: parser.error("--split requires terminals in the same workspace")
     report = {"binary_sha256": hashlib.sha256(NATIVE_BINARY.read_bytes()).hexdigest(), "host": platform.platform(),
               "cpu_note": "Cumulative CPU-time difference across stable long-lived owned processes plus reaped app-child CPU, divided by elapsed time. 100% equals one core; collector excluded. RSS includes shared pages and is affected by compression.",
-              "fixture_note": "Clean zsh -f shells, one visible terminal and at most one warm hidden surface. Window is visible in the background. Opt-in diagnostics are included in app costs."}
+              "fixture_note": "Clean zsh -f shells, one visible terminal and at most one warm hidden surface. Window is visible in the background. Opt-in diagnostics are included in app costs.",
+              "workspace_structure": "independent conversation workspaces" if args.conversations else "terminal tabs in one workspace"}
     path = Path(args.output); path.parent.mkdir(parents=True, exist_ok=True)
-    if args.mode != "timing":
+    if args.mode in ["startup", "all"]:
+        report["startup"] = startup()
+        path.write_text(json.dumps(report, indent=2) + "\n")
+    if args.mode in ["resources", "all"]:
         report["resources"] = []
         for count in args.sessions:
-            row = resources(count, args.seconds, args.split, args.foreground); report["resources"].append(row)
+            row = resources(count, args.seconds, args.split, args.foreground, args.conversations); report["resources"].append(row)
             path.write_text(json.dumps(report, indent=2) + "\n")
             print(json.dumps(row), flush=True)
-    if args.mode != "resources": report["timing"] = timing(args.resize)
+    if args.mode in ["timing", "all"]: report["timing"] = timing(args.resize, conversations=args.conversations)
     report["binary_changed_during_run"] = hashlib.sha256(NATIVE_BINARY.read_bytes()).hexdigest() != report["binary_sha256"]
     path.write_text(json.dumps(report, indent=2) + "\n")
     print(str(path), flush=True)
-    if report["binary_changed_during_run"] or any(r["failure_count"] for r in report.get("resources", [])) or any(r["failure_count"] for r in report.get("timing", {}).values()):
+    if report["binary_changed_during_run"] or report.get("startup", {}).get("failure_count", 0) or any(r["failure_count"] for r in report.get("resources", [])) or any(r["failure_count"] for r in report.get("timing", {}).values()):
         raise SystemExit("Benchmark contains a failed check; inspect results.")
 
 

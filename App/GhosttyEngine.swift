@@ -64,8 +64,11 @@ final class GhosttyEngine {
                 return true
             case GHOSTTY_ACTION_OPEN_URL:
                 if let pointer = action.action.open_url.url,
-                   let url = URL(string: String(cString: pointer)), ["http", "https", "file"].contains(url.scheme ?? "") {
-                    DispatchQueue.main.async { NSWorkspace.shared.open(url) }
+                   let url = URL(string: String(cString: pointer)), ["http", "https", "file"].contains(url.scheme?.lowercased() ?? "") {
+                    DispatchQueue.main.async { [weak view] in
+                        guard let view else { return }
+                        if view.onOpenURL?(url) != true { NSWorkspace.shared.open(url) }
+                    }
                 }
                 return true
             default: return false

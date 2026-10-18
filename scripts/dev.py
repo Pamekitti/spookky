@@ -42,10 +42,10 @@ def build_app(config, build):
     if executables.intersection(line.strip() for line in processes):
         raise ValueError("Quit this worktree's development app before rebuilding. Choose Keep sessions running to retain its terminals.")
     environment = dict(os.environ, DEVELOPER_DIR=developer)
-    subprocess.run(["xcodebuild", "-project", "Spookky.xcodeproj", "-scheme", "Spookky",
+    subprocess.run(["xcodebuild", "-jobs", "2", "-project", "Spookky.xcodeproj", "-scheme", "Spookky",
                     "-configuration", build, "-derivedDataPath", "DerivedData", "ARCHS=arm64",
                     "PRODUCT_BUNDLE_IDENTIFIER=" + config["bundleID"],
-                    "SPOOKKY_DISPLAY_NAME=" + config["name"], "build"], cwd=ROOT, env=environment, check=True)
+                    "SPOOKKY_DISPLAY_NAME=" + config["name"], "OTHER_SWIFT_FLAGS=$(inherited) -j2", "build"], cwd=ROOT, env=environment, check=True)
 
 
 def main():
