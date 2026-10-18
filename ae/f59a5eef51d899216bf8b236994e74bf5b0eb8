@@ -1,0 +1,91 @@
+Sources/SpookkyCore/ConversationMetadata.swift
+  s_cdf46ccee2ecc1::t_d9ffcb70242d05 1-54
+Sources/SpookkyCore/ConversationSwitch.swift
+  s_667516d5fcef23::t_d2fd9e72531985 1-73
+Sources/SpookkyCore/ConversationTitles.swift
+  s_402f95d71bf735::t_6ccf5bae5eaca3 1-100
+Sources/SpookkyCore/ConversationWorkspace.swift
+  s_667516d5fcef23::t_86a7d200e9bc20 1-275
+Sources/SpookkyCore/ProjectAssociation.swift
+  s_53d4e1c28831bf::t_5613fb28774a80 1-37
+Sources/SpookkyCore/ProjectAssociationLocation.swift
+  s_53d4e1c28831bf::t_ff081ec0ea373b 1-11
+Sources/SpookkyCore/ProjectAssociationWorkspace.swift
+  s_cdf46ccee2ecc1::t_6798df2e4c4ff4 1-22
+Sources/SpookkyCore/WorkspaceState.swift
+  s_667516d5fcef23::t_6b9dd03877d21c 75-76,109,112-118,121-123,125,130,135,149-165,168-174,199,203-204,206,219-238,245-247,259,264-279,297-301,307-312,317,333,372-375,379-382,389,401,413,454-458,460-466,532,536,540
+Sources/SpookkyPersistence/WorkspaceDatabase.swift
+  s_cdf46ccee2ecc1::t_1fcabc81921a68 13,16,66-73,80,82,87
+Tests/SpookkyRuntimeTests/AgentActivityTests.swift
+  s_402f95d71bf735::t_c680bbfea9fbfc 98,113-115,212,214
+Tests/SpookkyRuntimeTests/ConversationSwitchTests.swift
+  s_667516d5fcef23::t_6c7da4139dc033 1-152
+Tests/SpookkyRuntimeTests/ConversationTitleTests.swift
+  s_f6b9c0cec5348d::t_4f8b080004db42 1-177
+Tests/SpookkyRuntimeTests/ConversationWorkspaceTests.swift
+  s_cdf46ccee2ecc1::t_64d16e95a49509 1-217
+Tests/SpookkyRuntimeTests/PersistenceTests.swift
+  s_cdf46ccee2ecc1::t_ad0e4e5779ee3f 81
+Tests/SpookkyRuntimeTests/ProjectAssociationConversationTests.swift
+  s_cdf46ccee2ecc1::t_b1bd4ef894fc40 1-145
+Tests/SpookkyRuntimeTests/SidebarTests.swift
+  s_cdf46ccee2ecc1::t_852f275b58d8fe 55
+Tests/SpookkyRuntimeTests/SupportingFileContextTests.swift
+  s_53d4e1c28831bf::t_aea5403df83c7b 1-59
+Tests/SpookkyRuntimeTests/WorkspaceNamingTests.swift
+  s_cdf46ccee2ecc1::t_4e6dc5d9e3a7d7 111,122,156,159,162,180,186
+Tests/SpookkyRuntimeTests/WorkspaceSelectionTests.swift
+  s_667516d5fcef23::t_cca7bb41bf3a42 1-275
+docs/conversation-titles.md
+  s_cdf46ccee2ecc1::t_406f1f93ca5a47 1-20
+docs/conversation-workspaces.md
+  s_f6b9c0cec5348d::t_674e14ec06c725 1-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "aef59a5eef51d899216bf8b236994e74bf5b0eb8",
+  "prompts": {},
+  "sessions": {
+    "s_402f95d71bf735": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14a33-c75a-71a0-9253-0d6dbf976294",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_53d4e1c28831bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_667516d5fcef23": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a14a5f-be3a-7d63-8f06-5dfc9bf7b2b5",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_cdf46ccee2ecc1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_f6b9c0cec5348d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a14a77-8d6c-7cb1-8f16-dfc625a6d5ac",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
