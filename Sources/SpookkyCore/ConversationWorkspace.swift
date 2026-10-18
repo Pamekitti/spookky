@@ -7,6 +7,7 @@ public enum FullWidthSelection: Codable, Equatable, Sendable {
 public enum SupportingLayout: String, Codable, Sendable { case collapsed, split, fullWidth }
 public enum SupportingTarget: Codable, Equatable, Sendable {
     case changes
+    case startPage
     case file(path: String)
     case browser(url: String)
     case artifact(path: String)
@@ -57,7 +58,7 @@ extension Workspace {
             case .terminal(let id): return id != primaryTerminalID && tabs.contains { $0.id == id }
             case .file(let path), .artifact(let path): return !path.isEmpty && !path.contains("\0") && path.utf8.count <= 16_384
             case .browser(let url): return !url.contains("\0") && url.utf8.count <= 16_384
-            case .changes: return true
+            case .changes, .startPage: return true
             }
         }
     }
@@ -65,7 +66,7 @@ extension Workspace {
 
 extension WorkspaceState {
     public var primaryTerminalID: UUID? { selected?.primaryTerminalID }
-    public var openWorkspaces: [Workspace] { workspaces.filter { $0.viewClosed != true && !$0.isLanding } }
+    public var openWorkspaces: [Workspace] { workspaces.filter { !$0.isLanding && $0.viewClosed != true && (version < 8 || !isArchived($0)) } }
     public func workspace(for id: ConversationID) -> Workspace? { workspaces.first { $0.conversationID == id } }
 
     @discardableResult public mutating func ensureConversationWorkspace(_ id: ConversationID, location: WorkspaceLocation,
@@ -122,6 +123,7 @@ extension WorkspaceState {
         // Browser tabs may share a URL while retaining separate form state.
         let existing = panel.tabs.first { tab in
             if case .browser = target { return false }
+            if case .startPage = target { return false }
             return tab.target == target
         }
         let id = existing?.id ?? UUID()
@@ -160,6 +162,12 @@ extension WorkspaceState {
     public mutating func updateSupport(_ id: UUID, target: SupportingTarget, title: String? = nil, workspaceID: UUID? = nil) {
         guard let index = workspaces.firstIndex(where: { $0.id == (workspaceID ?? selectedWorkspaceID) }),
               let tab = workspaces[index].support?.tabs.firstIndex(where: { $0.id == id }) else { return }
+        if workspaces[index].support?.tabs[tab].target != target {
+            if case .file(let path) = target {
+                var view = FileViewState(); view.selectedPath = path; view.preview = true; view.sidebar = false
+                workspaces[index].support?.tabs[tab].fileView = view
+            } else if case .changes = target { workspaces[index].support?.tabs[tab].fileView = nil }
+        }
         workspaces[index].support?.tabs[tab].target = target
         if let title { workspaces[index].support?.tabs[tab].title = String(title.prefix(256)) }
     }

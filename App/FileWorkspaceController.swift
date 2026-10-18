@@ -182,7 +182,9 @@ import SpookkySyntax
         let inspection = NSStackView(views: [informationButton, contextButton]); inspection.spacing = SpookkyStyle.points(4); inspectionControls = inspection
         let layouts = NSStackView(views: [unifiedButton, layoutButton]); layouts.spacing = 0; layoutControls = layouts
         let external = NSStackView(views: [open, reveal, previewOverflow]); external.spacing = SpookkyStyle.points(4)
-        let header = NSStackView(views: [title, NSView(), inspection, layouts, external]); header.spacing = SpookkyStyle.points(8)
+        let tree = ActionButton("", symbol: "folder", help: "Show or hide file tree") { [weak self] in self?.toggle() }
+        tree.widthAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true
+        let header = NSStackView(views: [title, NSView(), tree, inspection, layouts, external]); header.spacing = SpookkyStyle.points(8)
         comparisonCaptions.addArrangedSubview(oldCaption); comparisonCaptions.addArrangedSubview(newCaption)
         comparisonCaptions.distribution = .fillEqually; comparisonCaptions.spacing = SpookkyStyle.points(8)
         comparisonCaptions.edgeInsets = NSEdgeInsets(top: 0, left: SpookkyStyle.points(8), bottom: 0, right: SpookkyStyle.points(8))
@@ -285,11 +287,11 @@ import SpookkySyntax
             else {
                 switch workspace?.support?.selected?.target {
                 case .changes:
-                    if workspace?.support?.selected?.fileView == nil && !next.changes { next = FileViewState() }
+                    if workspace?.support?.selected?.fileView == nil { next = FileViewState() }
                     next.changes = true; next.sidebar = true
                     next.maximized = panel?.layout == .fullWidth
                 case .file(let path):
-                    next.changes = false; next.sidebar = false; next.selectedPath = path; next.preview = true
+                    next.changes = false; next.sidebar = workspace?.support?.selected?.fileView?.sidebar ?? false; next.selectedPath = path; next.preview = true
                     next.selectedGroup = nil; next.againstBranch = false; next.reference = nil
                 default: next.sidebar = false; next.preview = false
                 }
@@ -388,8 +390,11 @@ import SpookkySyntax
                         }
                         if metadataLimited { break }
                     }
+                    let summary = try await changes.lineSummary(root: root, snapshot: result)
+                    guard token == generation, !Task.isCancelled else { return }
+                    let totals = "Tracked +\(summary.added) −\(summary.removed)"
                     let label = result.base.map { "Merge base \($0.prefix(8)) → \(result.head?.prefix(8) ?? "")" } ?? ""
-                    setStatus([metadataLimited ? "List limited. Narrow your search." : rows.isEmpty ? "No changes" : label, visibleNotice(result.notice)].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n"))
+                    setStatus([metadataLimited ? "List limited. Narrow your search." : rows.isEmpty ? "No changes" : [totals, label].filter { !$0.isEmpty }.joined(separator: " · "), visibleNotice(result.notice)].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n"))
                 } else {
                     snapshot = nil; directories.removeAll()
                     if !view.query.isEmpty {
@@ -424,6 +429,9 @@ import SpookkySyntax
                 guard token == generation, id == workspaceID, !Task.isCancelled else { return }
                 fileTable.reloadData()
                 if let path = focusedPath, let index = rows.firstIndex(where: { $0.2 == path && ($0.1?.group.rawValue == self.state.selectedGroup || self.state.selectedGroup == nil) }) { fileTable.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false) }
+                if view.changes, let path = state.selectedPath, !rows.contains(where: { $0.1?.path == path }) {
+                    edit { $0.selectedPath = nil; $0.selectedGroup = nil }; selectedFile = nil; lastPreviewKey = ""
+                }
                 if state.preview && refreshPreview { openSelection() }
             } catch is CancellationError {} catch { if token == generation { setStatus(error.localizedDescription) } }
         }

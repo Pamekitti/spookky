@@ -108,7 +108,7 @@ final class WorkspaceNamingTests: XCTestCase {
         }
         let database = try WorkspaceDatabase(path: path)
         let loaded = try await database.load(), restored = try XCTUnwrap(loaded)
-        XCTAssertEqual(restored.version, 7)
+        XCTAssertEqual(restored.version, 8)
         XCTAssertEqual(restored.workspaces.map(\.id), legacy.workspaces.map(\.id))
         XCTAssertEqual(restored.workspaces.map(\.tabs), legacy.workspaces.map(\.tabs))
         XCTAssertEqual(restored.workspaces.map(\.selectedLocation), legacy.workspaces.map(\.selectedLocation))
@@ -153,7 +153,7 @@ final class WorkspaceNamingTests: XCTestCase {
         }
         let database = try WorkspaceDatabase(path: path)
         let loaded = try await database.load(), restored = try XCTUnwrap(loaded)
-        XCTAssertEqual(restored.version, 7)
+        XCTAssertEqual(restored.version, 8)
         XCTAssertEqual(restored.selected?.automaticTitle, .friendly)
         XCTAssertFalse(WorkspaceNaming.isGeneric(restored.selected!.title))
         for tab in state.workspaces[0].tabs { XCTAssertEqual(restored.tab(tab.id), tab) }

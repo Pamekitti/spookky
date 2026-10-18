@@ -25,6 +25,7 @@ import SpookkyCore
 @MainActor final class WorkspaceSidebarView: NSView, NSTableViewDataSource, NSTableViewDelegate {
     var onActivate: ((String) -> Void)?
     var onAddProjectSession: ((String) -> Void)?
+    var onAddProject: ((NSView) -> Void)?
     var onMore: ((String) -> Void)?
     var onContextMenu: ((String) -> NSMenu?)?
     var pointerLocation: (NSWindow) -> NSPoint? = { $0.mouseLocationOutsideOfEventStream } {
@@ -40,6 +41,7 @@ import SpookkyCore
     private(set) var focusedItemID: String?
     var keyboardFocusItemID: String? { hasKeyboardFocus && keyboardNavigation ? focusedItemID : nil }
     var itemCount: Int { items.count }
+    var selectedItemIDs: [String] { items.filter(\.selected).map(\.id) }
     var visibleCellCount: Int {
         var count = 0
         table.enumerateAvailableRowViews { _, _ in count += 1 }
@@ -155,7 +157,8 @@ import SpookkyCore
         cell.onAccessory = { [weak self] anchor in
             guard let self, let current = indexByID[item.id] else { return }
             focus(row: current, scrollIntoView: false)
-            if item.kind == .project { onAddProjectSession?(item.id) }
+            if item.id == "section:projects" { onAddProject?(anchor) }
+            else if item.kind == .project { onAddProjectSession?(item.id) }
             else if let menu = onContextMenu?(item.id) {
                 menu.popUp(positioning: nil, at: NSPoint(x: anchor.bounds.maxX, y: anchor.bounds.minY), in: anchor)
             }
@@ -344,11 +347,12 @@ import SpookkyCore
         status.activity = item.activity
         status.isHidden = item.activity == nil || item.activity == .unknown || item.activity == .idle || item.activity == .interrupted || interactionActive
         status.toolTip = item.activity?.label; status.updateAnimation()
-        accessory.image = NSImage(systemSymbolName: item.kind == .project ? "plus" : "ellipsis", accessibilityDescription: nil)
+        let projectHeading = item.id == "section:projects"
+        accessory.image = NSImage(systemSymbolName: item.kind == .project || projectHeading ? "plus" : "ellipsis", accessibilityDescription: nil)
         accessory.compactUtility = true
-        accessory.isHidden = collapsed || item.kind != .project && item.kind != .conversation || window?.isKeyWindow != true || !interactionActive
-        accessory.interactionActive = interactionActive
-        let action = item.kind == .project ? "New session in " + item.title : "Actions for " + item.title
+        accessory.isHidden = collapsed || !projectHeading && (item.kind != .project && item.kind != .conversation || window?.isKeyWindow != true || !interactionActive)
+        accessory.interactionActive = projectHeading || interactionActive
+        let action = projectHeading ? "Add project" : item.kind == .project ? "New chat in " + item.title : "Actions for " + item.title
         accessory.toolTip = action; accessory.setAccessibilityLabel(action)
         toolTip = item.help; setAccessibilityLabel(item.help); setAccessibilityIdentifier(item.id)
         setAccessibilityValue(item.selected ? "Selected" : nil)
@@ -358,13 +362,14 @@ import SpookkyCore
         super.layout()
         guard let item else { return }
         let p = SpookkyStyle.points
-        let leading: CGFloat = collapsed ? bounds.midX - p(8) : (item.nested ? p(12) : 0)
+        let inset: CGFloat = collapsed ? 0 : SpookkyStyle.controlInset
+        let leading: CGFloat = collapsed ? bounds.midX - p(8) : inset + (item.nested ? p(12) : 0)
         icon.frame = NSRect(x: leading, y: bounds.midY - p(8), width: p(16), height: p(16))
-        let accessoryWidth: CGFloat = item.kind == .project || item.kind == .conversation ? p(28) : 0
-        accessory.frame = NSRect(x: bounds.width - accessoryWidth, y: bounds.midY - p(14), width: p(28), height: p(28))
-        status.frame = NSRect(x: bounds.width - p(collapsed ? 12 : 20), y: bounds.midY - p(6), width: p(12), height: p(12))
-        let x = leading + (icon.isHidden ? 0 : p(22))
-        label.frame = NSRect(x: x, y: bounds.midY - p(9), width: max(0, bounds.width - x - accessoryWidth), height: p(18))
+        let accessoryWidth: CGFloat = item.kind == .project || item.kind == .conversation || item.id == "section:projects" ? p(28) : 0
+        accessory.frame = NSRect(x: bounds.width - inset - accessoryWidth, y: bounds.midY - p(14), width: p(28), height: p(28))
+        status.frame = NSRect(x: bounds.width - inset - p(collapsed ? 12 : 20), y: bounds.midY - p(6), width: p(12), height: p(12))
+        let x = leading + (icon.isHidden && item.kind != .more ? 0 : p(22))
+        label.frame = NSRect(x: x, y: bounds.midY - p(9), width: max(0, bounds.width - inset - x - accessoryWidth), height: p(18))
 
     }
 }

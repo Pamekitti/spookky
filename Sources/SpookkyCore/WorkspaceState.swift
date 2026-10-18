@@ -198,7 +198,8 @@ extension WorkspaceState {
 }
 
 public struct WorkspaceState: Codable, Equatable, Sendable {
-    public var version = 7
+    public var version = 8
+    public var threadPresentations: [String: ThreadPresentation]?
     public var locations: LocationMetadata?
     public var projectDraft: ProjectCreationDraft?
     public private(set) var projects: [Project] = []
@@ -223,7 +224,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
             if let split = workspace.split { return [split.first, split.second] }
             return [workspace.selectedTabID]
         }
-        guard workspace.viewClosed != true, let primary = workspace.primaryTerminalID else { return [] }
+        guard (version >= 8 || workspace.viewClosed != true), let primary = workspace.primaryTerminalID else { return [] }
         guard let panel = workspace.support else { return [primary] }
         switch panel.layout {
         case .collapsed: return [primary]
@@ -264,6 +265,9 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
                 workspaces[workspaces.firstIndex { $0.id == id }!].lastViewedAt = Date()
             }
             selectedWorkspaceID = id
+            if version >= 8, !workspace.isLanding {
+                editThread(workspace.threadKey) { $0.lastVisitedAt = Date() }
+            }
             if let projectID = workspace.projectID { setProjectCollapsed(projectID, false) }
         }
     }
@@ -280,7 +284,9 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
         guard let index = workspaces.firstIndex(where: { $0.id == workspaceID }),
               workspaces[index].conversationID == metadata.id else { return }
         workspaces[index].catalogMetadata = metadata
-        if let projectID, projects.contains(where: { $0.id == projectID }) { workspaces[index].projectID = projectID }
+        let presentation = presentation(for: metadata.id.threadKey)
+        if presentation.hasProjectOverride { workspaces[index].projectID = presentation.projectOverride }
+        else if let projectID, projects.contains(where: { $0.id == projectID }) { workspaces[index].projectID = projectID }
         setProviderTitle(metadata.title, conversationID: metadata.id)
     }
     public mutating func setProjectCollapsed(_ id: UUID, _ collapsed: Bool) {
@@ -428,6 +434,9 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     }
     public mutating func removeProject(_ id: UUID) {
         projects.removeAll { $0.id == id }
+        for key in Array((threadPresentations ?? [:]).keys) where threadPresentations?[key]?.projectOverride == id {
+            threadPresentations?[key]?.projectOverride = nil
+        }
         for w in workspaces.indices where workspaces[w].projectID == id {
             workspaces[w].projectID = nil
             if workspaces[w].isLanding {
@@ -546,7 +555,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     public func validate() throws {
         let tabs = workspaces.flatMap(\.tabs)
         for operation in locations?.operations ?? [] { try operation.request.validate() }
-        guard [1, 2, 3, 4, 5, 6, 7].contains(version), lastAgentTool != .shell,
+        guard [1, 2, 3, 4, 5, 6, 7, 8].contains(version), lastAgentTool != .shell,
               Set(locations?.operations.map(\.id) ?? []).count == (locations?.operations.count ?? 0),
               Set(locations?.checkouts.map(\.id) ?? []).count == (locations?.checkouts.count ?? 0),
               (locations?.operations.allSatisfy { $0.request.destination.hasPrefix("/") && !$0.request.destination.contains("\0") } ?? true),

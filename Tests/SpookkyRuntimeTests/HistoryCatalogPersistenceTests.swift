@@ -125,7 +125,7 @@ final class HistoryCatalogPersistenceTests: XCTestCase {
         let database = try WorkspaceDatabase(path: path)
         let loaded = try await database.load()
         var restored = try XCTUnwrap(loaded)
-        XCTAssertEqual(restored.version, 7); XCTAssertEqual(restored.workspaces, [try XCTUnwrap(retained)])
+        XCTAssertEqual(restored.version, 8); XCTAssertEqual(restored.workspaces, [try XCTUnwrap(retained)])
         let records = try await database.history(StoredHistoryQuery(allProjects: true, limit: 100))
         XCTAssertEqual(records.count, 75)
         let record = try XCTUnwrap(records.first { $0.id == placeholder.conversationID })

@@ -21,10 +21,22 @@ import SpookkyRuntime
         checks["recursive_include_applies_without_importing_commands"] = profile.dark.fontSize == 18 && !profile.dark.configuration.contains("never-execute")
         checks["watch_dependencies_include_theme_and_include"] = Set(profile.dependencies).isSuperset(of: [light.path, dark.path, included.path])
         var observed: [GhosttyAppearanceProfile] = []
-        let follower = GhosttyAppearanceFollower(file: config.path)
+        let cacheFolder = root.appendingPathComponent("appearance-cache"), cache = cacheFolder.appendingPathComponent("profile.json")
+        let follower = GhosttyAppearanceFollower(file: config.path, cache: cache)
         follower.onAppearance = { observed.append($0) }; follower.start()
         defer { follower.stop() }
         for _ in 0..<100 { if !observed.isEmpty { break }; try await Task.sleep(for: .milliseconds(20)) }
+        let initialCount = observed.count
+        try FileManager.default.createDirectory(at: cacheFolder, withIntermediateDirectories: true)
+        follower.refresh()
+        for _ in 0..<100 { if observed.count > initialCount && FileManager.default.fileExists(atPath: cache.path) { break }; try await Task.sleep(for: .milliseconds(20)) }
+        checks["failed_cache_write_retries_on_refresh"] = FileManager.default.fileExists(atPath: cache.path)
+        let cacheIdentity = try FileManager.default.attributesOfItem(atPath: cache.path)[.systemFileNumber] as? NSNumber
+        let cachedCount = observed.count
+        follower.refresh()
+        for _ in 0..<100 { if observed.count > cachedCount { break }; try await Task.sleep(for: .milliseconds(20)) }
+        let refreshedIdentity = try FileManager.default.attributesOfItem(atPath: cache.path)[.systemFileNumber] as? NSNumber
+        checks["unchanged_refresh_retains_cached_file"] = observed.count > cachedCount && cacheIdentity != nil && cacheIdentity == refreshedIdentity
         try "font-size = 20\n".write(to: included, atomically: true, encoding: .utf8)
         for _ in 0..<150 { if observed.last?.dark.fontSize == 20 { break }; try await Task.sleep(for: .milliseconds(20)) }
         checks["included_file_change_refreshes_appearance"] = observed.last?.dark.fontSize == 20
@@ -61,13 +73,22 @@ import SpookkyRuntime
                 for mode in [SupportingLayout.split, .fullWidth] {
                     layout(mode); await Task.yield(); window.contentView?.layoutSubtreeIfNeeded()
                     window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
-                    await Task.yield()
+                    for _ in 0..<100 {
+                        if window.isKeyWindow && NSApp.isActive { break }
+                        try await Task.sleep(for: .milliseconds(20))
+                    }
+                    guard window.isKeyWindow && NSApp.isActive else { throw LaunchError.invalid("Display fixture window did not activate.") }
                     checks["effective_appearance_\(appearance.rawValue)"] = window.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == (appearance == .light ? .aqua : .darkAqua)
                     let key = "\(appearance.rawValue)-\(Int(zoom * 100))-\(width)-\(mode.rawValue)"
                     checks["tab_height_" + key] = tabs().filter { !$0.isHiddenOrHasHiddenAncestor }.allSatisfy { abs($0.bounds.height - SpookkyStyle.headerHeight) < 1 }
                     checks["tab_children_fit_" + key] = tabs().filter { !$0.isHiddenOrHasHiddenAncestor }.allSatisfy { $0.bounds.contains($0.titleButton.frame) && $0.bounds.contains($0.closeButton.frame) }
                     if let content = window.contentView {
                         checks["sidebar_stays_in_window_" + key] = content.bounds.contains(sidebar.convert(sidebar.bounds, to: content))
+                        if let container = sidebar.superview {
+                            let frame = sidebar.convert(sidebar.bounds, to: container)
+                            checks["sidebar_has_balanced_outer_margins_" + key] = abs(frame.minX - 12 * zoom) < 0.5 &&
+                                abs(container.bounds.maxX - frame.maxX - 12 * zoom) < 0.5
+                        }
                         for (index, tab) in tabs().enumerated() where !tab.isHiddenOrHasHiddenAncestor && !tab.bounds.intersection(tab.visibleRect).isEmpty {
                             for horizontal in [0.05, 0.5, 0.95] {
                             for fraction in [0.05, 0.5, 0.95] {

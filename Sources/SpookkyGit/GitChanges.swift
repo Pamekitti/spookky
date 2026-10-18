@@ -73,6 +73,18 @@ public struct GitChanges: Sendable {
         let result = try await git.command(root, (readOptions ?? []) + ["--literal-pathspecs", "-c", "core.quotePath=false", "-c", "color.ui=false"] + arguments)
         try result.validate(); return result
     }
+    public func lineSummary(root: String, snapshot: ChangesSnapshot) async throws -> (added: Int, removed: Int) {
+        if readOptions == nil { return try await prepared(root).lineSummary(root: root, snapshot: snapshot) }
+        let comparison = snapshot.base.map { [$0, snapshot.head ?? "HEAD"] } ?? (snapshot.head == nil ? ["--cached"] : ["HEAD"])
+        let result = try await read(root, ["diff", "--numstat", "--no-ext-diff", "--no-textconv"] + comparison + ["--"])
+        _ = try result.checked()
+        var added = 0, removed = 0
+        for line in result.output.split(separator: "\n") {
+            let fields = line.split(separator: "\t", maxSplits: 2)
+            if fields.count == 3, let plus = Int(fields[0]), let minus = Int(fields[1]) { added += plus; removed += minus }
+        }
+        return (added, removed)
+    }
     public func fingerprint(_ root: String) async throws -> Data {
         if readOptions == nil { return try await prepared(root).fingerprint(root) }
         let status = try await read(root, ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=dirty"])

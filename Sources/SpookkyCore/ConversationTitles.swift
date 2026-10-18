@@ -61,6 +61,7 @@ extension Workspace {
 extension SupportingTab {
     public var displayTitle: String {
         switch target {
+        case .startPage: return "New tab"
         case .changes: return "Changes"
         case .file(let path): return URL(fileURLWithPath: path).lastPathComponent
         case .artifact(let path): return URL(fileURLWithPath: path).lastPathComponent
@@ -70,6 +71,7 @@ extension SupportingTab {
     }
     public var contentLabel: String {
         switch target {
+        case .startPage: "New tab"
         case .changes: "Changes"
         case .file: "File"
         case .artifact: "Artifact"

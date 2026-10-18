@@ -47,7 +47,18 @@ import SpookkyFiles
     private func display(_ payload: ArtifactPayload) async throws {
         status.stringValue = payload.url.lastPathComponent
         switch payload.kind {
-        case .text, .markdown:
+        case .markdown:
+            let source = FileService.decode(payload.data).text
+            let html = try await Task.detached { try MarkdownDocument.html(source) }.value
+            try Task.checkCancellation()
+            let configuration = WKWebViewConfiguration()
+            configuration.websiteDataStore = .nonPersistent()
+            configuration.defaultWebpagePreferences.allowsContentJavaScript = false
+            let view = WKWebView(frame: .zero, configuration: configuration)
+            view.navigationDelegate = self; view.pageZoom = DisplayMetrics.preferences.zoom
+            view.setAccessibilityLabel("Markdown artifact, read only")
+            webView = view; view.loadHTMLString(html, baseURL: nil); install(view)
+        case .text:
             let preview = FileService.decode(payload.data)
             guard preview.notice == nil || !preview.text.isEmpty else { status.stringValue = preview.notice ?? "Text unavailable"; return }
             let text = NSTextView()
@@ -58,7 +69,7 @@ import SpookkyFiles
             text.textContainer?.widthTracksTextView = true
             // Native text treats HTML, script, and link strings as data; no Markdown web bridge.
             text.string = preview.text
-            text.setAccessibilityLabel(payload.kind == .markdown ? "Markdown artifact, read only" : "Text artifact, read only")
+            text.setAccessibilityLabel("Text artifact, read only")
             let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.documentView = text; scroll.drawsBackground = false
             install(scroll)
             if let notice = preview.notice { status.stringValue += " · " + notice }

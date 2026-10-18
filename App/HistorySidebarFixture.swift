@@ -234,7 +234,7 @@ os.execv('/bin/cat',['cat'])
         }
         checks["ended_resume_has_one_live_owned_process"] = alive == 1
         checks["retained_workspace_count_stays_bounded"] = store.state.workspaces.count <= originalWorkspaceCount + 1
-        try store.state.validate(); checks["metadata_valid_v7"] = store.state.version == 7
+        try store.state.validate(); checks["metadata_valid_v8"] = store.state.version == 8
 
         let watched = root.appendingPathComponent("history-watch-source")
         let watchedHistory = watched.appendingPathComponent("sessions/2026/10/18")

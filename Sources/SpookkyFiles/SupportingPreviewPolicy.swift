@@ -4,6 +4,17 @@ import Darwin
 public enum BrowserAddress: Equatable, Sendable {
     case page(URL), external(URL), invalid
 
+    public static func submitted(_ input: String) -> String? {
+        let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, text.utf8.count <= 16_384,
+              !text.unicodeScalars.contains(where: { $0.value < 32 || $0.value == 127 }) else { return nil }
+        if case .page(let url) = parse(text), !text.contains(" "), text.contains(".") || text.contains(":") { return url.absoluteString }
+        if text.contains("://") || text.hasPrefix("file:") || text.hasPrefix("javascript:") { return nil }
+        var url = URLComponents(string: "https://duckduckgo.com/")!
+        url.queryItems = [URLQueryItem(name: "q", value: text)]
+        return url.url?.absoluteString
+    }
+
     public static func parse(_ input: String) -> Self {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, text.utf8.count <= 16_384,

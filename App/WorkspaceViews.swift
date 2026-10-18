@@ -63,6 +63,7 @@ final class WorkspaceRootView: NSView {
     static var headerHeight: CGFloat { points(40) }
     static var workspaceRowHeight: CGFloat { points(32) }
     static var sidebarWidth: CGFloat { points(232) }
+    static var sidebarOuterInset: CGFloat { points(12) }
     static var railWidth: CGFloat { points(58) }
     static var fileSidebarWidth: CGFloat { points(248) }
     static var composerWidth: CGFloat { points(800) }
@@ -119,6 +120,7 @@ final class WorkspaceRootView: NSView {
     }
     static func supportingSymbol(_ target: SupportingTarget) -> String {
         switch target {
+        case .startPage: "globe"
         case .changes: "arrow.triangle.branch"
         case .file: "doc.text"
         case .browser: "globe"
@@ -611,7 +613,7 @@ private final class ComposerDocumentView: NSView {
         picker.setContentCompressionResistancePriority(.required, for: .horizontal)
         card.orientation = .vertical; card.alignment = .leading; card.spacing = SpookkyStyle.points(4)
         card.raised = true; card.cornerRadius = SpookkyStyle.composerRadius
-        card.setAccessibilityLabel("New session"); card.setAccessibilityRole(.group)
+        card.setAccessibilityLabel("New chat"); card.setAccessibilityRole(.group)
         card.addArrangedSubview(promptScroll); card.addArrangedSubview(controls)
         promptScroll.widthAnchor.constraint(equalTo: card.widthAnchor).isActive = true
         controls.widthAnchor.constraint(equalTo: card.widthAnchor).isActive = true

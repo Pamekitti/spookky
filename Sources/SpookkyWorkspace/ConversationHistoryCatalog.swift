@@ -18,21 +18,23 @@ public actor ConversationHistoryCatalog {
         self.reader = reader; self.persistence = persistence
     }
 
-    public func cached(projectID: UUID? = nil, allProjects: Bool = false, search: String = "", limit: Int = 5) async throws -> [ConversationCatalogRecord] {
+    public func cached(projectID: UUID? = nil, allProjects: Bool = false, search: String = "", limit: Int = 5, excluding: Set<ConversationID> = []) async throws -> [ConversationCatalogRecord] {
         let limit = max(1, limit)
         if let persistence {
             var records: [ConversationCatalogRecord] = []
+            var offset = 0
             while records.count < limit {
-                let count = min(100, limit - records.count)
+                try Task.checkCancellation()
+                let count = excluding.isEmpty ? min(100, limit - records.count) : 100
                 let page = try await persistence.history(StoredHistoryQuery(projectID: projectID, allProjects: allProjects,
-                    search: search, limit: count, offset: records.count))
-                records += page
+                    search: search, limit: count, offset: offset))
+                records += page.filter { !excluding.contains($0.id) }; offset += page.count
                 if page.count < count { break }
             }
-            return records
+            return Array(records.prefix(limit))
         }
         return Array(memory.values.filter {
-            (allProjects || $0.projectID == projectID) && (search.isEmpty || [$0.displayTitle, $0.metadata.directory, $0.id.sessionID].contains { $0.localizedCaseInsensitiveContains(search) })
+            !excluding.contains($0.id) && (allProjects || $0.projectID == projectID) && (search.isEmpty || [$0.displayTitle, $0.metadata.directory, $0.id.sessionID].contains { $0.localizedCaseInsensitiveContains(search) })
         }.sorted { historyNewestFirst($0.metadata, $1.metadata) }.prefix(limit))
     }
 

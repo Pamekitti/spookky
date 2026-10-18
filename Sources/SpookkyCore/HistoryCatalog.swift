@@ -30,14 +30,28 @@ extension Workspace {
 extension WorkspaceState {
     @discardableResult public mutating func showLanding(projectID: UUID? = nil, homeDirectory: String) -> UUID {
         let context = projectID?.uuidString ?? "global"
-        if let existing = workspaces.first(where: { $0.landingContext == context }) {
-            selectWorkspace(existing.id); return existing.id
+        var retainedDraft: TerminalDraft?
+        var retainedLocation: WorkspaceLocation?
+        if let index = workspaces.firstIndex(where: { $0.landingContext == context }) {
+            let existing = workspaces[index]
+            if existing.tabs.contains(where: { $0.binding != nil || $0.launch != nil }) {
+                retainedDraft = existing.primaryTerminal?.draft; retainedLocation = existing.selectedLocation
+                workspaces[index].landingContext = nil
+            } else {
+                for slot in workspaces[index].tabs.indices {
+                    workspaces[index].tabs[slot].status = .draft
+                    workspaces[index].tabs[slot].failure = nil
+                    workspaces[index].tabs[slot].exitCode = nil
+                }
+                selectWorkspace(existing.id); return existing.id
+            }
         }
-        let location = projectID.flatMap { id in projects.first { $0.id == id }?.location } ?? WorkspaceLocation(path: homeDirectory)
+        let location = retainedLocation ?? projectID.flatMap { id in projects.first { $0.id == id }?.location } ?? WorkspaceLocation(path: homeDirectory)
         let id = newWorkspace(location: location, projectID: projectID)
         if let index = workspaces.firstIndex(where: { $0.id == id }) {
             workspaces[index].landingContext = context
-            workspaces[index].title = "New session"; workspaces[index].automaticTitle = nil
+            workspaces[index].title = "New chat"; workspaces[index].automaticTitle = nil
+            if let retainedDraft { workspaces[index].tabs[0].draft = retainedDraft }
         }
         return id
     }
@@ -77,12 +91,15 @@ extension WorkspaceState {
     }
 
     @discardableResult public mutating func openCatalogRecord(_ record: ConversationCatalogRecord) -> UUID {
+        rememberThread(record)
         if let existing = workspace(for: record.id) {
             selectWorkspace(existing.id)
             recordCatalogMetadata(record.metadata, workspaceID: existing.id, projectID: record.projectID)
             return existing.id
         }
-        var workspace = Workspace(location: WorkspaceLocation(path: record.metadata.directory), projectID: record.projectID,
+        let presentation = presentation(for: record.id.threadKey)
+        let projectID = presentation.hasProjectOverride ? presentation.projectOverride : record.projectID
+        var workspace = Workspace(location: WorkspaceLocation(path: record.metadata.directory), projectID: projectID,
             tool: record.id.provider, id: record.workspaceID ?? UUID(), title: record.displayTitle)
         if let terminalID = record.terminalID {
             workspace.tabs = [WorkspaceTab(id: terminalID, tool: record.id.provider)]

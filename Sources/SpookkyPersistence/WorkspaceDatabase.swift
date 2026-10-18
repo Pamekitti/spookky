@@ -10,11 +10,11 @@ public actor WorkspaceDatabase: WorkspacePersistence, HistoryCatalogPersistence 
         try PrivateFiles.directory(directory)
         queue = try DatabaseQueue(path: path)
         let needsBackup = try queue.read { db in
-            try db.tableExists("workspace_snapshot") && (Int.fetchOne(db, sql: "SELECT version FROM workspace_snapshot WHERE id = 1") ?? 7) < 7
+            try db.tableExists("workspace_snapshot") && (Int.fetchOne(db, sql: "SELECT version FROM workspace_snapshot WHERE id = 1") ?? 8) < 8
         }
         if needsBackup {
-            let oldVersion = try queue.read { try Int.fetchOne($0, sql: "SELECT version FROM workspace_snapshot WHERE id = 1") ?? 6 }
-            let backupPath = path + (oldVersion < 6 ? ".pre-v6-" : ".pre-v7-") + UUID().uuidString + ".sqlite"
+            let oldVersion = try queue.read { try Int.fetchOne($0, sql: "SELECT version FROM workspace_snapshot WHERE id = 1") ?? 7 }
+            let backupPath = path + (oldVersion < 6 ? ".pre-v6-" : oldVersion < 7 ? ".pre-v7-" : ".pre-v8-") + UUID().uuidString + ".sqlite"
             let backup = try DatabaseQueue(path: backupPath)
             try queue.backup(to: backup)
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: backupPath)
@@ -84,20 +84,28 @@ public actor WorkspaceDatabase: WorkspacePersistence, HistoryCatalogPersistence 
             try state.validate(); try Self.writeHistory(records, in: db)
             try db.execute(sql: "UPDATE workspace_snapshot SET version = 7, payload = ? WHERE id = 1", arguments: [try JSONEncoder().encode(state)])
         }
+        migrator.registerMigration("workspace-v8") { db in
+            guard let row = try Row.fetchOne(db, sql: "SELECT version, payload FROM workspace_snapshot WHERE id = 1") else { return }
+            guard row["version"] as Int == 7 else { throw LaunchError.invalid("This database requires a newer Spookky version.") }
+            var state = try JSONDecoder().decode(WorkspaceState.self, from: row["payload"] as Data)
+            state.migratePersistentThreads()
+            try state.validate()
+            try db.execute(sql: "UPDATE workspace_snapshot SET version = 8, payload = ? WHERE id = 1", arguments: [try JSONEncoder().encode(state)])
+        }
         try migrator.migrate(queue)
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: path)
     }
     public func load() async throws -> WorkspaceState? {
         try await queue.read { db in
             guard let row = try Row.fetchOne(db, sql: "SELECT version, payload FROM workspace_snapshot WHERE id = 1") else { return nil }
-            guard row["version"] as Int == 7 else { throw LaunchError.invalid("This workspace database was written by a newer Spookky version. The file was preserved.") }
+            guard row["version"] as Int == 8 else { throw LaunchError.invalid("This workspace database was written by a newer Spookky version. The file was preserved.") }
             let state = try JSONDecoder().decode(WorkspaceState.self, from: row["payload"] as Data)
-            guard state.version == 7 else { throw LaunchError.invalid("Workspace snapshot version does not match its database record.") }
+            guard state.version == 8 else { throw LaunchError.invalid("Workspace snapshot version does not match its database record.") }
             try state.validate(); return state
         }
     }
     public func save(_ state: WorkspaceState) async throws {
-        guard state.version == 7 else { throw LaunchError.invalid("Workspace metadata must be migrated before saving.") }
+        guard state.version == 8 else { throw LaunchError.invalid("Workspace metadata must be migrated before saving.") }
         try state.validate()
         let payload = try JSONEncoder().encode(state)
         try await queue.write { db in

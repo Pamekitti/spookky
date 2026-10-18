@@ -33,8 +33,8 @@ final class FileWorkspaceLayout: NSView {
             terminal.isHidden = true; divider.isHidden = true
             sidebar.isHidden = !showSidebar; preview.isHidden = !showPreview
             let side: CGFloat = showSidebar ? (showPreview ? min(SpookkyStyle.fileSidebarWidth, bounds.width * 0.38) : bounds.width) : 0
-            sidebar.frame = NSRect(x: 0, y: 0, width: side, height: bounds.height)
-            preview.frame = NSRect(x: side, y: 0, width: max(0, bounds.width - side), height: bounds.height)
+            sidebar.frame = NSRect(x: bounds.width - side, y: 0, width: side, height: bounds.height)
+            preview.frame = NSRect(x: 0, y: 0, width: max(0, bounds.width - side), height: bounds.height)
             onPreviewWidth?(preview.bounds.width)
             return
         }

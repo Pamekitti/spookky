@@ -10,9 +10,10 @@ import AppKit
     private var hovered = false
     var availableWidth: CGFloat? { didSet { if oldValue != availableWidth { needsLayout = true; invalidateIntrinsicContentSize() } } }
     var selected = false { didSet { updateAppearance() } }
+    var isHeading = false { didSet { needsDisplay = true } }
     var closable = true { didSet { updateInteraction() } }
     var naturalWidth: CGFloat {
-        min(availableWidth.map { max(SpookkyStyle.points(48), $0) } ?? Self.maximumWidth, Self.maximumWidth, max(Self.minimumWidth, titleButton.intrinsicContentSize.width + SpookkyStyle.points(28)))
+        min(availableWidth.map { max(SpookkyStyle.points(48), $0) } ?? Self.maximumWidth, Self.maximumWidth, max(Self.minimumWidth, titleButton.intrinsicContentSize.width + SpookkyStyle.points(closable ? 28 : 0)))
     }
 
     init(title: String, image: NSImage? = nil, help: String? = nil, closable: Bool = true,
@@ -63,7 +64,7 @@ import AppKit
         super.layout()
         titleButton.contentInset = SpookkyStyle.controlInset
         widthConstraint.constant = naturalWidth
-        titleButton.frame = NSRect(x: 0, y: 0, width: max(0, bounds.width - SpookkyStyle.points(28)), height: bounds.height)
+        titleButton.frame = NSRect(x: 0, y: 0, width: max(0, bounds.width - SpookkyStyle.points(closable ? 28 : 0)), height: bounds.height)
         titleButton.contentInset = min(SpookkyStyle.controlInset, max(0, (titleButton.frame.width - SpookkyStyle.iconSlot) / 2))
         closeButton.frame = NSRect(x: max(0, bounds.width - SpookkyStyle.points(28)), y: bounds.midY - SpookkyStyle.points(12), width: SpookkyStyle.points(24), height: SpookkyStyle.points(24))
         reconcileHover()
@@ -75,9 +76,9 @@ import AppKit
         addTrackingArea(tracking!)
         reconcileHover()
     }
-    override func mouseEntered(with event: NSEvent) { reconcileHover() }
-    override func mouseMoved(with event: NSEvent) { reconcileHover() }
-    override func mouseExited(with event: NSEvent) { reconcileHover() }
+    override func mouseEntered(with event: NSEvent) { reconcilePointer(at: event.locationInWindow) }
+    override func mouseMoved(with event: NSEvent) { reconcilePointer(at: event.locationInWindow) }
+    override func mouseExited(with event: NSEvent) { reconcilePointer(at: event.locationInWindow) }
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); observeInteractionChanges() }
     override func viewDidMoveToSuperview() { super.viewDidMoveToSuperview(); observeInteractionChanges() }
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
@@ -98,7 +99,9 @@ import AppKit
     }
     @objc private func interactionGeometryChanged(_ notification: Notification) { reconcileHover() }
     func reconcilePointer(at point: NSPoint) {
-        hovered = window?.isKeyWindow == true && !isHiddenOrHasHiddenAncestor && bounds.intersection(visibleRect).contains(convert(point, from: nil))
+        let next = window?.isKeyWindow == true && !isHiddenOrHasHiddenAncestor && bounds.intersection(visibleRect).contains(convert(point, from: nil))
+        guard hovered != next else { return }
+        hovered = next
         updateInteraction()
     }
     private func reconcileHover() {
@@ -119,15 +122,17 @@ import AppKit
         needsDisplay = true
     }
     private func updateInteraction() {
-        closeButton.isHidden = !closable || window?.isKeyWindow != true
-        closeButton.interactionActive = closable && (hovered || containsKeyboardFocus)
+        let hidden = !closable || window?.isKeyWindow != true
+        let active = closable && (hovered || containsKeyboardFocus)
+        if closeButton.isHidden != hidden { closeButton.isHidden = hidden }
+        if closeButton.interactionActive != active { closeButton.interactionActive = active }
         needsDisplay = true
     }
     override func draw(_ dirtyRect: NSRect) {
+        guard !isHeading else { return }
         if selected || hovered || containsKeyboardFocus {
-            (containsKeyboardFocus ? SpookkyPalette.keyboardFocus : selected ? SpookkyPalette.selected : SpookkyPalette.hover).setFill(); bounds.fill()
+            (containsKeyboardFocus ? SpookkyPalette.keyboardFocus : selected ? SpookkyPalette.selected : SpookkyPalette.hover).setFill()
+            NSBezierPath(roundedRect: bounds.insetBy(dx: SpookkyStyle.points(3), dy: SpookkyStyle.points(4)), xRadius: SpookkyStyle.cornerRadius, yRadius: SpookkyStyle.cornerRadius).fill()
         }
-        SpookkyPalette.border.setFill()
-        NSRect(x: bounds.width - 1, y: 0, width: 1, height: bounds.height).fill()
     }
 }
