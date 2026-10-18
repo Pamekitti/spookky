@@ -7,13 +7,14 @@ import SpookkyWorkspace
 private actor AssociationDiscoveryProbe: GitCommandExecutor {
     var locations: [String: WorkspaceLocation]
     let delay: Duration
+    let delays: [String: Duration]
     private var calls: [String: Int] = [:]
     private var commands = 0
     private var active = 0
     private var maximum = 0
     private var startWaiters: [CheckedContinuation<Void, Never>] = []
-    init(_ locations: [WorkspaceLocation], delay: Duration = .zero) {
-        self.locations = Dictionary(uniqueKeysWithValues: locations.map { ($0.path, $0) }); self.delay = delay
+    init(_ locations: [WorkspaceLocation], delay: Duration = .zero, delays: [String: Duration] = [:]) {
+        self.locations = Dictionary(uniqueKeysWithValues: locations.map { ($0.path, $0) }); self.delay = delay; self.delays = delays
     }
     func execute(_ arguments: [String]) async throws -> GitResult {
         let path = arguments[1]
@@ -22,7 +23,7 @@ private actor AssociationDiscoveryProbe: GitCommandExecutor {
         active += 1; maximum = max(maximum, active)
         defer { active -= 1 }
         let waiting = startWaiters; startWaiters.removeAll(); waiting.forEach { $0.resume() }
-        try await Task.sleep(for: delay)
+        try await Task.sleep(for: delays[path] ?? delay)
         try Task.checkCancellation()
         guard let location = locations[path] else { return GitResult(status: 128, error: "not a git repository") }
         let output: String
@@ -214,10 +215,9 @@ final class ProjectAssociationBatchTests: XCTestCase {
         let one = try directory(root, "one"), probe = AssociationDiscoveryProbe([one], delay: .seconds(30))
         let resolver = ProjectAssociationResolver(git: GitRepository(executor: probe, scheduler: GitScheduler()))
         let start = ContinuousClock.now
-        do {
-            _ = try await resolver.resolveBatch(directories: [one.path], projects: [], limits: ProjectAssociationBatchLimits(timeout: .milliseconds(50)))
-            XCTFail("Expected refresh deadline")
-        } catch let error as ProjectAssociationBatchError { XCTAssertEqual(error, .timedOut) }
+        let snapshot = try await resolver.resolveBatch(directories: [one.path], projects: [], limits: ProjectAssociationBatchLimits(timeout: .milliseconds(50)))
+        XCTAssertTrue(snapshot.truncated)
+        XCTAssertEqual(snapshot.resolution(for: one.path).status, .unavailable)
         XCTAssertLessThan(start.duration(to: .now), .seconds(2))
     }
     func testDeadlineAlsoCancelsReadQueuedBehindBusyScheduler() async throws {
@@ -230,10 +230,9 @@ final class ProjectAssociationBatchTests: XCTestCase {
         let probe = AssociationDiscoveryProbe([one])
         let resolver = ProjectAssociationResolver(git: GitRepository(executor: probe, scheduler: scheduler))
         let start = ContinuousClock.now
-        do {
-            _ = try await resolver.resolveBatch(directories: [one.path], projects: [], limits: ProjectAssociationBatchLimits(timeout: .milliseconds(50)))
-            XCTFail("Expected queued refresh deadline")
-        } catch let error as ProjectAssociationBatchError { XCTAssertEqual(error, .timedOut) }
+        let snapshot = try await resolver.resolveBatch(directories: [one.path], projects: [], limits: ProjectAssociationBatchLimits(timeout: .milliseconds(50)))
+        XCTAssertTrue(snapshot.truncated)
+        XCTAssertEqual(snapshot.resolution(for: one.path).status, .unavailable)
         await gate.release(); fallbackRelease.cancel()
         _ = try await first.value; _ = try await second.value
         XCTAssertLessThan(start.duration(to: .now), .seconds(1))
@@ -259,6 +258,28 @@ final class ProjectAssociationBatchTests: XCTestCase {
         XCTAssertLessThan(start.duration(to: .now), .seconds(1))
         let next = try await scheduler.write(repository: "fixture") { 3 }
         XCTAssertEqual(next, 3)
+    }
+
+    func testDeadlineKeepsResolvedProjectsAndEveryHistoryRow() async throws {
+        let root = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let known = try directory(root, "project"), slow = try directory(root, "slow")
+        var state = WorkspaceState()
+        let projectID = state.registerProject(known)
+        let probe = AssociationDiscoveryProbe([known, slow], delays: [slow.path: .seconds(30)])
+        let resolver = ProjectAssociationResolver(git: GitRepository(executor: probe, scheduler: GitScheduler()))
+        let batch = try await resolver.resolveBatch(directories: [known.path, slow.path], projects: state.projects,
+            limits: ProjectAssociationBatchLimits(timeout: .milliseconds(100)))
+        XCTAssertTrue(batch.truncated)
+        XCTAssertEqual(batch.resolution(for: known.path).projectID, projectID)
+        XCTAssertEqual(batch.resolution(for: slow.path).status, .unavailable)
+        let entries = [known, slow].map { location in
+            ConversationMetadata(id: ConversationID(provider: .codex, sessionID: UUID().uuidString), title: "Saved",
+                directory: location.path, updatedAt: Date())
+        }
+        ConversationCatalogReconciler.apply(SessionCatalogSnapshot(conversations: entries), batch: batch, to: &state)
+        XCTAssertEqual(state.workspace(for: entries[0].id)?.projectID, projectID)
+        XCTAssertNotNil(state.workspace(for: entries[1].id))
+        let maximum = await probe.maximumCommands(); XCTAssertLessThanOrEqual(maximum, 2)
     }
 
 }

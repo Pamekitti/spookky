@@ -26,7 +26,7 @@ Claude's isolated local Code adapter reads UUID session metadata from bounded fi
 
 The catalog has no polling timer, permanent helper, model SDK, or transcript store. Codex reads at most 5,000 rows in 100-row pages within 12 seconds. JSON-RPC responses have a 4 MiB buffer threshold and a 64 MiB aggregate threshold. Claude enumerates at most 5,000 top-level session files within four seconds. Changed files read at most 32 KiB from each end. Unchanged size/mtime records reuse metadata. A limit produces a visible partial-refresh notice. All retained entries remain searchable.
 
-Project association uses the shared batch helper with a 10-second cooperative deadline, 256-project limit, 4096 unique-directory limit, and 16,384 input-row limit. A failed batch leaves retained workspace data unchanged. Native row controls remain bounded by the revealed page rather than catalog size. First ingestion and refresh still have CPU and metadata-memory costs, even though preparation runs off the UI thread.
+Project association uses the shared batch helper with a 10-second cooperative deadline, 256-project limit, 4096 unique-directory limit, and 16,384 input-row limit. At the deadline it cancels remaining Git reads and retains resolved display metadata. All provider history rows remain available; unresolved folders show a partial-refresh notice and require fresh action-time checks. Caller cancellation and invalid batch limits leave workspace data unchanged. Native row controls remain bounded by the revealed page rather than catalog size. First ingestion and refresh still have CPU and metadata-memory costs, even though preparation runs off the UI thread.
 
 ## Verification
 

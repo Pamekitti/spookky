@@ -1016,6 +1016,9 @@ import SpookkyGit
                 historyRefreshedAt = Date()
                 historyNotice = snapshot.issues.isEmpty ? nil : snapshot.issues.map(\.message).joined(separator: " ")
                 if snapshot.truncated { historyNotice = "History refresh reached its bound. Retained conversations remain searchable. Refresh again to retry." }
+                if batch.truncated {
+                    historyNotice = [historyNotice, "Some saved folders exceeded the project refresh deadline. Conversation history is retained; unresolved folders need a fresh check before continuing."].compactMap { $0 }.joined(separator: " ")
+                }
                 // Prepare value metadata away from terminal input. Never overwrite edits made while it runs.
                 for _ in 0..<3 {
                     let baseline = store.state

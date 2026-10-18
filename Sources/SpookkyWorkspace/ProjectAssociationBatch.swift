@@ -36,6 +36,7 @@ public enum ProjectAssociationBatchError: Error, LocalizedError, Equatable, Send
 public struct ProjectAssociationBatch: Sendable {
     public let id: UUID
     public let uniqueDirectoryCount: Int
+    public let truncated: Bool
     private let directories: [String: WorkspaceLocation]
     private let requested: Set<String>
     private let projectRoots: [UUID: WorkspaceLocation]
@@ -91,29 +92,28 @@ public struct ProjectAssociationBatch: Sendable {
             }
         }
         var observed: [String: WorkspaceLocation] = [:]
-        // Sequential discoveries retain Git's two-command read bound and cache failed paths too.
+        var truncated = false
+        // A slow folder must not discard the display metadata already discovered.
         for path in paths {
-            try check()
+            if Task.isCancelled || clock.now >= deadline { truncated = true; break }
             do { observed[path] = try await git.discover(URL(fileURLWithPath: path)) }
-            catch is CancellationError { throw CancellationError() }
+            catch is CancellationError { truncated = true; break }
             catch { }
-            try check()
         }
+        // The resolver rejects caller cancellation after collecting this bounded value.
         var projectRoots: [UUID: WorkspaceLocation] = [:], projectsByKey: [ProjectAssociationKey: [UUID]] = [:]
         for project in projects {
-            try check()
             guard projectRoots[project.id] == nil, let path = canonical[project.location.path], let location = observed[path] else { continue }
             projectRoots[project.id] = location
             projectsByKey[location.projectAssociationKey, default: []].append(project.id)
         }
         var locations: [String: WorkspaceLocation] = [:], requested = Set<String>()
         for directory in directories {
-            try check()
             guard directory.utf8.count <= 16_384 else { continue }
             requested.insert(directory)
             if let path = canonical[directory], let location = observed[path] { locations[directory] = location }
         }
-        return ProjectAssociationBatch(id: UUID(), uniqueDirectoryCount: paths.count,
+        return ProjectAssociationBatch(id: UUID(), uniqueDirectoryCount: paths.count, truncated: truncated,
             directories: locations, requested: requested, projectRoots: projectRoots, projectsByKey: projectsByKey)
     }
 }

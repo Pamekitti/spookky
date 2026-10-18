@@ -13,16 +13,18 @@ public struct ProjectAssociationResolver: Sendable {
         try Task.checkCancellation()
         guard projects.count <= limits.maximumProjects else { throw ProjectAssociationBatchError.tooManyProjects }
         guard directories.count <= limits.maximumRequests else { throw ProjectAssociationBatchError.tooManyRequests }
-        return try await withThrowingTaskGroup(of: ProjectAssociationBatch.self) { group in
+        return try await withThrowingTaskGroup(of: ProjectAssociationBatch?.self) { group in
             group.addTask { try await ProjectAssociationBatch.discover(directories: directories, projects: projects, git: git, limits: limits) }
             group.addTask {
                 try await Task.sleep(for: limits.timeout)
-                throw ProjectAssociationBatchError.timedOut
+                return nil
             }
             defer { group.cancelAll() }
-            guard let result = try await group.next() else { throw CancellationError() }
-            try Task.checkCancellation()
-            return result
+            while let result = try await group.next() {
+                if let result { try Task.checkCancellation(); return result }
+                group.cancelAll()
+            }
+            throw ProjectAssociationBatchError.timedOut
         }
     }
 
