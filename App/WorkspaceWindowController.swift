@@ -1544,10 +1544,30 @@ import SpookkyGit
             interactionDetails["expected_hover_after_scroll"] = expected ?? "none"
             checks["scroll_reconciles_stationary_pointer"] = oldHover != nil && expected != nil && oldHover != expected && conversationSidebar.hoveredItemID == expected
             func actions(_ view: NSView) -> [ActionButton] { (view as? ActionButton).map { [$0] } ?? view.subviews.flatMap { actions($0) } }
-            checks["only_one_hover_accessory_visible"] = actions(conversationSidebar).filter { !$0.isHidden && $0.alphaValue > 0.5 }.count == 1
-            interactionDetails["visible_hover_accessories"] = String(actions(conversationSidebar).filter { !$0.isHidden && $0.alphaValue > 0.5 }.count)
+            checks["only_one_hover_accessory_visible"] = actions(conversationSidebar).filter { !$0.isHidden }.count == 1
+            interactionDetails["visible_hover_accessories"] = String(actions(conversationSidebar).filter { !$0.isHidden }.count)
             let title = expected.flatMap { sidebarCellForFixture($0) }?.subviews.compactMap { $0 as? NSTextField }.first
             checks["hover_does_not_animate_or_shift_title"] = title?.maximumNumberOfLines == 1 && title?.layer?.animationKeys()?.isEmpty != false
+            window.orderOut(nil); await Task.yield()
+            checks["inactive_window_hides_all_row_accessories"] = actions(conversationSidebar).allSatisfy(\.isHidden)
+            window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+            for _ in 0..<250 {
+                if NSApp.isActive && window.isKeyWindow { break }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            checks["reactivation_reveals_only_hovered_row_accessory"] = window.isKeyWindow && actions(conversationSidebar).filter { !$0.isHidden }.count == 1
+            scroller.contentView.scroll(to: NSPoint(x: 0, y: scroller.contentView.bounds.minY + 96))
+            scroller.reflectScrolledClipView(scroller.contentView); await Task.yield()
+            let reactivatedRow = table.row(at: table.convert(local, from: nil))
+            checks["reactivated_scroll_hides_other_row_accessories"] = updated.indices.contains(reactivatedRow) &&
+                conversationSidebar.hoveredItemID == updated[reactivatedRow].id && actions(conversationSidebar).filter { !$0.isHidden }.count == 1
+            conversationSidebar.pointerLocation = { _ in nil }
+            conversationSidebar.focusItem(focusedID); await Task.yield()
+            let accessory = sidebarCellForFixture(focusedID)?.subviews.compactMap { $0 as? ActionButton }.first
+            checks["keyboard_focus_reveals_only_its_row_accessory"] = accessory?.isHidden == false && actions(conversationSidebar).filter { !$0.isHidden }.count == 1
+            if let accessory { window.makeFirstResponder(accessory) }
+            await Task.yield()
+            checks["revealed_row_accessory_accepts_keyboard_focus"] = accessory != nil && window.firstResponder === accessory && accessory?.isHidden == false
         }
         checks["history_navigation_starts_no_agents"] = store.state.workspaces.flatMap(\.tabs).compactMap(\.binding) == bindings
         conversationSidebar.onActivate = originalActivate

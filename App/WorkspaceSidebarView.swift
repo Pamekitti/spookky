@@ -315,7 +315,7 @@ import AppKit
         status.isHidden = collapsed || item.statusSymbol == nil; status.toolTip = item.statusHelp
         accessory.image = NSImage(systemSymbolName: item.kind == .project ? "plus" : "ellipsis", accessibilityDescription: nil)
         accessory.compactUtility = true
-        accessory.isHidden = collapsed || item.kind != .project && item.kind != .conversation || window?.isKeyWindow != true
+        accessory.isHidden = collapsed || item.kind != .project && item.kind != .conversation || window?.isKeyWindow != true || !interactionActive
         accessory.interactionActive = interactionActive
         let action = item.kind == .project ? "New session in " + item.title : "Actions for " + item.title
         accessory.toolTip = action; accessory.setAccessibilityLabel(action)

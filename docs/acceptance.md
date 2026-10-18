@@ -28,7 +28,7 @@ For S01-S12, exercise Terminal, Codex without/with a prompt, and Claude Code wit
 
 ## Version 7 workflow checks
 
-The version 7 production code passed 177 automated native workflow assertions, 39 browser/artifact and cold-restore assertions, and 24 file/diff assertions. The full Swift run passed 278 cases with three opt-in cases skipped. All 30 Python tests and the repository checker passed. Native fixtures use programmatic pointer and keyboard events; they do not establish physical typing, IME composition or spoken VoiceOver.
+The version 7 production code passed 182 automated native workflow assertions, 39 browser/artifact and cold-restore assertions, and 24 file/diff assertions. The full Swift run passed 278 cases with three opt-in cases skipped. All 30 Python tests and the repository checker passed. Native fixtures use programmatic pointer and keyboard events; they do not establish physical typing, IME composition or spoken VoiceOver.
 
 - [x] First use and final-view closure show the landing composer without an intermediate button or blank window.
 - [x] Cmd+N and project + select independent drafts. Persistence tests retain both through database restart.
