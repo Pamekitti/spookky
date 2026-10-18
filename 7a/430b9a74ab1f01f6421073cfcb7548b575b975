@@ -1,0 +1,57 @@
+App/FileWorkspaceController.swift
+  s_cdf46ccee2ecc1::t_dfa15a2304b80c 142,144,146,178,182,239,274-280,311-312,316-318,335-340,813-820,823,825,838,847,853
+App/FileWorkspaceLayout.swift
+  s_ad847420e7bcaa::t_c1f0443ff7888a 34
+App/HistorySidebarFixture.swift
+  s_ad847420e7bcaa::t_48b1cb02742dbd 6,8-16,18-38,41,53-54,56-57,62,64,75-124,126-168,171,173-175,179-182,186-192,194,196,198-200,203-204,207-209,213,220-246,257-261
+App/HistorySourceWatcher.swift
+  s_cdf46ccee2ecc1::t_666930fa38777d 1-65
+App/SupportingWorkspaceView.swift
+  s_ad847420e7bcaa::t_544695790553c2 26-45,62,82-90,101-111,113-124,158,161-170
+App/WorkspaceCloseFixture.swift
+  s_ad847420e7bcaa::t_05e881af5ac0cb 50-51,53-55,98,100-104,154-155,157
+App/WorkspaceTabStrip.swift
+  s_ad847420e7bcaa::t_6a160b48a4ad36 1-126
+App/WorkspaceViews.swift
+  s_cdf46ccee2ecc1::t_00824d4643241f 62,267,305
+App/WorkspaceWindowController.swift
+  s_cdf46ccee2ecc1::t_cb6ed966322ae2 25,30-44,98,162,203-204,220-221,223,230,420-422,466,493,542-543,550,590-591,593-595,606-636,699,701,771,801-802,835,840-860,865,870-872,874-876,879,881-897,899,901-902,905-941,943-959,964-969,974-975,980-993,996-1024,1027-1030,1033-1040,1047,1050-1055,1058-1069,1116-1119,1124-1125,1129,1186-1187,1190-1191,1193-1194,1216,1220,1222-1223,1237,1295,1301-1303,1351-1355,1365-1371,1397,1423-1425,1430-1433,1436,1441,1445-1450,1461,1463-1495,1497-1519,1521-1547,1549-1550,1552-1553,1558-1559,1563,1566,1576,1581-1583,1585-1587,1605-1606,1641-1646,1744,1765-1766,1787,1811-1812,1814,1824-1831,1916-1918,2050-2066,2077-2078,2083-2084,2088,2093-2094,2172-2173,2684-2827
+Spookky.xcodeproj/project.pbxproj
+  s_53d4e1c28831bf::t_94b6f5cd6b62f1 23-24,53-56,91,97
+scripts/check_project_association.py
+  s_cdf46ccee2ecc1::t_fcb285d1d84111 29
+scripts/check_workspace_close.py
+  s_ad847420e7bcaa::t_4e33785c035c16 32,35,39,48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7a430b9a74ab1f01f6421073cfcb7548b575b975",
+  "prompts": {},
+  "sessions": {
+    "s_53d4e1c28831bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_ad847420e7bcaa": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a142b1-e5c5-7e13-a59a-a9eb95fb8e59",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_cdf46ccee2ecc1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
