@@ -8,11 +8,15 @@ The accepted interface now uses one 40-point row for the primary header and supp
 
 New session opens a bottom composer with an optional prompt, provider/folder chips, Local by default and worktree controls inside the location popover. First use selects Codex. Shell launches retain the agent draft and do not replace the last agent preference. The running provider TUI replaces the composer.
 
-The Release build passed 191 native checks: 77 identity/layout/startup, 24 closure, 17 history, 10 project grouping, 36 browser/artifact, three cold-preview restore and 24 large-diff checks. They cover both appearances, wide/narrow windows, selected-tab visibility, overflow focus, actual Open Terminal control activation, retained terminal geometry/input and process identity. The full Swift run passed 239 cases with three opt-in checks skipped. The affected state/switch cleanup passed another 18 targeted cases. All 30 Python tests and the repository checker passed.
+The initial Release candidate passed 191 native checks: 77 identity/layout/startup, 24 closure, 17 history, 10 project grouping, 36 browser/artifact, three cold-preview restore and 24 large-diff checks. They cover both appearances, wide/narrow windows, selected-tab visibility, overflow focus, actual Open Terminal control activation, retained terminal geometry/input and process identity. The full Swift run passed 239 cases with three opt-in checks skipped. The affected state/switch cleanup passed another 18 targeted cases. All 30 Python tests and the repository checker passed.
 
-The final local binary measured warm switching at p95 17.4 ms, recreated-terminal selection at 51.0 ms and empty readiness at 366.2 ms. See [performance](performance.md) for measurement boundaries. App crash/restore retained process identities and the visible history marker.
+An earlier layout candidate measured warm switching at p95 17.4 ms, recreated-terminal selection at 51.0 ms and empty readiness at 366.2 ms. See [performance](performance.md) for measurement boundaries. App crash/restore retained process identities and the visible history marker.
 
-The prototype main flow was checked in the in-app browser at desktop and a requested 390-pixel viewport. Native captures covered 1120 and 680 points. Direct desktop automation could list the development app but could not bind its newly registered identity. Physical keyboard/IME, the native location popover, spoken VoiceOver and extended sleep/reboot continuity remain unverified. No installed-app update or public delivery was performed.
+The prototype main flow was checked in the in-app browser at desktop and a requested 390-pixel viewport. Native captures covered 1120 and 680 points. Desktop automation verified the privately installed app, including newline entry, ASCII shell input, the native folder picker and retained drafts across Full/Split changes. The update preserved existing project, workspace, tab, draft and binding records through metadata version 5 to 6. The previous app and database were backed up before replacement.
+
+Installed testing exposed a folder-discovery deadline that hid available conversation history. Refresh now retains every history row and reports partial folder association. Resume still checks the folder and current ownership. The warning has separate space below workspace content. Header geometry now follows current window bounds before descendant layout. These fixes passed all 240 Swift cases, with three opt-in checks skipped, and 105 affected native checks: 78 identity/layout/startup, 17 history and 10 project grouping.
+
+Physical keyboard/IME, spoken VoiceOver and extended sleep/reboot continuity remain unverified. The private local installer does not establish signed public delivery.
 
 ## Conversation workspace integration, 17 October 2026
 
@@ -53,7 +57,7 @@ The [public launch report](public-launch.md) records new packaging, website, upd
 - Physical typing, composing input methods, spoken VoiceOver, and terminal-originated desktop link/file activation need hands-on verification.
 - Provider responses and explicit history resume need complete compatibility coverage.
 - Sleep/wake and reboot recovery remain pending user-controlled checks.
-- Developer ID signing, notarization, actual installation/update behavior, and supported OS versions remain release work.
+- Developer ID signing, notarization, signed installation/update behavior, and supported OS versions remain release work.
 
 Unknown activity stays unknown. A running process does not prove an agent is working, a prompt was acknowledged, or a task succeeded.
 

@@ -28,7 +28,7 @@ For S01-S12, exercise Terminal, Codex without/with a prompt, and Claude Code wit
 
 ## Interaction checks
 
-The 18 October layout/startup refinement passed 191 targeted native checks on its final local Release build. These use native fixtures and captures. Direct desktop automation could not bind the new development identity. Physical keyboard/IME and the native location-popover interaction remain separate checks.
+The initial 18 October layout/startup candidate passed 191 targeted native checks. The installed-app fixes then passed 105 affected checks, including narrow-window tab visibility and warning/content separation. Desktop automation verified newline entry, ASCII shell input, the native folder picker and retained drafts across Full/Split changes in the privately installed app. Physical keyboard/IME, spoken VoiceOver and extended continuity remain separate checks.
 
 - [x] Split headers share one 40-point row and align at the divider in wide/narrow windows and both appearances.
 - [x] Full view joins primary first and all support tabs; selecting primary keeps those tabs visible.
