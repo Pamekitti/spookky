@@ -6,10 +6,10 @@ Spookky's native controls follow the geometry and interaction rules below. The l
 
 | Component | Geometry | Behavior |
 | --- | --- | --- |
-| Sidebar | 232-point column, 58-point rail, 8-point outer selection inset | Keeps project and workspace navigation compact |
+| Sidebar | 232-point column, 12-point outer selection inset with 8-point internal row padding | Separates row content from the window edge while keeping navigation compact |
 | Project row | 28 points, 16-point icon slot, separate 28-point add action | Click toggles expansion; avatar becomes a chevron on hover/focus; add appears on hover/focus |
 | Conversation row | 32 points, one title line, optional attention indicator | Static truncation, full tooltip, contextual actions on hover/focus, separate selection and keyboard focus |
-| Tab | 40-point strip, muted inactive title, one selection/hover fill, 24-by-24-point close target | One shared bounded-width tab component uses a trailing separator; close appears on hover/focus |
+| Tab | 40-point strip, muted inactive title, one selection/hover fill, 24-by-24-point close target | Shared bounded tabs use rounded inset fills; supporting close appears on hover/focus and primary never closes |
 | Composer | 800-point maximum width, 80-point minimum prompt, 13-point card radius | Always available on landing; optional prompt; supporting Terminal retains the agent draft |
 | Files / Changes | Native file picker and a dedicated Changes view, 28-point list rows | Individual file tabs remain separate from change-review context |
 | Preview | 40-point header, 28-point utility targets, muted notices, explicit diff signs | Read-only native selection/copy and Spookky's existing limit states remain intact |
@@ -35,7 +35,7 @@ The interface specification records the final native table margins and row hiera
 
 ## Chrome and syntax follow-up
 
-The native interface uses the fixed header, centered rail, declared shortcuts, and native code colors defined in the interface specification. Syntax roles reference the pinned CodeMirror highlighting mapping and Ember terminal colors. Native light-theme values are tuned independently for contrast. HighlighterSwift supplies language definitions.
+The native interface uses the fixed header, native window buttons, declared shortcuts, and native code colors defined in the interface specification. Syntax roles reference the pinned CodeMirror highlighting mapping and Ember terminal colors. Native light-theme values are tuned independently for contrast. HighlighterSwift supplies language definitions.
 
 The range adapter and its upstream dependency notices are recorded in [dependency provenance](../THIRD_PARTY.md). Shared AppKit controls implement Spookky's sidebar and tab strip.
 

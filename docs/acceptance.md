@@ -17,7 +17,7 @@ The native app must satisfy these requirements before release. [Current status](
 | S09 | New worktree from local branch | Source local ref distinguished from remote tracking ref |
 | S10 | New worktree from origin/dev | Fetch or explicit cached choice; new working branch; optional prompt |
 | S11 | Existing feature branch | Reuse its checkout or create one without bypassing branch protection |
-| S12 | Existing bound workspace, Cmd+T | Browser supporting target opens; primary CLI remains unchanged |
+| S12 | Existing bound workspace, Cmd+T | New tab supporting page opens; primary CLI remains unchanged |
 | S13 | Saved local CLI conversation | Same provider's explicit resume in correct folder; no live-process claim |
 | S14 | Other provider's session/files | New provider conversation with user-supplied context; shared files only |
 | S15 | Compatible cloud coding session | Supported CLI handoff in clean dedicated checkout; copy/continuation labeled accurately |
@@ -25,6 +25,20 @@ The native app must satisfy these requirements before release. [Current status](
 | S17 | Mobile/web controlling local CLI | Same surviving local process, no duplicate launch |
 
 For S01-S12, exercise Terminal, Codex without/with a prompt, and Claude Code without/with a prompt where repository state permits. An empty prompt is always valid. The agent choice never determines whether a folder needs Git isolation.
+
+## Version 8 persistent thread checks
+
+The current Release passed 1,899 native assertions across workflow, browser/artifact, cold restore and file/diff fixtures. Nine hands-on accessibility checks covered picker typing, file-tab reuse, app zoom and the retained draft. The Swift run passed 294 of 297 cases, with three opt-in cases skipped. All 30 Python tests passed. See [current evidence](evidence/persistent-threads/README.md) for screenshots, binary identifiers and measurement boundaries.
+
+- [x] Primary has no close target or close-thread menu action. Cmd+W closes its window and preserves execution.
+- [x] Supporting closure selects the correct neighbor or the same primary. Inactive closure preserves focus.
+- [x] New tab, native file search and independent Changes preserve the primary draft and process.
+- [x] Pinned, Projects, Recents and Archived use shared identities. Project assignments survive refresh.
+- [x] Version 7 to 8 migration backs up and preserves aliases, drafts, launches, bindings and supporting descriptors.
+- [x] Five initial project rows, ten-row expansion and collapse reset remain lazy and bounded.
+- [x] Tabs receive pointer events across their full bounds in Split/Full and both appearances at 80%, 100%, 150% and 200%.
+
+The following version 7 results are historical. Their primary-view closure contract is superseded by persistent threads.
 
 ## Version 7 workflow checks
 
@@ -51,18 +65,18 @@ Earlier evidence: the initial 18 October layout/startup candidate passed 191 tar
 - [x] The selected supporting tab remains visible after narrow-window layout. Overflow selection moves focus into that view; its close handler closes the support rather than the workspace.
 - [x] Returning to Split restores the primary left, last support right and the same divider width.
 - [x] Browser/artifact form state, terminal input and primary process identity survive layout and selection changes.
-- [ ] Supporting + offers Browser, Files, Changes, Artifact and Terminal; new agents use New session/project +/Cmd+N.
-- [x] Support closure chooses nearest left, then next, then primary. Primary closure hides the view and retains history/processes.
+- [x] Supporting + opens New tab with address/search, Files, Changes, Open artifact and Terminal; new agents use New chat/project +/Cmd+N.
+- [x] Support closure chooses nearest left, then next, then primary. Primary has no close action; Cmd+W closes the window and retains history/processes.
 - [x] Startup has a bottom composer, maximum width 800 points, 24-point padding, optional prompt and provider/folder chips inside.
 - [x] First use chooses Codex; new drafts remember the last agent independently of shells; existing drafts keep their provider and text.
 - [ ] Local defaults in the folder popover; worktree/source/branch controls remain there.
 - [ ] Enter adds a newline; Cmd+Return in the composer launches. Running CLI content replaces the composer.
 
 - [ ] Cmd+N, Cmd+T, Cmd+W, Cmd+K, Cmd+Enter, and mouse equivalents follow the current contract.
-- [x] Cmd+N selects the retained global landing draft; Cmd+T opens a browser target without launching a CLI. Direct shell access remains available.
+- [x] Cmd+N selects the retained global landing draft; Cmd+T opens New tab without launching a CLI. Direct shell access remains available.
 - [x] Open Terminal below the startup composer starts a shell and retains the agent draft and last agent preference.
 - [x] Project + selects its retained draft. Conversation contextual actions target the correct view.
-- [ ] Closing an inactive workspace preserves current selection. Closing the final primary view retains metadata and processes and selects landing. Cmd+W on landing closes the window.
+- [x] Closing an inactive supporting tab preserves selection and focus. Closing the last support selects the same conversation. Primary and landing Cmd+W close the window.
 - [x] Stop is separate from view closure. Stop confirmation preserves ownership verification. Cancel retains the primary and its input.
 
 The following historical keyboard records predate the current landing contract. They do not verify the current Cmd+T or close/Stop behavior.

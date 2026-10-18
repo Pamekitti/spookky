@@ -58,7 +58,7 @@ V1 is a local macOS desktop application for one OS user. Apple Silicon is the in
 | Resume | Start a CLI with provider-owned saved conversation history. |
 | Reattach | Connect a view to the same surviving process. |
 
-Use New session in the UI. Existing workspace type and persistence names remain internal implementation terms. Do not revert to a task model that requires a worktree, task title, or primary agent.
+Use New chat in the UI. Existing workspace type and persistence names remain internal implementation terms. Do not revert to a task model that requires a worktree, task title, or primary agent.
 
 ## Included in v1
 
@@ -102,7 +102,7 @@ Testing, staging, commits, pushes, and PRs remain available through the user's C
 3. Conversations that share a checkout share files. Worktrees isolate edits, not ports, credentials, databases, or services.
 4. A shell's directory change does not repoint the workspace. An explicit action can open that directory as another workspace.
 5. Conversation identity is provider plus session ID. Several conversation workspaces may share one checkout. Drafts and standalone shells have optional conversation identity.
-6. Closing views retains metadata and processes. The final session view returns to the landing composer. Stop primary terminal is separate and confirmed. Shared provider execution may continue. Worktree deletion is separate.
+6. Threads are persistent navigation destinations. Supporting views close independently. Cmd+W on the primary closes the window and retains thread metadata and processes. Stop primary terminal is separate and confirmed. Shared provider execution may continue. Worktree deletion is separate.
 7. Switching views never starts an extra agent, drops a draft, or resends a prompt.
 8. Capability-based continuation preserves exact IDs and original folders. Native resume does not establish exclusive Claude ownership. Remote control and cloud copies are described honestly.
 
@@ -111,3 +111,5 @@ Testing, staging, commits, pushes, and PRs remain available through the user's C
 A user can open a shell immediately, create an isolated agent workspace when needed, switch among several sessions without losing input, and inspect changes without leaving the app. The native implementation must prove responsiveness and memory behavior on a 16 GB Mac.
 
 The HTML prototype establishes appearance and interaction examples. It does not prove native performance or provider compatibility. See [performance](performance.md) and [acceptance](acceptance.md).
+
+The current native thread and supporting-tool behavior is specified in [persistent threads](persistent-threads.md).
