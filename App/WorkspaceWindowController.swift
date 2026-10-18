@@ -57,6 +57,7 @@ import SpookkyGit
     private var tabsWidth: NSLayoutConstraint!
     private var supportHeaderLeading: NSLayoutConstraint!
     private var codeWidth: NSLayoutConstraint!
+    private var workspaceBottom: NSLayoutConstraint!
     private var overflowWidth: NSLayoutConstraint!
     private var updatingHeader = false
     private weak var projectAddButton: ActionButton?
@@ -483,6 +484,7 @@ import SpookkyGit
         tabsWidth = tabScroll.widthAnchor.constraint(equalToConstant: 220)
         supportHeaderLeading = workspaceLayout.headerView.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: SpookkyStyle.sidebarWidth + 220)
         codeWidth = filesToggle.widthAnchor.constraint(equalToConstant: 64)
+        workspaceBottom = workspaceBody.bottomAnchor.constraint(equalTo: content.bottomAnchor)
         overflowWidth = tabOverflow.widthAnchor.constraint(equalToConstant: 0)
         NSLayoutConstraint.activate([
             header.leadingAnchor.constraint(equalTo: content.leadingAnchor), header.trailingAnchor.constraint(equalTo: content.trailingAnchor),
@@ -504,12 +506,12 @@ import SpookkyGit
             tabOverflow.trailingAnchor.constraint(equalTo: filesToggle.leadingAnchor, constant: -4), overflowWidth,
             tabOverflow.topAnchor.constraint(equalTo: content.topAnchor, constant: 6), tabOverflow.heightAnchor.constraint(equalToConstant: 28),
             workspaceBody.leadingAnchor.constraint(equalTo: railScroll.trailingAnchor), workspaceBody.trailingAnchor.constraint(equalTo: content.trailingAnchor),
-            workspaceBody.topAnchor.constraint(equalTo: tabScroll.bottomAnchor), workspaceBody.bottomAnchor.constraint(equalTo: content.bottomAnchor),
-            warning.leadingAnchor.constraint(equalTo: body.leadingAnchor, constant: 12),
-            warning.bottomAnchor.constraint(equalTo: body.bottomAnchor, constant: -8),
+            workspaceBody.topAnchor.constraint(equalTo: tabScroll.bottomAnchor), workspaceBottom,
+            warning.leadingAnchor.constraint(equalTo: workspaceBody.leadingAnchor, constant: 12),
+            warning.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -8),
             warning.trailingAnchor.constraint(lessThanOrEqualTo: cancelLocation.leadingAnchor, constant: -8),
-            cancelLocation.trailingAnchor.constraint(equalTo: body.trailingAnchor, constant: -12),
-            cancelLocation.bottomAnchor.constraint(equalTo: body.bottomAnchor, constant: -4)
+            cancelLocation.trailingAnchor.constraint(equalTo: workspaceBody.trailingAnchor, constant: -12),
+            cancelLocation.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -4)
         ])
     }
     private func updateHeaderGeometry() {
@@ -737,6 +739,7 @@ import SpookkyGit
         warning.stringValue = store.saveError ?? identityNotice ?? historyNotice ?? activeLocation.map { $0.request.kind.rawValue.capitalized + " · " + $0.request.destination } ?? locationNotice ?? ""
         warning.lineBreakMode = .byTruncatingTail; warning.toolTip = warning.stringValue
         warning.isHidden = warning.stringValue.isEmpty
+        workspaceBottom.constant = warning.isHidden && cancelLocation.isHidden ? 0 : -28
         warning.textColor = activeLocation != nil && store.saveError == nil ? SpookkyPalette.secondary : SpookkyPalette.warning
         let error = store.saveError ?? state.selectedTab?.failure?.message
         if error != announcedError {
@@ -1595,6 +1598,14 @@ import SpookkyGit
             if let returningWorkspace { $0.selectWorkspace(returningWorkspace) }
         }
         if let renderTask { await renderTask.value }
+        historyNotice = "Fixture history notice"
+        render(); window.contentView?.layoutSubtreeIfNeeded()
+        if let content = window.contentView {
+            let notice = warning.convert(warning.bounds, to: content)
+            let workspace = workspaceLayout.convert(workspaceLayout.bounds, to: content)
+            checks["notice_does_not_cover_workspace_content"] = !warning.isHidden && !notice.intersects(workspace)
+        }
+        historyNotice = nil; render()
         try PrivateFiles.write(checks, to: root.appendingPathComponent("identity-checks.json"))
     }
     private func checkSidebar(root: URL) async throws {
