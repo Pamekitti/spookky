@@ -52,6 +52,7 @@ import SpookkyFiles
         view.window?.makeFirstResponder(search)
     }
     func popoverDidClose(_ notification: Notification) { task?.cancel(); popover.contentViewController = nil; onDismiss?() }
+    func popoverDidShow(_ notification: Notification) { view.window?.makeFirstResponder(search) }
     func controlTextDidChange(_ obj: Notification) { refresh() }
     private func refresh() {
         task?.cancel(); let query = search.stringValue, folder = directory

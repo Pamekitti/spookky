@@ -1766,6 +1766,8 @@ import SpookkyGit
         let nativeAlert = ChromeAlert()
         let standardControls: [NSControl] = [ChromeTextField(), ChromeSearchField(), ChromePopUpButton(), ChromeButton(), nativeAlert.addButton(withTitle: "Done")]
         checks["shared_native_control_defaults_suppress_focus_rings"] = standardControls.allSatisfy { $0.focusRingType == .none && $0.cell?.focusRingType == NSFocusRingType.none }
+        checks["custom_search_cells_remain_editable"] = historySearch.isEditable && historySearch.isSelectable &&
+            standardControls.compactMap { $0 as? NSSearchField }.allSatisfy { $0.isEditable && $0.isSelectable }
         interactionDetails["native_control_focus_types"] = controls.map { String(describing: type(of: $0)) + ":" + String($0.focusRingType.rawValue) + ":" + String(describing: $0.cell?.focusRingType) }.joined(separator: ", ")
         let action = ActionButton("Keyboard action", action: {})
         let intrinsicSize = action.intrinsicContentSize

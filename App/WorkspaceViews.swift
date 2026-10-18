@@ -167,6 +167,7 @@ final class ChromeTextField: NSTextField {
 final class ChromeSearchField: NSSearchField {
     override init(frame: NSRect = .zero) {
         super.init(frame: frame); cell = ChromeSearchCell(textCell: "")
+        isEditable = true; isSelectable = true
         isBezeled = false; drawsBackground = false; cell?.lineBreakMode = .byTruncatingTail
         (cell as? NSSearchFieldCell)?.searchButtonCell?.imageScaling = .scaleProportionallyUpOrDown
         (cell as? NSSearchFieldCell)?.cancelButtonCell?.imageScaling = .scaleProportionallyUpOrDown
