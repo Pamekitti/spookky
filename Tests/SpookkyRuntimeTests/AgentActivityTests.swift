@@ -95,7 +95,7 @@ final class AgentActivityTests: XCTestCase {
         XCTAssertTrue(AgentIntegration.hooksDisabled(provider: .claude, arguments: ["--bare"]))
         XCTAssertFalse(AgentIntegration.hooksDisabled(provider: .codex, arguments: ["--", "--disable", "hooks"]))
     }
-    func testWorkspaceRollupAndNewInvocationKeepUnreadWork() throws {
+    func testPrimaryActivityIgnoresSupportingTerminalsAndNewInvocationKeepsUnreadWork() throws {
         var state = WorkspaceState()
         state.newWorkspace(directory: "/tmp")
         var ids: [UUID] = []
@@ -110,9 +110,9 @@ final class AgentActivityTests: XCTestCase {
             XCTAssertEqual(state.recordAgentEvent(AgentEvent(bindingID: id, invocationID: UUID(), secret: secret, provider: .codex, kind: kind)), id)
             ids.append(id)
         }
-        XCTAssertEqual(state.selected?.activityState, .needsInput)
-        XCTAssertTrue(state.selected?.needsAttention == true)
-        state.acknowledgeAgent(ids[1]); XCTAssertEqual(state.selected?.activityState, .needsInput)
+        XCTAssertEqual(state.selected?.activityState, .working)
+        XCTAssertFalse(state.selected?.needsAttention == true)
+        state.acknowledgeAgent(ids[1]); XCTAssertEqual(state.selected?.activityState, .working)
         state.resetAgent(ids[1]); XCTAssertEqual(state.selected?.activityState, .working)
         let next = AgentEvent(bindingID: ids[2], invocationID: UUID(), secret: secret, provider: .claude, kind: .attached)
         XCTAssertEqual(state.recordAgentEvent(next), ids[2])
@@ -209,8 +209,8 @@ final class AgentActivityTests: XCTestCase {
         }
         let database = try WorkspaceDatabase(path: path)
         let restored = try await database.load()
-        XCTAssertEqual(restored?.version, 5); XCTAssertEqual(restored?.workspaces, old.workspaces)
+        XCTAssertEqual(restored?.version, 6); XCTAssertEqual(restored?.workspaces.flatMap(\.tabs), old.workspaces.flatMap(\.tabs))
         XCTAssertNil(restored?.selectedTab?.activity)
-        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: root.path).contains { $0.contains("pre-v5") })
+        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: root.path).contains { $0.contains("pre-v6") })
     }
 }
