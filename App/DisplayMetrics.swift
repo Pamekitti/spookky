@@ -15,8 +15,7 @@ import SpookkyCore
     }
     static func register(_ constraint: NSLayoutConstraint, alreadyScaled: Bool) {
         let base = constraint.constant / (alreadyScaled ? preferences.zoom : 1)
-        constraints.setObject(NSNumber(value: Double(base)), forKey: constraint)
-        constraint.constant = points(base)
+        registerBase(base, for: constraint)
     }
     static func apply(_ next: DisplayPreferences, to root: NSView?) {
         let ratio = next.zoom / preferences.zoom

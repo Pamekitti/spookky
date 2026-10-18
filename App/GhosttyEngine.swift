@@ -142,7 +142,7 @@ final class GhosttyEngine {
     confirm-close-surface = false
     scrollback-limit = 10485760
     """
-    @MainActor func setTheme(dark: Bool, views: [TerminalHostView]) async throws {
+    @MainActor func setTheme(dark: Bool, views: [TerminalHostView]) {
         ghostty_app_set_color_scheme(app, dark ? GHOSTTY_COLOR_SCHEME_DARK : GHOSTTY_COLOR_SCHEME_LIGHT)
         for view in views { if let surface = view.surface { ghostty_surface_set_color_scheme(surface, dark ? GHOSTTY_COLOR_SCHEME_DARK : GHOSTTY_COLOR_SCHEME_LIGHT) } }
     }

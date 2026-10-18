@@ -14,6 +14,7 @@ import GhosttyKit
     private let sourceFile: String?
     private let cache: URL?
     private var restoredCache = false
+    private var cachedProfile: GhosttyAppearanceProfile?
     init(file: String? = nil, cache: URL? = nil) {
         sourceFile = file; self.cache = cache
         let home = FileManager.default.homeDirectoryForCurrentUser.path
@@ -45,18 +46,25 @@ import GhosttyKit
                     guard let cacheURL, let size = try? cacheURL.resourceValues(forKeys: [.fileSizeKey]).fileSize, size <= 524288,
                           let data = try? Data(contentsOf: cacheURL) else { return nil }
                     return try? JSONDecoder().decode(GhosttyAppearanceProfile.self, from: data)
-                }).value { _ = await watch(saved.dependencies); onAppearance?(saved) }
+                }).value {
+                    cachedProfile = saved
+                    _ = await watch(saved.dependencies); onAppearance?(saved)
+                }
             }
             while refreshPending && !Task.isCancelled {
                 refreshPending = false
                 do {
-                    let file = sourceFile, cacheURL = cache
-                    let next = try await Task.detached(priority: .utility) {
+                    let file = sourceFile, cacheURL = cache, saved = cachedProfile
+                    let (next, cacheUpdated) = try await Task.detached(priority: .utility) {
                         let result = try Self.readProfile(file: file)
-                        if let cacheURL { try? PrivateFiles.write(result, to: cacheURL) }
-                        return result
+                        let cacheUpdated: Bool
+                        if let cacheURL, result != saved {
+                            cacheUpdated = (try? PrivateFiles.write(result, to: cacheURL)) != nil
+                        } else { cacheUpdated = false }
+                        return (result, cacheUpdated)
                     }.value
                     guard !Task.isCancelled else { return }
+                    if cacheUpdated { cachedProfile = next }
                     if await watch(next.dependencies) { refreshPending = true }
                     onAppearance?(next)
                 } catch { onError?(error.localizedDescription) }

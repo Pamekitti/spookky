@@ -10,7 +10,7 @@ import SpookkyRuntime
     private var desiredProfile: GhosttyAppearanceProfile?
     private var desiredAppearance: GhosttyAppearance { (darkTheme == false ? desiredProfile?.light : desiredProfile?.dark) ?? GhosttyAppearance(export: "") }
     private var acceptedAppearance: GhosttyAppearance?
-    private var acceptedDisplay: DisplayPreferences?
+    private var acceptedFontSize: Double?
     var onAppearanceStatus: ((String) -> Void)?
     func startFollowingAppearance() {
         appearanceFollower.onAppearance = { [weak self] appearance in self?.desiredProfile = appearance; self?.refreshAppearance() }
@@ -27,10 +27,11 @@ import SpookkyRuntime
             while appearancePending && !Task.isCancelled {
                 appearancePending = false
                 let candidate = desiredAppearance, display = DisplayMetrics.preferences
+                let fontSize = display.terminalFontSize(base: candidate.fontSize)
                 do {
-                    if acceptedAppearance != candidate || acceptedDisplay != display {
+                    if acceptedAppearance != candidate || acceptedFontSize != fontSize {
                         try await engine.applyAppearance(candidate, preferences: display, views: { [weak self] in Array(self?.views.values ?? [:].values) })
-                        acceptedAppearance = candidate; acceptedDisplay = display
+                        acceptedAppearance = candidate; acceptedFontSize = fontSize
                     }
                     onAppearanceStatus?("Following Ghostty appearance. Font adjustment applies only to Spookky.")
                 } catch {
@@ -201,9 +202,6 @@ import SpookkyRuntime
     func setTheme(dark: Bool) {
         guard darkTheme != dark else { return }; darkTheme = dark
         if desiredProfile != nil { refreshAppearance() }
-        Task {
-            do { try await engine.setTheme(dark: dark, views: Array(views.values)) }
-            catch { darkTheme = nil }
-        }
+        engine.setTheme(dark: dark, views: Array(views.values))
     }
 }
