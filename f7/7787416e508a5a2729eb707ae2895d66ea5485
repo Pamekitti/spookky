@@ -1,0 +1,31 @@
+App/WorkspaceWindowController.swift
+  s_cdf46ccee2ecc1::t_9bb61402e69a17 1595-1606
+Sources/SpookkyRuntime/TerminalEnvironment.swift
+  s_cdf46ccee2ecc1::t_f161899b106caf 1-15
+docs/architecture.md
+  s_53d4e1c28831bf::t_26421ecbd6022b 138-139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f77787416e508a5a2729eb707ae2895d66ea5485",
+  "prompts": {},
+  "sessions": {
+    "s_53d4e1c28831bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_cdf46ccee2ecc1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
