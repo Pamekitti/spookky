@@ -36,7 +36,7 @@ import SpookkyWorkspace
         panel.isReleasedWhenClosed = false; panel.delegate = self
         let stack = NSStackView(); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12
         stack.frame = NSRect(x: 0, y: 0, width: 400, height: draft.mode == .clone ? 250 : 200)
-        stack.widthAnchor.constraint(equalToConstant: 400).isActive = true
+        stack.widthAnchor.constraint(equalToConstant: 400).displayScaled().isActive = true
         alert.accessoryView = stack
         if draft.mode == .clone {
             stack.addArrangedSubview(SpookkyStyle.fieldGroup("Repository URL", control: url))
@@ -44,20 +44,20 @@ import SpookkyWorkspace
             url.setAccessibilityLabel("Repository URL")
         }
         stack.addArrangedSubview(SpookkyStyle.fieldGroup("Folder name", control: name))
-        fieldError.font = .systemFont(ofSize: 11); fieldError.textColor = SpookkyPalette.warning; fieldError.isHidden = true
+        fieldError.font = .systemFont(ofSize: SpookkyStyle.points(11)); fieldError.textColor = SpookkyPalette.warning; fieldError.isHidden = true
         stack.addArrangedSubview(fieldError)
         name.stringValue = draft.name; name.placeholderString = "Project name"; name.setAccessibilityLabel("Project folder name")
         stack.addArrangedSubview(destination); stack.addArrangedSubview(path)
         if draft.mode == .create { stack.addArrangedSubview(git) }
         git.state = draft.initializeGit ? .on : .off; git.target = self; git.action = #selector(changed)
-        status.textColor = SpookkyPalette.warning; status.font = .systemFont(ofSize: 12); stack.addArrangedSubview(status)
+        status.textColor = SpookkyPalette.warning; status.font = .systemFont(ofSize: SpookkyStyle.points(12)); stack.addArrangedSubview(status)
         for field in [name] + (draft.mode == .clone ? [url] : []) {
             field.delegate = self; SpookkyStyle.configure(field, size: 13); field.bezelStyle = .roundedBezel
             field.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         }
         destination.alignment = .left; destination.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         destination.emphasis = .secondary
-        git.font = .systemFont(ofSize: 12)
+        git.font = .systemFont(ofSize: SpookkyStyle.points(12))
         path.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         status.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         fieldError.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
@@ -82,7 +82,7 @@ import SpookkyWorkspace
         destination.title = "Destination · " + SpookkyStyle.abbreviatedPath(draft.parentPath)
         destination.toolTip = draft.parentPath; destination.setAccessibilityLabel("Choose destination · " + draft.parentPath)
         path.stringValue = URL(fileURLWithPath: draft.parentPath).appendingPathComponent(draft.name).path
-        path.textColor = SpookkyPalette.secondary; path.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+        path.textColor = SpookkyPalette.secondary; path.font = .monospacedSystemFont(ofSize: SpookkyStyle.points(11), weight: .regular)
         path.toolTip = path.stringValue
     }
     @objc private func changed() {

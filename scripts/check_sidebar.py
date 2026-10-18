@@ -14,21 +14,26 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--binary", type=Path, default=NATIVE_BINARY)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--display", action="store_true")
     args = parser.parse_args()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     digest = hashlib.sha256(args.binary.read_bytes()).hexdigest()
-    with native_fixture(["--workspace-benchmark-count", "0", "--workspace-benchmark-sidebar", "--workspace-benchmark-front"],
+    with native_fixture(["--workspace-benchmark-count", "0", "--workspace-benchmark-sidebar", "--workspace-benchmark-front"] + (["--workspace-benchmark-display"] if args.display else []),
                         prefix="spookky-m1-sidebar-check-", binary=args.binary, workspace=True) as fixture:
         try:
-            fixture.wait_ready(45, "Native sidebar check failed")
+            fixture.wait_ready(100, "Native sidebar check failed")
         except Exception:
             evidence = Path(tempfile.mkdtemp(prefix=args.output.stem + "-failure-", dir=args.output.parent))
-            for name in ["app.log", "sidebar-checks.json", "sidebar-resources.json", "sidebar-interaction-diagnostics.json", "sidebar-dark.png", "sidebar-light.png"]:
+            for name in ["app.log", "sidebar-checks.json", "sidebar-resources.json", "sidebar-interaction-diagnostics.json", "sidebar-dark.png", "sidebar-light.png", "display-hit-details.json"]:
                 source = fixture.root / name
                 if source.exists():
                     shutil.copy2(source, evidence / name)
+            for source in fixture.root.glob("display-*.png"):
+                shutil.copy2(source, evidence / source.name)
             print("Sidebar failure evidence: " + str(evidence), flush=True)
             raise
+        for source in fixture.root.glob("display-*.png"):
+            shutil.copy2(source, args.output.parent / source.name)
         checks = json.loads((fixture.root / "sidebar-checks.json").read_text())
         resources = json.loads((fixture.root / "sidebar-resources.json").read_text())
         processes = subprocess.check_output(["ps", "-axo", "pid=,ppid=,rss=,command="], text=True).splitlines()

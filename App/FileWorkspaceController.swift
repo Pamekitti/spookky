@@ -22,7 +22,7 @@ import SpookkySyntax
     private let fileScroll = NSScrollView(), diffScroll = NSScrollView()
     private let search = ChromeSearchField()
     private let comparison = ChromePopUpButton(), reference = ChromePopUpButton(), stage = ChromePopUpButton()
-    private let scope = NSTextField(labelWithString: ""), status = ChromeTextField(wrappingLabelWithString: ""), title = NSTextField(labelWithString: "")
+    private let scope = SpookkyStyle.label( ""), status = ChromeTextField(wrappingLabelWithString: ""), title = SpookkyStyle.label( "")
     private let previewNotice = ChromeTextField(wrappingLabelWithString: "")
     private let informationButton = ActionButton("", symbol: "info.circle", help: "Preview information", action: {})
     private let informationPopover = NSPopover()
@@ -33,7 +33,7 @@ import SpookkySyntax
     private let layoutButton = ActionButton("", symbol: "rectangle.split.2x1", help: "Split diff", action: {})
     private let unifiedButton = ActionButton("", symbol: "rectangle.grid.1x2", help: "Unified diff", action: {})
     private let previewOverflow = ActionButton("", symbol: "ellipsis", help: "More preview actions", action: {})
-    private let oldCaption = NSTextField(labelWithString: ""), newCaption = NSTextField(labelWithString: "")
+    private let oldCaption = SpookkyStyle.label( ""), newCaption = SpookkyStyle.label( "")
     private let comparisonCaptions = NSStackView()
     private var workspaceID: UUID?, root = "", identity = "", state = FileViewState()
     private var directories: [String: [FileEntry]] = [:]
@@ -105,14 +105,15 @@ import SpookkySyntax
         comparison.setAccessibilityLabel("Comparison scope")
         reference.target = self; reference.action = #selector(changeReference); reference.setAccessibilityLabel("Comparison branch")
         search.placeholderString = "Search files"; search.delegate = self; search.setAccessibilityLabel("Search workspace files")
-        scope.font = .systemFont(ofSize: 11); scope.textColor = SpookkyPalette.metadata; scope.lineBreakMode = .byTruncatingMiddle
-        status.font = .systemFont(ofSize: 11); status.textColor = SpookkyPalette.secondary; status.maximumNumberOfLines = 2
+        scope.font = .systemFont(ofSize: SpookkyStyle.points(11)); scope.textColor = SpookkyPalette.metadata; scope.lineBreakMode = .byTruncatingMiddle
+        status.font = .systemFont(ofSize: SpookkyStyle.points(11)); status.textColor = SpookkyPalette.secondary; status.maximumNumberOfLines = 2
         status.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         let scopeRow = NSStackView(views: [scope, NSView(), status]); scopeRow.spacing = 8
-        scopeRow.heightAnchor.constraint(greaterThanOrEqualToConstant: 24).isActive = true
+        scopeRow.heightAnchor.constraint(greaterThanOrEqualToConstant: 24).displayScaled().isActive = true
         let refreshButton = ActionButton("", symbol: "arrow.clockwise", help: "Refresh files and changes") { [weak self] in self?.refresh() }
         let tools = NSStackView(views: [search, refreshButton]); tools.spacing = 4
-        refreshButton.widthAnchor.constraint(equalToConstant: 28).isActive = true
+        refreshButton.widthAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true
+        search.setContentHuggingPriority(.defaultLow, for: .horizontal)
         search.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         fileTable.style = .plain; fileTable.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
         fileTable.headerView = nil; fileTable.rowHeight = SpookkyStyle.controlHeight; fileTable.intercellSpacing = .zero
@@ -143,11 +144,11 @@ import SpookkySyntax
         sideStack.orientation = .vertical; sideStack.alignment = .centerX; sideStack.spacing = 4
         sideStack.edgeInsets = NSEdgeInsets(top: 8, left: 0, bottom: 0, right: 0)
         pin(sideStack, to: sidebar)
-        for view in [scopeRow, comparison, reference, tools] { view.widthAnchor.constraint(equalTo: sideStack.widthAnchor, constant: -16).isActive = true }
+        for view in [scopeRow, comparison, reference, tools] { view.widthAnchor.constraint(equalTo: sideStack.widthAnchor, constant: -16).displayScaled().isActive = true }
         fileScroll.widthAnchor.constraint(equalTo: sideStack.widthAnchor).isActive = true
-        fileScroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
+        fileScroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).displayScaled().isActive = true
         fileScroll.setContentHuggingPriority(.defaultLow, for: .vertical)
-        title.font = .systemFont(ofSize: 12, weight: .medium); title.lineBreakMode = .byTruncatingMiddle
+        title.font = .systemFont(ofSize: SpookkyStyle.points(12), weight: .medium); title.lineBreakMode = .byTruncatingMiddle
         title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         layoutButton.handler = { [weak self] in self?.edit { $0.splitDiff = true }; self?.renderDiff() }
         unifiedButton.handler = { [weak self] in self?.edit { $0.splitDiff = false }; self?.renderDiff() }
@@ -175,7 +176,7 @@ import SpookkySyntax
         }
         previewOverflow.isHidden = true
         diffTable.onMenu = { _ in previewMenu() }
-        for button in [informationButton, contextButton, unifiedButton, layoutButton, open, reveal, previewOverflow] { button.widthAnchor.constraint(equalToConstant: 28).isActive = true }
+        for button in [informationButton, contextButton, unifiedButton, layoutButton, open, reveal, previewOverflow] { button.widthAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true }
         let inspection = NSStackView(views: [informationButton, contextButton]); inspection.spacing = 4; inspectionControls = inspection
         let layouts = NSStackView(views: [unifiedButton, layoutButton]); layouts.spacing = 0; layoutControls = layouts
         let external = NSStackView(views: [open, reveal, previewOverflow]); external.spacing = 4
@@ -183,13 +184,13 @@ import SpookkySyntax
         comparisonCaptions.addArrangedSubview(oldCaption); comparisonCaptions.addArrangedSubview(newCaption)
         comparisonCaptions.distribution = .fillEqually; comparisonCaptions.spacing = 8
         comparisonCaptions.edgeInsets = NSEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
-        for caption in [oldCaption, newCaption] { caption.font = .systemFont(ofSize: 11); caption.textColor = SpookkyPalette.metadata; caption.lineBreakMode = .byTruncatingMiddle }
-        comparisonCaptions.heightAnchor.constraint(equalToConstant: 24).isActive = true
+        for caption in [oldCaption, newCaption] { caption.font = .systemFont(ofSize: SpookkyStyle.points(11)); caption.textColor = SpookkyPalette.metadata; caption.lineBreakMode = .byTruncatingMiddle }
+        comparisonCaptions.heightAnchor.constraint(equalToConstant: 24).displayScaled().isActive = true
         informationButton.isHidden = true
         informationButton.handler = { [weak self] in
             guard let self else { return }
             let text = ChromeTextField(wrappingLabelWithString: previewInformation)
-            text.font = .systemFont(ofSize: 12)
+            text.font = .systemFont(ofSize: SpookkyStyle.points(12))
             let height = max(32, ceil((previewInformation as NSString).boundingRect(with: NSSize(width: 256, height: 600), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: text.font!]).height) + 8)
             text.frame = NSRect(x: 12, y: 12, width: 256, height: height)
             let controller = NSViewController(); controller.view = NSView(frame: NSRect(x: 0, y: 0, width: 280, height: height + 24)); controller.view.addSubview(text)
@@ -198,13 +199,13 @@ import SpookkySyntax
             informationPopover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
         }
         title.textColor = SpookkyPalette.text
-        header.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).isActive = true
+        header.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).displayScaled(alreadyScaled: true).isActive = true
         contextButton.handler = { [weak self] in guard let self else { return }; context = context == 3 ? 20_000 : 3; openSelection() }
         stage.addItems(withTitles: ["Working file", "Base", "Ours", "Theirs"]); stage.target = self; stage.action = #selector(changeStage)
         stage.setAccessibilityLabel("Conflict content")
-        previewNotice.font = .systemFont(ofSize: 11); previewNotice.textColor = SpookkyPalette.secondary
+        previewNotice.font = .systemFont(ofSize: SpookkyStyle.points(11)); previewNotice.textColor = SpookkyPalette.secondary
         diffTable.style = .plain; diffTable.columnAutoresizingStyle = .noColumnAutoresizing
-        diffTable.headerView = nil; diffTable.rowHeight = 18; diffTable.intercellSpacing = .zero; diffTable.allowsMultipleSelection = true
+        diffTable.headerView = nil; diffTable.rowHeight = SpookkyStyle.points(18); diffTable.intercellSpacing = .zero; diffTable.allowsMultipleSelection = true
         diffTable.dataSource = self; diffTable.delegate = self; diffTable.setAccessibilityLabel("File content and diff")
         diffTable.copyText = { [weak self] in
             guard let self else { return "" }
@@ -217,11 +218,11 @@ import SpookkySyntax
         diffScroll.documentView = diffTable; diffScroll.hasVerticalScroller = true; diffScroll.hasHorizontalScroller = true; diffScroll.autohidesScrollers = true
         let stack = NSStackView(views: [header, comparisonCaptions, stage, previewNotice, diffScroll]); stack.orientation = .vertical; stack.alignment = .centerX; stack.spacing = 4
         stack.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0); pin(stack, to: preview)
-        [header, previewNotice].forEach { $0.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -16).isActive = true }
-        stage.widthAnchor.constraint(lessThanOrEqualToConstant: 200).isActive = true
+        [header, previewNotice].forEach { $0.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -16).displayScaled().isActive = true }
+        stage.widthAnchor.constraint(lessThanOrEqualToConstant: 200).displayScaled().isActive = true
         comparisonCaptions.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         diffScroll.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
-        diffScroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
+        diffScroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).displayScaled().isActive = true
         diffScroll.setContentHuggingPriority(.defaultLow, for: .vertical)
     }
     private func visibleNotice(_ notice: String?) -> String? {
@@ -261,6 +262,16 @@ import SpookkySyntax
         layout.window?.makeFirstResponder(search)
     }
     func toggle() { edit { $0.sidebar.toggle() } }
+    private var diffDimensions = (characters: 0, lineNumber: 0)
+    func displayChanged(ratio: Double) {
+        let selected = diffTable.selectedRowIndexes
+        let origin = diffScroll.contentView.bounds.origin
+        fileTable.rowHeight = SpookkyStyle.controlHeight; diffTable.rowHeight = SpookkyStyle.points(18)
+        updateDiffMetrics(); sizeDiffColumns(); diffTable.reloadData(); restyleVisibleRows()
+        diffTable.selectRowIndexes(selected, byExtendingSelection: false)
+        diffScroll.contentView.scroll(to: NSPoint(x: origin.x * ratio, y: origin.y * ratio))
+        fileTable.reloadData(); layout.needsLayout = true
+    }
     func suspend() { watcher.stop(); loadTask?.cancel(); previewTask?.cancel(); releaseSyntax(); clearSyntaxCache() }
     func update(_ workspace: Workspace?, operation: UUID?) {
         var next = workspace?.support?.selected?.fileView ?? workspace?.fileView ?? FileViewState()
@@ -313,8 +324,8 @@ import SpookkySyntax
         scope.toolTip = pending ? "Create the worktree to browse its files" : root
         scope.setAccessibilityLabel("Workspace scope · " + (pending ? "Worktree not created" : root))
         if search.stringValue != state.query { search.stringValue = state.query }
-        search.placeholderString = state.changes ? "Filter changed files" : "Search files"
-        search.setAccessibilityLabel(state.changes ? "Filter changed files" : "Search workspace files")
+        search.placeholderString = state.changes ? "Filter files" : "Search files"
+        search.setAccessibilityLabel(state.changes ? "Filter files" : "Search workspace files")
         fileTable.setAccessibilityLabel(state.changes ? "Git changes" : "Workspace files")
         if switched {
             loadTask?.cancel(); previewTask?.cancel(); releaseSyntax(); clearSyntaxCache(); generation = UUID(); previewGeneration = UUID()
@@ -610,10 +621,7 @@ import SpookkySyntax
             result.characters = max(result.characters, columns)
             result.lineNumber = max(result.lineNumber, line.old ?? 0, line.new ?? 0)
         }
-        let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-        diffNumberWidth = max(28, ceil((String(dimensions.lineNumber) as NSString).size(withAttributes: [.font: font]).width) + 12)
-        let glyphWidth = ("M" as NSString).size(withAttributes: [.font: font]).width
-        diffTextWidth = CGFloat(min(16_384, dimensions.characters)) * glyphWidth + 16
+        diffDimensions = dimensions; updateDiffMetrics()
         if diffTable.tableColumns.map({ $0.identifier.rawValue }) != names {
             diffTable.tableColumns.forEach { diffTable.removeTableColumn($0) }
             for name in names { diffTable.addTableColumn(NSTableColumn(identifier: NSUserInterfaceItemIdentifier(name))) }
@@ -628,6 +636,11 @@ import SpookkySyntax
         }
         diffScroll.contentView.scroll(to: NSPoint(x: 0, y: min(CGFloat(state.scroll) * diffTable.rowHeight, max(0, diffTable.bounds.height - diffScroll.contentView.bounds.height))))
         diffScroll.reflectScrolledClipView(diffScroll.contentView)
+    }
+    private func updateDiffMetrics() {
+        let font = DiffCell.codeFont
+        diffNumberWidth = max(SpookkyStyle.points(28), ceil((String(diffDimensions.lineNumber) as NSString).size(withAttributes: [.font: font]).width) + SpookkyStyle.points(12))
+        diffTextWidth = CGFloat(min(16_384, diffDimensions.characters)) * ("M" as NSString).size(withAttributes: [.font: font]).width + SpookkyStyle.points(16)
     }
     private func updatePreviewControls() {
         let compact = previewWidth < 360

@@ -1,4 +1,5 @@
 import AppKit
+import SpookkyCore
 
 @MainActor struct WorkspaceSidebarItem {
     enum Kind { case project, conversation, more, section }
@@ -10,15 +11,14 @@ import AppKit
     var selected: Bool
     var nested: Bool
     var collapsed: Bool
-    var statusSymbol: String?
-    var statusHelp: String?
+    var activity: AgentActivityState?
 
     init(id: String, kind: Kind, title: String, image: NSImage? = nil, help: String = "",
          selected: Bool = false, nested: Bool = false, collapsed: Bool = false,
-         statusSymbol: String? = nil, statusHelp: String? = nil) {
+         activity: AgentActivityState? = nil) {
         self.id = id; self.kind = kind; self.title = title; self.image = image
         self.help = help.isEmpty ? title : help; self.selected = selected; self.nested = nested
-        self.collapsed = collapsed; self.statusSymbol = statusSymbol; self.statusHelp = statusHelp
+        self.collapsed = collapsed; self.activity = activity
     }
 }
 
@@ -93,6 +93,10 @@ import AppKit
         reconcileHover(); refreshVisibleRows()
     }
 
+    func displayChanged() {
+        table.noteHeightOfRows(withIndexesChanged: IndexSet(integersIn: 0..<items.count))
+        refreshVisibleRows(); needsLayout = true
+    }
     func update(items: [WorkspaceSidebarItem], collapsed: Bool) {
         let restoreKeyboardFocus = hasKeyboardFocus
         let origin = scroll.contentView.bounds.origin
@@ -127,7 +131,7 @@ import AppKit
 
     func numberOfRows(in tableView: NSTableView) -> Int { items.count }
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-        switch items[row].kind { case .project: 28; case .conversation, .more: 32; case .section: 28 }
+        switch items[row].kind { case .project: SpookkyStyle.points(28); case .conversation, .more: SpookkyStyle.points(32); case .section: SpookkyStyle.points(28) }
     }
     func tableView(_ tableView: NSTableView, shouldSelectRow row: Int) -> Bool { items[row].kind == .conversation }
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? { WorkspaceSidebarRow() }
@@ -180,6 +184,9 @@ import AppKit
     @objc private func geometryChanged(_ notification: Notification) {
         reconcileHover()
         if notification.name != NSView.boundsDidChangeNotification { refreshVisibleRows() }
+        else { table.enumerateAvailableRowViews { view, _ in
+            for cell in view.subviews { for case let status as SidebarActivityIndicator in cell.subviews { status.updateAnimation() } }
+        } }
     }
     private func reconcileHover() {
         let previous = hoveredItemID
@@ -290,7 +297,7 @@ import AppKit
     var hovered = false
     var keyboardFocused = false
     override func drawBackground(in dirtyRect: NSRect) {
-        let rect = bounds.insetBy(dx: 8, dy: 0.5)
+        let rect = bounds.insetBy(dx: 0, dy: 0.5)
         let path = NSBezierPath(roundedRect: rect, xRadius: SpookkyStyle.cornerRadius, yRadius: SpookkyStyle.cornerRadius)
         if modelSelected || hovered || keyboardFocused {
             (modelSelected ? SpookkyPalette.selected : keyboardFocused ? SpookkyPalette.keyboardFocus : SpookkyPalette.hover).setFill(); path.fill()
@@ -303,8 +310,8 @@ import AppKit
 
 @MainActor private final class WorkspaceSidebarCell: NSTableCellView {
     private let icon = NSImageView()
-    private let label = NSTextField(labelWithString: "")
-    private let status = NSImageView()
+    private let label = SpookkyStyle.label( "")
+    private let status = SidebarActivityIndicator(frame: .zero)
     private let accessory = ActionButton("", symbol: "ellipsis", action: {})
     private var item: WorkspaceSidebarItem?
     private var collapsed = false
@@ -314,7 +321,7 @@ import AppKit
     override init(frame: NSRect) {
         super.init(frame: frame)
         label.lineBreakMode = .byTruncatingTail; label.maximumNumberOfLines = 1
-        icon.imageScaling = .scaleProportionallyDown; status.imageScaling = .scaleProportionallyDown
+        icon.imageScaling = .scaleProportionallyUpOrDown
         accessory.revealOnInteraction = true
         accessory.handler = { [weak self] in guard let self else { return }; onAccessory?(accessory) }
         accessory.onFocusChange = { [weak self] in self?.onFocus?($0) }
@@ -325,7 +332,7 @@ import AppKit
     func configure(_ item: WorkspaceSidebarItem, collapsed: Bool, interactionActive: Bool) {
         self.item = item; self.collapsed = collapsed
         label.stringValue = item.title
-        label.font = .systemFont(ofSize: item.kind == .section ? 11 : 13, weight: item.kind == .section ? .semibold : .regular)
+        label.font = .systemFont(ofSize: SpookkyStyle.points(item.kind == .section ? 11 : 13), weight: item.kind == .section ? .semibold : .regular)
         label.textColor = item.kind == .section || item.kind == .more ? SpookkyPalette.metadata : SpookkyPalette.text
         if item.kind == .project && interactionActive && !collapsed {
             icon.image = NSImage(systemSymbolName: item.collapsed ? "chevron.right" : "chevron.down", accessibilityDescription: nil)
@@ -334,10 +341,9 @@ import AppKit
         } else { icon.image = item.image }
         icon.contentTintColor = SpookkyPalette.secondary
         label.isHidden = collapsed; icon.isHidden = item.kind == .section || item.kind == .more && !collapsed
-        status.image = item.statusSymbol.flatMap { NSImage(systemSymbolName: $0, accessibilityDescription: item.statusHelp) }
-        status.contentTintColor = item.statusSymbol.map { $0.contains("exclamationmark") || $0.contains("questionmark") || $0 == "network.slash" } == true
-            ? SpookkyPalette.warning : SpookkyPalette.secondary
-        status.isHidden = collapsed || item.statusSymbol == nil; status.toolTip = item.statusHelp
+        status.activity = item.activity
+        status.isHidden = item.activity == nil || item.activity == .unknown || item.activity == .idle || item.activity == .interrupted || interactionActive
+        status.toolTip = item.activity?.label; status.updateAnimation()
         accessory.image = NSImage(systemSymbolName: item.kind == .project ? "plus" : "ellipsis", accessibilityDescription: nil)
         accessory.compactUtility = true
         accessory.isHidden = collapsed || item.kind != .project && item.kind != .conversation || window?.isKeyWindow != true || !interactionActive
@@ -351,13 +357,14 @@ import AppKit
     override func layout() {
         super.layout()
         guard let item else { return }
-        let leading: CGFloat = collapsed ? bounds.midX - 8 : 16 + (item.nested ? 16 : 0)
-        icon.frame = NSRect(x: leading, y: bounds.midY - 8, width: 16, height: 16)
-        let accessoryWidth: CGFloat = item.kind == .project || item.kind == .conversation ? 28 : 0
-        accessory.frame = NSRect(x: bounds.width - 36, y: bounds.midY - 14, width: 28, height: 28)
-        let statusWidth: CGFloat = status.isHidden ? 0 : 16
-        status.frame = NSRect(x: bounds.width - 8 - accessoryWidth - statusWidth, y: bounds.midY - 6, width: 12, height: 12)
-        let x = leading + (icon.isHidden ? 0 : 22)
-        label.frame = NSRect(x: x, y: bounds.midY - 9, width: max(0, bounds.width - x - 8 - accessoryWidth - statusWidth), height: 18)
+        let p = SpookkyStyle.points
+        let leading: CGFloat = collapsed ? bounds.midX - p(8) : (item.nested ? p(12) : 0)
+        icon.frame = NSRect(x: leading, y: bounds.midY - p(8), width: p(16), height: p(16))
+        let accessoryWidth: CGFloat = item.kind == .project || item.kind == .conversation ? p(28) : 0
+        accessory.frame = NSRect(x: bounds.width - accessoryWidth, y: bounds.midY - p(14), width: p(28), height: p(28))
+        status.frame = NSRect(x: bounds.width - p(collapsed ? 12 : 20), y: bounds.midY - p(6), width: p(12), height: p(12))
+        let x = leading + (icon.isHidden ? 0 : p(22))
+        label.frame = NSRect(x: x, y: bounds.midY - p(9), width: max(0, bounds.width - x - accessoryWidth), height: p(18))
+
     }
 }

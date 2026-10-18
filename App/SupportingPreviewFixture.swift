@@ -92,6 +92,12 @@ import SpookkyRuntime
         mutate { $0.setSupportingLayout(.fullWidth) }
         mutate { $0.setSupportingLayout(.split) }
         checks["unsent_form_survives_layouts"] = try await js(first, "document.querySelector('input').value") == initial
+        checks["app_zoom_command_from_browser"] = command(try key("+", code: 24))
+        await Task.yield()
+        checks["browser_page_zoom_tracks_app"] = abs(first.webView.pageZoom - 1.1) < 0.001
+        checks["browser_form_and_focus_survive_zoom"] = try await js(first, "document.querySelector('input').value") == initial && browser(ids[0]) === first
+        checks["actual_size_command_from_browser"] = command(try key("0", code: 29)) && abs(first.webView.pageZoom - 1) < 0.001
+
         window.makeFirstResponder(first.webView)
         checks["cmd_l_focuses_address"] = command(try key("l", code: 37)) && first.address.currentEditor() != nil && state().selected?.support?.layout == .split
         first.navigate(fixtureURL.replacingOccurrences(of: "index.html", with: "second.html"))

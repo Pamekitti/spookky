@@ -108,7 +108,7 @@ final class TerminalHostView: NSView, NSTextInputClient {
     private func resizeSurface(allowCapture: Bool = true) {
         guard let surface, let window else { return }
         let scale = window.backingScaleFactor
-        let width = UInt32(max(1, bounds.width * scale)), height = UInt32(max(1, bounds.height * scale))
+        let width = UInt32(max(1, (bounds.width * scale).rounded())), height = UInt32(max(1, (bounds.height * scale).rounded()))
         if let last = lastGeometry, last.width == width, last.height == height, last.scale == scale { return }
         if allowCapture, lastGeometry != nil, let onResize {
             guard !geometryPending else { return }

@@ -21,7 +21,7 @@ Full view joins the primary tab first and all supporting tabs on the same row. T
 
 Supporting + offers Browser, Files, Changes, Artifact and Terminal. New session and Cmd+N select the global landing draft. Project + selects its project draft. Closing a supporting tab selects its nearest left neighbor, otherwise its next neighbor, otherwise the primary. Closing the primary hides that session view and retains its history, supporting metadata and owned processes.
 
-The sidebar toggle stays in the fixed header. It does not scroll with entries. The native header reserves window-button clearance and removes that reservation in fullscreen. Collapsed sidebar entries use centered 32-point targets. The toggle keeps its 28-point utility target. Unused header space can drag the window. Terminal, prompt and supporting content keep their own gestures.
+The sidebar toggle stays in the fixed header. It does not scroll with entries. The native window buttons retain their system size and spacing, start 20 points from the left edge, and share the header centerline. Fullscreen removes their reserved clearance. Collapsed sidebar entries use centered 32-point targets. The toggle keeps its 28-point utility target. Unused header space can drag the window. Terminal, prompt and supporting content keep their own gestures.
 
 The left sidebar collapses to a 58-point icon rail. The supporting panel can collapse or fill the content area. Opening it restores the selected support. A shell's current directory does not change the Files or Changes anchor.
 
@@ -56,7 +56,7 @@ These are the native component dimensions. The HTML retains the approved flow an
 | Element | Reference |
 | --- | --- |
 | Spacing scale | 4, 8, 12, 16, 24, 32px; 6px for compact icon padding |
-| Expanded sidebar | 232 points |
+| Expanded sidebar | 232-point default; drag between 200 and 600 points, with at least 320 points left for content |
 | Collapsed sidebar | 58px; centered 32-point row targets |
 | Tab strip | 40px |
 | Terminal, preview, and Files/Changes headers | 40 points |
@@ -68,13 +68,13 @@ These are the native component dimensions. The HTML retains the approved flow an
 | Menus | 8px corner radius, 5-6px inner padding |
 | Dialog | 400px maximum width, 20px padding, 10px radius |
 | Main text / dense labels / metadata | 13px / 12px / 11px |
-| Terminal font | System monospace, default 13px, user-adjustable |
+| Terminal font | Follows Ghostty appearance; independent size adjustment plus app zoom |
 
 ### Native control convention
 
-Use SF Symbols in the native app. A symbol beside a row or button label uses a 14-point regular glyph in a 16-point slot, followed by 6 points of space. Icon-only add, close, and pane controls use a 14-point medium glyph centered in a 28×28-point target. The tab close target is 24 points wide. Tabs occupy the full 40-point height with bounded widths, a trailing separator and restrained selected fill. Spare horizontal space remains neutral. Keep the symbol's optical size consistent within each role rather than stretching every symbol to a fixed image rectangle.
+Use SF Symbols in the native app. A symbol beside a row or button label uses a 14-point regular glyph in a 16-point slot, followed by 6 points of space. Icon-only add, close, and pane controls use a 14-point medium glyph centered in a 28×28-point target. The tab close target is 24 points wide. Tabs occupy the full 40-point height with 96–220-point widths, a trailing separator and restrained selected fill. Constrained panes may compact a tab to its 48-point icon and close targets; the overflow menu retains full names. Spare horizontal space remains neutral. Keep the symbol's optical size consistent within each role rather than stretching every symbol to a fixed image rectangle.
 
-Keep 8 points between compact controls, 12 points between sections, and 4 points within a compound control. Use 8-point sidebar selection insets. Project rows remain 28 points high, conversation rows 32 points high, and the tab strip 40 points high. Use the existing 13/12/11-point type hierarchy. The project list uses plain table rows with 16-point icon leading and one further 16-point indent for conversations. Sidebar controls and history scroll only vertically, with no horizontal bounce. Titles use static truncation. Full titles, folder paths and detailed activity remain in tooltips and accessibility labels. There is no title-reveal animation or routine Saved/path subtitle.
+Keep 8 points between compact controls, 12 points between sections, and 4 points within a compound control. Use 8-point sidebar selection insets. Project rows remain 28 points high, conversation rows 32 points high, and the tab strip 40 points high. Use the existing 13/12/11-point type hierarchy. The project list uses one 8-point outer inset and a further 12-point indent for conversations. Rows share one trailing status/action slot. Sidebar controls and history scroll only vertically, with no horizontal bounce. Titles use static truncation. Full titles, folder paths and detailed activity remain in tooltips and accessibility labels. There is no title-reveal animation or routine Saved/path subtitle.
 
 The project list uses a virtualized native table below fixed New session and search controls. Show five recent history rows per project; Show more requests ten further entries. Search begins with ten results and supports further pages. Keep selected and open local entries available without duplicates. Only the active conversation is selected. Project headers and Show more are actions, so mouse clicks never select them or leave keyboard-focus styling behind. Hover and keyboard focus are separate states and are reconciled after scrolling, resizing and window activation.
 
@@ -84,7 +84,7 @@ The HTML's fixed 760px frame is a preview constraint, not a native window requir
 
 ### Native row and preview geometry
 
-Project icons start 16 points from the sidebar edge; project titles start at 40. Nested conversation icons start at 32 points; titles start at 56. No-project workspace icons and titles use the top-level 16/40 alignment. Each leading icon has a 16-point slot and an 8-point gap to its title. Project groups have an 8-point gap. Contextual actions align to the title line, with a reserved trailing target. Add and close glyphs use 12-point regular-weight symbols and a centered 20-point hover fill with a 5-point radius. Tab close targets are 24 by 24 points.
+Project icons start 8 points from the sidebar edge; project titles start at 30. Nested conversation icons start at 20 points; titles start at 42. No-project rows use the top-level alignment. Leading icons use a 16-point slot and a 6-point title gap. Project groups have an 8-point gap. Contextual actions align to the title line, with a reserved trailing target. Add and close glyphs use 12-point regular-weight symbols and a centered 20-point hover fill with a 5-point radius. Tab close targets are 24 by 24 points.
 
 Files and preview tables use the plain native style with no enclosing horizontal content inset. File group headings and root icons begin 8 points from the panel edge. Root filenames begin at 28 points; each directory level adds 12 points. Directory disclosure uses native chevrons. Files use native code, document, configuration, image, archive or generic symbols. Repository and symlink entries remain distinct. Git status letters carry semantic colors and descriptive accessibility names. Parent paths use secondary text and yield space before the filename. Status indicators remain 8 points from the trailing edge. Selection and keyboard focus use foreground washes within row bounds. Tables draw no focus outline.
 
@@ -127,7 +127,7 @@ Diff additions/removals use muted green/red backgrounds plus explicit signs and 
 
 ## Agent attention
 
-Tabs, workspace metadata, collapsed workspace icons, and terminal headers share the [agent activity](agent-activity.md) labels. The tab's existing 16 pt status slot holds the activity indicator. In the collapsed sidebar, a separate 10 pt badge keeps activity beside the provider mark. Expanded rows show only an actionable attention indicator; full activity text remains accessible through the tooltip and menu. Working uses a visible-only native spinner that respects Reduce Motion. Needs input, failures, and unread completion have distinct shapes and text labels. Directory, branch, provider, and child-agent details remain available in tooltips. Lifecycle launch and attachment failures take precedence over activity hints.
+Tabs, workspace metadata, collapsed workspace icons, and terminal headers share the [agent activity](agent-activity.md) labels. The tab's existing 16 pt status slot holds the activity indicator. In the collapsed sidebar, a separate 10 pt badge keeps activity beside the provider mark. Expanded rows use a neutral working spinner, amber input dot, blue unread-completion dot, or a failure exclamation mark. Idle and unknown activity remain quiet. Full activity text stays in the tooltip and menu. Working uses a visible-only native spinner that respects Reduce Motion. Needs input, failures, and unread completion have distinct shapes and text labels. Directory, branch, provider, and child-agent details remain available in tooltips. Lifecycle launch and attachment failures take precedence over activity hints.
 
 Right-click actions mark completion attention read or unread and reset activity. The overflow menu includes status text. Settings separates provider monitoring, banners, sounds, preview privacy, Dock count, and visible-terminal suppression. App sounds default to off because provider sound hooks remain active.
 
@@ -155,6 +155,7 @@ HighlighterSwift supplies the language definitions. Spookky's bounded range adap
 
 | Shortcut | Action |
 | --- | --- |
+| Cmd+plus / Cmd+minus / Cmd+0 | Zoom the whole app in/out, or restore 100% |
 | Cmd+B | Toggle the project/workspace sidebar |
 | Cmd+L | Toggle Files/Changes |
 | Cmd+N | Select the retained global landing draft |
@@ -183,3 +184,9 @@ Keep primary launch actions visible. Reveal sidebar utilities on hover and keybo
 After a coherent change, inspect blank Home, selected project, worktree options, running CLI, terminal plus diff, file tree, menus, dialogs, and errors. Compare the native app at 1440 × 900, 1120 × 760, and 650 × 450 in both themes. Compare the HTML preview at desktop, 390px, and 320px widths. Check focus, scrolling, truncation, empty states, and restoration.
 
 Verification boundaries are recorded in [current status](status.md). The prior appearance is saved as [spookky-before-polish.html](../prototype/spookky-before-polish.html).
+
+## Display preferences
+
+App zoom supports 80%, 90%, 100%, 110%, 125%, 150%, 175% and 200%. Native fonts and layout are recalculated. Web pages use WebKit page zoom; terminal surfaces use their font size. No workspace screenshot is stretched. OS window buttons retain their native size. Sidebar width and terminal font adjustment persist independently of zoom. Double-click the sidebar divider to restore 232 points. Narrow split layouts temporarily join the tabs and show one selected view, preserving the requested split layout for a wider window.
+
+Terminal appearance follows Ghostty's configuration, includes and both theme variants through the pinned parser. Commands, environment and keybindings are excluded from the exported appearance. Configuration reads and change detection run off the main thread. The last valid profile is cached privately and retained after invalid edits. Settings reports the error. Appearance changes preserve terminal processes and provider-owned input.

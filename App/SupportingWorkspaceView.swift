@@ -15,7 +15,7 @@ import SpookkyCore
     private let strip = NSStackView()
     private let scroll = TabStripScrollView()
     private let controls = NSStackView()
-    private let layoutButton = ActionButton("", symbol: "rectangle.split.2x1", action: {})
+    private let layoutButton = ActionButton("Split", symbol: "rectangle.split.2x1", action: {})
     private let divider = FileDivider()
     private var state = SupportingPanelState()
     var onSelect: ((UUID) -> Void)?
@@ -29,7 +29,7 @@ import SpookkyCore
     private var supportingTabItems: [WorkspaceTabView] { state.tabs.compactMap { items[$0.id] } }
     var tabItems: [WorkspaceTabView] { (joinsPrimary ? primaryItem.map { [$0] } ?? [] : []) + supportingTabItems }
     private var tabWidth: CGFloat { tabItems.reduce(0) { $0 + $1.naturalWidth } + CGFloat(max(0, tabItems.count - 1)) * strip.spacing }
-    var headerFittingWidth: CGFloat { tabWidth + 60 }
+    var headerFittingWidth: CGFloat { tabWidth + controls.fittingSize.width + SpookkyStyle.points(4) }
     var selectedTabFullyVisible: Bool {
         guard let item = selectedTabItem else { return true }
         return scroll.contentView.bounds.insetBy(dx: -0.5, dy: 0).contains(item.frame)
@@ -37,20 +37,23 @@ import SpookkyCore
     var selectedTabCanFit: Bool { selectedTabItem.map { $0.frame.width <= scroll.contentView.bounds.width + 0.5 } ?? true }
     var selectedTabVisibleWidth: CGFloat { selectedTabItem.map { scroll.contentView.bounds.intersection($0.frame).width } ?? 0 }
     private var selectedTabItem: WorkspaceTabView? {
-        if joinsPrimary && state.layout == .fullWidth && state.resolvedFullWidthSelection == .primary { return primaryItem }
-        if isSplit || state.layout == .fullWidth && state.resolvedFullWidthSelection != .primary {
+        if joinsPrimary && effectiveFull && state.resolvedFullWidthSelection == .primary { return primaryItem }
+        if isSplit || effectiveFull && state.resolvedFullWidthSelection != .primary {
             return state.selectedTabID.flatMap { items[$0] }
         }
         return nil
     }
-    var isSplit: Bool { state.layout == .split && !state.tabs.isEmpty }
+    var compact = false
+    var requestsSplit: Bool { state.layout == .split && !state.tabs.isEmpty }
+    var effectiveFull: Bool { state.layout == .fullWidth || compact && requestsSplit }
+    var isSplit: Bool { requestsSplit && !compact }
     var primaryPaneWidth: CGFloat { primaryPaneWidth(in: bounds.width) }
     func primaryPaneWidth(in width: CGFloat) -> CGFloat {
-        isSplit ? max(160, min(width - 200, width * state.fraction)) : width
+        isSplit ? max(SpookkyStyle.points(160), min(width - SpookkyStyle.points(200), width * state.fraction)) : width
     }
     var showsSupportingContent: Bool {
         guard !state.tabs.isEmpty, state.layout != .collapsed else { return false }
-        return state.layout != .fullWidth || state.resolvedFullWidthSelection != .primary
+        return !effectiveFull || state.resolvedFullWidthSelection != .primary
     }
     init(primary: NSView) {
         self.primary = primary
@@ -60,7 +63,9 @@ import SpookkyCore
         headerView.addSubview(scroll); headerView.addSubview(controls)
         headerView.onLayout = { [weak self] in self?.layoutHeader() }
         strip.orientation = .horizontal; strip.spacing = 0; strip.alignment = .centerY
-        scroll.documentView = strip; scroll.hasHorizontalScroller = true; scroll.autohidesScrollers = true; scroll.drawsBackground = false
+        scroll.documentView = strip; scroll.hasHorizontalScroller = false; scroll.autohidesScrollers = true; scroll.drawsBackground = false
+        scroll.automaticallyAdjustsContentInsets = false; scroll.contentInsets = .init()
+        scroll.horizontalScrollElasticity = .none
         scroll.scrollerStyle = .overlay
         let add = ActionButton("", symbol: "plus", help: "Open supporting tab", action: {})
         add.handler = { [weak self, weak add] in if let add { self?.onAdd?(add) } }
@@ -69,9 +74,9 @@ import SpookkyCore
             onLayout?(state.layout == .split ? .fullWidth : .split, nil)
         }
         controls.orientation = .horizontal; controls.spacing = 0
+        add.widthAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true
         for button in [add, layoutButton] {
-            button.widthAnchor.constraint(equalToConstant: 28).isActive = true
-            button.heightAnchor.constraint(equalToConstant: 28).isActive = true
+            button.heightAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true
             controls.addArrangedSubview(button)
         }
         divider.setAccessibilityLabel("Resize supporting panel")
@@ -124,7 +129,8 @@ import SpookkyCore
             item.move(to: strip, at: index + (joinsPrimary ? 1 : 0))
         }
         layoutButton.isEnabled = !state.tabs.isEmpty
-        layoutButton.image = NSImage(systemSymbolName: isSplit ? "arrow.up.left.and.arrow.down.right" : "rectangle.split.2x1", accessibilityDescription: nil)
+        layoutButton.title = isSplit ? "Full" : "Split"
+        layoutButton.image = nil
         layoutButton.toolTip = isSplit ? "Show selected supporting tab at full width" : "Show conversation and supporting tab side by side"
         layoutButton.setAccessibilityLabel(layoutButton.toolTip!)
         needsLayout = true; headerView.needsLayout = true
@@ -153,10 +159,11 @@ import SpookkyCore
         onGeometryChange?()
     }
     private func layoutHeader() {
-        let width = max(0, headerView.bounds.width - 60)
+        let width = max(0, headerView.bounds.width - controls.fittingSize.width - SpookkyStyle.points(4))
+        for item in tabItems { item.availableWidth = width }
         scroll.frame = NSRect(x: 0, y: 0, width: width, height: SpookkyStyle.headerHeight)
         strip.frame = NSRect(x: 0, y: 0, width: tabWidth, height: SpookkyStyle.headerHeight)
-        controls.frame = NSRect(x: width + 4, y: 6, width: 56, height: 28)
+        controls.frame = NSRect(x: width + SpookkyStyle.points(4), y: (SpookkyStyle.headerHeight - SpookkyStyle.controlHeight) / 2, width: controls.fittingSize.width, height: SpookkyStyle.controlHeight)
         strip.layoutSubtreeIfNeeded()
         if let selected = selectedTabItem {
             let clip = scroll.contentView

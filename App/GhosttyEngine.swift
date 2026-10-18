@@ -23,17 +23,7 @@ final class GhosttyEngine {
             throw LaunchError.invalid("Ghostty initialization failed.")
         }
         let configURL = root.appendingPathComponent("terminal.conf")
-        try """
-        font-family = Menlo
-        font-size = 13
-        background = 151312
-        foreground = e8e5e1
-        window-padding-x = 12
-        window-padding-y = 10
-        macos-option-as-alt = true
-        confirm-close-surface = false
-        scrollback-limit = 10485760
-        """.write(to: configURL, atomically: true, encoding: .utf8)
+        try Self.runtimeConfiguration.write(to: configURL, atomically: true, encoding: .utf8)
         config = ghostty_config_new()
         configURL.path.withCString { ghostty_config_load_file(config, $0) }
         ghostty_config_finalize(config)
@@ -147,38 +137,34 @@ final class GhosttyEngine {
             if let app { ghostty_app_tick(app) }
         }
     }
+    private static let runtimeConfiguration = """
+    macos-option-as-alt = true
+    confirm-close-surface = false
+    scrollback-limit = 10485760
+    """
     @MainActor func setTheme(dark: Bool, views: [TerminalHostView]) async throws {
-        themeGeneration += 1; let generation = themeGeneration
-        let url = themeRoot.appendingPathComponent("workspace-theme-\(generation).conf")
-        defer { try? FileManager.default.removeItem(at: url) }
-        let content = """
-        font-family = Menlo
-        font-size = 13
-        background = \(dark ? "151312" : "faf9f8")
-        foreground = \(dark ? "e8e5e1" : "252321")
-        window-padding-x = 12
-        window-padding-y = 10
-        macos-option-as-alt = true
-        confirm-close-surface = false
-        scrollback-limit = 10485760
-        """
-        try await Task.detached { try content.write(to: url, atomically: true, encoding: .utf8) }.value
-        guard generation == themeGeneration else { return }
-        let next = ghostty_config_new()!
-        url.path.withCString { ghostty_config_load_file(next, $0) }; ghostty_config_finalize(next)
-        guard ghostty_config_diagnostics_count(next) == 0 else {
-            ghostty_config_free(next); throw LaunchError.invalid("Terminal appearance configuration failed.")
-        }
-        ghostty_app_update_config(app, next)
         ghostty_app_set_color_scheme(app, dark ? GHOSTTY_COLOR_SCHEME_DARK : GHOSTTY_COLOR_SCHEME_LIGHT)
-        for view in views {
-            if let surface = view.surface {
-                view.updateConfiguration(next)
-                ghostty_surface_set_color_scheme(surface, dark ? GHOSTTY_COLOR_SCHEME_DARK : GHOSTTY_COLOR_SCHEME_LIGHT)
+        for view in views { if let surface = view.surface { ghostty_surface_set_color_scheme(surface, dark ? GHOSTTY_COLOR_SCHEME_DARK : GHOSTTY_COLOR_SCHEME_LIGHT) } }
+    }
+    @MainActor func applyAppearance(_ candidate: GhosttyAppearance, preferences: DisplayPreferences, views: @MainActor () -> [TerminalHostView]) async throws {
+        themeGeneration += 1; let generation = themeGeneration
+        let url = themeRoot.appendingPathComponent("appearance-\(generation).conf")
+        let content = candidate.configuration(preferences: preferences) + Self.runtimeConfiguration
+        let prepared = try await Task.detached(priority: .utility) {
+            try content.write(to: url, atomically: true, encoding: .utf8)
+            defer { try? FileManager.default.removeItem(at: url) }
+            let result = PreparedGhosttyConfiguration()
+            url.path.withCString { ghostty_config_load_file(result.value, $0) }
+            ghostty_config_finalize(result.value)
+            guard ghostty_config_diagnostics_count(result.value) == 0 else {
+                throw LaunchError.invalid("This Ghostty appearance is not supported by Spookky's terminal renderer. The last valid appearance is retained.")
             }
-            view.layer?.backgroundColor = (dark ? NSColor(srgbRed: 0.082, green: 0.075, blue: 0.071, alpha: 1) : NSColor(srgbRed: 0.98, green: 0.976, blue: 0.972, alpha: 1)).cgColor
-        }
-        ghostty_config_free(config); config = next
+            return result
+        }.value
+        guard generation == themeGeneration else { return }
+        ghostty_app_update_config(app, prepared.value)
+        for view in views() { view.updateConfiguration(prepared.value) }
+        ghostty_config_free(config); config = ghostty_config_clone(prepared.value)
     }
 
     deinit {
@@ -186,4 +172,9 @@ final class GhosttyEngine {
         if let app { ghostty_app_free(app) }
         if let config { ghostty_config_free(config) }
     }
+}
+
+private final class PreparedGhosttyConfiguration: @unchecked Sendable {
+    let value = ghostty_config_new()!
+    deinit { ghostty_config_free(value) }
 }

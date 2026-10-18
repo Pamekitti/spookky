@@ -61,7 +61,6 @@ import SpookkyGit
         if let surface = surfaces.view(id) { window.makeFirstResponder(surface) }
         else { composers[id]?.focus() }
     }
-    private let filesToggle = ActionButton("Panel", symbol: "sidebar.right", help: "Show supporting panel · ⌘L", action: {})
     private let sidebarToggle = ActionButton("", symbol: "sidebar.left", help: "Collapse workspace sidebar · ⌘B", action: {})
     private let tabOverflow = ActionButton("", symbol: "chevron.down", help: "All tabs", action: {})
     private let header = WorkspaceHeaderView()
@@ -69,15 +68,15 @@ import SpookkyGit
     private var tabsLeading: NSLayoutConstraint!
     private var tabsWidth: NSLayoutConstraint!
     private var supportHeaderLeading: NSLayoutConstraint!
-    private var codeWidth: NSLayoutConstraint!
     private var workspaceBottom: NSLayoutConstraint!
     private var overflowWidth: NSLayoutConstraint!
     private var updatingHeader = false
     private weak var projectAddButton: ActionButton?
     private let cancelLocation = ActionButton("Cancel operation", action: {})
-    private let warning = NSTextField(labelWithString: "")
+    private let warning = SpookkyStyle.label( "")
     private let railScroll = NSScrollView()
     private let tabScroll = TabStripScrollView()
+    private let sidebarDivider = FileDivider()
     private var railWidth: NSLayoutConstraint!
     private var composers: [UUID: LaunchComposerView] = [:]
     private var contentKey = ""
@@ -147,7 +146,27 @@ import SpookkyGit
         super.init()
         store.update { $0.restoreAgentActivity() }
         continuationMetadata = { [weak self] id in self?.store.state.workspace(for: id)?.catalogMetadata }
+        services.persistsDisplayPreferences = !fixture
+        if fixture { services.displayPreferences = DisplayPreferences() }
+        DisplayMetrics.preferences = DisplayPreferences()
         buildWindow(); buildMenu()
+        services.displayPreferencesDidChange = { [weak self] preferences in
+            guard let self else { return }
+            let old = DisplayMetrics.preferences
+            let ratio = preferences.zoom / old.zoom
+            if ratio != 1 {
+                DisplayMetrics.apply(preferences, to: window.contentView)
+                chromeRevision = ""; tabRevision = ""
+                conversationSidebar.displayChanged(); files.displayChanged(ratio: ratio)
+            } else { DisplayMetrics.preferences = preferences }
+            updateHeaderGeometry(); window.contentView?.needsLayout = true
+            if ratio != 1 { render() }
+            if ratio != 1 || preferences.terminalFontAdjustment != old.terminalFontAdjustment { surfaces.refreshAppearance() }
+        }
+
+        services.displayPreferencesDidChange?(services.displayPreferences)
+        surfaces.onAppearanceStatus = { [weak services] in services?.terminalAppearanceMessage = $0 }
+        if !fixture { surfaces.startFollowingAppearance() }
         supportingContentHost = BrowserArtifactContentHost(identity: (Bundle.main.bundleIdentifier ?? "dev.spookky") + root.path)
         services.activityPreferencesDidChange = { [weak self] preferences in self?.saveAgentPreferences(preferences) }
         services.testAgentNotification = { [weak self] in await self?.agentNotifications.test() ?? "Notifications are unavailable." }
@@ -167,10 +186,9 @@ import SpookkyGit
         }
         diagnostics?.visibility = { [weak self] in self?.window.occlusionState.contains(.visible) == true }
         historyProjectSignature = catalogProjectSignature()
-        historySearch.placeholderString = "Search conversations"; historySearch.delegate = self
+        historySearch.placeholderString = "Search"; historySearch.delegate = self
         historySearch.sendsSearchStringImmediately = true
         historySearch.setAccessibilityLabel("Search all saved conversations")
-        historySearch.widthAnchor.constraint(equalToConstant: SpookkyStyle.sidebarWidth - 16).isActive = true
         store.onChange = { [weak self] in
             guard let self else { return }; render(); refreshAgentAttention()
             if historyProjectSignature != catalogProjectSignature() { requestCatalogRefresh(force: false) }
@@ -356,7 +374,7 @@ import SpookkyGit
                 instructions.isVerticallyResizable = true; instructions.isHorizontallyResizable = false
                 instructions.minSize = NSSize(width: 0, height: 280)
                 instructions.maxSize = NSSize(width: 480, height: CGFloat.greatestFiniteMagnitude)
-                instructions.font = .systemFont(ofSize: 13)
+                instructions.font = .systemFont(ofSize: SpookkyStyle.points(13))
                 instructions.textContainerInset = NSSize(width: 8, height: 8)
                 instructions.autoresizingMask = [.width]
                 instructions.textContainer?.widthTracksTextView = true
@@ -422,6 +440,8 @@ import SpookkyGit
         let watcher = historyWatcher
         Task { @MainActor in watcher.stop() }
         if let historyActivationObserver { NotificationCenter.default.removeObserver(historyActivationObserver) }
+        let ownedSurfaces = surfaces
+        Task { @MainActor in ownedSurfaces.stopFollowingAppearance() }
         if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
         if let displayOptionsObserver { NSWorkspace.shared.notificationCenter.removeObserver(displayOptionsObserver) }
         observationTask?.cancel(); continuationTask?.cancel()
@@ -441,11 +461,16 @@ import SpookkyGit
             if NSScreen.screens.contains(where: { $0.visibleFrame.intersects(frame) }) { window.setFrame(frame, display: false) }
         }
         window.backgroundColor = SpookkyPalette.background
-        (window as? WorkspaceNativeWindow)?.onCommand = { [weak self] in self?.handleCommand($0) ?? false }
+        window.onCommand = { [weak self] in self?.handleCommand($0) ?? false }
         let rootView = WorkspaceRootView(); window.contentView = rootView
         rootView.onAppearance = { [weak self] in self?.render() }
         rootView.onBeforeLayout = { [weak self] in self?.updateHeaderGeometry() }
         window.isMovableByWindowBackground = false
+        window.acceptsMouseMovedEvents = true
+        window.onPointerMove = { [weak self] event in
+            guard let self else { return }
+            for tab in Array(tabPairs.values) + workspaceLayout.tabItems { tab.reconcilePointer(at: event.locationInWindow) }
+        }
         let content = window.contentView!
         let workspaceBody = workspaceLayout
         files.layout.supportingOnly = true
@@ -459,7 +484,6 @@ import SpookkyGit
         }
         workspaceLayout.onGeometryChange = { [weak self] in self?.updateHeaderGeometry() }
 
-        filesToggle.handler = { [weak self] in self?.toggleCodeSidebar() }
         sidebarToggle.handler = { [weak self] in self?.toggleWorkspaceSidebar() }
         tabOverflow.handler = { [weak self] in self?.showTabOverflow() }
         rail.orientation = .vertical; rail.alignment = .leading; rail.spacing = 4
@@ -472,84 +496,92 @@ import SpookkyGit
         railScroll.drawsBackground = true; railScroll.backgroundColor = SpookkyPalette.sidebar
         tabs.orientation = .horizontal; tabs.spacing = 0; tabs.alignment = .centerY
         tabs.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 8)
-        tabScroll.documentView = tabs; tabScroll.hasHorizontalScroller = true; tabScroll.autohidesScrollers = true; tabScroll.drawsBackground = false
+        tabScroll.documentView = tabs; tabScroll.hasHorizontalScroller = false; tabScroll.autohidesScrollers = true; tabScroll.drawsBackground = false
         tabScroll.automaticallyAdjustsContentInsets = false
         tabScroll.contentInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
         tabScroll.scrollerStyle = .overlay
-        warning.font = .systemFont(ofSize: 11); warning.textColor = SpookkyPalette.warning
+        warning.font = .systemFont(ofSize: SpookkyStyle.points(11)); warning.textColor = SpookkyPalette.warning
         warning.isHidden = true
         cancelLocation.isHidden = true
         cancelLocation.handler = { [weak self] in guard let self else { return }; locations.activeOperationIDs.forEach { self.locations.cancel($0) } }
-        for view in [header, railScroll, tabScroll, workspaceLayout.headerView, workspaceBody, sidebarToggle, tabOverflow, filesToggle, warning, cancelLocation] { view.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(view) }
+        for view in [header, railScroll, tabScroll, workspaceLayout.headerView, workspaceBody, sidebarToggle, tabOverflow, sidebarDivider, warning, cancelLocation] { view.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(view) }
         rail.translatesAutoresizingMaskIntoConstraints = false; tabs.translatesAutoresizingMaskIntoConstraints = false
+        sidebarDivider.setAccessibilityLabel("Resize workspace sidebar")
+        sidebarDivider.onMove = { [weak self] x in self?.services.changeDisplay { $0.sidebarWidth = Double(x) / $0.zoom } }
+        sidebarDivider.onKey = { [weak self] delta in self?.services.changeDisplay { $0.sidebarWidth += delta < 0 ? -16 : 16 } }
+        sidebarDivider.onReset = { [weak self] in self?.services.changeDisplay { $0.sidebarWidth = 232 } }
         railWidth = railScroll.widthAnchor.constraint(equalToConstant: SpookkyStyle.sidebarWidth)
-        toggleLeading = sidebarToggle.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 196)
+        toggleLeading = sidebarToggle.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 196).displayScaled()
         tabsLeading = tabScroll.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: SpookkyStyle.sidebarWidth)
-        tabsWidth = tabScroll.widthAnchor.constraint(equalToConstant: 220)
+        tabsWidth = tabScroll.widthAnchor.constraint(equalToConstant: 220).displayScaled()
         supportHeaderLeading = workspaceLayout.headerView.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: SpookkyStyle.sidebarWidth + 220)
-        codeWidth = filesToggle.widthAnchor.constraint(equalToConstant: 64)
         workspaceBottom = workspaceBody.bottomAnchor.constraint(equalTo: content.bottomAnchor)
-        overflowWidth = tabOverflow.widthAnchor.constraint(equalToConstant: 0)
+        overflowWidth = tabOverflow.widthAnchor.constraint(equalToConstant: 0).displayScaled()
         NSLayoutConstraint.activate([
             header.leadingAnchor.constraint(equalTo: content.leadingAnchor), header.trailingAnchor.constraint(equalTo: content.trailingAnchor),
-            header.topAnchor.constraint(equalTo: content.topAnchor), header.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight),
+            header.topAnchor.constraint(equalTo: content.topAnchor), header.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).displayScaled(alreadyScaled: true),
             railScroll.leadingAnchor.constraint(equalTo: content.leadingAnchor), railScroll.topAnchor.constraint(equalTo: header.bottomAnchor),
             railScroll.bottomAnchor.constraint(equalTo: content.bottomAnchor), railWidth,
+            sidebarDivider.centerXAnchor.constraint(equalTo: railScroll.trailingAnchor),
+            sidebarDivider.topAnchor.constraint(equalTo: header.bottomAnchor), sidebarDivider.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            sidebarDivider.widthAnchor.constraint(equalToConstant: 6),
             rail.widthAnchor.constraint(equalTo: railScroll.widthAnchor), rail.heightAnchor.constraint(equalTo: railScroll.heightAnchor),
             tabsLeading, tabsWidth, supportHeaderLeading,
-            workspaceLayout.headerView.trailingAnchor.constraint(equalTo: tabOverflow.leadingAnchor, constant: -4),
+            workspaceLayout.headerView.trailingAnchor.constraint(equalTo: tabOverflow.leadingAnchor, constant: -4).displayScaled(),
             workspaceLayout.headerView.topAnchor.constraint(equalTo: content.topAnchor),
-            workspaceLayout.headerView.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight),
-            tabScroll.topAnchor.constraint(equalTo: content.topAnchor), tabScroll.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight),
+            workspaceLayout.headerView.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).displayScaled(alreadyScaled: true),
+            tabScroll.topAnchor.constraint(equalTo: content.topAnchor), tabScroll.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).displayScaled(alreadyScaled: true),
             tabs.heightAnchor.constraint(equalTo: tabScroll.heightAnchor),
-            filesToggle.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -8),
-            filesToggle.topAnchor.constraint(equalTo: content.topAnchor, constant: 6),
-            codeWidth, filesToggle.heightAnchor.constraint(equalToConstant: 28),
-            toggleLeading, sidebarToggle.topAnchor.constraint(equalTo: content.topAnchor, constant: 6),
-            sidebarToggle.widthAnchor.constraint(equalToConstant: 28), sidebarToggle.heightAnchor.constraint(equalToConstant: 28),
-            tabOverflow.trailingAnchor.constraint(equalTo: filesToggle.leadingAnchor, constant: -4), overflowWidth,
-            tabOverflow.topAnchor.constraint(equalTo: content.topAnchor, constant: 6), tabOverflow.heightAnchor.constraint(equalToConstant: 28),
+            toggleLeading, sidebarToggle.topAnchor.constraint(equalTo: content.topAnchor, constant: 6).displayScaled(),
+            sidebarToggle.widthAnchor.constraint(equalToConstant: 28).displayScaled(), sidebarToggle.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
+            tabOverflow.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -8).displayScaled(), overflowWidth,
+            tabOverflow.topAnchor.constraint(equalTo: content.topAnchor, constant: 6).displayScaled(), tabOverflow.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
             workspaceBody.leadingAnchor.constraint(equalTo: railScroll.trailingAnchor), workspaceBody.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             workspaceBody.topAnchor.constraint(equalTo: tabScroll.bottomAnchor), workspaceBottom,
-            warning.leadingAnchor.constraint(equalTo: workspaceBody.leadingAnchor, constant: 12),
-            warning.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -8),
-            warning.trailingAnchor.constraint(lessThanOrEqualTo: cancelLocation.leadingAnchor, constant: -8),
-            cancelLocation.trailingAnchor.constraint(equalTo: workspaceBody.trailingAnchor, constant: -12),
-            cancelLocation.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -4)
+            warning.leadingAnchor.constraint(equalTo: workspaceBody.leadingAnchor, constant: 12).displayScaled(),
+            warning.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -8).displayScaled(),
+            warning.trailingAnchor.constraint(lessThanOrEqualTo: cancelLocation.leadingAnchor, constant: -8).displayScaled(),
+            cancelLocation.trailingAnchor.constraint(equalTo: workspaceBody.trailingAnchor, constant: -12).displayScaled(),
+            cancelLocation.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -4).displayScaled()
         ])
     }
     private func updateHeaderGeometry() {
         guard !updatingHeader, let content = window?.contentView, toggleLeading != nil else { return }
         updatingHeader = true; defer { updatingHeader = false }
         let collapsed = store.state.sidebarCollapsed
-        let width = collapsed ? SpookkyStyle.railWidth : SpookkyStyle.sidebarWidth
+        let width = collapsed ? SpookkyStyle.railWidth : CGFloat(services.displayPreferences.sidebarPoints(available: content.bounds.width))
+        railWidth.constant = width; sidebarDivider.isHidden = collapsed
+        window.positionWindowButtons(headerHeight: SpookkyStyle.headerHeight)
         if header.sidebarWidth != width { header.sidebarWidth = width }
         let occupied = window.styleMask.contains(.fullScreen) ? 0 : [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton].compactMap { window.standardWindowButton($0) }
             .filter { !$0.isHidden }.map { content.convert($0.bounds, from: $0).maxX }.max() ?? 0
-        let leading = collapsed ? max((width - 28) / 2, occupied + 8) : max(width - 36, occupied + 8)
+        let leading = collapsed ? max((width - SpookkyStyle.points(28)) / 2, occupied + 8) : max(width - SpookkyStyle.points(36), occupied + 8)
         if toggleLeading.constant != leading { toggleLeading.constant = leading }
-        let tabStart = max(width, leading + 36)
+        let tabStart = max(width, leading + SpookkyStyle.points(36))
         if tabsLeading.constant != tabStart { tabsLeading.constant = tabStart }
-        let labeled = content.bounds.width >= 900
-        let codeTitle = labeled ? "Panel" : ""
-        if filesToggle.title != codeTitle { filesToggle.title = codeTitle }
-        let codeTarget: CGFloat = labeled ? 76 : 28
-        if codeWidth.constant != codeTarget { codeWidth.constant = codeTarget }
-        filesToggle.selected = workspaceLayout.showsSupportingContent && store.state.selected != nil
-        filesToggle.setAccessibilityValue(filesToggle.selected ? "Selected" : nil)
-        filesToggle.toolTip = (filesToggle.selected ? "Hide" : "Show") + " supporting panel · ⌘L"
-        filesToggle.setAccessibilityLabel(filesToggle.toolTip!)
         sidebarToggle.toolTip = (collapsed ? "Expand" : "Collapse") + " workspace sidebar · ⌘B"
         sidebarToggle.setAccessibilityLabel(sidebarToggle.toolTip!)
         sidebarToggle.setAccessibilityValue(collapsed ? "Collapsed" : "Expanded")
-        let available = max(0, content.bounds.width - tabStart - codeTarget - 24)
+        let compact = content.bounds.width - width < SpookkyStyle.points(360) + 5
+        if workspaceLayout.compact != compact {
+            workspaceLayout.compact = compact; workspaceLayout.needsLayout = true
+            DispatchQueue.main.async { [weak self] in self?.renderSupportingContent() }
+        }
+        if let workspace = store.state.selected, let primary = workspace.primaryTerminalID, let item = tabPairs[primary] {
+            let joined = workspace.support?.layout == .fullWidth || compact && workspaceLayout.requestsSplit
+            if !joined { item.move(to: tabs) }
+            workspaceLayout.setPrimaryItem(item, joined: joined)
+            item.selected = !joined || workspace.support?.resolvedFullWidthSelection == .primary
+        }
+        let available = max(0, content.bounds.width - tabStart - SpookkyStyle.points(20))
         let splitStart = width + workspaceLayout.primaryPaneWidth(in: max(0, content.bounds.width - width)) + 5
         let mainWidth = workspaceLayout.joinsPrimary ? 0 : workspaceLayout.isSplit ? max(0, splitStart - tabStart - 5) : min(tabs.fittingSize.width, available)
         let supportStart = workspaceLayout.joinsPrimary ? tabStart : workspaceLayout.isSplit ? splitStart : tabStart + mainWidth
-        let supportWidth = max(0, content.bounds.width - codeTarget - 20 - supportStart)
+        let supportWidth = max(0, content.bounds.width - SpookkyStyle.points(20) - supportStart)
         let overflowing = tabs.fittingSize.width > mainWidth || workspaceLayout.headerFittingWidth > supportWidth
         tabOverflow.isHidden = !overflowing
-        if overflowWidth.constant != (overflowing ? 28 : 0) { overflowWidth.constant = overflowing ? 28 : 0 }
+        if overflowWidth.constant != (overflowing ? SpookkyStyle.points(28) : 0) { overflowWidth.constant = overflowing ? SpookkyStyle.points(28) : 0 }
+        if !workspaceLayout.joinsPrimary { for item in tabPairs.values { item.availableWidth = mainWidth } }
         if tabsWidth.constant != mainWidth { tabsWidth.constant = mainWidth }
         if supportHeaderLeading.constant != supportStart { supportHeaderLeading.constant = supportStart }
         tabScroll.isHidden = store.state.selected == nil || workspaceLayout.joinsPrimary
@@ -707,6 +739,10 @@ import SpookkyGit
             let entry = view.addItem(withTitle: title, action: action, keyEquivalent: key)
             entry.target = self; entry.keyEquivalentModifierMask = .command
         }
+        view.addItem(.separator())
+        for (title, action, key) in [("Zoom In", #selector(zoomIn), "+"), ("Zoom Out", #selector(zoomOut), "-"), ("Actual Size", #selector(actualSize), "0")] {
+            let entry = view.addItem(withTitle: title, action: action, keyEquivalent: key); entry.target = self
+        }
         viewItem.submenu = view; main.addItem(viewItem); NSApp.mainMenu = main
     }
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
@@ -725,10 +761,18 @@ import SpookkyGit
     }
     @objc private func undoInput() { activeInputEditor?.undoManager?.undo() }
     @objc private func redoInput() { activeInputEditor?.undoManager?.redo() }
+    @objc private func zoomIn() { services.changeDisplay { $0.stepZoom(1) } }
+    @objc private func zoomOut() { services.changeDisplay { $0.stepZoom(-1) } }
+    @objc private func actualSize() { services.changeDisplay { $0.zoom = 1 } }
     private func handleCommand(_ event: NSEvent) -> Bool {
         guard event.type == .keyDown, window.attachedSheet == nil else { return false }
         let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
         let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+        if modifiers == .command || modifiers == [.command, .shift] {
+            if key == "+" || key == "=" { zoomIn(); return true }
+            if key == "-" { zoomOut(); return true }
+            if key == "0" { actualSize(); return true }
+        }
         if modifiers == .command {
             switch key {
             case "b": toggleWorkspaceSidebar()
@@ -765,7 +809,6 @@ import SpookkyGit
         let appearanceName: NSAppearance.Name? = state.appearance == .system ? nil : state.appearance == .dark ? .darkAqua : .aqua
         if window.appearance?.name != appearanceName { window.appearance = appearanceName.flatMap(NSAppearance.init(named:)) }
         surfaces.setTheme(dark: window.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua)
-        railWidth.constant = state.sidebarCollapsed ? SpookkyStyle.railWidth : SpookkyStyle.sidebarWidth
         updateHeaderGeometry()
         window.contentView?.layoutSubtreeIfNeeded()
         renderSupportingContent()
@@ -858,7 +901,7 @@ import SpookkyGit
                 help: workspace.displayTitle + " · " + workspace.displayProvider.displayName + "\n" + workspace.directory,
                 selected: workspace.support?.layout != .fullWidth || workspace.support?.resolvedFullWidthSelection == .primary,
                 closable: !workspace.isLanding)
-            let joined = workspace.support?.layout == .fullWidth
+            let joined = workspace.support?.layout == .fullWidth || workspaceLayout.compact && workspaceLayout.requestsSplit
             if !joined { item.move(to: tabs) }
             workspaceLayout.setPrimaryItem(item, joined: joined)
             item.titleButton.onContextMenu = { [weak self] in
@@ -1362,7 +1405,7 @@ import SpookkyGit
                 checks["selected_support_tab_visible_\(theme.rawValue)_\(width)"] = workspaceLayout.selectedTabCanFit
                     ? workspaceLayout.selectedTabFullyVisible : workspaceLayout.selectedTabVisibleWidth > 0
                 checks["bounded_tab_widths_\(theme.rawValue)_\(width)"] = workspaceLayout.tabItems.allSatisfy {
-                    (WorkspaceTabView.minimumWidth...WorkspaceTabView.maximumWidth).contains($0.bounds.width)
+                    (SpookkyStyle.points(48)...WorkspaceTabView.maximumWidth).contains($0.bounds.width)
                 }
             }
         }
@@ -1485,12 +1528,21 @@ import SpookkyGit
         guard let pair = tabPairs[original.selectedTabID], let cell = sidebarCellForFixture(workspaceKey) else {
             throw LaunchError.invalid("Virtualized sidebar fixture controls are unavailable.")
         }
+        if let frame = window.contentView?.superview {
+            var hits: [String: String] = [:]
+            for y in [2.0, 10.0, 20.0, 30.0, 38.0] {
+                let point = pair.convert(NSPoint(x: pair.bounds.midX, y: y), to: frame)
+                let hit = frame.hitTest(point)
+                hits[String(y)] = hit.map { String(describing: type(of: $0)) } ?? "nil"
+            }
+            try PrivateFiles.write(hits, to: root.appendingPathComponent("header-hit-grid.json"))
+        }
         let tabClose = pair.closeButton
         checks["single_line_conversation_row"] = cell.subviews.compactMap { $0 as? NSTextField }.count == 1 && abs(cell.bounds.height - 32) < 0.5
         let projectIcon = sidebarCellForFixture(projectKey)?.subviews.compactMap { $0 as? NSImageView }.first
         let conversationIcon = cell.subviews.compactMap { $0 as? NSImageView }.first
-        checks["project_content_starts_at_sixteen_points"] = projectIcon.map { abs($0.convert($0.bounds, to: conversationSidebar).minX - 16) < 0.5 } == true
-        checks["conversation_has_only_one_indentation_level"] = conversationIcon.map { abs($0.convert($0.bounds, to: conversationSidebar).minX - 32) < 0.5 } == true
+        checks["project_content_has_single_outer_inset"] = projectIcon.map { abs($0.convert($0.bounds, to: conversationSidebar).minX - 0) < 0.5 } == true
+        checks["conversation_has_only_one_indentation_level"] = conversationIcon.map { abs($0.convert($0.bounds, to: conversationSidebar).minX - 12) < 0.5 } == true
         railScroll.contentView.scroll(to: NSPoint(x: 120, y: 0)); railScroll.reflectScrolledClipView(railScroll.contentView)
         checks["fixed_sidebar_controls_cannot_scroll_sideways"] = railScroll.contentView.bounds.minX == 0 && railScroll.horizontalScrollElasticity == .none
         checks["full_title_in_accessibility_and_tooltip"] = cell.toolTip?.contains(name) == true && cell.accessibilityLabel()?.contains(name) == true
@@ -1691,6 +1743,13 @@ import SpookkyGit
         let resources: [String: Double] = ["idle_app_cpu_percent": idleCPU, "focused_sidebar_app_cpu_percent": activeCPU,
             "app_rss_mib": WorkspaceDiagnostics.residentMiB() ?? -1, "terminal_session_count": 1,
             "virtual_history_items": 5_000, "mounted_sidebar_cells": Double(conversationSidebar.visibleCellCount)]
+        if CommandLine.arguments.contains("--workspace-benchmark-display") {
+            store.update { $0.openSupport(.changes, title: "Changes"); $0.openSupport(.file(path: root.appendingPathComponent("appearance-config").path), title: "Settings file") }
+            checks.merge(try await DisplayPolishFixture.check(window: window, root: root, sidebar: conversationSidebar,
+                apply: { preferences in self.services.changeDisplay { $0 = preferences } },
+                tabs: { Array(self.tabPairs.values) + self.workspaceLayout.tabItems },
+                layout: { mode in self.store.update { $0.setSupportingLayout(mode) } }), uniquingKeysWith: { _, new in new })
+        }
         try PrivateFiles.write(resources, to: root.appendingPathComponent("sidebar-resources.json"))
         try PrivateFiles.write(interactionDetails, to: root.appendingPathComponent("sidebar-interaction-diagnostics.json"))
         try await store.flush(); try PrivateFiles.write(checks, to: root.appendingPathComponent("sidebar-checks.json"))
@@ -1747,7 +1806,7 @@ import SpookkyGit
         if let workspace = store.state.workspace(containing: tab.id), workspace.primaryTerminalID == tab.id,
            workspace.catalogMetadata != nil, tab.binding == nil, tab.launch == nil {
             let message = ChromeTextField(wrappingLabelWithString: workspace.catalogMetadata?.displayTitle ?? workspace.title)
-            message.font = .systemFont(ofSize: 15, weight: .medium)
+            message.font = .systemFont(ofSize: SpookkyStyle.points(15), weight: .medium)
             let identity = workspace.conversationID
             let opening = identity.map { continuingConversations.contains($0) } ?? false
             let error = identity.flatMap { continuationErrors[$0] }
@@ -1794,13 +1853,13 @@ import SpookkyGit
             let directory = store.state.workspace(containing: tab.id)?.directory ?? ""
             let owner = store.state.workspace(containing: tab.id)
             let isPrimary = owner?.primaryTerminalID == tab.id
-            let title = NSTextField(labelWithString: (isPrimary ? owner?.displayTitle ?? tab.title : tab.title) + " · " + SpookkyStyle.abbreviatedPath(directory))
-            title.font = .monospacedSystemFont(ofSize: 11, weight: .regular); title.textColor = SpookkyPalette.metadata; title.lineBreakMode = .byTruncatingMiddle
+            let title = SpookkyStyle.label( (isPrimary ? owner?.displayTitle ?? tab.title : tab.title) + " · " + SpookkyStyle.abbreviatedPath(directory))
+            title.font = .monospacedSystemFont(ofSize: SpookkyStyle.points(11), weight: .regular); title.textColor = SpookkyPalette.metadata; title.lineBreakMode = .byTruncatingMiddle
             title.toolTip = directory; paneTitles[tab.id] = title
             let split = ActionButton("", symbol: "rectangle.split.2x1", help: "Split terminal") { [weak self] in self?.split(tab.id) }
             split.isEnabled = tab.status == .running
-            let activityLabel = NSTextField(labelWithString: tab.activity?.displayState == .idle ? "" : tab.activity?.displayState.label ?? "")
-            activityLabel.font = .systemFont(ofSize: 11); activityLabel.textColor = tab.activity.map { AgentIndicator.color($0.displayState) } ?? SpookkyPalette.metadata
+            let activityLabel = SpookkyStyle.label( tab.activity?.displayState == .idle ? "" : tab.activity?.displayState.label ?? "")
+            activityLabel.font = .systemFont(ofSize: SpookkyStyle.points(11)); activityLabel.textColor = tab.activity.map { AgentIndicator.color($0.displayState) } ?? SpookkyPalette.metadata
             activityLabel.isHidden = activityLabel.stringValue.isEmpty; activityLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
             agentHeaderLabels[tab.id] = activityLabel
             var headerViews: [NSView] = [title, NSView(), activityLabel, split]
@@ -1818,7 +1877,7 @@ import SpookkyGit
             if let surface, tab.status == .running || tab.status == .ended { content = surface }
             else {
                 let message = ChromeTextField(wrappingLabelWithString: tab.failure?.message ?? "Session " + tab.status.rawValue)
-                message.font = .systemFont(ofSize: 13); message.textColor = SpookkyPalette.text
+                message.font = .systemFont(ofSize: SpookkyStyle.points(13)); message.textColor = SpookkyPalette.text
                 let stack = NSStackView(views: [message])
                 stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12; stack.edgeInsets = NSEdgeInsets(top: 24, left: 24, bottom: 24, right: 24)
                 if tab.status != .ended || tab.binding != nil {
@@ -1832,7 +1891,7 @@ import SpookkyGit
             header.translatesAutoresizingMaskIntoConstraints = false; content.translatesAutoresizingMaskIntoConstraints = false
             container.addSubview(header); container.addSubview(content)
             NSLayoutConstraint.activate([header.leadingAnchor.constraint(equalTo: container.leadingAnchor), header.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-                header.topAnchor.constraint(equalTo: container.topAnchor), header.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight),
+                header.topAnchor.constraint(equalTo: container.topAnchor), header.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).displayScaled(alreadyScaled: true),
                 content.leadingAnchor.constraint(equalTo: container.leadingAnchor), content.trailingAnchor.constraint(equalTo: container.trailingAnchor),
                 content.topAnchor.constraint(equalTo: header.bottomAnchor), content.bottomAnchor.constraint(equalTo: container.bottomAnchor)])
         }
@@ -2251,6 +2310,7 @@ import SpookkyGit
         try await store.flush()
     }
     func prepareToQuit() -> NSApplication.TerminateReply {
+        services.flushDisplayPreferences()
         cancelLaunchPreflight()
         guard !(store.state.locations?.operations.contains(where: { $0.status == .running }) ?? false),
               !store.state.workspaces.flatMap(\.tabs).contains(where: { launches.isBusy($0.id) }) else { return .terminateCancel }
@@ -2804,21 +2864,21 @@ import SpookkyGit
             sidebarRevision = structure; clear(rail)
             let create = ActionButton(collapsed ? "" : "New session", symbol: "plus", help: "New session · ⌘N") { [weak self] in self?.newWorkspace() }
             create.alignment = collapsed ? .center : .left
-            create.heightAnchor.constraint(equalToConstant: 32).isActive = true
+            create.heightAnchor.constraint(equalToConstant: 32).displayScaled().isActive = true
             rail.addArrangedSubview(create)
             if collapsed {
                 let search = ActionButton("", symbol: "magnifyingglass", help: "Search conversations · ⌘K") { [weak self] in self?.findWorkspace() }
-                search.heightAnchor.constraint(equalToConstant: 32).isActive = true; rail.addArrangedSubview(search)
-            } else { rail.addArrangedSubview(historySearch); historySearch.heightAnchor.constraint(equalToConstant: 28).isActive = true }
-            let label = NSTextField(labelWithString: collapsed ? "" : "Projects")
-            label.font = .systemFont(ofSize: 11, weight: .medium); label.textColor = SpookkyPalette.secondary
+                search.heightAnchor.constraint(equalToConstant: 32).displayScaled().isActive = true; rail.addArrangedSubview(search)
+            } else { rail.addArrangedSubview(historySearch); historySearch.heightAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true }
+            let label = SpookkyStyle.label( collapsed ? "" : "Projects")
+            label.font = .systemFont(ofSize: SpookkyStyle.points(11), weight: .medium); label.textColor = SpookkyPalette.secondary
             let add = ActionButton("", symbol: "plus", help: "Add project") { [weak self] in self?.addProjectMenu(anchor: self?.projectAddButton) }
-            projectAddButton = add; add.widthAnchor.constraint(equalToConstant: 28).isActive = true
-            let heading = NSStackView(views: collapsed ? [add] : [label, NSView(), add]); heading.heightAnchor.constraint(equalToConstant: 28).isActive = true
+            projectAddButton = add; add.widthAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true
+            let heading = NSStackView(views: collapsed ? [add] : [label, NSView(), add]); heading.heightAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true
             rail.addArrangedSubview(heading); rail.addArrangedSubview(conversationSidebar)
             conversationSidebar.setContentHuggingPriority(.defaultLow, for: .vertical)
-            for view in rail.arrangedSubviews { view.widthAnchor.constraint(equalTo: rail.widthAnchor, constant: -16).isActive = true }
-            conversationSidebar.heightAnchor.constraint(greaterThanOrEqualToConstant: 0).isActive = true
+            for view in rail.arrangedSubviews { view.widthAnchor.constraint(equalTo: rail.widthAnchor, constant: -16).displayScaled().isActive = true }
+            conversationSidebar.heightAnchor.constraint(greaterThanOrEqualToConstant: 0).displayScaled().isActive = true
             conversationSidebar.onActivate = { [weak self] in self?.activateSidebarItem($0) }
             conversationSidebar.onAddProjectSession = { [weak self] value in
                 if let id = UUID(uuidString: value.replacingOccurrences(of: "project:", with: "")) { self?.newProjectWorkspace(id) }
@@ -2849,17 +2909,16 @@ import SpookkyGit
                 let id = "conversation:" + record.id.provider.rawValue + ":" + record.id.sessionID
                 sidebarRecords[id] = record
                 let activity = workspace?.activityState
-                let symbol = activity == .unknown || activity == .idle ? nil : activity.flatMap(AgentIndicator.symbol)
                 items.append(WorkspaceSidebarItem(id: id, kind: .conversation, title: workspace?.displayTitle ?? record.displayTitle,
                     image: SpookkyStyle.toolImage(record.id.provider), help: ([record.displayTitle + " · " + record.id.provider.displayName, record.metadata.directory, workspace?.currentProjectAssociation?.message, activity?.label].compactMap { $0 }).joined(separator: "\n"),
                     selected: workspace?.id == state.selectedWorkspaceID, nested: projectID != nil,
-                    statusSymbol: symbol, statusHelp: activity?.label))
+                    activity: activity))
             }
             for workspace in state.workspaces where !workspace.isLanding && workspace.projectID == projectID && workspace.conversationID == nil && workspace.viewClosed != true &&
                 (search.isEmpty || workspace.displayTitle.localizedCaseInsensitiveContains(search)) {
                 items.append(WorkspaceSidebarItem(id: "workspace:" + workspace.id.uuidString, kind: .conversation,
                     title: workspace.displayTitle, image: SpookkyStyle.toolImage(workspace.displayProvider),
-                    help: ([workspace.displayTitle, workspace.directory, workspace.currentProjectAssociation?.message, workspace.activityState?.label].compactMap { $0 }).joined(separator: "\n"), selected: workspace.id == state.selectedWorkspaceID, nested: projectID != nil))
+                    help: ([workspace.displayTitle, workspace.directory, workspace.currentProjectAssociation?.message, workspace.activityState?.label].compactMap { $0 }).joined(separator: "\n"), selected: workspace.id == state.selectedWorkspaceID, nested: projectID != nil, activity: workspace.activityState))
             }
             if historyHasMore.contains(key) || historyIssues[key] != nil {
                 items.append(WorkspaceSidebarItem(id: "more:" + key, kind: .more,

@@ -34,7 +34,7 @@ private struct HarnessSession {
     private let retention = ChromeButton(checkboxWithTitle: "Release hidden views", target: nil, action: nil)
     private let directory = ChromeTextField(string: FileManager.default.homeDirectoryForCurrentUser.path)
     private let prompt = ChromeTextField(string: "")
-    private let status = NSTextField(labelWithString: "Native terminal feasibility harness")
+    private let status = SpookkyStyle.label( "Native terminal feasibility harness")
     private let selector = ChromePopUpButton()
     private let terminalContainer = NSView()
     private var busy = false
@@ -173,7 +173,7 @@ private struct HarnessSession {
         launch.keyEquivalentModifierMask = .command
         let controls = NSStackView(views: [tool, mode, launch, retention])
         controls.spacing = 10
-        let locationRow = NSStackView(views: [NSTextField(labelWithString: "Folder"), directory])
+        let locationRow = NSStackView(views: [SpookkyStyle.label( "Folder"), directory])
         locationRow.spacing = 10
         let sessionRow = NSStackView(views: [selector,
                                             ChromeButton(title: "Detach view", target: self, action: #selector(detach)),
@@ -182,7 +182,7 @@ private struct HarnessSession {
                                             ChromeButton(title: "Inspect", target: self, action: #selector(inspectSession))])
         sessionRow.spacing = 8
         status.textColor = .secondaryLabelColor
-        status.font = .systemFont(ofSize: 11)
+        status.font = .systemFont(ofSize: SpookkyStyle.points(11))
         let rows = NSStackView(views: [controls, locationRow, prompt, sessionRow, status])
         rows.orientation = .vertical
         rows.alignment = .leading
@@ -192,14 +192,14 @@ private struct HarnessSession {
         content.addSubview(rows)
         content.addSubview(terminalContainer)
         NSLayoutConstraint.activate([
-            rows.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 14),
-            rows.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -14),
-            rows.topAnchor.constraint(equalTo: content.topAnchor, constant: 12),
+            rows.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 14).displayScaled(),
+            rows.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -14).displayScaled(),
+            rows.topAnchor.constraint(equalTo: content.topAnchor, constant: 12).displayScaled(),
             locationRow.widthAnchor.constraint(equalTo: rows.widthAnchor),
             prompt.widthAnchor.constraint(equalTo: rows.widthAnchor),
             status.widthAnchor.constraint(equalTo: rows.widthAnchor),
-            selector.widthAnchor.constraint(equalToConstant: 230),
-            terminalContainer.topAnchor.constraint(equalTo: rows.bottomAnchor, constant: 10),
+            selector.widthAnchor.constraint(equalToConstant: 230).displayScaled(),
+            terminalContainer.topAnchor.constraint(equalTo: rows.bottomAnchor, constant: 10).displayScaled(),
             terminalContainer.leadingAnchor.constraint(equalTo: content.leadingAnchor),
             terminalContainer.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             terminalContainer.bottomAnchor.constraint(equalTo: content.bottomAnchor)
