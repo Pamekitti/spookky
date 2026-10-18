@@ -145,6 +145,22 @@ os.execv('/bin/cat',['cat'])
         checks["second_project_has_independent_page_limit"] = historyFixtureRecords(projectID.uuidString).count == 25 && historyFixtureRecords(otherProjectID.uuidString).count == 15
         checks["larger_history_still_virtualizes_native_rows"] = conversationSidebar.itemCount >= 44 && conversationSidebar.itemCount <= 48 && conversationSidebar.visibleCellCount <= 32
 
+        try activate("project:" + projectID.uuidString)
+        checks["collapse_immediately_resets_only_its_history_page"] = historyFixtureRecords(projectID.uuidString).count == 5 &&
+            historyFixtureRecords(otherProjectID.uuidString).count == 15 && store.state.selectedWorkspaceID == selected
+        try await settleHistory()
+        try activate("project:" + projectID.uuidString); try await settleHistory()
+        checks["reexpanded_project_starts_with_five_again"] = historyFixtureRecords(projectID.uuidString).count == 5 &&
+            historyFixtureRecords(otherProjectID.uuidString).count == 15
+        try activate("more:" + projectID.uuidString); try await settleHistory()
+        checks["show_more_after_reexpansion_adds_ten_without_skipping"] = historyFixtureRecords(projectID.uuidString).count == 15 &&
+            historyFixtureRecords(projectID.uuidString).last?.metadata.title == "Conversation 0285"
+        try activate("more:" + projectID.uuidString)
+        try activate("project:" + projectID.uuidString)
+        try activate("project:" + projectID.uuidString); try await settleHistory()
+        checks["collapse_cancels_pending_expansion_without_restoring_large_page"] = historyFixtureRecords(projectID.uuidString).count == 5 &&
+            historyFixtureRecords(otherProjectID.uuidString).count == 15 && store.state.selectedWorkspaceID == selected
+
         try await search("Needle oldest")
         guard let original = historyFixtureRecords("search").first else { throw LaunchError.invalid("History fixture could not find uncached older metadata.") }
         checks["search_finds_oldest_outside_loaded_pages"] = historyFixtureRecords("search").count == 1 && original.metadata.title == "Needle oldest conversation" && conversationSidebar.itemCount == 1

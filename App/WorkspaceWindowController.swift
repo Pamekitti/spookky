@@ -882,13 +882,17 @@ import SpookkyGit
                 if force { await sessionCatalog.invalidatePages() }
                 if !query.isEmpty {
                     let limit = historyPageLimits["search"] ?? 10
-                    historyRecords["search"] = try await historyCatalog.cached(allProjects: true, search: query, limit: limit)
+                    let cached = try await historyCatalog.cached(allProjects: true, search: query, limit: limit)
+                    try Task.checkCancellation()
+                    historyRecords["search"] = cached
                     chromeRevision = ""; render()
                     try await refreshHistoryGroup("search", projects: projects, locations: locations, query: query, reset: true, force: false)
                 } else {
                     for projectID in projects.map(\.id).map(Optional.some) + [nil] {
                         let key = projectID?.uuidString ?? "unbound"
-                        historyRecords[key] = try await historyCatalog.cached(projectID: projectID, limit: historyPageLimits[key] ?? 5)
+                        let cached = try await historyCatalog.cached(projectID: projectID, limit: historyPageLimits[key] ?? 5)
+                        try Task.checkCancellation()
+                        historyRecords[key] = cached
                     }
                     chromeRevision = ""; render()
                     // Discover recent external worktrees without enumerating the provider's full history.
@@ -927,6 +931,7 @@ import SpookkyGit
             try Task.checkCancellation()
             cursor = page?.nextCursor
             let cached = try await historyCatalog.cached(projectID: projectID, allProjects: isSearch, search: query, limit: limit + 1)
+            try Task.checkCancellation()
             historyRecords[key] = Array(cached.prefix(limit))
             if cached.count > limit || cursor != nil { historyHasMore.insert(key) } else { historyHasMore.remove(key) }
             historyCursors[key] = cursor
@@ -2806,6 +2811,13 @@ import SpookkyGit
     }
     private func activateSidebarItem(_ value: String) {
         if value.hasPrefix("project:"), let id = UUID(uuidString: String(value.dropFirst(8))) {
+            if store.state.projects.first(where: { $0.id == id })?.isCollapsed != true {
+                let key = id.uuidString, records = historyRecords[id.uuidString] ?? []
+                historyPageLimits[key] = 5
+                historyRecords[key] = Array(records.prefix(5))
+                historyCursors[key] = nil
+                if records.count > 5 { historyHasMore.insert(key) }
+            }
             store.update { $0.toggleProjectCollapsed(id) }
             requestCatalogRefresh(force: true)
         } else if value.hasPrefix("more:") { showMoreHistory(String(value.dropFirst(5))) }

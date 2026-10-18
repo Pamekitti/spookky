@@ -115,7 +115,7 @@ Diff additions/removals use muted green/red backgrounds plus explicit signs and 
 
 ## Direct controls
 
-- Clicking a project expands or collapses its conversation rows without changing selection or processes. Project + selects its retained draft. Conversation contextual actions can close its view while retaining history and processes. Closing another view never steals the current selection.
+- Clicking a project expands or collapses its conversation rows without changing selection or processes. Collapse resets that project's history page to five entries. Project + selects its retained draft. Conversation contextual actions can close its view while retaining history and processes. Closing another view never steals the current selection.
 - Secondary rename/remove/delete actions live in contextual menus, opened by right-click or Shift+F10. Context menus anchor to the entry and stay inside the window.
 - Project menus open from the exact add or picker control that invoked them. Keep the trigger visible when there is room below it.
 - Use provider marks on conversation rows and primary headers. Supporting tabs use content-type glyphs. Native asset choices require their own provenance check; do not invent provider branding.

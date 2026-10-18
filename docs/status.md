@@ -12,6 +12,8 @@ The full Swift run passed 278 cases, with three opt-in cases skipped: 261 of 264
 
 The native workflow batch passed 182 assertions: 29 sidebar, 30 lazy history, 86 identity/layout/startup, 27 close/reopen and 10 project-grouping checks. They cover five-entry project pages, repeated ten-entry expansion, older search results, zero agent launches during discovery, bounded native rows, stationary-pointer scroll reconciliation, row action visibility after activation, keyboard access, cancellation before launch, retained drafts/processes and Split/Full tab geometry in both appearances.
 
+The collapse/reopen follow-up passed 34 history and 29 sidebar assertions. It resets only the collapsed project to five recent entries and cancels pending expansion results.
+
 Browser/artifact verification passed another 36 checks and three cold-restore checks. The file/diff fixture passed 24 checks and 100 selection cycles. Across 30 observations, selected-diff readiness measured 115.9 ms p95 and syntax readiness measured 207.9 ms p95. The fixture retained its preview, metadata, surface and watcher bounds. These measurements exclude physical display latency. See [performance](performance.md) for workload and resource boundaries.
 
 The before/after comparison measured empty readiness p95 at 514.4 ms versus 365.1 ms. Warm selection p95 was 18.9 ms versus 20.7 ms; recreated selection was 51.9 ms versus 51.2 ms. Both crash/restore checks preserved processes and viewport. Memory results were mixed, with lower RSS and higher physical footprint in short occluded observations. See [performance](performance.md) for surface counts and measurement limits.

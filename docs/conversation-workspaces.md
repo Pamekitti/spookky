@@ -10,7 +10,7 @@ With no open view, Spookky shows the bottom composer immediately. It never leave
 
 Starting an agent promotes its landing draft into a session at accepted launch intent. Open Terminal starts a supporting shell and keeps the agent draft. Files and browser access require no agent. The landing tab has no close button; Cmd+W there closes the window normally.
 
-The sidebar shows five recent history entries per project. Show more requests ten more. Search starts with ten results and can request older uncached history. Rows use one 32-point title line, provider marks and actionable attention indicators. Paths and detailed status stay in tooltips and accessibility labels. Local aliases win over provider titles.
+The sidebar shows five recent history entries per project. Show more requests ten more. Collapsing a project resets its history page to five for the next expansion. Other projects keep their page counts. Search starts with ten results and can request older uncached history. Rows use one 32-point title line, provider marks and actionable attention indicators. Paths and detailed status stay in tooltips and accessibility labels. Local aliases win over provider titles.
 
 Closing a supporting tab selects its nearest left neighbor, then its next neighbor, then primary. Closing a session view selects the most recently used already-open view or the landing composer. It never resumes an arbitrary saved conversation. View closure retains history, drafts, supporting metadata and owned processes. Stop remains a separate action.
 
