@@ -1035,7 +1035,7 @@ import SpookkyGit
             } catch is CancellationError { }
             catch {
                 guard historyGeneration == generation else { return }
-                historyNotice = "Conversation refresh could not resolve projects. Retained conversations are unchanged. Use Refresh conversations to retry."
+                historyNotice = "Conversation refresh could not resolve projects. " + error.localizedDescription + " Retained conversations are unchanged. Use Refresh conversations to retry."
                 render()
             }
         }
