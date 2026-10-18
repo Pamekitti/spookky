@@ -135,6 +135,8 @@ Native CLI resume, supported cloud handoff, and remote control can be used insid
 
 Do not mutate global agent configuration or overwrite user hooks. Activity hooks use per-invocation configuration and preserve existing hooks. Codex monitoring preserves the provider hook trust checks. Model approval and sandbox settings remain provider-owned. Unsupported activity detection shows unknown state. Standard CLI permissions remain usable with app hints disabled. See [agent activity](agent-activity.md).
 
+Native terminal launches clear inherited captured-output color flags and advertise true color. A missing or dumb terminal type becomes `tmux-256color` inside the private runtime and `xterm-ghostty` for a direct surface. Explicit launch environment values take precedence. This applies when launching or resuming a process, including launches into a surviving private server. Existing processes retain their original environment. Provider configuration and shell startup files remain unchanged.
+
 ## Persistence and recovery
 
 M1 implements these boundaries in SpookkyCore, SpookkyWorkspace, SpookkyPersistence, and the AppKit presentation layer. Its v1 SQLite schema stores a validated metadata snapshot per transaction through pinned GRDB. WorkspaceStore shares one in-flight write across concurrent flush callers, then saves newer revisions in order. Launch intent is durable before SessionRuntime.create is called.

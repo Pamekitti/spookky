@@ -1592,6 +1592,18 @@ import SpookkyGit
         await launches.launch(shellID, tool: .shell)
         for _ in 0..<100 { if surfaces.view(shellID) != nil { break }; try await Task.sleep(for: .milliseconds(20)) }
         guard let surface = surfaces.view(shellID), let binding = store.state.tab(shellID)?.binding else { throw LaunchError.invalid("Sidebar shell fixture did not attach.") }
+        for green in [false, true] {
+            let rgb = green ? "0;255;0" : "255;0;0"
+            let command = "if [[ -z ${NO_COLOR-} && $COLORTERM == truecolor ]]; then printf '\\033[2J\\033[H\\033[48;2;" + rgb + "m                \\033[0m\\nSPOOKKY_NATIVE_COLOR_ENV_OK\\n'; fi"
+            surface.insertText(command, replacementRange: NSRange(location: NSNotFound, length: 0))
+            surface.keyDown(with: try key(36, "\r"))
+            for _ in 0..<150 {
+                if RenderedFixtureProbe.matches(surface, green: green) { break }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            checks[green ? "native_truecolor_green_survives_tmux" : "native_truecolor_red_survives_tmux"] =
+                surface.visibleText().contains("SPOOKKY_NATIVE_COLOR_ENV_OK") && RenderedFixtureProbe.matches(surface, green: green)
+        }
         surface.insertText("SPOOKKY_SIDEBAR_UNSENT", replacementRange: NSRange(location: NSNotFound, length: 0))
         try await Task.sleep(for: .milliseconds(150))
         let before = try await launches.runtime.inspect(binding)
