@@ -15,6 +15,34 @@ final class HistoryCatalogPersistenceTests: XCTestCase {
             title: title ?? "Conversation \(number)", directory: "/tmp/project", updatedAt: Date(timeIntervalSince1970: Double(number)))
     }
 
+    func testGlobalAndProjectLandingDraftsRestoreFromReopenedDatabase() async throws {
+        let root = try root(); defer { try? FileManager.default.removeItem(at: root) }
+        let path = root.appendingPathComponent("state.sqlite").path
+        var state = WorkspaceState()
+        let global = state.showLanding(homeDirectory: "/tmp/home")
+        let globalTerminal = state.primaryTerminalID!
+        state.editDraft(globalTerminal, tool: .claude, prompt: "Global unsent instruction")
+        state.setLocation(WorkspaceLocation(path: "/tmp/chosen-folder"), projectID: nil, workspaceID: global)
+        let project = state.registerProject(WorkspaceLocation(path: "/tmp/project"))
+        let projectDraft = state.showLanding(projectID: project, homeDirectory: "/tmp/home")
+        let projectTerminal = state.primaryTerminalID!
+        state.editDraft(projectTerminal, tool: .codex, prompt: "Project unsent instruction")
+        state.openSupport(.browser(url: "https://example.invalid"), title: "Retained browser")
+        do { let database = try WorkspaceDatabase(path: path); try await database.save(state) }
+        let reopened = try WorkspaceDatabase(path: path)
+        let loaded = try await reopened.load()
+        var restored = try XCTUnwrap(loaded)
+        XCTAssertEqual(restored, state)
+        XCTAssertEqual(restored.showLanding(homeDirectory: "/tmp/home"), global)
+        XCTAssertEqual(restored.selectedTab?.draft.prompt, "Global unsent instruction")
+        XCTAssertEqual(restored.selectedTab?.draft.tool, .claude)
+        XCTAssertEqual(restored.selected?.directory, "/tmp/chosen-folder")
+        XCTAssertEqual(restored.showLanding(projectID: project, homeDirectory: "/tmp/home"), projectDraft)
+        XCTAssertEqual(restored.selectedTab?.draft.prompt, "Project unsent instruction")
+        XCTAssertEqual(restored.selected?.support?.tabs.count, 1)
+        XCTAssertTrue(restored.workspaces.flatMap(\.tabs).allSatisfy { $0.launch == nil && $0.binding == nil })
+    }
+
     func testRemovingProjectLeavesItsDraftAccessibleWithoutReplacingGlobalDraft() throws {
         var state = WorkspaceState()
         let global = state.showLanding(homeDirectory: "/tmp")

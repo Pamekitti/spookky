@@ -58,7 +58,8 @@ import SpookkyRuntime
             value.setSupportingLayout(.collapsed)
         }
         checks["ten_saved_descriptors_zero_webviews"] = host.browserCount == 0 && ids.count == 10
-        mutate { $0.selectSupport(ids[0]); $0.setSupportingLayout(.split) }
+        // Landing browsing above starts no agent. The remaining checks need an ordinary primary shell.
+        mutate { $0.promoteLanding(original); $0.selectSupport(ids[0]); $0.setSupportingLayout(.split) }
         guard let first = browser(ids[0]) else { throw LaunchError.invalid("Browser host did not materialize") }
         try await wait("Localhost page failed") { first.webView.title == "Fixture one" && !first.webView.isLoading }
         checks["selected_only_one_webview"] = host.browserCount == 1

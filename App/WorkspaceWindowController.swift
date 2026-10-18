@@ -31,6 +31,7 @@ import SpookkyGit
     private var preflightConversation: ConversationID?
     private var continuationTokens: [ConversationID: UUID] = [:]
     private var historySearchTask: Task<Void, Never>?
+    private var initialLaunchTasks: [UUID: Task<Void, Never>] = [:]
     private var continuationErrors: [ConversationID: String] = [:]
     private lazy var historyCatalog = ConversationHistoryCatalog(reader: sessionCatalog, persistence: store.historyPersistence)
     private var historyRecords: [String: [ConversationCatalogRecord]] = [:]
@@ -972,7 +973,7 @@ import SpookkyGit
     func openConversationWorkspace(_ id: UUID) {
         guard let workspace = store.state.workspaces.first(where: { $0.id == id }) else { return }
         if let identity = workspace.conversationID, continuingConversations.contains(identity), store.state.selectedWorkspaceID == id { return }
-        cancelConversationPreflight()
+        cancelLaunchPreflight()
         selectWorkspace(id)
         guard let item = workspace.catalogMetadata, workspace.conversationID == item.id,
               let primary = workspace.primaryTerminal else { return }
@@ -1024,7 +1025,8 @@ import SpookkyGit
             catch { if !Task.isCancelled && continuationTokens[item.id] == token { continuationErrors[item.id] = error.localizedDescription } }
         }
     }
-    private func cancelConversationPreflight() {
+    private func cancelLaunchPreflight() {
+        for task in initialLaunchTasks.values { task.cancel() }
         conversationOpenTask?.cancel(); conversationOpenTask = nil
         if let id = preflightConversation {
             continuationTokens[id] = nil; continuingConversations.remove(id); preflightConversation = nil
@@ -1409,6 +1411,14 @@ import SpookkyGit
             checks["startup_screenshot_\(width)"] = try capture("identity-startup-" + theme.rawValue + "-" + String(width))
         }
         checks["startup_keeps_initial_draft"] = composer.prompt.string == "Retain this starting instruction"
+        launch(draftTerminal)
+        let cancelledLaunch = initialLaunchTasks[draftTerminal]
+        if let returningWorkspace { selectWorkspace(returningWorkspace) } else { newWorkspace() }
+        await cancelledLaunch?.value
+        checks["leaving_new_prompt_cancels_unstarted_agent"] = store.state.tab(draftTerminal)?.binding == nil &&
+            store.state.tab(draftTerminal)?.launch == nil && store.state.tab(draftTerminal)?.draft.prompt == "Retain this starting instruction"
+        selectWorkspace(draftWorkspace)
+        if let renderTask { await renderTask.value }
         func terminalAction(_ view: NSView) -> ActionButton? {
             if let button = view as? ActionButton, button.accessibilityLabel() == "Open Terminal and keep this session draft" { return button }
             return view.subviews.lazy.compactMap { terminalAction($0) }.first
@@ -1741,7 +1751,7 @@ import SpookkyGit
         } else { composers[id]?.focus() }
     }
     private func selectWorkspace(_ id: UUID) {
-        if store.state.selectedWorkspaceID != id { cancelConversationPreflight() }
+        if store.state.selectedWorkspaceID != id { cancelLaunchPreflight() }
         renameEditor?.cancel(); renameEditor = nil
         if store.state.selectedWorkspaceID == id { focusSelectedContent() }
         else { store.update { $0.selectWorkspace(id) } }
@@ -1808,7 +1818,7 @@ import SpookkyGit
     }
     @objc private func newWorkspace() {
         let hidden = !window.isVisible
-        cancelConversationPreflight()
+        cancelLaunchPreflight()
         store.update { $0.showLanding(homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path) }
         if hidden { reopen() }
         if let id = store.state.primaryTerminalID { composers[id]?.focus() }
@@ -1837,8 +1847,9 @@ import SpookkyGit
         guard let id = store.state.selectedTab?.id, composers[id]?.hasInputFocus == true else { return }; launch(id)
     }
     private func launch(_ id: UUID, tool: SessionTool? = nil) {
-        guard let workspace = store.state.workspace(containing: id), let tab = store.state.tab(id),
-              !launches.isBusy(id), tab.isEditable || (tab.status == .failed && tab.launch != nil) else { return }
+        guard initialLaunchTasks[id] == nil, let tab = store.state.tab(id),
+              let workspace = store.state.workspace(containing: id), !launches.isBusy(id),
+              tab.isEditable || (tab.status == .failed && tab.launch != nil) else { return }
         if (tool ?? tab.draft.tool) != .shell, workspace.primaryTerminalID != id {
             store.update { $0.separateAgentTerminal(id) }; launch(id, tool: tool); return
         }
@@ -1851,23 +1862,27 @@ import SpookkyGit
         }
         let deleting = store.state.locations?.operations.contains { $0.status == .running && $0.request.kind == .deleteWorktree && $0.request.destination == workspace.selectedLocation.scopePath } ?? false
         guard !deleting else { alert("Worktree removal in progress", "Wait for removal to finish before launching here."); return }
-        if workspace.anchor != nil || (workspace.locationDraft?.mode != .worktree && workspace.locationOperationID == nil) { launchPrepared(id, tool: tool); return }
-        store.update { $0.apply(.preparing, to: id) }
-        Task {
+        initialLaunchTasks[id] = Task { [weak self] in
+            guard let self else { return }
+            defer { initialLaunchTasks[id] = nil }
             do {
-                _ = try await locations.prepare(workspaceID: workspace.id)
+                await agentPreferencesTask?.value
+                try Task.checkCancellation()
+                if workspace.anchor == nil && (workspace.locationDraft?.mode == .worktree || workspace.locationOperationID != nil) {
+                    store.update { $0.apply(.preparing, to: id) }
+                    _ = try await locations.prepare(workspaceID: workspace.id)
+                }
+                try Task.checkCancellation()
                 guard store.state.tab(id) != nil else { return }
-                launchPrepared(id, tool: tool)
+                await launches.launch(id, tool: tool)
+            } catch is CancellationError {
+                store.update { $0.cancelPreparation(id, restoring: tab) }
             } catch {
                 let recovery: FailureRecovery?
                 if case .folderUnavailable = error as? LaunchError { recovery = .locateFolder } else { recovery = nil }
                 store.update { $0.apply(.failure(.failed, TabFailure(.validation, error.localizedDescription, recovery: recovery), clearIntent: true), to: id) }
             }
         }
-    }
-    private func launchPrepared(_ id: UUID, tool: SessionTool? = nil) {
-        guard store.state.workspace(containing: id) != nil, !launches.isBusy(id) else { return }
-        Task { await agentPreferencesTask?.value; await launches.launch(id, tool: tool) }
     }
     private func reconnect(_ id: UUID) {
         Task {
@@ -1914,7 +1929,7 @@ import SpookkyGit
     }
     private func newProjectWorkspace(_ id: UUID) {
         guard store.state.projects.contains(where: { $0.id == id }) else { return }
-        cancelConversationPreflight()
+        cancelLaunchPreflight()
         store.update { $0.showLanding(projectID: id, homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path) }
         scheduleRepositoryRefresh()
     }
@@ -2085,7 +2100,7 @@ import SpookkyGit
         else { window.performClose(nil) }
     }
     private func closeWorkspace(_ id: UUID) {
-        if store.state.selectedWorkspaceID == id { cancelConversationPreflight() }
+        if store.state.selectedWorkspaceID == id { cancelLaunchPreflight() }
         Task {
             await surfaces.captureViewports()
             store.update { $0.hideWorkspace(id) }
@@ -2136,6 +2151,7 @@ import SpookkyGit
         try await store.flush()
     }
     func prepareToQuit() -> NSApplication.TerminateReply {
+        cancelLaunchPreflight()
         guard !(store.state.locations?.operations.contains(where: { $0.status == .running }) ?? false),
               !store.state.workspaces.flatMap(\.tabs).contains(where: { launches.isBusy($0.id) }) else { return .terminateCancel }
         let live = store.state.workspaces.flatMap(\.tabs).contains {
@@ -2163,6 +2179,7 @@ import SpookkyGit
         return .terminateLater
     }
     func windowWillClose(_ notification: Notification) {
+        cancelLaunchPreflight()
         continuationTask?.cancel()
         files.suspend()
         renderTask?.cancel(); surfaces.invalidate(); contentKey = ""
