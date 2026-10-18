@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
+import tempfile
 from native_fixture import NATIVE_BINARY, native_fixture
 
 
@@ -20,7 +21,16 @@ def main():
         arguments.append("--workspace-benchmark-front")
     with native_fixture(arguments,
                         prefix="spookky-m1-identity-", binary=args.binary, workspace=True) as fixture:
-        fixture.wait_ready(60, "Native identity check failed")
+        try:
+            fixture.wait_ready(60, "Native identity check failed")
+        except Exception:
+            evidence = Path(tempfile.mkdtemp(prefix=args.output.stem + '-failure-', dir=args.output.parent))
+            for name in ['app.log', 'identity-checks.json', 'continuity-failure.json']:
+                source = fixture.root / name
+                if source.exists():
+                    shutil.copy2(source, evidence / name)
+            print('Identity failure evidence: ' + str(evidence), flush=True)
+            raise
         checks = json.loads((fixture.root / "identity-checks.json").read_text())
         ready = json.loads((fixture.root / "ready.json").read_text())
         checks["exact_disposable_runtime_count"] = ready["session_count"] == 2

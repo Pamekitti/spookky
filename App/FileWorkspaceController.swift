@@ -827,11 +827,12 @@ import SpookkySyntax
         let selectedRows = diffTable.selectedRowIndexes, selectedText = diffTable.copyText?()
         let contentFrame = diffScroll.frame, contentCount = diff.count
         let informationVisible = !informationButton.isHidden
+        let sidebarStatus = status.stringValue, sidebarStatusHidden = status.isHidden
         refresh(); openSelection(); preview.layoutSubtreeIfNeeded(); sidebar.layoutSubtreeIfNeeded()
-        let quietSidebar = status.isHidden
         let quietPreview = previewNotice.isHidden && diff.count == contentCount && diffScroll.frame == contentFrame
         let informationStable = (!informationButton.isHidden) == informationVisible
         await settleForFixture()
+        let quietSidebar = status.stringValue == sidebarStatus && status.isHidden == sidebarStatusHidden
         let selectionSurvivedRefresh = diffTable.selectedRowIndexes == selectedRows && diffTable.copyText?() == selectedText
         guard let workspaceID, let changesTabID = store.state.selected?.support?.selectedTabID,
               let selectedPath = state.selectedPath else { throw ChangesError.unsupported("Changes fixture selection is missing.") }
