@@ -2,6 +2,32 @@
 
 Spookky is an early native macOS development preview. The terminal, workspace, project/worktree, file/diff, and metadata layers are implemented. Daily-use and distribution acceptance remain incomplete.
 
+## Layout and startup refinement, 18 October 2026
+
+The accepted interface now uses one 40-point row for the primary header and supporting tabs. Full view joins the primary first and every supporting tab. Selecting the primary keeps supporting tabs visible. Split restores the primary left and last support right with the retained divider width and live state.
+
+New session opens a bottom composer with an optional prompt, provider/folder chips, Local by default and worktree controls inside the location popover. First use selects Codex. Shell launches retain the agent draft and do not replace the last agent preference. The running provider TUI replaces the composer.
+
+The Release build passed 191 native checks: 77 identity/layout/startup, 24 closure, 17 history, 10 project grouping, 36 browser/artifact, three cold-preview restore and 24 large-diff checks. They cover both appearances, wide/narrow windows, selected-tab visibility, overflow focus, actual Open Terminal control activation, retained terminal geometry/input and process identity. The full Swift run passed 239 cases with three opt-in checks skipped. The affected state/switch cleanup passed another 18 targeted cases. All 30 Python tests and the repository checker passed.
+
+The final local binary measured warm switching at p95 17.4 ms, recreated-terminal selection at 51.0 ms and empty readiness at 366.2 ms. See [performance](performance.md) for measurement boundaries. App crash/restore retained process identities and the visible history marker.
+
+The prototype main flow was checked in the in-app browser at desktop and a requested 390-pixel viewport. Native captures covered 1120 and 680 points. Direct desktop automation could list the development app but could not bind its newly registered identity. Physical keyboard/IME, the native location popover, spoken VoiceOver and extended sleep/reboot continuity remain unverified. No installed-app update or public delivery was performed.
+
+## Conversation workspace integration, 17 October 2026
+
+The local integration adds direct provider history, primary conversation titles and icons, checkout association, continuation guidance, and native browser/artifact tabs. Metadata version 6 splits older multi-agent workspaces while retaining terminal identities, bindings and drafts. Provider-native conversation switches now retain the previous entry and move the live terminal to the new conversation. See [conversation workspaces](conversation-workspaces.md).
+
+The combined Release app passed 133 native fixture assertions: 24 for close/reopen, 43 for identity, conversation switching and independent file tabs, 10 for project association, 17 for the 600-conversation sidebar, and 39 for browser/artifact behavior and lazy restoration. The history fixture kept 51 native workspace rows for 600 saved entries. The final Swift run passed 206 XCTest cases and 17 Swift Testing cases, with three opt-in checks skipped. Thirty Python tests passed.
+
+The large-diff fixture passed another 24 checks and 100 selection cycles through the supporting panel. Preview selection measured 113.5 ms p95 across 30 samples. Syntax readiness measured 179.2 ms p95. The checks covered file/comparison switching, visible geometry, selection and focus retention, external edits, bounded buffers and stopping the hidden watcher. File-tab context now persists independently, and native switching between two files loaded each file's actual content.
+
+Native accessibility interaction confirmed browser form retention when switching to an interactive HTML artifact. Cancel preserved the workspace. Keep running and quit exited the app while preserving the exact shell PID. Reopening the same disposable state restored its unsent terminal input and all 17 supporting descriptors. End terminals and quit then ended only that owned terminal. The UI explains that shared provider execution may continue. These are disposable shell and metadata checks, not proof that a provider turn was interrupted.
+
+Browser form state survives live view switching. An app or WebKit restart can lose unsent web input. Only supporting route, title, selection and layout metadata persist. Current provider ownership evidence and desktop/remote limitations are recorded in [continuation](session-continuation.md) and [provider ownership](provider-ownership.md). A complete Codex Desktop return and remote pairing remain unverified. Codex GUI inspection was unavailable to this task.
+
+This is a local development result. It does not establish installed delivery, older macOS compatibility, physical keyboard/IME behavior, spoken VoiceOver or extended sleep/reboot continuity. OpenCode remains deferred.
+
 ## Verified development snapshot
 
 On 13 October 2026, the local development snapshot passed:

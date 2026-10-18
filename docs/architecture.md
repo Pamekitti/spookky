@@ -50,7 +50,8 @@ The launch coordinator, Git services, and persistence are app modules. A separat
 | --- | --- |
 | Project | Stable ID, name, registered directory ID, preferred source reference, last-used time |
 | Directory/Checkout | Stable ID, canonical path, selected path, Git common-dir identity, worktree identity, current branch, kind, ownership, availability |
-| Workspace | Stable ID, nullable anchor ID, name, active tab ID, view state |
+| Workspace | Stable ID, nullable anchor ID, conversation ID, primary terminal ID, alias, supporting panel and closed-view state |
+| SupportingTab | Stable ID, content target, title, optional file/comparison view state |
 | LaunchDraft | Workspace/tab ID, selected project/location/mode/ref, branch mode/name, tool, optional prompt |
 | TerminalTab | Stable ID, workspace ID, tool, title, launch ID, process-binding ID, last observed cwd, optional provider-session ID, status |
 | ProcessBinding | Owner identity, session/window/pane IDs, creation token, process identity, attachment state |
@@ -61,6 +62,8 @@ The launch coordinator, Git services, and persistence are app modules. A separat
 Model plain folders, unborn repositories, regular checkouts, existing worktrees, and remote refs explicitly. A remote ref is a source for a checkout, never itself a workspace directory.
 
 Use stable IDs for relationships. Names, array indices, PIDs, and paths alone are insufficient identity. Store directory identity so a symlink alias or repo subdirectory does not accidentally create a second isolated-looking workspace for the same checkout.
+
+Metadata version 6 separates conversation ownership from supporting content. File tabs retain their own selected path and comparison context. Selecting a tab updates the existing native file controller's data without changing checkout scope or terminal ownership. Older descriptors without this optional context use the workspace's retained file state. Migration backs up the database and preserves terminal bindings and drafts. See [conversation workspaces](conversation-workspaces.md).
 
 Metadata version 5 adds optional automatic-title provenance (friendly, prompt, or legacy) beside the manual-title flag. New workspace names use a fixed local word collection. A bounded scan of the composer prompt derives a title during the accepted launch-intent transition, without a model request or terminal inspection. Binding a folder does not overwrite the title. The first prompt title freezes automatic naming; manual names take precedence.
 
@@ -83,7 +86,7 @@ Failure at any step -> retain draft + completed receipts -> retry failed step
 ```
 
 1. Capture an immutable launch request with an operation ID. Persist intent before external side effects.
-2. Resolve canonical checkout identity. If already open, obtain the user's Switch and add tab choice before launching there.
+2. Resolve canonical checkout scope. Conversation workspace identity remains separate. Several conversations may share this scope.
 3. For a new worktree, reserve path/name and resolve the source to a commit. Serialize app-owned Git writes by common repository.
 4. After each step, record observed results. A canceled fetch differs from a completed checkout followed by a launch failure.
 5. Start the exact executable with arguments as data, in the chosen directory. Provider login remains in its terminal.
@@ -106,7 +109,7 @@ Use an app-specific socket/configuration and a user-only runtime directory. Neve
 | Spookky metadata | Projects, workspaces, launch drafts, bindings, UI layout, operation receipts |
 | Git and filesystem | Actual files, refs, index, checkouts |
 
-Closing a window or releasing a hidden view must not implicitly terminate the inner process. Explicit tab/workspace close follows [the confirmation rules](flows.md). Reboot or session-owner failure ends live execution. Restore metadata and offer explicit restart/resume.
+Closing a window or releasing a hidden view must not implicitly terminate the inner process. Supporting-tab and workspace-view closure retain terminal backing records. Stop is a separate ownership-checked operation. Reboot or session-owner failure ends live execution. Restore metadata and offer explicit restart/resume.
 
 Do not silently terminate hidden agents to meet memory targets. Release rendering surfaces and derived caches instead. A reconnect never replays the starting command or prompt.
 
@@ -135,7 +138,7 @@ Do not mutate global agent configuration or overwrite user hooks. Activity hooks
 
 M1 implements these boundaries in SpookkyCore, SpookkyWorkspace, SpookkyPersistence, and the AppKit presentation layer. Its v1 SQLite schema stores a validated metadata snapshot per transaction through pinned GRDB. WorkspaceStore shares one in-flight write across concurrent flush callers, then saves newer revisions in order. Launch intent is durable before SessionRuntime.create is called.
 
-The AppKit surface manager retains at most two visible terminals plus one warm hidden terminal. Stable selection generations reject late attachments. Terminal sizing is updated on native frame/backing-scale changes, with unchanged geometry skipped. Owner-backed scroll metadata and normal window geometry support restoration without storing transcripts. See [current status](status.md) for evidence and unresolved checks.
+The AppKit surface manager retains at most three terminal surfaces: two visible plus one warm hidden, or up to two hidden when a full-width tool covers both terminal panes. Hidden panes keep their last geometry until shown. Stable selection generations reject late attachments. Terminal sizing is updated on native frame/backing-scale changes, with unchanged geometry skipped. Owner-backed scroll metadata and normal window geometry support restoration without storing transcripts. See [current status](status.md) for evidence and unresolved checks.
 
 Use schema-versioned SQLite transactions, one serial writer, and a documented migration path. Back up metadata before destructive schema migration. A write failure produces a visible unsaved-state warning while retaining current drafts in memory.
 
@@ -172,3 +175,17 @@ SpookkyFiles provides directory enumeration and bounded previews. SpookkyGit pro
 AgentActivityResolver wraps executable resolution without changing LaunchCoordinator's process ownership. Private PATH wrappers also support manually entered CLI commands. Interactive zsh uses private startup delegates so user configuration can complete before the wrapper path is restored. AgentIntegration provides bounded capability detection and invocation configuration. The launch helper forwards bounded normalized hook events through AgentActivityReceiver's private datagram socket.
 
 The receiver validates the binding, invocation, provider, and secret against private active registration. WorkspaceState applies events separately from terminal lifecycle and preserves completion acknowledgments. SQLite version 4 migrates the optional per-tab activity record with a pre-migration backup. AppKit renders the existing status slots and UserNotifications handles alerts. No terminal bytes enter this model. See [agent activity](agent-activity.md) for limits and recovery semantics.
+
+## Conversation workspace metadata, version 6
+
+Each workspace references one primary terminal by stable UUID. An optional ConversationID uses the provider and provider session ID. Drafts and standalone shells need no conversation ID. Supporting targets reference changes, files, browser URLs, local artifacts, or terminal backing UUIDs. Layout mode, selected target, split fraction and retained-view state persist in the same snapshot. Optional `SupportingPanelState.fullWidthSelection` distinguishes primary content from a supporting tab in Full view. `selectedTabID` retains the last support for Split view. Absent full-width selection falls back to the selected support, otherwise primary. Closing a support resolves selection to its nearest left neighbor, then its next neighbor, then primary.
+
+`WorkspaceState.lastAgentTool` is optional and separate from shell-oriented launch state. New drafts default to Codex when no agent preference exists. Shell launches do not overwrite the agent preference. Existing launch drafts retain their provider and prompt. Metadata remains version 6. These optional fields preserve decoding of compatible snapshots without rewriting terminal bindings or restarting processes.
+
+The shared 40-point header changes presentation only. Moving between Split and Full view reparents retained terminal/support views. It never launches a process or resends a prompt. The startup composer is a launch draft. The running Ghostty surface replaces it; no proxy input or custom chat transcript is introduced.
+
+Workspace.tabs remains the runtime record collection. Migration does not rewrite binding IDs, launch receipts, prompt delivery state, drafts, viewports or anchor paths. The selected agent retains the workspace ID. Other agent records and drafts become sibling entries. Supporting shells stay with the original entry. Authenticated manual-agent activity inside a shell supplies conversation identity without proving live execution. Duplicate provider identities retain every terminal and expose conversationOwnershipAmbiguous. The original workspace alone retains its location-operation ownership. Migrated siblings retain their location drafts and reference that owner. They cannot launch into the old checkout while its location operation is pending. After completion they adopt its concrete location, or the user can explicitly choose another folder.
+
+WorkspaceDatabase backs up the pre-v6 database before migration. GRDB commits conversion and its migration marker in one transaction. Invalid data or an interrupted write preserves the original payload and version. No runtime methods run during migration.
+
+SupportingContentHost supplies cached native views by SupportingTab.id. Selection reparents a view without navigation. retainTabs includes hidden workspaces, so a renderer can retain unsent forms across switching and collapse. Foundation handles file/diff and shell content. Browser and artifact rendering are supplied by their separate host. No provider history reader or transcript storage is added to the foundation. Catalog reconciliation uses ensureConversationWorkspace(select: false) to preserve selection, closed views, project collapse and launch preferences. Explicit user selection reopens the view.

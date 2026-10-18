@@ -17,7 +17,7 @@ The native app must satisfy these requirements before release. [Current status](
 | S09 | New worktree from local branch | Source local ref distinguished from remote tracking ref |
 | S10 | New worktree from origin/dev | Fetch or explicit cached choice; new working branch; optional prompt |
 | S11 | Existing feature branch | Reuse its checkout or create one without bypassing branch protection |
-| S12 | Existing bound workspace, Cmd+T | Blank tab inherits anchor; subsequent Cmd+T opens shell |
+| S12 | Existing bound workspace, Cmd+T | Browser supporting target opens; primary CLI remains unchanged |
 | S13 | Saved local CLI conversation | Same provider's explicit resume in correct folder; no live-process claim |
 | S14 | Other provider's session/files | New provider conversation with user-supplied context; shared files only |
 | S15 | Compatible cloud coding session | Supported CLI handoff in clean dedicated checkout; copy/continuation labeled accurately |
@@ -28,12 +28,28 @@ For S01-S12, exercise Terminal, Codex without/with a prompt, and Claude Code wit
 
 ## Interaction checks
 
+The 18 October layout/startup refinement passed 191 targeted native checks on its final local Release build. These use native fixtures and captures. Direct desktop automation could not bind the new development identity. Physical keyboard/IME and the native location-popover interaction remain separate checks.
+
+- [x] Split headers share one 40-point row and align at the divider in wide/narrow windows and both appearances.
+- [x] Full view joins primary first and all support tabs; selecting primary keeps those tabs visible.
+- [x] The selected supporting tab remains visible after narrow-window layout. Overflow selection moves focus into that view; its close handler closes the support rather than the workspace.
+- [x] Returning to Split restores the primary left, last support right and the same divider width.
+- [x] Browser/artifact form state, terminal input and primary process identity survive layout and selection changes.
+- [ ] Supporting + offers Browser, Files & Changes, Artifact and Terminal; new agents use New session/project +/Cmd+N.
+- [x] Support closure chooses nearest left, then next, then primary. Primary closure hides the view and retains history/processes.
+- [x] Startup has a bottom composer, maximum width 800 points, 24-point padding, optional prompt and provider/folder chips inside.
+- [x] First use chooses Codex; new drafts remember the last agent independently of shells; existing drafts keep their provider and text.
+- [ ] Local defaults in the folder popover; worktree/source/branch controls remain there.
+- [ ] Enter adds a newline; Cmd+Return in the composer launches. Running CLI content replaces the composer.
+
 - [ ] Cmd+N, Cmd+T, Cmd+W, Cmd+K, Cmd+Enter, and mouse equivalents follow the current contract.
-- [ ] Cmd+N then Cmd+T works without pointer input, including focus routing immediately after render.
-- [ ] Quick Terminal retains a typed agent draft in another tab.
+- [ ] Cmd+N creates a draft; Cmd+T opens a browser target without launching a CLI. Direct shell access remains available.
+- [x] Open Terminal below the startup composer starts a shell and retains the agent draft and last agent preference.
 - [ ] Project + preselects its project. Workspace × targets the correct workspace.
-- [ ] Closing an inactive workspace preserves current selection; closing the last tab removes its workspace without creating a replacement tab. Closing the final tab closes the window.
-- [x] Enter confirms tab closure and Escape cancels with terminal focus retained. Cmd+T after final-tab closure opens one Home terminal without an empty intermediate page.
+- [ ] Closing an inactive workspace preserves current selection. Closing the final primary view retains metadata and processes and closes the window.
+- [ ] Stop is separate from view closure. Stop confirmation preserves ownership verification. Cancel retains the primary and its input.
+
+The following historical keyboard records predate the accepted 17 October conversation-workspace contract. They do not verify the current Cmd+T or close/Stop behavior.
 
 Earlier targeted native check, 13 October 2026: final blank-tab and confirmed running-shell closure closed the window without a replacement tab. Cancel retained the shell and terminal focus. Closing a second tab retained the first shell and window. Cmd+N reopened a workspace after final-tab closure. The earlier installed local app also passed final blank-tab closure. Release build, 83 XCTest cases, 13 Swift Testing cases, and the repository checker passed. This record preceded the combined selection/closure installer. It does not establish the full acceptance suite.
 
@@ -52,7 +68,7 @@ The maintainer confirmed the physical keyboard checks on 13 October 2026. Cmd+T 
 - [ ] Project/workspace context menus support right-click and keyboard access.
 - [ ] Tab/workspace switching preserves drafts, processes, output, scroll, and file selection.
 - [ ] Root directory identity and start subdirectory remain distinct.
-- [ ] Duplicate Git checkout offers Switch and add tab; independent Home/non-Git workspaces remain possible.
+- [ ] Distinct conversations may share a checkout. Saved identity deduplication uses provider plus session ID.
 
 ## Git and preview checks
 
@@ -77,7 +93,7 @@ Extended continuity remains blocked by an unsent-input preservation failure. The
 - [ ] Uncertain initial prompt delivery requires explicit recovery without automatic resend.
 - [ ] UI crash, window close, explicit background quit, sleep, owner failure, and reboot have distinct outcomes.
 - [ ] Reattach preserves a live process; resume is an explicit new process using provider history.
-- [ ] Closing active agents/jobs confirms termination; unknown job state does not silently lose work.
+- [ ] Closing views retains processes. Explicit terminal termination confirms ownership and explains that shared provider work may continue.
 - [ ] Workspace/project removal keeps files and branches.
 - [ ] Worktree deletion blocks active processes and unsafe dirty/unmerged/unpushed work; exact folder is confirmed.
 - [ ] Save failure preserves in-memory drafts and produces a visible warning.

@@ -8,6 +8,7 @@ Spookky has a native terminal, workspace navigation, project and worktree operat
 | --- | --- |
 | Terminal foundation | Full native Ghostty surface and a private tmux runtime implemented; compatibility acceptance remains incomplete |
 | Workspace shell | Optional projects, blank workspaces, tabs, splits, drafts, and restore implemented |
+| Conversation workspaces | Direct local history, primary identity, supporting views and version 6 migration implemented; combined local fixtures pass |
 | Locations and worktrees | Local, existing folders, create/clone, source selection, and explicit worktree operations implemented |
 | Files and changes | File tree, bounded previews, syntax colors, Git comparison scopes, and native diffs implemented |
 | Continuity | Short crash/reopen and reattachment checks pass; extended continuity remains blocked |

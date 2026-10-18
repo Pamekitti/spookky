@@ -2,62 +2,52 @@
 
 The polished [prototype source](../prototype/spookky-workspace.html) is the visual baseline. [Flows](flows.md) define behavior when a mock fixture is incomplete. Native controls preserve this hierarchy and density. The [native control specification](native-design-reference.md) defines shared geometry and component states. macOS input and accessibility conventions remain authoritative.
 
-## Shell
+## Session layout
+
+The primary conversation header and supporting tabs occupy one 40-point row. In Split view, the primary header is on the left and the supporting tab group is on the right. Their boundary follows the divider below.
 
 ```text
-+----------------------+------------------------------------------------------+
-| Sidebar toggle       | [ Codex       x ] [ Terminal    x ] +       [sidebar] |
-| + New workspace  CmdN+------------------------------+-----------------------+
-| Search           CmdK| branch / directory     split | Files     Changes     |
-|                      +------------------------------+-----------------------+
-| Projects          +  |                              | workspace path        |
-| northstar         +  | Real CLI terminal            | Search files          |
-|   Session recovery x |                              |                       |
-|   feat/search      x |                              | src/                  |
-| atlas             +  |                              |   session.ts          |
-|                      |                              |   workspace.ts        |
-| No project        +  |                              |                       |
-|   Home             x |                              |                       |
-|                      |                              |                       |
-| Personal    Settings | CLI input stays in terminal  |                       |
-+----------------------+------------------------------+-----------------------+
++----------------------+---------------------------+--------------------------+
+| Sidebar toggle       | [ Main conversation × ]   | [ Browser × ][ File × ] +|
+| + New session   CmdN +---------------------------+--------------------------+
+| Search          CmdK |                           |                          |
+| Projects          +  | Real provider TUI         | Selected supporting view |
+|   Conversation       |                           |                          |
+|                      | Provider-owned input      |                          |
++----------------------+---------------------------+--------------------------+
 ```
 
-Opening a file inserts an adjacent preview between terminal and file list. The file pane can be resized, maximized, or closed. There is no separate app-wide title toolbar and no automatic bottom terminal.
+Full view joins the primary tab first and all supporting tabs on the same row. The selected content fills the area below. Clicking the primary keeps every supporting tab visible. Split view restores the primary TUI on the left and the last selected support on the right. It keeps the divider width, live views, drafts and processes.
 
-The sidebar toggle sits in the fixed 40-point tab-strip header. It does not scroll with sidebar entries. The header measures native window-button clearance before placing the first tab. Fullscreen removes that reservation. Collapsed navigation, projects and workspaces use centered 32-point targets on one vertical axis. The header toggle retains its 28-point utility target.
+Supporting + offers Browser, Files & Changes, Artifact and Terminal. New session in the sidebar, project + and Cmd+N create a new primary conversation draft. Closing a supporting tab selects its nearest left neighbor, otherwise its next neighbor, otherwise the primary. Closing the primary hides that session view and retains its history, supporting metadata and owned processes.
 
-The left sidebar collapses to a 58px icon rail. The right sidebar hides completely. The right-edge Code control shows its label at widths of 900 points or more and its icon at smaller widths. Its selected state reflects Files/Changes visibility. Unused header and tab-strip space moves the normal window. Terminal, prompt, and file content retain their own mouse gestures. Header dragging is disabled during fullscreen and its transitions. Compact native titlebar integration preserves standard window controls without adding another empty row.
+The sidebar toggle stays in the fixed header. It does not scroll with entries. The native header reserves window-button clearance and removes that reservation in fullscreen. Collapsed sidebar entries use centered 32-point targets. The toggle keeps its 28-point utility target. Unused header space can drag the window. Terminal, prompt and supporting content keep their own gestures.
+
+The left sidebar collapses to a 58-point icon rail. The supporting panel can collapse or fill the content area. Opening it restores the selected support. A shell's current directory does not change the Files & Changes anchor.
 
 Terminal text selection remains highlighted after mouse release. Cmd+C copies that selection. Programs that request mouse input keep their gestures. Shift selection retains Ghostty's normal behavior.
 
-When a file preview moves from a wide layout into a window below 800 points, dismiss the file-list overlay once so the preview remains readable. The toolbar control can reopen the overlay on demand.
-
 ## Start page
 
+The start area stays mostly empty. A composer sits at the bottom with 24-point outer padding and a maximum width of 800 points.
+
 ```text
-                       New workspace
+                    Empty session area
 
        +------------------------------------------------+
-       | Start with a prompt...                         |
+       | Start with a prompt…                           |
        |                                                |
-       | [Codex v]                                (up)  |
+       | [Codex v] [Folder · Local v]              (up)  |
        +------------------------------------------------+
-        [Project v] [Local v] [From origin/dev v]*
-        path / branch             Prompt optional · Cmd+Enter
-
-        >_ Open Terminal                              Cmd T
-
-        Recent projects                         + Add project
-        folder northstar                   ~/code/northstar
-        folder atlas                       ~/code/atlas
-
-       * Source appears only when creating a worktree.
+        Prompt optional       Enter newline · Cmd+Return start
+                         >_ Open Terminal
 ```
 
-The prompt is an optional launch draft. Its editor grows from 80 points to the smaller of 300 points or half the available content height, then scrolls. The composer uses a 13-point radius and one integrated provider/launch footer. The chosen provider stays visible. The send arrow has an accessible label that describes whether it opens the CLI or starts it with a prompt.
+The optional starting prompt grows from 80 points to the smaller of 300 points or half the available height, then scrolls. The composer uses a 13-point radius. Provider and folder chips sit inside its footer with the Start arrow. The arrow's accessible label states whether it starts the CLI with a prompt.
 
-Terminal mode collapses the prompt and exposes one Open Terminal action with Cmd+T. It does not repeat a second Terminal launch row. Recent projects appear only before project selection, sorted by actual recent use. Merely selecting a project does not change recency.
+First use selects Codex. Later new sessions remember the last agent choice, either Codex or Claude Code, independently of shell launches. Existing draft choices and prompt text remain unchanged. The folder popover defaults to Local. It contains project/folder selection, existing worktrees and optional new-worktree source/branch controls. These controls do not occupy a separate startup toolbar.
+
+Enter inserts a newline. Cmd+Return in the composer starts the selected agent. An empty prompt is valid. The quiet Open Terminal action below starts a plain shell and retains the agent draft. Once a process starts, its real TUI replaces the startup composer. There is no app chat renderer or floating input proxy.
 
 ## Spacing and dimensions
 
@@ -74,7 +64,7 @@ These are the native component dimensions. The HTML retains the approved flow an
 | Workspace row | 46px with name and secondary location |
 | File row / common icon target | 28px |
 | Right sidebar | 248 points |
-| Composer | 560px maximum width; 80-point minimum prompt height; grows to 300 points or half the available content height |
+| Composer | 800-point maximum width; 24-point outer padding; 80-point minimum prompt height; grows to 300 points or half the available content height |
 | Menus | 8px corner radius, 5-6px inner padding |
 | Dialog | 400px maximum width, 20px padding, 10px radius |
 | Main text / dense labels / metadata | 13px / 12px / 11px |
@@ -88,7 +78,7 @@ Keep 8 points between compact controls, 12 points between sections, and 4 points
 
 Use four button roles: primary launch, secondary destination/direct launch, quiet navigation/utility, and destructive confirmation. Filled controls retain their role on hover and press. Quiet controls use the foreground wash. All roles have a visible native keyboard focus ring and a disabled state. Selected rows and tabs carry the selection fill. Project add and workspace/tab close actions appear on row hover or descendant keyboard focus. Standalone add controls remain visible. Actions reserve their space at rest and never move the title when revealed. Row and tab hover fills cover their enclosing component; nested label buttons do not draw another fill. Files and Changes use the same quiet selection treatment, not the system-blue segmented style. A plain-language visual fixture must not display the Unicode stress-test names used by automated compatibility checks.
 
-The HTML's fixed 760px frame is a preview constraint, not a native window requirement. Avoid shrinking text to fit more controls. At 800px and below, secondary sidebars overlay; at 600px and below, diffs use unified layout. Touch targets should expand if a touch-capable surface is ever supported.
+The HTML's fixed 760px frame is a preview constraint, not a native window requirement. Avoid shrinking text to fit more controls. The sidebar can overlay at 800 points and below. Split view keeps both pane headers aligned at the divider. Full view gives the selected content the available width. At 600 points and below, diffs use unified layout. Touch targets should expand if a touch-capable surface is ever supported.
 
 ### Native row and preview geometry
 
@@ -123,21 +113,21 @@ Diff additions/removals use muted green/red backgrounds plus explicit signs and 
 
 ## Direct controls
 
-- Clicking a project expands or collapses its workspace rows. Project **+** creates a workspace with that project selected and expands its group. Workspace **×** closes that entry. Collapse does not change selection, drafts, or processes. Collapse state persists. Finding a workspace expands its parent group.
+- Clicking a project expands or collapses its workspace rows. Project **+** creates a workspace with that project selected and expands its group. Workspace **×** hides its view and retains its conversation entry and processes. Collapse does not change selection, drafts, or processes. Collapse state persists. Finding a workspace expands its parent group.
 - Keep the close button inside the selected row's visual boundary. Closing another row must not steal selection.
 - Secondary rename/remove/delete actions live in contextual menus, opened by right-click or Shift+F10. Context menus anchor to the entry and stay inside the window.
 - Project menus open from the exact add or picker control that invoked them. Keep the trigger visible when there is room below it.
-- Use recognizable Terminal, Codex, and Claude glyphs in tabs. Native asset choices require their own provenance check; do not invent provider branding.
-- A long tab strip scrolls the active tab into view after layout and icons settle. Project identities use the GitHub owner avatar from their origin remote when available, with text monograms as a fallback. The avatar changes to a disclosure chevron on hover or keyboard focus. Avatar downloads are asynchronous and cached; no account is required. Session glyphs distinguish Terminal, Codex and Claude Code without provider logo assets. Exceptional lifecycle states use static indicators. A running process is not labeled as agent activity or task success.
+- Use provider marks on conversation rows and primary headers. Supporting tabs use content-type glyphs. Native asset choices require their own provenance check; do not invent provider branding.
+- A long tab strip scrolls the active tab into view after layout and icons settle. Project identities use the GitHub owner avatar from their origin remote when available, with text monograms as a fallback. The avatar changes to a disclosure chevron on hover or keyboard focus. Avatar downloads are asynchronous and cached; no account is required. Terminal keeps its terminal glyph. Codex uses the OpenAI mark and Claude Code uses the Claude mark, with [pinned vector attribution](../THIRD_PARTY.md). Each row and primary header use their primary provider mark. Supporting tabs use content-type icons. Exceptional lifecycle states use static indicators. A running process is not labeled as agent activity or task success.
 - Files and Changes have both text labels and icons. File groups include counts. Long names truncate with a path tooltip.
 - Keep diff context and layout actions in the preview header. Show the extra conflict selector only for a conflicted file.
 - If workspace title equals branch name, use location type and tab count on the second row rather than duplicating the name.
-- Workspace titles start with a friendly two-word name. The first composer starting prompt can replace it once; manual names always win. See [naming behavior](flows.md#launch-and-initial-prompt).
+- Workspace titles start with a friendly two-word name. The first composer starting prompt can replace it once. The primary conversation supplies the visible name while supporting views change. Manual names always win. See [naming behavior](flows.md#launch-and-initial-prompt).
 - For Spookky's automatically generated branch, show Worktree and the tab count on the second row. Other branch names remain visible. Tooltips retain the full branch and path, including during exceptional lifecycle states.
 
 ## Agent attention
 
-Tabs, workspace metadata, collapsed workspace icons, and terminal headers share the [agent activity](agent-activity.md) labels. The existing 16 pt status slot holds the activity indicator. Working uses a visible-only native spinner that respects Reduce Motion. Needs input, failures, and unread completion have distinct shapes and text labels. Directory, branch, provider, and child-agent details remain available in tooltips. Lifecycle launch and attachment failures take precedence over activity hints.
+Tabs, workspace metadata, collapsed workspace icons, and terminal headers share the [agent activity](agent-activity.md) labels. The tab's existing 16 pt status slot holds the activity indicator. In the collapsed sidebar, a separate 10 pt badge keeps activity beside the provider mark. Expanded workspace rows keep the activity text. Working uses a visible-only native spinner that respects Reduce Motion. Needs input, failures, and unread completion have distinct shapes and text labels. Directory, branch, provider, and child-agent details remain available in tooltips. Lifecycle launch and attachment failures take precedence over activity hints.
 
 Right-click actions mark completion attention read or unread and reset activity. The overflow menu includes status text. Settings separates provider monitoring, banners, sounds, preview privacy, Dock count, and visible-terminal suppression. App sounds default to off because provider sound hooks remain active.
 
@@ -168,8 +158,8 @@ HighlighterSwift supplies the language definitions. Spookky's bounded range adap
 | Cmd+B | Toggle the project/workspace sidebar |
 | Cmd+L | Toggle Files/Changes |
 | Cmd+N | Create an unbound workspace |
-| Cmd+T | Open Terminal from a blank tab or add a blank tab from a running tab |
-| Cmd+W | Close the selected tab through its lifecycle rules |
+| Cmd+T | Open a browser supporting tab |
+| Cmd+W | Close focused supporting tab or hide primary workspace view |
 | Cmd+K | Find a workspace |
 | Cmd+Shift+[ / ] | Previous / next tab |
 | Cmd+Enter | Launch only while the optional composer owns input focus |

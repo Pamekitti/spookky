@@ -43,7 +43,7 @@ Use an explicit collector and state whether the memory number is RSS, physical f
 
 ## Initial engineering limits
 
-- M1 defaults to one visible terminal surface. Its explicit split supports two visible surfaces and one extra warm hidden surface.
+- M1 defaults to one visible terminal surface. Its explicit split supports two visible surfaces and one extra warm hidden surface. Full-width tools can retain both previously visible terminal surfaces while hiding them. The overall bound remains three.
 - Detach/release hidden surfaces through supported APIs. Do not suspend reads on an attached PTY and block its producer.
 - Start with 5,000 history lines per terminal and measure both owner and frontend buffers. Scrollback and selection must still work.
 - Cap decoded diff cache near 64 MiB initially. Load selected content on demand. Files over 2 MiB or 20,000 lines begin with a bounded preview.
@@ -79,6 +79,10 @@ Process-group changes invalidate that group's cumulative CPU delta. Keep the una
 
 ## M1 workspace collection
 
+Add `--conversations` to measure independent sidebar workspaces, each with one primary clean shell. The resource fixture verifies the workspace count. The timing fixture switches between four workspaces and checks that crash restoration retains all four bindings. Browser, catalog, and real-provider costs remain separate measurements. The default fixture retains its original single-workspace terminal-tab workload for comparison.
+
+`--mode startup` measures 30 fresh processes through empty workspace readiness, with 5 ms polling. It includes private fixture setup and excludes the first rendered frame, provider discovery, and time to an interactive CLI. Filesystem caches may be warm. `--mode all` includes this startup measurement.
+
 `python3 scripts/benchmark_m1.py` measures the native workspace window with clean `zsh -f` shells. It uses isolated metadata and socket roots. It terminates only the processes it creates. Normal provider configurations, active user sessions, and development metadata remain outside the fixtures.
 
 Resource cases use 0, 1, 5, and 10 shells, a five-second warm-up, and 60 seconds of observation. Record app RSS and the sum of distinct app, client, server, and shell RSS separately. RSS includes shared pages and does not establish the physical-footprint gate. This workload has one visible surface. It does not establish two-pane or active-agent resource costs.
@@ -112,3 +116,56 @@ The default workload runs for at least 1,800 seconds. Generated output runs at o
 The existing timing collector supplies warm selection, recreated-surface attachment, wrapped-history resize, and app-crash restoration checks. Their boundary remains attachment, layout, and focus. Physical display latency and active model-workload costs remain open.
 
 `--overnight` selects 28,800 seconds. `--smoke` selects two lifecycle cycles and a one-second diagnostic workload. Smoke results never count as performance acceptance. Reports retain checkpoints after interruption. The fixture terminates only its own app and private server.
+
+## Conversation workspace sample, 17 October 2026
+
+Local Release measurements on a 16 GiB Mac14,10 used separate conversation workspaces with clean shells. Each resource case had a five-second warm-up and 60 seconds of observation. It retained one visible terminal surface. Windows were visible and the app was inactive at both CPU boundaries. Provider discovery was replaced with an empty catalog. Existing user applications and sessions kept running.
+
+| Workspaces and shells | App RSS median, MiB | Total RSS median, MiB | Idle CPU, percent of one core |
+| --- | --- | --- | --- |
+| 1 | 91.1 | 95.1 | 0.017 |
+| 5 | 91.2 | 100.7 | 0.033 |
+| 10 | 90.3 | 106.5 | 0.017 |
+
+Total RSS sums distinct app, private runtime, client and shell processes. All three process sets stayed stable. Shared pages and compression affect RSS. Separate app physical-footprint observations were 82.6, 87.6 and 94.3 MiB respectively. These cases contain no WebKit view, real provider or development server. They do not establish the active-agent or overnight gates.
+
+| Measurement | Samples | Median, ms | p95, ms |
+| --- | --- | --- | --- |
+| Warm conversation selection | 35 | 19.6 | 24.9 |
+| Recreated conversation surface | 105 | 50.5 | 58.0 |
+| Empty fixture process readiness | 30 | 356.4 | 378.5 |
+| Persistent input to rendered pixels at 500 output lines/second | 100 | 8.8 | 10.9 |
+
+Selection starts before changing the workspace and ends at attachment, layout and focus. It includes synchronous sidebar work. It excludes first terminal bytes and display scanout. The four-workspace crash/reopen check retained the same process IDs and visible history marker, with no extra workspace or tab.
+
+Readiness includes fresh private fixture setup. It excludes provider discovery, the first rendered frame and the first interactive CLI. Filesystem caches may be warm. The input harness ends at matching pixels in Ghostty's completed IOSurface, sampled every two milliseconds. It excludes physical keyboard input and compositor/display scanout.
+
+The browser fixture also recorded one resource snapshot after its interaction checks: 200.2 MiB app RSS, 121.7 MiB across four WebKit helpers, and 19.5 MiB across runtime/shell helpers. It had no provider process. WebKit helpers were attributed through the app's LaunchServices coalition. This snapshot includes fixture work and is not a settled browser CPU or memory baseline.
+
+Reports are retained locally under ignored `.cache/` with binary hashes and measurement boundaries. The resource rows preceded the final file-tab context correction. That clean-shell workload materializes no file preview. The selection, startup, input and diff measurements include the correction. Each result is one pass on one host, not a cross-application comparison.
+
+After the file-tab context correction, the standard large-diff fixture passed all 24 checks and 100 selection cycles. Its 30 measured selections had a 99.0 ms median and 113.5 ms p95. Syntax readiness had a 162.5 ms median and 179.2 ms p95. The measurement includes Git reads, parsing, native table reload and layout. It excludes physical display latency. Preview and metadata buffers stayed within their existing bounds, and the collapsed panel released its watcher.
+
+
+## Layout and startup refinement, 18 October 2026
+
+The local Release binary `5e269a48380d` passed 191 native checks. Provider discovery used an empty or synthetic catalog. Fixtures used owned shells and private runtime roots. Existing user applications and sessions remained running.
+
+| Measurement | Samples | p95 |
+| --- | ---: | ---: |
+| Warm conversation selection | 35 | 17.4 ms |
+| Recreated terminal selection | 105 | 51.0 ms |
+| Empty process readiness | 30 | 366.2 ms |
+| Large-diff selection | 30 | 133.3 ms |
+| Syntax readiness | 30 | 182.7 ms |
+
+Selection ends at native attachment, layout and focus. It excludes physical display latency. Empty readiness includes private setup and excludes provider discovery, the first frame and interactive CLI readiness. Filesystem caches may be warm. The diff fixture also passed 100 selections and its buffer, watcher and surface bounds. The crash/restore fixture retained process identities and its visible history marker.
+
+Two short resource observations used five seconds of warm-up and about 15 seconds of collection each. Both retained stable process sets and collected 61 samples. Split was requested; one shell displayed one surface and five shells displayed two. These are RSS medians from clean-shell workloads. They exclude provider and browser costs.
+
+| Shells | App RSS | App plus owned runtime/shell RSS |
+| ---: | ---: | ---: |
+| 1 | 110.4 MiB | 116.7 MiB |
+| 5 | 120.2 MiB | 135.2 MiB |
+
+CPU counters rounded to zero over these short windows. This does not establish zero CPU use or replace the 60-second idle acceptance measurement. Physical keyboard/IME, spoken VoiceOver and extended sleep/reboot continuity remain separate gates. Direct desktop automation could not bind this development app identity; native verification used app fixtures and screenshots.

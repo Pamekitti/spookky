@@ -6,59 +6,45 @@ Status: current product behavior. [Current status](status.md) records implementa
 
 ```text
 Open Spookky
-|
-+-- First use ----------------------> Blank workspace
-|
-+-- Returning user -----------------> Restore workspace/tab metadata
-|                                    +-- Live process -> Reattach
-|                                    +-- Process gone -> Ended state
-|
-+-- Cmd+N --------------------------> Blank workspace, no process yet
-                                     |
-                                     +-- Cmd+T -> Terminal in Home
-                                     |
-                                     +-- Choose recent/project
-                                     |   +-- Local (default)
-                                     |   +-- Existing worktree
-                                     |   +-- New worktree
-                                     |
-                                     +-- Add project
-                                     |   +-- Open folder
-                                     |   +-- Clone URL
-                                     |   +-- Create folder [+ optional Git]
-                                     |
-                                     +-- Use folder once
-                                     |
-                                     +-- Choose launch tool
-                                         +-- Terminal
-                                         +-- Codex [+ optional prompt]
-                                         +-- Claude Code [+ optional prompt]
+  Returning user -> restore saved list and view metadata
+  First use      -> New session, Codex selected, no process
+  Cmd+N          -> independent New session draft
+                       |
+                       +-- Optional prompt
+                       +-- Provider chip: Codex or Claude Code
+                       +-- Folder chip: Home, project or one-off folder
+                       |      +-- Local by default
+                       |      +-- Existing/new worktree, when chosen
+                       +-- Start arrow / Cmd+Return -> real provider TUI
+                       +-- Open Terminal -> plain shell, agent draft retained
 ```
 
-First use defaults to Home and Terminal. Later starts remember the selected tool and display it explicitly. Choosing a tool, project, or reference alone does not launch a process. Blank tabs in an unbound workspace share its eventual anchor.
+The bottom composer is at most 800 points wide with 24-point outer padding. Provider and folder choices sit inside it. Selecting a provider, folder or source does not launch a process. Worktree controls stay in the folder/location popover. An empty prompt is valid. Enter inserts a newline.
 
-Opening or reopening Spookky with no remaining workspaces shows the Home start screen. Restoring existing workspaces does not add another blank workspace.
+First use selects Codex. New sessions then remember the last agent choice independently of shell launches. Restored drafts retain their saved provider and text. Once running, the provider's real TUI replaces the composer and owns subsequent input.
+
+Restoring saved state does not create another blank session or launch every saved conversation. A plain Home shell requires no project or provider account.
 
 ## Keyboard and mouse contract
 
 | Action | Result |
 | --- | --- |
-| Cmd+N / New workspace | Create and select an unbound workspace immediately. |
+| Cmd+N / New session | Create and select an independent conversation draft immediately. |
 | Project row | Toggle its workspace rows without changing the selected workspace or stopping processes. |
 | Project + | Create an unbound workspace with that project selected, Local by default, and expand the group. |
-| Cmd+T while a running/ended tab is selected | Open a blank tab in the same workspace. |
-| Cmd+T while a blank tab is selected | Open Terminal at the selected/inherited location immediately. |
-| Cmd+T with an agent prompt draft | Preserve that draft in its tab and open Terminal in another tab. |
-| Cmd+T after closing the final tab | Reopen with one Home terminal immediately. |
-| Tab-strip + | Always add a blank tab. Do not label it Cmd+T when that shortcut currently means launch Terminal. |
+| Cmd+T | Open and select a persisted browser supporting tab. Keep the primary CLI and draft. |
+| Supporting + | Choose Browser, Files & Changes, Artifact or Terminal. |
 | Cmd+Enter in launch composer | Launch selected tool with optional initial prompt. |
 | Enter in initial prompt | Insert a newline. |
-| Cmd+W / tab × | Close selected tab, confirming active agent/job termination. |
-| Workspace × | Close workspace, confirming active sessions; keep files and branch. |
+| Cmd+W | Close the focused supporting tab, otherwise hide the workspace view. Keep owned processes. |
+| Workspace × | Hide the conversation view. Keep its sidebar history entry, processes, files, and branch. |
 | Cmd+K | Find a workspace and reveal its parent project group. |
 | Right-click / Shift+F10 on a sidebar entry | Open secondary contextual actions. |
 | Double-click selected terminal tab | Rename its UI label. |
-| Right-sidebar toggle | Show/hide Files and Changes. Never start a process. |
+| Full view | Join the primary tab first and supporting tabs on one row. Selected content fills the area below. |
+| Primary tab in Full view | Show the primary TUI full width. Keep supporting tabs visible. |
+| Split view | Show the primary left and last selected support right. Retain split width and live state. |
+| Panel toggle | Collapse/restore supporting content. Never start a process. |
 
 Native shortcuts must be registered deliberately. Ordinary CLI keys and provider shortcuts pass through to the terminal. Escape closes the current menu/dialog and restores focus. Switching a tab preserves process state, draft, scroll, and pane selection.
 
@@ -78,9 +64,9 @@ Use folder once selects an anchor without project registration. Empty Git reposi
 
 Local uses the selected directory with its existing branch, edits, and files. Show the path and branch. Existing checkout choices appear when relevant; do not make users choose among redundant controls.
 
-If the checkout already has a workspace, show its identity and offer **Switch and add tab** or Cancel. Do not represent the same files as two isolated workspaces. Discover worktrees made outside Spookky through Git metadata.
+Several conversations may use the same checkout. Each gets its own sidebar entry. Show the actual shared checkout scope. Discover worktrees made outside Spookky through Git metadata.
 
-A selected repository subdirectory is a tab start directory, not a separate checkout identity. Reuse the checkout workspace and carry that start directory into the new tab. Label the repository scope of Changes explicitly. This native edge case still needs implementation beyond the fixture prototype.
+A selected repository subdirectory remains the conversation start directory. Checkout identity determines Files and Changes scope. It does not determine conversation identity.
 
 ## New worktree, including origin/dev
 
@@ -108,13 +94,15 @@ Creating a worktree and launching an agent are separate operations. An agent fai
 
 New workspaces receive a friendly two-word name, such as Quiet Maple. Generated friendly names are unique among open workspaces; a numbered variant is used when all word combinations are occupied. Starting a shell or an agent without a prompt keeps that name.
 
-The first starting prompt supplied through Spookky's composer names the workspace once. This can happen in a later agent tab. Use the first nonempty line, collapse whitespace, and keep up to six words and 48 Unicode characters. The title is saved with accepted launch intent before process creation. Failures, retries, reconnects, and later prompts keep it. A manual rename always wins. Naming does not indicate prompt acknowledgment. Input typed directly in a CLI is not inspected.
+The first starting prompt supplied through Spookky's composer names the workspace once. Agent launches use a primary conversation workspace. Use the first nonempty line, collapse whitespace, and keep up to six words and 48 Unicode characters. The title is saved with accepted launch intent before process creation. Failures, retries, reconnects, and later prompts keep it. A manual rename always wins. Naming does not indicate prompt acknowledgment. Input typed directly in a CLI is not inspected.
 
 Metadata upgrade replaces automatic New workspace and workspace-xxxxxxxx labels, where the suffix is eight hexadecimal characters. Other saved names and every manual name remain intact. Folder and branch names are independent of the visible workspace title.
 
-The start page uses one composer with a tool picker. For agents, the prompt field is visible and optional. With no prompt the action opens the CLI; with text it starts the CLI with that instruction. Terminal mode has one direct launch action and a Cmd+T hint.
+The primary conversation supplies the row and primary header title unless an explicit local alias takes precedence. Supporting views retain content-type titles and icons. See [conversation names](conversation-titles.md).
 
-Changing tools preserves the agent prompt draft. Shell launches never execute that text. Auth and permission prompts remain inside the provider CLI. Missing executables lead to guidance plus a working Terminal fallback.
+The start page uses one bottom composer with provider and folder chips. The prompt is optional. With no prompt the Start arrow opens the selected CLI. With text it supplies that initial instruction. Cmd+Return launches from the composer. Open Terminal below starts a shell and preserves the agent draft.
+
+Changing agents preserves the prompt draft. Opening a shell does not change the last agent choice. Shell launches never execute that text. Auth and permission prompts remain inside the provider CLI. Missing executables lead to guidance plus a working Terminal fallback.
 
 Prompt state must distinguish pending, delivered, and uncertain. Process launch success alone does not prove delivery. An uncertain outcome must not automatically resend. An explicit resume does not silently receive a pending new-session prompt.
 
@@ -125,14 +113,14 @@ Home shell -> cd project -> run codex/claude -> use provider's own commands
                            |
                            +-- Open current folder as workspace (explicit)
 
-Same files, another session -> Cmd+T -> choose tool
+Same files, another agent   -> Cmd+N -> same location -> choose tool
 Separate edits             -> Cmd+N -> project -> New worktree
 Different project          -> Cmd+N -> choose project
 ```
 
-New tabs inherit the workspace anchor. A foreground shell directory is separately observed when shell integration supports it. If directory detection is unavailable, avoid guessing it.
+Supporting tabs inherit the session anchor. A foreground shell directory is separately observed when shell integration supports it. If directory detection is unavailable, avoid guessing it.
 
-Splitting is explicit and launches another terminal. Multiple providers in one workspace do not share a conversation. Switching or collapsing UI never stops them. Provider-owned unsent input stays with the surviving process; a UI-owned launch draft is stored separately.
+A supporting shell is explicit. Another UI-launched agent becomes a sibling workspace. Switching or collapsing UI never stops them. Provider-owned unsent input stays with the surviving process; a UI-owned launch draft is stored separately.
 
 ## Continue existing work
 
@@ -170,11 +158,11 @@ Commits, pushes, tests, and PRs happen through the user's preferred tools. Spook
 | Event | Result |
 | --- | --- |
 | Switch tab/workspace | Preserve process and view state. |
-| Close blank/ended tab or confirmed idle shell | Close immediately. The last tab removes its workspace and selects another workspace if available. Closing the final tab closes the window. |
-| Close active agent or shell with a job | Confirm termination or cancel. If shell-job state is unknown, use a conservative close confirmation. |
-| Close workspace | Confirm active sessions, remove entry, keep checkout and branch. Closing an inactive entry preserves the active workspace. |
-| Close window | Normal macOS app behavior; processes may continue. |
-| Quit with live sessions | Cancel, end owned sessions and quit, or explicitly continue in background if the runtime supports it. |
+| Close supporting tab | Select the nearest left support, otherwise the next support, otherwise primary. Retain any terminal backing record and process. |
+| Close primary/workspace view | Retain the conversation entry, primary terminal, drafts, and support metadata. Select another open workspace or close the window. |
+| Stop primary terminal | Confirm, verify runtime ownership, then terminate only that primary terminal. Retain history and supporting tabs. |
+| Close window | Retain UI restore records and processes. |
+| Quit with live sessions | Keep running and quit by default, Cancel, or explicitly End terminals and quit. The last choice ends all owned terminal sessions. Shared provider execution may continue. |
 | Reopen with live owner | Reattach without launching or sending again. |
 | Restart computer/runtime lost | Restore metadata; mark processes ended; offer explicit restart/resume. |
 | Remove project | Unregister it; move retained workspaces to No project; keep files and sessions. |
@@ -182,7 +170,7 @@ Commits, pushes, tests, and PRs happen through the user's preferred tools. Spook
 
 Process continuity is subject to M0 validation. A saved conversation is not a surviving process. Hidden sessions still consume resources; never kill them only because their views are hidden.
 
-In a tab/workspace close confirmation, Enter activates Close and Escape cancels. Closing the final tab closes the window without displaying a replacement landing page. First use still opens the blank Home workspace with Terminal selected.
+View closure needs no termination confirmation. Stop uses a separate confirmation with Stop and Cancel. Reopening a retained entry reattaches its terminal without resending a prompt. First use opens a blank Home draft with direct shell access.
 
 ## Recovery
 
