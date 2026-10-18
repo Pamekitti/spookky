@@ -65,6 +65,14 @@
     ]
   },
   {
+    "component": "iterm2_themes",
+    "sourceURL": "https://deps.files.ghostty.org/ghostty-themes-release-20260216-151611-fc73ce3.tgz",
+    "zigHash": "N-V-__8AABVbAwBwDRyZONfx553tvMW8_A2OKUoLzPUSRiLF",
+    "notices": [
+      "iTerm2-Color-Schemes.txt"
+    ]
+  },
+  {
     "component": "dcimgui-bindings",
     "sourceURL": "https://deps.files.ghostty.org/DearBindings_v0.17_ImGui_v1.92.5-docking.tar.gz",
     "zigHash": "N-V-__8AANT61wB--nJ95Gj_ctmzAtcjloZ__hRqNw5lC1Kr",

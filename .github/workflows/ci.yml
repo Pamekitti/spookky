@@ -76,7 +76,7 @@ jobs:
             .cache/dependencies/ghostty/macos/GhosttyKit.xcframework
             .cache/dependencies/ghostty/zig-out/share/ghostty
             .cache/dependencies/ghostty/zig-out/share/terminfo
-          key: ghostty-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('Dependencies/manifest.json', 'scripts/build_ghostty.py', 'scripts/collect_notices.py', 'scripts/merge_macos_archives.py') }}
+          key: ghostty-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.key }}-${{ hashFiles('Dependencies/manifest.json', 'scripts/build_ghostty.py', 'Dependencies/patches/*', 'scripts/collect_notices.py', 'scripts/merge_macos_archives.py') }}
       - run: brew install cmake pkgconf
       - run: python3 scripts/build_runtime.py
       - if: github.event_name == 'pull_request'
