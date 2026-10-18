@@ -10,7 +10,7 @@ public actor TmuxRuntime: SessionViewportRuntime, SessionMouseRuntime {
     private var creating: Set<UUID> = []
     private static let eventHookNames = ["pane-died", "client-attached", "client-detached", "session-closed"]
     private let eventHook: String?
-    private var eventsInstalled = false
+    private var configurationApplied = false
     private let actionLog: URL?
     private var actions: [[String: String]] = []
 
@@ -39,6 +39,7 @@ public actor TmuxRuntime: SessionViewportRuntime, SessionMouseRuntime {
         unbind-key -a -T prefix
         bind-key -T root S-PageUp copy-mode -u
         set -g mouse on
+        set -g focus-events on
         set -g extended-keys on
         set -g extended-keys-format csi-u
         set -g history-limit 5000
@@ -130,17 +131,18 @@ public actor TmuxRuntime: SessionViewportRuntime, SessionMouseRuntime {
         let parts = output.split(separator: "\t", maxSplits: 5, omittingEmptySubsequences: false)
         guard parts.count == 6, parts[5].hasSuffix("\tSPOOKKY_PATH_END"), let pid = Int32(parts[1]) else { throw LaunchError.command("Invalid runtime response.") }
         guard parts[0] == binding.token.uuidString else { throw LaunchError.ownershipMismatch }
-        if let eventHook, !eventsInstalled {
-            eventsInstalled = true
+        if !configurationApplied {
+            configurationApplied = true
             do {
-                var commands: [String] = []
-                for name in Self.eventHookNames {
-                    if !commands.isEmpty { commands.append(";") }
-                    commands += ["set-hook", "-g", name, eventHook]
+                var commands = ["set-option", "-g", "focus-events", "on"]
+                if let eventHook {
+                    for name in Self.eventHookNames {
+                        commands += [";", "set-hook", "-g", name, eventHook]
+                    }
                 }
                 let result = try await command(commands)
                 guard result.status == 0 else { throw LaunchError.command(result.error) }
-            } catch { eventsInstalled = false; throw error }
+            } catch { configurationApplied = false; throw error }
             return try await inspect(binding)
         }
         let directory = String(parts[5].dropLast("\tSPOOKKY_PATH_END".count))
