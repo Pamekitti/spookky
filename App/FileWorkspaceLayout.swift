@@ -159,13 +159,29 @@ final class FileListCell: NSTableCellView {
 }
 
 final class DiffCell: NSTableCellView {
-    static var codeFont: NSFont { NSFont.monospacedSystemFont(ofSize: SpookkyStyle.points(12), weight: .regular) }
-    static var commentFont: NSFont { NSFont(descriptor: codeFont.fontDescriptor.withSymbolicTraits(.italic), size: SpookkyStyle.points(12)) ?? codeFont }
-    static var codeParagraph: NSParagraphStyle {
-        let value = NSMutableParagraphStyle(); value.tabStops = []
-        value.defaultTabInterval = (" " as NSString).size(withAttributes: [.font: codeFont]).width * 4
-        return value
+    private struct Typography {
+        let size: CGFloat
+        let code: NSFont
+        let comment: NSFont
+        let paragraph: NSParagraphStyle
+        init(size: CGFloat) {
+            self.size = size
+            code = NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
+            comment = NSFont(descriptor: code.fontDescriptor.withSymbolicTraits(.italic), size: size) ?? code
+            let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []
+            paragraph.defaultTabInterval = (" " as NSString).size(withAttributes: [.font: code]).width * 4
+            self.paragraph = paragraph
+        }
     }
+    private static var cachedTypography = Typography(size: SpookkyStyle.points(12))
+    private static var typography: Typography {
+        let size = SpookkyStyle.points(12)
+        if cachedTypography.size != size { cachedTypography = Typography(size: size) }
+        return cachedTypography
+    }
+    static var codeFont: NSFont { typography.code }
+    static var commentFont: NSFont { typography.comment }
+    static var codeParagraph: NSParagraphStyle { typography.paragraph }
     let label = SpookkyStyle.label( "")
     private let number: Bool
     private let sign: Bool

@@ -64,7 +64,6 @@ final class WorkspaceRootView: NSView {
     static var workspaceRowHeight: CGFloat { points(32) }
     static var sidebarWidth: CGFloat { points(232) }
     static var sidebarOuterInset: CGFloat { points(12) }
-    static var railWidth: CGFloat { points(58) }
     static var fileSidebarWidth: CGFloat { points(248) }
     static var composerWidth: CGFloat { points(800) }
     static var composerRadius: CGFloat { points(13) }

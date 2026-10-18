@@ -69,6 +69,12 @@ import SpookkyRuntime
             for width in [650, 1440] {
                 var display = DisplayPreferences(); display.zoom = zoom
                 apply(display)
+                let codeFont = DiffCell.codeFont
+                let tabWidth = (" " as NSString).size(withAttributes: [.font: codeFont]).width * 4
+                checks["diff_typography_tracks_zoom_\(appearance.rawValue)-\(Int(zoom * 100))"] =
+                    abs(codeFont.pointSize - SpookkyStyle.points(12)) < 0.01 &&
+                    abs(DiffCell.commentFont.pointSize - codeFont.pointSize) < 0.01 &&
+                    abs(DiffCell.codeParagraph.defaultTabInterval - tabWidth) < 0.01
                 window.setContentSize(NSSize(width: width, height: width == 650 ? 600 : 900))
                 for mode in [SupportingLayout.split, .fullWidth] {
                     layout(mode); await Task.yield(); window.contentView?.layoutSubtreeIfNeeded()

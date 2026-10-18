@@ -499,7 +499,7 @@ import SpookkyGit
             store.update { $0.closeSupport(id) }
             if active { focusSupportingContent() }
         }
-        workspaceLayout.onAdd = { [weak self] anchor in self?.supportMenu(anchor) }
+        workspaceLayout.onAdd = { [weak self] _ in self?.newTab() }
         workspaceLayout.onLayout = { [weak self] layout, fraction in
             guard let self else { return }
             store.update(debounced: fraction != nil) { $0.setSupportingLayout(layout, fraction: fraction) }
@@ -655,7 +655,6 @@ import SpookkyGit
         else if store.state.selected?.support?.tabs.isEmpty == false { store.update { $0.setSupportingLayout(.split) } }
         else { store.update { $0.openSupport(.changes, title: "Changes") } }
     }
-    private func supportMenu(_ anchor: NSView) { newTab() }
     private func chooseSupportingFile(replacing tabID: UUID? = nil) {
         guard let workspace = store.state.selected else { return }
         let root = (workspace.anchor ?? workspace.selectedLocation).scopePath
@@ -671,7 +670,6 @@ import SpookkyGit
                     state.updateSupport(tabID, target: target, title: (path as NSString).lastPathComponent)
                 } else { state.openSupport(target, title: (path as NSString).lastPathComponent) }
             }
-            if let tabID { startPages[tabID] = nil }
             focusSupportingContent()
         }
         picker.onDismiss = { [weak self] in self?.filePicker = nil }
@@ -681,8 +679,10 @@ import SpookkyGit
         let workspace = store.state.selected
         workspaceLayout.update(workspace?.support ?? SupportingPanelState())
         workspaceLayout.layoutSubtreeIfNeeded()
-        let retainedIDs = Set(store.state.workspaces.flatMap { $0.support?.tabs.map(\.id) ?? [] })
-        startPages = startPages.filter { retainedIDs.contains($0.key) }
+        let retainedTabs = store.state.workspaces.flatMap { $0.support?.tabs ?? [] }
+        let retainedIDs = Set(retainedTabs.map(\.id))
+        let startPageIDs = Set(retainedTabs.filter { $0.target == .startPage }.map(\.id))
+        startPages = startPages.filter { startPageIDs.contains($0.key) }
         supportingContentHost?.retainTabs(retainedIDs)
         guard let workspace, let tab = workspace.support?.selected, workspaceLayout.showsSupportingContent else {
             workspaceLayout.show(nil); supportContentKey = ""; return
@@ -695,7 +695,7 @@ import SpookkyGit
             page.onAddress = { [weak self] input in
                 guard let self, let url = BrowserAddress.submitted(input) else { return }
                 store.update { $0.updateSupport(tab.id, target: .browser(url: url), title: "Browser", workspaceID: workspace.id) }
-                startPages[tab.id] = nil; focusSupportingContent()
+                focusSupportingContent()
             }
             page.onTool = { [weak self] tool in self?.openSupportingTool(tool, replacing: tab.id) }
             page.onRecent = { [weak self] target, title in
@@ -933,9 +933,6 @@ import SpookkyGit
                 help: workspace.displayTitle + " · " + workspace.displayProvider.displayName + "\n" + workspace.directory,
                 selected: workspace.support?.layout != .fullWidth || workspace.support?.resolvedFullWidthSelection == .primary,
                 closable: false)
-            let joined = workspace.support?.layout == .fullWidth || workspaceLayout.compact && workspaceLayout.requestsSplit
-            if !joined { item.move(to: tabs) }
-            workspaceLayout.setPrimaryItem(item, joined: joined)
             item.titleButton.onContextMenu = { [weak self] in
                 guard let self else { return nil }; return self.workspaceContextMenu(workspace.id)
             }
@@ -2930,18 +2927,20 @@ import SpookkyGit
 
     private func renderConversationSidebar(_ state: WorkspaceState, collapsed: Bool) {
         let structure = String(collapsed) + String(describing: window.effectiveAppearance.name)
+        if collapsed {
+            if sidebarRevision != structure { sidebarRevision = structure; clear(rail) }
+            conversationSidebar.update(items: [], collapsed: true)
+            return
+        }
         if sidebarRevision != structure {
             sidebarRevision = structure; clear(rail)
-            let outerInset = collapsed ? SpookkyStyle.points(8) : SpookkyStyle.sidebarOuterInset
+            let outerInset = SpookkyStyle.sidebarOuterInset
             rail.edgeInsets = NSEdgeInsets(top: SpookkyStyle.points(8), left: outerInset, bottom: SpookkyStyle.points(12), right: outerInset)
-            let create = ActionButton(collapsed ? "" : "New chat", symbol: "plus", help: "New chat · ⌘N") { [weak self] in self?.newWorkspace() }
-            create.alignment = collapsed ? .center : .left
+            let create = ActionButton("New chat", symbol: "plus", help: "New chat · ⌘N") { [weak self] in self?.newWorkspace() }
+            create.alignment = .left
             create.heightAnchor.constraint(equalToConstant: 32).displayScaled().isActive = true
             rail.addArrangedSubview(create)
-            if collapsed {
-                let search = ActionButton("", symbol: "magnifyingglass", help: "Search conversations · ⌘K") { [weak self] in self?.findWorkspace() }
-                search.heightAnchor.constraint(equalToConstant: 32).displayScaled().isActive = true; rail.addArrangedSubview(search)
-            } else { rail.addArrangedSubview(historySearch); historySearch.heightAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true }
+            rail.addArrangedSubview(historySearch); historySearch.heightAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true
             rail.addArrangedSubview(conversationSidebar)
             conversationSidebar.setContentHuggingPriority(.defaultLow, for: .vertical)
             for view in rail.arrangedSubviews { view.widthAnchor.constraint(equalTo: rail.widthAnchor, constant: -2 * outerInset).displayScaled(alreadyScaled: true).isActive = true }
@@ -2954,10 +2953,11 @@ import SpookkyGit
             conversationSidebar.onMore = { [weak self] value in self?.showMoreHistory(String(value.dropFirst(5))) }
             conversationSidebar.onContextMenu = { [weak self] in self?.sidebarContextMenu($0) }
         }
-        if collapsed { conversationSidebar.update(items: [], collapsed: true); return }
         var items: [WorkspaceSidebarItem] = []; sidebarRecords.removeAll(keepingCapacity: true); sidebarWorkspaceIDs.removeAll(keepingCapacity: true)
         var seen = Set<ConversationID>()
         let search = historySearch.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        let selectedWorkspace = state.selected
+        let workspaceByKey = Dictionary(state.workspaces.map { ($0.threadKey, $0) }, uniquingKeysWith: { first, _ in first })
         func append(_ records: [ConversationCatalogRecord], projectID: UUID?, key: String) {
             let supplemental = state.workspaces.filter { workspace in
                 !workspace.isLanding && !state.isArchived(workspace) && (key == "search" || workspace.projectID == projectID) &&
@@ -2971,45 +2971,43 @@ import SpookkyGit
                     localAlias: workspace.customTitle ? workspace.title : nil, workspaceID: workspace.id, terminalID: workspace.primaryTerminalID)
             }
             let moved = (state.threadPresentations ?? [:]).values.filter { $0.hasProjectOverride && (key == "search" || $0.projectOverride == projectID) }.compactMap(\.conversation)
-            var rows: [(item: WorkspaceSidebarItem, date: Date, workspaceID: UUID?)] = []
+            var rows: [(id: String, date: Date, record: ConversationCatalogRecord?, workspace: Workspace?)] = []
             for originalRecord in records + supplemental + moved {
                 var record = originalRecord
                 let presentation = state.presentation(for: record.id.threadKey)
                 if presentation.hasProjectOverride { record.projectID = presentation.projectOverride }
                 guard presentation.archivedAt == nil else { continue }
-                let workspace = state.workspace(for: record.id)
+                let workspace = workspaceByKey[record.id.threadKey]
                 if key != "search", (workspace?.projectID ?? record.projectID) != projectID { continue }
                 if !search.isEmpty, ![workspace?.displayTitle ?? record.displayTitle, record.metadata.directory, record.id.sessionID].contains(where: { $0.localizedCaseInsensitiveContains(search) }) { continue }
                 guard seen.insert(record.id).inserted else { continue }
-                let id = "conversation:" + record.id.provider.rawValue + ":" + record.id.sessionID
-                sidebarRecords[id] = record
-                let activity = workspace?.activityState
-                let item = WorkspaceSidebarItem(id: id, kind: .conversation, title: workspace?.displayTitle ?? record.displayTitle,
-                    image: SpookkyStyle.toolImage(record.id.provider), help: ([record.displayTitle + " · " + record.id.provider.displayName, record.metadata.directory, workspace?.currentProjectAssociation?.message, activity?.label].compactMap { $0 }).joined(separator: "\n"),
-                    selected: workspace?.id == state.selectedWorkspaceID && (selectedSidebarOccurrence == nil || selectedSidebarOccurrence == id), nested: projectID != nil,
-                    activity: activity)
-                rows.append((item, record.metadata.updatedAt, workspace?.id))
+                rows.append(("conversation:" + record.id.threadKey, record.metadata.updatedAt, record, workspace))
             }
             for workspace in state.workspaces where !workspace.isLanding && workspace.projectID == projectID && workspace.conversationID == nil && !state.isArchived(workspace) &&
                 (search.isEmpty || workspace.displayTitle.localizedCaseInsensitiveContains(search)) {
-                let id = "workspace:" + workspace.id.uuidString
-                let item = WorkspaceSidebarItem(id: id, kind: .conversation,
-                    title: workspace.displayTitle, image: SpookkyStyle.toolImage(workspace.displayProvider),
-                    help: ([workspace.displayTitle, workspace.directory, workspace.currentProjectAssociation?.message, workspace.activityState?.label].compactMap { $0 }).joined(separator: "\n"), selected: workspace.id == state.selectedWorkspaceID && (selectedSidebarOccurrence == nil || selectedSidebarOccurrence == id), nested: projectID != nil, activity: workspace.activityState)
-                rows.append((item, workspace.lastViewedAt ?? .distantPast, workspace.id))
+                rows.append((workspace.threadKey, workspace.lastViewedAt ?? .distantPast, nil, workspace))
             }
-            rows.sort { $0.date == $1.date ? $0.item.id < $1.item.id : $0.date > $1.date }
+            rows.sort { $0.date == $1.date ? $0.id < $1.id : $0.date > $1.date }
             let limit = historyPageLimits[key] ?? (key == "search" ? 10 : 5)
             var visible = Array(rows.prefix(limit))
-            if let selected = rows.first(where: { $0.workspaceID == state.selectedWorkspaceID }), !visible.contains(where: { $0.item.id == selected.item.id }) { visible.append(selected) }
-            items += visible.map(\.item)
+            if let selected = rows.first(where: { $0.workspace?.id == state.selectedWorkspaceID }), !visible.contains(where: { $0.id == selected.id }) { visible.append(selected) }
+            for row in visible {
+                let record = row.record, workspace = row.workspace, activity = workspace?.activityState
+                if let record { sidebarRecords[row.id] = record }
+                guard let title = workspace?.displayTitle ?? record?.displayTitle else { continue }
+                let heading = record.map { $0.displayTitle + " · " + $0.id.provider.displayName } ?? title
+                items.append(WorkspaceSidebarItem(id: row.id, kind: .conversation, title: title,
+                    image: SpookkyStyle.toolImage(record?.id.provider ?? workspace?.displayProvider ?? .shell),
+                    help: ([heading, record?.metadata.directory ?? workspace?.directory, workspace?.currentProjectAssociation?.message, activity?.label].compactMap { $0 }).joined(separator: "\n"),
+                    selected: workspace?.id == state.selectedWorkspaceID && (selectedSidebarOccurrence == nil || selectedSidebarOccurrence == row.id),
+                    nested: projectID != nil, activity: activity))
+            }
             if rows.count > limit || historyHasMore.contains(key) || historyIssues[key] != nil {
                 items.append(WorkspaceSidebarItem(id: "more:" + key, kind: .more,
                     title: historyIssues[key] == nil ? "Show more" : "Retry history", help: historyIssues[key] ?? "Show ten more conversations", nested: projectID != nil))
             }
         }
 
-        let workspaceByKey = Dictionary(state.workspaces.map { ($0.threadKey, $0) }, uniquingKeysWith: { first, second in second.id == state.selectedWorkspaceID ? second : first })
         func localSection(_ title: String, key: String, filter: (ThreadPresentation) -> Bool) {
             var records = (state.threadPresentations ?? [:]).filter { filter($0.value) }.map { ($0.key, $0.value) }
             var included = Set(records.map(\.0))
@@ -3024,7 +3022,7 @@ import SpookkyGit
             guard !records.isEmpty else { return }
             items.append(WorkspaceSidebarItem(id: "section:" + key, kind: .section, title: title))
             for (identity, entry) in records.prefix(sectionLimits[key] ?? 5) {
-                let workspace = workspaceByKey[identity]
+                let workspace = selectedWorkspace?.threadKey == identity ? selectedWorkspace : workspaceByKey[identity]
                 let record = workspace?.catalogMetadata.map { ConversationCatalogRecord(metadata: $0, projectID: workspace?.projectID, localAlias: workspace?.customTitle == true ? workspace?.title : nil) } ?? entry.conversation
                 let id = key + ":" + identity
                 if let record { sidebarRecords[id] = record }
@@ -3058,7 +3056,7 @@ import SpookkyGit
             }
         }
         if !showingArchived && search.isEmpty { localSection("Recents", key: "recents", filter: { $0.lastVisitedAt != nil && $0.archivedAt == nil }) }
-        conversationSidebar.update(items: items, collapsed: collapsed)
+        conversationSidebar.update(items: items, collapsed: false)
     }
     private func activateSidebarItem(_ value: String) {
         if !value.hasPrefix("project:") && !value.hasPrefix("more:") { selectedSidebarOccurrence = value }
@@ -3165,7 +3163,7 @@ import SpookkyGit
     }
     private func selectDisplayTab(_ index: Int) {
         guard let workspace = store.state.selected else { return }
-        if index == 0 { store.update { $0.selectPrimaryContent() }; focusSelectedContent() }
+        if index == 0 { focusSelectedContent() }
         else if let tabs = workspace.support?.tabs, tabs.indices.contains(index - 1) { store.update { $0.selectSupport(tabs[index - 1].id) }; focusSupportingContent() }
     }
     private func addThreadActions(_ menu: NSMenu, key: String, record: ConversationCatalogRecord? = nil) {
@@ -3192,10 +3190,10 @@ import SpookkyGit
     private func openSupportingTool(_ tool: SupportingTool, replacing tabID: UUID) {
         switch tool {
         case .files: chooseSupportingFile(replacing: tabID)
-        case .changes: store.update { $0.updateSupport(tabID, target: .changes, title: "Changes") }; startPages[tabID] = nil
+        case .changes: store.update { $0.updateSupport(tabID, target: .changes, title: "Changes") }
         case .terminal: store.update { $0.closeSupport(tabID); $0.newTab() }; if let id = store.state.selectedTab?.id { launch(id, tool: .shell) }
         case .artifact: BrowserArtifactContentHost.chooseArtifact(in: window) { [weak self] path in
-            self?.store.update { $0.updateSupport(tabID, target: .artifact(path: path), title: (path as NSString).lastPathComponent) }; self?.startPages[tabID] = nil
+            self?.store.update { $0.updateSupport(tabID, target: .artifact(path: path), title: (path as NSString).lastPathComponent) }
         }
         }
         focusSupportingContent()
