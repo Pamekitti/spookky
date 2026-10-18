@@ -1,0 +1,18 @@
+App/SupportingWorkspaceView.swift
+  h_f4fe0839335638 29-31
+App/WorkspaceViews.swift
+  h_f4fe0839335638 52,54
+App/WorkspaceWindowController.swift
+  h_f4fe0839335638 447,542
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e3830c26301fcaa73bf173f5c839bac9202c3d22",
+  "prompts": {},
+  "humans": {
+    "h_f4fe0839335638": {
+      "author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
