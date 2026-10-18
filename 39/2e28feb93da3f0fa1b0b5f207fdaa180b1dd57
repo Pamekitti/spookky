@@ -1,0 +1,33 @@
+App/WorkspaceWindowController.swift
+  s_cdf46ccee2ecc1::t_8995eb06167000 467-471,1490-1495,1545-1553
+docs/acceptance.md
+  s_cdf46ccee2ecc1::t_bd0dddc7a0fe26 31
+docs/interface.md
+  s_53d4e1c28831bf::t_ab4b52d9f2cf28 77
+docs/status.md
+  s_cdf46ccee2ecc1::t_5591d2475e8340 11,13,15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "392e28feb93da3f0fa1b0b5f207fdaa180b1dd57",
+  "prompts": {},
+  "sessions": {
+    "s_53d4e1c28831bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_cdf46ccee2ecc1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
