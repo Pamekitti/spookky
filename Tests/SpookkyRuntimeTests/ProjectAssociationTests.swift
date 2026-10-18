@@ -191,12 +191,59 @@ final class ProjectAssociationTests: XCTestCase {
         XCTAssertNil(state.workspace(containing: tabID)?.currentProjectAssociation)
         XCTAssertEqual(state.selectedWorkspaceID, workspaceID)
     }
-    func testProviderVersionGateRequiresKnownMinimumAndRuntimeAPIs() {
-        XCTAssertFalse(CodexProjectRPC.supportsVersion("codex-cli 0.161.0"))
-        XCTAssertFalse(CodexProjectRPC.supportsVersion("codex-cli 0.162.0"))
-        XCTAssertFalse(CodexProjectRPC.supportsVersion("unrecognized output"))
-        XCTAssertTrue(CodexProjectRPC.supportsVersion("codex-cli 0.162.1\n"))
-        XCTAssertTrue(CodexProjectRPC.supportsVersion("codex-cli 0.163.0-alpha.10.2"))
+    func testProjectRPCUsesAPICapabilitiesWithoutInspectingVersionStrings() async throws {
+        let root = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let server = root.appendingPathComponent("server.py"), executable = root.appendingPathComponent("codex")
+        try """
+        import json, sys
+        for line in sys.stdin:
+            row = json.loads(line)
+            if "id" not in row:
+                continue
+            response = {"id": row["id"], "result": {"data": []}}
+            print(json.dumps(response), flush=True)
+        """.write(to: server, atomically: true, encoding: .utf8)
+        try """
+        #!/bin/sh
+        if [ "$1" != app-server ]; then
+          touch "$(dirname "$0")/unexpected-version-check"
+          exit 1
+        fi
+        exec /usr/bin/python3 -u "$(dirname "$0")/server.py"
+        """.write(to: executable, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
+        let rpc = try CodexProjectRPC(executable: executable.path)
+        let data = try await rpc.request("project/list", params: Data("{}".utf8))
+        let page = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual((page["data"] as? [String])?.count, 0)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("unexpected-version-check").path))
+        await rpc.close()
+    }
+    func testProjectRPCReportsMissingNativeMethodsAsUnsupported() async throws {
+        let root = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let executable = root.appendingPathComponent("codex")
+        try """
+        #!/usr/bin/python3
+        import json, sys
+        for line in sys.stdin:
+            row = json.loads(line)
+            if "id" not in row:
+                continue
+            if row.get("method") == "initialize":
+                response = {"id": row["id"], "result": {}}
+            else:
+                response = {"id": row["id"], "error": {"code": -32601, "message": "Method unavailable"}}
+            print(json.dumps(response), flush=True)
+        """.write(to: executable, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
+        for method in ["project/list", "thread/metadata/update"] {
+            let rpc = try CodexProjectRPC(executable: executable.path)
+            do {
+                _ = try await rpc.request(method, params: Data("{}".utf8))
+                XCTFail("A missing project capability must remain unavailable")
+            } catch CodexProjectError.unsupported { }
+            await rpc.close()
+        }
     }
     func testLegacyMetadataDecodesWithoutProviderAssociation() throws {
         let tab = WorkspaceTab(); let data = try JSONEncoder().encode(tab)

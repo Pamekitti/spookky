@@ -12,7 +12,7 @@ public enum CodexProjectError: Error, LocalizedError, Sendable {
     case unsupported, invalidResponse, limit, rejected(String)
     public var errorDescription: String? {
         switch self {
-        case .unsupported: "Codex project association requires CLI 0.162.1 or later with experimental project APIs. Execution stays in the selected checkout."
+        case .unsupported: "This Codex backend does not expose the required project metadata APIs. Execution stays in the selected checkout."
         case .invalidResponse: "Codex returned invalid project metadata."
         case .limit: "Codex project discovery exceeded its time or size limit."
         case .rejected(let message): message
@@ -120,8 +120,6 @@ public actor CodexProjectRPC: CodexProjectConnection {
     private var initialized = false
 
     public init(executable: String, environment: [String: String] = ProcessInfo.processInfo.environment) throws {
-        let version = try ProcessRunner.run(executable, ["--version"], timeout: 3, outputLimit: 4096, environment: environment)
-        guard version.status == 0, Self.supportsVersion(version.output) else { throw CodexProjectError.unsupported }
         let process = Process(), stdin = Pipe(), stdout = Pipe()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = ["app-server"]
@@ -133,14 +131,6 @@ public actor CodexProjectRPC: CodexProjectConnection {
         process.terminationHandler = { _ in completed.signal() }
         try process.run()
         try? stdin.fileHandleForReading.close(); try? stdout.fileHandleForWriting.close()
-    }
-    public static func supportsVersion(_ output: String) -> Bool {
-        let fields = output.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: " ")
-        guard fields.count == 2, fields[0] == "codex-cli" else { return false }
-        let parts = fields[1].split(separator: "-", maxSplits: 1)[0].split(separator: ".")
-        let version = parts.compactMap { Int($0) }
-        guard parts.count == 3, version.count == 3 else { return false }
-        return !version.lexicographicallyPrecedes([0, 162, 1])
     }
     deinit {
         try? input.close()

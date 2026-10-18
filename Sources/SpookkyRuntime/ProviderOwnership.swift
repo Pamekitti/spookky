@@ -2,7 +2,7 @@ import Foundation
 import SpookkyCore
 
 public enum ProviderResumeRoute: Equatable, Sendable {
-    /// The native provider arbitrates at launch. This does not assert that an owner has exited.
+    /// The native provider decides whether its saved conversation can be opened.
     case providerArbitrated
     /// Diagnostic provider metadata. These PIDs are not Spookky bindings or Stop targets.
     case interactiveOwner(processIDs: [Int32])
@@ -13,10 +13,33 @@ public enum ProviderResumeRoute: Equatable, Sendable {
 public struct ProviderOwnershipAssessment: Equatable, Sendable {
     public let route: ProviderResumeRoute
     public let explanation: String
+    public let nativeAttachID: String?
     public var canInvokeNativeResume: Bool { route == .providerArbitrated }
+    public var canContinue: Bool {
+        canInvokeNativeResume || (route == .backgroundOwner && nativeAttachID.map(ProviderContinuationCapabilities.validAttachID) == true)
+    }
 
-    public init(route: ProviderResumeRoute, explanation: String) {
-        self.route = route; self.explanation = explanation
+    public init(route: ProviderResumeRoute, explanation: String, nativeAttachID: String? = nil) {
+        self.route = route; self.explanation = explanation; self.nativeAttachID = nativeAttachID
+    }
+
+    public func continuationSpec(capabilities: ProviderContinuationCapabilities, sessionID: String,
+                                 executable: LaunchSpec) throws -> LaunchSpec {
+        guard capabilities.provider == executable.tool, executable.arguments.isEmpty,
+              sessionID.utf8.count == 36, UUID(uuidString: sessionID) != nil else {
+            throw LaunchError.invalid("An exact provider conversation and unwrapped executable are required.")
+        }
+        switch route {
+        case .providerArbitrated:
+            return try capabilities.resumeSpec(sessionID: sessionID, originalDirectory: executable.directory,
+                                               executable: executable.executable, environment: executable.environment)
+        case .backgroundOwner:
+            guard let nativeAttachID else { throw LaunchError.invalid(explanation) }
+            return try capabilities.attachSpec(attachID: nativeAttachID, originalDirectory: executable.directory,
+                                               executable: executable.executable, environment: executable.environment)
+        case .interactiveOwner, .unknown:
+            throw LaunchError.invalid(explanation)
+        }
     }
 }
 
@@ -25,52 +48,57 @@ public enum ProviderOwnershipCheck {
         guard validID(sessionID, provider: executable.tool), executable.arguments.isEmpty else {
             return unknown("An exact provider session ID and an unwrapped provider executable are required.")
         }
-        return await Task.detached {
-            var environment = ProcessInfo.processInfo.environment
-            environment.merge(executable.environment) { _, supplied in supplied }
-            func run(_ arguments: [String]) throws -> String {
-                let result = try ProcessRunner.run(executable.executable, arguments, timeout: 3, outputLimit: 262_144, environment: environment)
-                guard result.status == 0 else { throw LaunchError.invalid("Provider ownership check failed.") }
-                return result.output
-            }
-            do {
-                let version = try run(["--version"])
-                switch executable.tool {
-                case .codex:
-                    // Competing-server rejection and same-server TUI attach are verified for this build.
-                    guard version.trimmingCharacters(in: .whitespacesAndNewlines) == "codex-cli 0.162.1" else {
-                        return unknown("Writer arbitration has not been verified for this Codex version. Use its native continuation controls.")
-                    }
-                    let help = try run(["resume", "--help"])
-                    guard help.contains("[SESSION_ID]"), help.contains("--remote"), help.contains("--cd") else {
-                        return unknown("The installed Codex resume interface is unsupported. Use its native continuation controls.")
-                    }
-                    return ProviderOwnershipAssessment(route: .providerArbitrated,
-                        explanation: "Invoke exact-ID Codex resume without a prompt. Codex rejoins a conversation on the same server or refuses an independent active writer. Other Codex processes do not block this route. This does not prove ownership release.")
-                case .claude:
-                    guard version.trimmingCharacters(in: .whitespacesAndNewlines) == "2.1.302 (Claude Code)" else {
-                        return unknown("Per-session ownership reporting has not been verified for this Claude Code version. Use its native continuation controls.")
-                    }
-                    return claudeAssessment(json: Data(try run(["agents", "--json"]).utf8), sessionID: sessionID)
-                case .shell:
-                    return unknown("A shell does not have a provider conversation to resume.")
-                }
-            } catch {
-                return unknown("The provider could not report ownership. Return to its existing session or use its native continuation controls.")
-            }
-        }.value
+        do {
+            let capabilities = try await ProviderContinuationCapabilities.inspect(executable)
+            return await assess(executable, sessionID: sessionID, capabilities: capabilities)
+        } catch {
+            return unknown("The provider's installed resume interface could not be checked. Retry or check its installation.")
+        }
     }
 
-    public static func claudeAssessment(json: Data, sessionID: String) -> ProviderOwnershipAssessment {
+    public static func assess(_ executable: LaunchSpec, sessionID: String,
+                              capabilities: ProviderContinuationCapabilities) async -> ProviderOwnershipAssessment {
+        guard validID(sessionID, provider: executable.tool), executable.arguments.isEmpty,
+              capabilities.provider == executable.tool, capabilities.exactResume else {
+            return unknown("The installed provider does not advertise exact-ID resume. Check its installed help.")
+        }
+        switch executable.tool {
+        case .codex:
+            return ProviderOwnershipAssessment(route: .providerArbitrated,
+                explanation: "Open this exact saved conversation with native Codex resume. Codex controls access to its conversation and reports a conflicting writer in its terminal.")
+        case .claude:
+            guard capabilities.ownershipReporting else {
+                return claudeFallback("This Claude CLI does not advertise per-session ownership reporting.")
+            }
+            return await Task.detached {
+                var environment = ProcessInfo.processInfo.environment
+                environment.merge(executable.environment) { _, supplied in supplied }
+                do {
+                    let result = try ProcessRunner.run(executable.executable, ["agents", "--json"], timeout: 3,
+                                                       outputLimit: 262_145, environment: environment)
+                    guard result.status == 0 else { return claudeFallback("Claude could not report per-session ownership.") }
+                    return claudeAssessment(json: Data(result.output.utf8), sessionID: sessionID,
+                                            supportsAttach: capabilities.backgroundAttach)
+                } catch { return claudeFallback("Claude could not report per-session ownership.") }
+            }.value
+        case .shell:
+            return unknown("A shell does not have a provider conversation to resume.")
+        }
+    }
+
+    public static func claudeAssessment(json: Data, sessionID: String, supportsAttach: Bool = true) -> ProviderOwnershipAssessment {
         struct Row: Decodable {
             let kind: String
             let sessionId: String?
+            let id: String?
             let pid: Int32?
             let state: String?
         }
-        guard validID(sessionID, provider: .claude), json.count <= 262_144,
-              let rows = try? JSONDecoder().decode([Row].self, from: json), rows.count <= 1_024 else {
-            return unknown("Claude Code returned unsupported ownership metadata. Use its native continuation controls.")
+        guard validID(sessionID, provider: .claude) else {
+            return unknown("An exact Claude conversation UUID is required.")
+        }
+        guard json.count <= 262_144, let rows = try? JSONDecoder().decode([Row].self, from: json), rows.count <= 1_024 else {
+            return claudeFallback("Claude returned unsupported ownership metadata.")
         }
         let matching = rows.filter { $0.sessionId?.lowercased() == sessionID.lowercased() }
         let interactive = matching.filter { $0.kind == "interactive" }.compactMap { row -> Int32? in
@@ -79,15 +107,20 @@ public enum ProviderOwnershipCheck {
         }
         if !interactive.isEmpty {
             return ProviderOwnershipAssessment(route: .interactiveOwner(processIDs: Array(Set(interactive)).sorted()),
-                explanation: "Claude Code reports this exact conversation open in a terminal. Return to that terminal and release it there before saved resume here.")
+                explanation: "This conversation is open in another Claude terminal. Return there and close or release it before resuming here.")
         }
-        if matching.contains(where: { $0.kind == "background" && (($0.pid ?? 0) > 0 || ["working", "blocked"].contains($0.state ?? "")) }) {
+        let background = matching.filter { $0.kind == "background" && (($0.pid ?? 0) > 0 || ["working", "blocked", "running", "idle"].contains($0.state ?? "")) }
+        if !background.isEmpty {
+            let ids = Set(background.compactMap { $0.id }.filter(ProviderContinuationCapabilities.validAttachID))
+            if supportsAttach, ids.count == 1, let id = ids.first,
+               background.allSatisfy({ $0.id == id }) {
+                return ProviderOwnershipAssessment(route: .backgroundOwner,
+                    explanation: "Attach to this conversation's existing Claude background session.", nativeAttachID: id)
+            }
             return ProviderOwnershipAssessment(route: .backgroundOwner,
-                explanation: "Claude Code reports this exact conversation in a background session. Use claude agents and its native attach control. Spookky has not transferred ownership. Per-invocation --settings can prevent the provider's automatic attach route.")
+                explanation: "Claude reports this conversation in a background session, but its exact attach route is unavailable. Open it through Claude's native agent view.")
         }
-        // The supported list is positive evidence only. Ordinary --resume admitted a second
-        // foreground TUI for the same UUID in the disposable competing-client check.
-        return unknown("Claude Code did not report an active owner for this conversation. That snapshot does not prove release or prevent a race. Confirm the original owner has released it before using provider-native exact-ID resume.")
+        return claudeFallback("Claude did not report an active owner for this conversation.")
     }
 
     private static func validID(_ id: String, provider: SessionTool) -> Bool {
@@ -95,6 +128,10 @@ public enum ProviderOwnershipCheck {
         case .codex, .claude: id.utf8.count == 36 && UUID(uuidString: id) != nil
         case .shell: false
         }
+    }
+    private static func claudeFallback(_ reason: String) -> ProviderOwnershipAssessment {
+        ProviderOwnershipAssessment(route: .providerArbitrated,
+            explanation: reason + " Open its exact saved ID with ordinary native resume. This does not establish exclusive cross-app ownership.")
     }
     private static func unknown(_ reason: String) -> ProviderOwnershipAssessment {
         ProviderOwnershipAssessment(route: .unknown, explanation: reason)

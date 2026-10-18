@@ -14,26 +14,36 @@ public struct ProviderContinuationCapabilities: Equatable, Sendable {
     public let desktopCommand: String?
     public let remoteCommand: String?
     public let exactResume: Bool
+    public let ownershipReporting: Bool
+    public let backgroundAttach: Bool
+    private let codexDirectoryFlag: String?
 
-    public init(provider: SessionTool, version: String, help: String, resumeHelp: String = "", remoteHelp: String = "") {
+    public init(provider: SessionTool, version: String, help: String, resumeHelp: String = "", remoteHelp: String = "",
+                agentsHelp: String = "", attachHelp: String = "") {
         self.provider = provider
         self.version = String(version.trimmingCharacters(in: .whitespacesAndNewlines).prefix(128))
-        let number = version.range(of: "[0-9]+\\.[0-9]+\\.[0-9]+", options: .regularExpression).map { String(version[$0]) }
-        func atLeast(_ minimum: String) -> Bool {
-            number.map { $0.compare(minimum, options: .numeric) != .orderedAscending } ?? false
-        }
+        codexDirectoryFlag = Self.advertises("--cd", in: resumeHelp) ? "--cd" : Self.advertises("-C", in: resumeHelp) ? "-C" : nil
         switch provider {
         case .codex:
-            exactResume = atLeast("0.162.1") && resumeHelp.contains("[SESSION_ID]") && resumeHelp.contains("--cd")
-            desktopCommand = exactResume && help.contains("app") ? "/app" : nil
-            remoteCommand = atLeast("0.162.1") && remoteHelp.contains("pair") && remoteHelp.contains("start") ? "codex remote-control" : nil
+            exactResume = resumeHelp.range(of: "[\\[<]SESSION[_-]?ID[\\]>]", options: [.regularExpression, .caseInsensitive]) != nil
+            desktopCommand = exactResume && Self.advertises("app", in: help) ? "/app" : nil
+            remoteCommand = Self.advertises("pair", in: remoteHelp) && Self.advertises("start", in: remoteHelp) ? "codex remote-control" : nil
+            ownershipReporting = false; backgroundAttach = false
         case .claude:
-            exactResume = atLeast("2.1.296") && help.contains("--resume")
-            desktopCommand = exactResume && help.contains("--desktop") ? "/desktop" : nil
-            remoteCommand = atLeast("2.1.296") && help.contains("--remote-control") ? "/remote-control" : nil
+            exactResume = Self.advertises("--resume", in: help)
+            desktopCommand = exactResume && Self.advertises("--desktop", in: help) ? "/desktop" : nil
+            remoteCommand = Self.advertises("--remote-control", in: help) ? "/remote-control" : nil
+            ownershipReporting = Self.advertises("--json", in: agentsHelp)
+            backgroundAttach = attachHelp.range(of: "attach\\s+<id(?:\\|name)?>", options: .regularExpression) != nil
         case .shell:
             exactResume = false; desktopCommand = nil; remoteCommand = nil
+            ownershipReporting = false; backgroundAttach = false
         }
+    }
+
+    fileprivate static func advertises(_ token: String, in help: String) -> Bool {
+        help.range(of: "(?<![A-Za-z0-9_-])" + NSRegularExpression.escapedPattern(for: token) + "(?![A-Za-z0-9_-])",
+                   options: .regularExpression) != nil
     }
 
     public static func provider(for tab: WorkspaceTab) -> SessionTool? {
@@ -43,21 +53,10 @@ public struct ProviderContinuationCapabilities: Equatable, Sendable {
     }
 
     public static func inspect(_ spec: LaunchSpec) async throws -> Self {
-        guard spec.tool != .shell else { throw LaunchError.invalid("Choose a Codex or Claude Code session.") }
-        return try await Task.detached {
-            var environment = ProcessInfo.processInfo.environment
-            environment.merge(spec.environment) { _, new in new }
-            func probe(_ arguments: [String]) throws -> String {
-                let result = try ProcessRunner.run(spec.executable, arguments, timeout: 3, outputLimit: 65_536, environment: environment)
-                guard result.status == 0 else { throw LaunchError.invalid("Provider capability check failed. Use the provider's own help in its terminal.") }
-                return result.output
-            }
-            let version = try probe(["--version"])
-            let help = try probe(["--help"])
-            let resume = spec.tool == .codex ? (try? probe(["resume", "--help"])) ?? "" : ""
-            let remote = spec.tool == .codex ? (try? probe(["remote-control", "--help"])) ?? "" : ""
-            return Self(provider: spec.tool, version: version, help: help, resumeHelp: resume, remoteHelp: remote)
-        }.value
+        guard spec.tool != .shell, spec.arguments.isEmpty else {
+            throw LaunchError.invalid("Choose an unwrapped Codex or Claude Code executable.")
+        }
+        return try await ProviderCapabilityCache.shared.inspect(spec)
     }
 
     public func guide(sessionID: String? = nil, directory: String, hasLiveProvider: Bool = true, hasOwnedBinding: Bool = true) throws -> ProviderContinuationGuide {
@@ -80,7 +79,7 @@ public struct ProviderContinuationCapabilities: Equatable, Sendable {
                 (provider == .claude ? "Claude saves the conversation and exits its CLI when the transfer succeeds." :
                  "Codex opens the same saved chat in its desktop app. Keep using the provider's shared server; a terminal exit does not prove server ownership was released.")
         } else {
-            desktop = "Desktop continuation is unavailable for this CLI version. Check the provider's installed help."
+            desktop = "Desktop continuation is unavailable in this CLI. Check the provider's installed help."
         }
         let remote: String
         if !hasLiveProvider {
@@ -89,18 +88,18 @@ public struct ProviderContinuationCapabilities: Equatable, Sendable {
             remote = provider == .claude ?
                 "At an empty Claude prompt, enter " + remoteCommand + ". Account and organization eligibility are checked by Claude. Review its consent and permission prompts. Use the URL or QR code it provides. Keep this Mac awake and the original process running. Return to this primary conversation in Spookky to continue locally." :
                 "Codex exposes " + remoteCommand + " and pairing through its shared local server. Configure it in a separate terminal using the provider's instructions and eligibility checks. This does not transfer the selected conversation or prove it is attached to that server. Keep the original host awake and reachable."
-        } else { remote = "Remote Control is unavailable for this CLI version." }
+        } else { remote = "Remote Control is unavailable in this CLI." }
         var returning = hasOwnedBinding
             ? "Return to this workspace and use Reconnect to check its owned primary binding and reattach a surviving process. Reconnect never starts an agent or sends a prompt. "
             : "No surviving primary binding has been verified for this saved entry. This panel does not launch or resume a process. "
         if exactResume {
-            returning += "For saved history, finish work and release the conversation in the other surface first. A hidden window or stopped terminal is not proof of release. "
+            returning += "For saved history, Spookky checks available provider ownership information before native resume or attach. A hidden window or stopped terminal is not proof of release. "
             if let sessionID {
                 let arguments = [provider == .codex ? "codex" : "claude"] +
-                    (try Self.resumeArguments(provider: provider, sessionID: sessionID, originalDirectory: directory))
+                    (try nativeResumeArguments(sessionID: sessionID, originalDirectory: directory))
                 returning += "In a terminal in the original folder, run " + ShellCommand.render(arguments) + ". "
             } else { returning += "Use the provider's /status to record its exact session ID and original folder before leaving. Resume that ID from the original folder. " }
-            returning += "Saved resume reloads provider history. Do not start another writer while ownership is unknown. Unsent input and the old terminal viewport belong to the original process."
+            returning += "Saved resume reloads provider history. Claude resume does not establish exclusive cross-app ownership when reporting is unavailable. Unsent input and the old terminal viewport belong to the original process."
         }
         return ProviderContinuationGuide(desktop: desktop, remote: remote, returnToTerminal: returning)
     }
@@ -120,11 +119,29 @@ public struct ProviderContinuationCapabilities: Equatable, Sendable {
     public func resumeSpec(sessionID: String, originalDirectory: String, executable: String,
                            environment: [String: String] = [:]) throws -> LaunchSpec {
         guard exactResume, sessionID.utf8.count == 36 && UUID(uuidString: sessionID) != nil else {
-            throw LaunchError.invalid("This provider does not support a verified exact-ID resume.")
+            throw LaunchError.invalid("This provider does not advertise exact-ID resume.")
         }
-        return try LaunchSpec(tool: provider, executable: executable,
-            arguments: Self.resumeArguments(provider: provider, sessionID: sessionID, originalDirectory: originalDirectory),
+        let arguments = try nativeResumeArguments(sessionID: sessionID, originalDirectory: originalDirectory)
+        return try LaunchSpec(tool: provider, executable: executable, arguments: arguments,
             directory: originalDirectory, environment: environment)
+    }
+
+    private func nativeResumeArguments(sessionID: String, originalDirectory: String) throws -> [String] {
+        provider == .codex ? ["resume", sessionID] + (codexDirectoryFlag.map { [$0, originalDirectory] } ?? []) :
+            try Self.resumeArguments(provider: provider, sessionID: sessionID, originalDirectory: originalDirectory)
+    }
+
+    public func attachSpec(attachID: String, originalDirectory: String, executable: String,
+                           environment: [String: String] = [:]) throws -> LaunchSpec {
+        guard provider == .claude, backgroundAttach, Self.validAttachID(attachID) else {
+            throw LaunchError.invalid("This CLI does not advertise an exact background-session attach route.")
+        }
+        return try LaunchSpec(tool: provider, executable: executable, arguments: ["attach", attachID],
+                              directory: originalDirectory, environment: environment)
+    }
+
+    public static func validAttachID(_ id: String) -> Bool {
+        id.utf8.count <= 128 && id.range(of: "\\A[A-Za-z0-9][A-Za-z0-9._-]*\\z", options: .regularExpression) != nil
     }
 
     public static func resumeArguments(provider: SessionTool, sessionID: String, originalDirectory: String) throws -> [String] {
@@ -136,5 +153,56 @@ public struct ProviderContinuationCapabilities: Equatable, Sendable {
         case .claude: return ["--resume", sessionID]
         case .shell: throw LaunchError.invalid("Choose a Codex or Claude Code session.")
         }
+    }
+}
+
+private actor ProviderCapabilityCache {
+    static let shared = ProviderCapabilityCache()
+    private struct Key: Hashable {
+        let executable: String
+        let provider: String
+        let version: String
+        let fileIdentity: String
+        let environment: Int
+    }
+    private var values: [Key: ProviderContinuationCapabilities] = [:]
+    private var order: [Key] = []
+
+    func inspect(_ spec: LaunchSpec) async throws -> ProviderContinuationCapabilities {
+        var environment = ProcessInfo.processInfo.environment
+        environment.merge(spec.environment) { _, supplied in supplied }
+        let probeEnvironment = environment
+        func probe(_ arguments: [String]) async throws -> String {
+            try await Task.detached {
+                let result = try ProcessRunner.run(spec.executable, arguments, timeout: 3, outputLimit: 65_536,
+                                                   environment: probeEnvironment)
+                guard result.status == 0 else { throw LaunchError.invalid("The provider capability check failed. Check its installed help.") }
+                return String((result.output + "\n" + result.error).prefix(65_536))
+            }.value
+        }
+        let version = (try? await probe(["--version"])) ?? "Unknown"
+        try Task.checkCancellation()
+        let file = (try? FileManager.default.attributesOfItem(atPath: URL(fileURLWithPath: spec.executable).resolvingSymlinksInPath().path)) ?? [:]
+        let modified = (file[.modificationDate] as? Date)?.timeIntervalSinceReferenceDate
+        let identity = [file[.systemFileNumber], file[.size], modified].map { String(describing: $0) }.joined(separator: ":")
+        var hasher = Hasher()
+        for key in environment.keys.sorted() { hasher.combine(key); hasher.combine(environment[key]) }
+        let key = Key(executable: spec.executable, provider: spec.tool.rawValue, version: version,
+                      fileIdentity: identity, environment: hasher.finalize())
+        if let cached = values[key] { return cached }
+        let help = try await probe(["--help"])
+        let resume = spec.tool == .codex ? (try? await probe(["resume", "--help"])) ?? "" : ""
+        let remote = spec.tool == .codex ? (try? await probe(["remote-control", "--help"])) ?? "" : ""
+        let agents = spec.tool == .claude && ProviderContinuationCapabilities.advertises("agents", in: help) ?
+            (try? await probe(["agents", "--help"])) ?? "" : ""
+        let attach = spec.tool == .claude && ProviderContinuationCapabilities.advertises("attach", in: help) ?
+            (try? await probe(["attach", "--help"])) ?? "" : ""
+        try Task.checkCancellation()
+        let value = ProviderContinuationCapabilities(provider: spec.tool, version: version, help: help,
+            resumeHelp: resume, remoteHelp: remote, agentsHelp: agents, attachHelp: attach)
+        if values[key] == nil { order.append(key) }
+        values[key] = value
+        while order.count > 32 { values.removeValue(forKey: order.removeFirst()) }
+        return value
     }
 }

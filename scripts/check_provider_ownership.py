@@ -35,6 +35,7 @@ class RPC:
         self.connection = None
         self.buffer = b''
         self.sequence = 0
+        self.readiness = []
         self.provider_root = Path(environment["CODEX_HOME"])
         try:
             if endpoint:
@@ -129,19 +130,37 @@ class RPC:
         row = self.request('thread/start', {'cwd': str(directory)})
         session_id = row['result']['thread']['id']
         self.request('turn/start', {'threadId': session_id, 'input': [{'type': 'text', 'text': MARKER}]})
-        for _ in range(60):
-            # Wait for this fixture's initial history record, not for ownership release.
-            # An in-memory thread/read response can precede the initial disk flush.
+        # A session_meta header can precede the first turn's disk and metadata-index flush.
+        # Wait for the saved user input, turn context and indexed preview before the single resume check.
+        started = time.monotonic()
+        first_error = None
+        for attempt in range(100):
+            persisted = False
             for path in self.provider_root.rglob('*' + session_id + '.jsonl'):
                 try:
                     with path.open() as handle:
-                        row = json.loads(handle.readline(65_536))
-                    if row.get('type') == 'session_meta' and row.get('payload', {}).get('id') == session_id:
-                        return session_id
-                except (ValueError, OSError):
-                    pass
+                        content = handle.read(1_048_576)
+                    rows = [json.loads(line) for line in content.splitlines() if line]
+                    valid_id = any(row.get('type') == 'session_meta' and row.get('payload', {}).get('id') == session_id for row in rows)
+                    turn_context = any(row.get('type') == 'turn_context' for row in rows)
+                    user_input = any(row.get('type') == 'response_item' and row.get('payload', {}).get('role') == 'user'
+                                     and any(item.get('text') == MARKER for item in row.get('payload', {}).get('content', [])) for row in rows)
+                    persisted = valid_id and turn_context and user_input
+                except (ValueError, OSError) as error:
+                    if first_error is None:
+                        first_error = {'type': type(error).__name__, 'message': str(error)[:512]}
+            indexed = self.request('thread/list', {'cwd': str(directory), 'limit': 100})
+            if indexed.get('error') and first_error is None:
+                first_error = indexed['error']
+            ready = any(row.get('id') == session_id and row.get('preview') == MARKER
+                        for row in indexed.get('result', {}).get('data', []))
+            if persisted and ready:
+                self.readiness.append({'polls': attempt + 1, 'milliseconds': round((time.monotonic() - started) * 1000),
+                                       'first_error': first_error})
+                return session_id
             time.sleep(.05)
-        raise RuntimeError('Fixture history was not persisted')
+        self.readiness.append({'polls': 100, 'first_error': first_error, 'persisted': persisted, 'indexed': ready})
+        raise RuntimeError('Fixture history did not reach persisted and indexed readiness')
 
     def close(self):
         if self.connection:
@@ -174,7 +193,7 @@ stream_max_retries = 0
                    and not k.endswith(('_API_KEY', '_ACCESS_TOKEN', '_OAUTH_TOKEN'))}
     environment.update(CODEX_HOME=str(codex_home), NO_PROXY='127.0.0.1,localhost', no_proxy='127.0.0.1,localhost')
     checks = {}
-    observations = {"same_server_metadata_retries": 0}
+    observations = {"resume_retries": 0, "history_readiness": []}
     first = second = server = client = peer = None
     private_socket = root / 'tmux.sock'
     try:
@@ -185,9 +204,11 @@ stream_max_retries = 0
         checks['unrelated_conversation_allowed_with_provider_owner_present'] = first_id != other_id
         checks['independent_writer_refused'] = rejected(second.request('thread/resume', {'threadId': first_id, 'excludeTurns': True}))
         checks['same_owner_resume_same_id'] = first.request('thread/resume', {'threadId': first_id, 'excludeTurns': True}).get('result', {}).get('thread', {}).get('id') == first_id
+        first_readiness = first.readiness
         first.close()
         first = None
         checks['resume_after_owned_server_exit'] = second.request('thread/resume', {'threadId': first_id, 'excludeTurns': True}).get('result', {}).get('thread', {}).get('id') == first_id
+        second_readiness = second.readiness
         second.close()
         second = None
         endpoint = root / 'server.sock'
@@ -200,13 +221,11 @@ stream_max_retries = 0
         client = RPC(executable, environment, checkout, endpoint)
         session_id = client.start(checkout)
         peer = RPC(executable, environment, checkout, endpoint)
-        for _ in range(40):
-            resumed = peer.request('thread/resume', {'threadId': session_id, 'excludeTurns': True})
-            error = resumed.get('error', {})
-            if error.get('code') != -32603 or not any(word in error.get('message', '') for word in ['rollout', 'metadata', 'failed to read thread']):
-                break
-            observations['same_server_metadata_retries'] += 1
-            time.sleep(.05)
+        resumed = peer.request('thread/resume', {'threadId': session_id, 'excludeTurns': True})
+        observations['history_readiness'] = first_readiness + second_readiness + client.readiness
+        observations['same_server_first_resume'] = {
+            'same_id': resumed.get('result', {}).get('thread', {}).get('id') == session_id,
+            'error': resumed.get('error')}
         checks['same_server_second_client_same_id'] = resumed.get('result', {}).get('thread', {}).get('id') == session_id
         config = root / 'tmux.conf'
         config.write_text('set -g remain-on-exit on\n')
@@ -235,6 +254,10 @@ stream_max_retries = 0
                 row = json.loads(line)
                 starts += row.get('type') == 'event_msg' and row.get('payload', {}).get('type') == 'task_started'
         checks['native_attach_does_not_start_another_turn'] = starts == 1
+        return checks, observations
+    except Exception as error:
+        checks['fixture_completed'] = False
+        observations['first_failure'] = {'type': type(error).__name__, 'message': str(error)[:1_024]}
         return checks, observations
     finally:
         subprocess.run([tmux, '-S', str(private_socket), 'kill-server'], capture_output=True, timeout=5)

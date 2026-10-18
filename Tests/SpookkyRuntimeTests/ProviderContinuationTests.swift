@@ -28,16 +28,20 @@ final class ProviderContinuationTests: XCTestCase {
         XCTAssertThrowsError(try codex.desktopSpec(sessionID: id, originalDirectory: "/tmp", executable: "/tmp/codex"))
         XCTAssertThrowsError(try claude.desktopSpec(sessionID: "--last", originalDirectory: "/tmp", executable: "/tmp/claude"))
     }
-    func testInvalidOrNamedIDsAndUnknownVersionsFailClosed() {
+    func testInvalidOrNamedIDsAndMissingCapabilitiesFailClosed() {
         for value in ["", "--last", "friendly name", id + "\0"] {
             XCTAssertThrowsError(try codex.resumeSpec(sessionID: value, originalDirectory: "/tmp", executable: "/tmp/codex"))
             XCTAssertThrowsError(try claude.guide(sessionID: value, directory: "/tmp"))
         }
-        for version in ["", "development build", "0.100.0"] {
-            let unsupported = ProviderContinuationCapabilities(provider: .codex, version: version, help: "app", resumeHelp: "[SESSION_ID] --cd", remoteHelp: "start pair")
-            XCTAssertNil(unsupported.desktopCommand)
-            XCTAssertNil(unsupported.remoteCommand)
-            XCTAssertFalse(unsupported.exactResume)
+        for version in ["", "development build", "0.100.0", "900.1.0"] {
+            let supported = ProviderContinuationCapabilities(provider: .codex, version: version, help: "app", resumeHelp: "[SESSION_ID] --cd", remoteHelp: "start pair")
+            XCTAssertEqual(supported.desktopCommand, "/app")
+            XCTAssertEqual(supported.remoteCommand, "codex remote-control")
+            XCTAssertTrue(supported.exactResume)
+            let missing = ProviderContinuationCapabilities(provider: .codex, version: version, help: "")
+            XCTAssertFalse(missing.exactResume)
+            XCTAssertNil(missing.desktopCommand)
+            XCTAssertNil(missing.remoteCommand)
         }
         XCTAssertThrowsError(try codex.resumeSpec(sessionID: id, originalDirectory: "relative", executable: "/tmp/codex"))
         XCTAssertThrowsError(try codex.resumeSpec(sessionID: id, originalDirectory: "/tmp\0", executable: "/tmp/codex"))
@@ -92,4 +96,50 @@ final class ProviderContinuationTests: XCTestCase {
         XCTAssertTrue(guide.desktop.contains("terminal exit does not prove"))
         XCTAssertTrue(guide.returnToTerminal.contains("never starts an agent"))
     }
+    func testAdvertisedCodexDirectoryFlagIsUsedWithoutRequiringItForBasicResume() throws {
+        for (help, expected) in [("[SESSION_ID] -C", ["resume", id, "-C", "/tmp"]),
+                                 ("[SESSION_ID]", ["resume", id])] {
+            let capability = ProviderContinuationCapabilities(provider: .codex, version: "old", help: "", resumeHelp: help)
+            XCTAssertTrue(capability.exactResume)
+            let spec = try capability.resumeSpec(sessionID: id, originalDirectory: "/tmp", executable: "/tmp/codex")
+            XCTAssertEqual(spec.arguments, expected)
+            XCTAssertEqual(spec.directory, "/tmp")
+        }
+        XCTAssertFalse(ProviderContinuationCapabilities(provider: .claude, version: "new", help: "--resume-copy --desktop-copy").exactResume)
+    }
+    func testCapabilitiesCacheUntilExecutableVersionOrIdentityChanges() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("spookky-capability-cache-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let executable = root.appendingPathComponent("codex"), version = root.appendingPathComponent("version")
+        try "old".write(to: version, atomically: true, encoding: .utf8)
+        try """
+        #!/bin/sh
+        base=$(dirname "$0")
+        case "$*" in
+          --version) cat "$base/version";;
+          --help) echo help >> "$base/probes"; echo 'app';;
+          'resume --help') echo '[SESSION_ID] --cd';;
+          'remote-control --help') exit 1;;
+          *) exit 1;;
+        esac
+        """.write(to: executable, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
+        let base = try LaunchSpec(tool: .codex, executable: executable.path, directory: root.path)
+        _ = try await ProviderContinuationCapabilities.inspect(base)
+        _ = try await ProviderContinuationCapabilities.inspect(base)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("probes"), encoding: .utf8).split(separator: "\n").count, 1)
+        try "new".write(to: version, atomically: true, encoding: .utf8)
+        let updated = try await ProviderContinuationCapabilities.inspect(base)
+        XCTAssertEqual(updated.version, "new")
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("probes"), encoding: .utf8).split(separator: "\n").count, 2)
+        var script = try String(contentsOf: executable, encoding: .utf8)
+        script = script.replacingOccurrences(of: "[SESSION_ID] --cd", with: "no exact session interface")
+        try script.write(to: executable, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
+        let replaced = try await ProviderContinuationCapabilities.inspect(base)
+        XCTAssertFalse(replaced.exactResume)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("probes"), encoding: .utf8).split(separator: "\n").count, 3)
+    }
+
 }

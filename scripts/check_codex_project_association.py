@@ -87,7 +87,11 @@ def resources(process_id):
 
 
 def verify(executable):
-    version = subprocess.check_output([executable, '--version'], text=True, timeout=10).strip()
+    try:
+        probe = subprocess.run([executable, '--version'], capture_output=True, text=True, timeout=3)
+        version = (probe.stdout + probe.stderr).strip()[:128] if probe.returncode == 0 else 'Unavailable'
+    except (OSError, subprocess.TimeoutExpired):
+        version = 'Unavailable'
     report = {'version': version, 'disposable_state': True, 'model_requests': 0}
     with tempfile.TemporaryDirectory(prefix='spookky-project-association-') as folder:
         root = Path(folder).resolve()
