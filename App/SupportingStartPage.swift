@@ -15,6 +15,9 @@ enum SupportingTool: CaseIterable {
     private let scroll = NSScrollView()
     private let canvas = StartPageCanvas()
     private let stack = NSStackView()
+    private var toolRows: [NSStackView] = []
+    private var singleColumnWidths: [NSLayoutConstraint] = []
+    private var singleColumn = false
     init(recent: [SupportingTab]) {
         super.init(frame: .zero)
         DisplayMetrics.registerRoot(self)
@@ -30,9 +33,11 @@ enum SupportingTool: CaseIterable {
                 button.alignment = .left; button.emphasis = .secondary
                 button.heightAnchor.constraint(equalToConstant: 36).displayScaled().isActive = true
                 row.addArrangedSubview(button)
+                singleColumnWidths.append(button.widthAnchor.constraint(equalTo: row.widthAnchor))
             }
             tools.addArrangedSubview(row)
             row.widthAnchor.constraint(equalTo: tools.widthAnchor).isActive = true
+            toolRows.append(row)
         }
         [address, heading, tools].forEach { stack.addArrangedSubview($0) }; stack.orientation = .vertical; stack.alignment = .leading
         stack.spacing = SpookkyStyle.points(20); stack.translatesAutoresizingMaskIntoConstraints = false
@@ -56,6 +61,12 @@ enum SupportingTool: CaseIterable {
     required init?(coder: NSCoder) { fatalError("Use init") }
     override func layout() {
         super.layout(); scroll.frame = bounds
+        let narrow = scroll.contentSize.width < SpookkyStyle.points(420)
+        if narrow != singleColumn {
+            singleColumn = narrow
+            for row in toolRows { row.orientation = narrow ? .vertical : .horizontal }
+            for constraint in singleColumnWidths { constraint.isActive = narrow }
+        }
         canvas.setFrameSize(NSSize(width: scroll.contentSize.width, height: max(bounds.height, canvas.frame.height)))
         canvas.layoutSubtreeIfNeeded()
         canvas.setFrameSize(NSSize(width: scroll.contentSize.width, height: max(bounds.height, stack.fittingSize.height + SpookkyStyle.points(80))))
