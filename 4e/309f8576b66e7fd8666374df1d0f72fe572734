@@ -1,0 +1,22 @@
+App/WorkspaceWindowController.swift
+  h_f4fe0839335638 1019-1021
+Sources/SpookkyWorkspace/ProjectAssociationBatch.swift
+  h_f4fe0839335638 39,95-96,98,100,103,116
+Sources/SpookkyWorkspace/ProjectAssociationResolver.swift
+  h_f4fe0839335638 16,20,23-27
+Tests/SpookkyRuntimeTests/ProjectAssociationBatchTests.swift
+  h_f4fe0839335638 10,16-17,26,218-220,233-235,263-284
+docs/session-history.md
+  h_f4fe0839335638 29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4e309f8576b66e7fd8666374df1d0f72fe572734",
+  "prompts": {},
+  "humans": {
+    "h_f4fe0839335638": {
+      "author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
