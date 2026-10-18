@@ -1,0 +1,57 @@
+README.md
+  s_cdf46ccee2ecc1::t_5a1ef3cd8a24d9 28-29,33
+docs/acceptance.md
+  s_53d4e1c28831bf::t_c7130120f7a13d 29-43,46,53,61,63-65,67,79-80,82,84-86,100-101,112-113,117
+docs/architecture.md
+  s_cdf46ccee2ecc1::t_451cd44b9997de 3,53-54,67,180,182,184,186,188,190,192-196
+docs/build-plan.md
+  s_cdf46ccee2ecc1::t_de72ba4f8a466d 10-11,21
+docs/conversation-titles.md
+  s_cdf46ccee2ecc1::t_eb8cf0625cd79d 3,7,13
+docs/conversation-workspaces.md
+  s_53d4e1c28831bf::t_d69c8e7570c5a7 3,5,7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37
+docs/flows.md
+  s_cdf46ccee2ecc1::t_9cde381ebbbd24 9-12,27,33,35,37,40-42,96,131-132,139,145,153,163-164,175
+docs/interface.md
+  s_53d4e1c28831bf::t_075714294567e9 3,22,26,32,48,50,64,75,77,79-81,87,93,118,123,125-126,130,160,162-163,167
+docs/native-design-reference.md
+  s_cdf46ccee2ecc1::t_bac8e928cb7197 11-14,22
+docs/performance.md
+  s_53d4e1c28831bf::t_0ad848c2dd2d74 172-190
+docs/product.md
+  s_cdf46ccee2ecc1::t_d8647bb08442e2 3,49-51,67,72,74,105,107
+docs/project-association.md
+  s_53d4e1c28831bf::t_12a5915aa220da 15,38
+docs/provider-ownership.md
+  s_53d4e1c28831bf::t_a6a85ab5e8ee6e 3,5,7,9-16,18,20,22,24,26,28,33,37-43
+docs/session-continuation.md
+  s_cdf46ccee2ecc1::t_ba35821642293b 37,39,41,49
+docs/session-history.md
+  s_53d4e1c28831bf::t_a6fff198c2b77e 3,5,7,9,11,13,15,17,19,21-27,29,31,33,35,37,39-41,43,45,48-49,52,54
+docs/status.md
+  s_53d4e1c28831bf::t_5768f98bc2095e 5-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a73ff55e1c16d55d64b30d67d4fd56cdbefd4d82",
+  "prompts": {},
+  "sessions": {
+    "s_53d4e1c28831bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_cdf46ccee2ecc1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
