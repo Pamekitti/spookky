@@ -1,51 +1,54 @@
 # Saved conversation sidebar
 
-Saved local Codex and Claude Code conversations appear directly under their projects. The sidebar initially renders 50 entries and includes the selected workspace when it falls outside that page. Show more adds 50 entries. Search matches every retained title, saved directory, and provider session ID, including entries outside the current page. Closed conversation views remain in this list. Search temporarily reveals matching rows in collapsed projects without changing their saved collapse state.
+Spookky shows five recent Codex and Claude Code conversations per project. Show more requests ten more, repeatedly. Search starts with ten results and can request further pages, including history not previously cached. The selected conversation and open local sessions remain available without duplicate rows.
 
-Startup, app activation, and project registration request a bounded refresh. Requests coalesce and reuse a 30-second metadata cache. View → Refresh conversations bypasses that cache. Ordinary native benchmark fixtures inject an empty catalog. The history fixture injects 600 synthetic conversations and a fake CLI. Neither reads real histories or starts real provider metadata servers.
+Each row has one title line, a provider mark and an indicator when attention is needed. Saved paths, full titles and detailed status remain in tooltips and accessibility labels. Titles stay still. A contextual menu supplies secondary actions.
 
-Conversation identity is provider plus session ID. Several conversations may share one checkout. The provider project ID, registered Spookky project, saved cwd, terminal backing ID, and process binding remain separate. Grouping's batch resolver discovers registered roots and unique saved directories once per refresh. A resume performs fresh action-time resolution.
+## Metadata and workspace lifetimes
 
-Refresh creates metadata-only closed-view workspaces through the non-selecting foundation API. It never launches a CLI or changes selection, collapsed projects, closed views, aliases, launch drafts, supporting targets, or existing process bindings. Reconciliation prepares value metadata off the UI thread. A changed state or refresh generation rejects the result. Three conflicting preparations defer refresh with a visible retry notice.
+Provider plus session ID identifies a conversation. The persisted catalog stores its title, original folder, update time, project association and optional local alias. It contains no transcript, terminal surface or running agent. A catalog row creates or restores a workspace only when selected.
 
-Provider title metadata updates the non-custom workspace fallback. A partial Claude head/tail scan cannot erase an earlier observed title. A newly observed rename supersedes it. The retained metadata cache carries that title across app restart. This cache contains no transcript or prompt body.
+Startup displays cached recent metadata, then requests bounded provider pages. Project expansion, Show more and search read metadata without launching a conversation. Activation and debounced filesystem events request refreshes. Metadata pages reuse a 30-second cache. View → Refresh conversations bypasses it and also recovers changes missed by filesystem observation.
 
-## Explicit continuation
+`HistoryQuery` carries project/folder filters, search text, page size and a continuation cursor. `HistoryPage` returns matching metadata, the next cursor and any partial-result notice. Codex and Claude pages merge by update time and stable provider/session identity. The query cache retains at most 64 pages.
 
-Selecting a saved row first reconciles an exact known owned binding. A running primary reconnects to the same process. Repeated selection, closing a view, and reopening do not create another execution. An ended primary can explicitly resume with a fresh intent after ownership assessment. Its old launch draft remains stored. Resume arguments contain only the exact provider ID and saved cwd, with no new prompt or fork flag. Pending or uncertain delivery is not retried.
+`ConversationHistoryCatalog` persists requested metadata separately from workspace snapshots. Refresh preserves aliases, selected workspace, expanded page counts, project collapse, drafts, supporting targets and process bindings. Provider title changes update the same identity. Failed or partial reads retain cached entries. Worktree folders group under their registered project without replacing the saved start directory.
 
-Handoff's ProviderOwnershipCheck supplies the execution decision. Codex native writer arbitration is enabled only for verified CLI 0.162.1. Other selected builds remain conservative. Claude Code 2.1.302 provides positive per-session ownership metadata, but ordinary resume did not prevent a second foreground writer in the sibling fixture. Missing ownership evidence therefore does not authorize automatic Claude resume. Existing Spookky-owned Claude processes can reconnect. External Claude conversations remain listed with an ownership explanation when automatic resume is unavailable.
+Metadata version 7 moves imported history placeholders into the catalog. User-created sessions, live bindings, aliases, drafts, supporting views and launch receipts remain workspace records. The database is backed up before migration. Catalog insertion and workspace conversion share one transaction.
 
-Missing folders, unavailable history, ambiguous ownership, provider failures, and refresh limits are explicit. Failed or partial refreshes never remove retained conversations. A complete successful provider inventory can mark an absent record unavailable. It still retains its identity and metadata.
+## Continuation on selection
+
+```text
+Select conversation
+  Known owned terminal alive -> reattach that process
+  Saved conversation         -> check native capabilities and ownership
+                                 -> exact-ID resume or native attach
+                                 -> specific inline error when unavailable
+```
+
+Codex resume follows its advertised exact-ID interface. It does not require Remote Control. Claude uses ordinary exact-ID resume when no owner is reported or ownership reporting is unavailable. A positive interactive owner blocks that launch. A supported live background owner uses its exact registry attach ID. See [provider ownership](provider-ownership.md).
+
+One pending operation owns each conversation. Repeated clicks join it. Leaving during preflight cancels an unstarted launch. Once durable launch intent is accepted, the coordinator finishes recording the owned result. Resume never supplies a new prompt, fork flag or permission override. Pending or uncertain initial prompt delivery is not retried.
+
+Errors belong to the affected conversation. Missing folders, unavailable history and provider failures keep the original entry and its recovery action available. A provider refusal remains visible in its native terminal.
 
 ## Provider and resource bounds
 
-Codex uses installed app-server thread/list with database-only reads. It lists indexed, nonarchived main local conversations, including externally created app-server/Desktop-style history. Unindexed legacy records, archived conversations, child agents, and cloud-only history are excluded. No thread resume or turn request is sent while listing. Provider-owned startup/log maintenance may occur. Spookky performs no direct provider database writes.
+Codex uses short-lived app-server connections and database-only `thread/list`. This may start a metadata helper, but never a conversation, turn or TUI. Listing supports indexed, nonarchived main local conversations, including externally created Desktop/app-server history. Unindexed legacy records, child agents and cloud-only history are outside this reader. Spookky never writes provider databases.
 
-Claude's isolated local Code adapter reads UUID session metadata from bounded file heads and tails. Its version-dependent format has synthetic coverage. Claude Desktop Code and cloud-only history are not included.
+Codex uses provider cursors and available folder/title filters. Unsupported optional filters fall back to bounded local filtering. A page scans at most 200 provider rows within the connection's 12-second deadline. Responses retain the existing 4 MiB buffer and 64 MiB aggregate limits. Partial scans return a cursor for further requests.
 
-The catalog has no polling timer, permanent helper, model SDK, or transcript store. Codex reads at most 5,000 rows in 100-row pages within 12 seconds. JSON-RPC responses have a 4 MiB buffer threshold and a 64 MiB aggregate threshold. Claude enumerates at most 5,000 top-level session files within four seconds. Changed files read at most 32 KiB from each end. Unchanged size/mtime records reuse metadata. A limit produces a visible partial-refresh notice. All retained entries remain searchable.
+Claude indexes file metadata for at most 20,000 top-level session files within four seconds. A page inspects at most 256 files within two seconds. Changed files read at most 32 KiB from each end; unchanged size/mtime records reuse metadata. This is a local Code format adapter, not Claude Desktop or cloud history support. No full transcript store is added.
 
-Project association uses the shared batch helper with a 10-second cooperative deadline, 256-project limit, 4096 unique-directory limit, and 16,384 input-row limit. At the deadline it cancels remaining Git reads and retains resolved display metadata. All provider history rows remain available; unresolved folders show a partial-refresh notice and require fresh action-time checks. Caller cancellation and invalid batch limits leave workspace data unchanged. Native row controls remain bounded by the revealed page rather than catalog size. First ingestion and refresh still have CPU and metadata-memory costs, even though preparation runs off the UI thread.
+Project grouping resolves requested directories off the UI thread. Its cooperative 10-second deadline preserves resolved display metadata and reports partial association. Resume uses the provider's saved original folder. Native list views are virtualized; retained UI rows do not grow with the full catalog.
 
 ## Verification
 
 ```sh
-swift test --jobs 2 --filter 'SessionCatalogTests|HistoryResumeTests|ConversationCatalogReconcilerTests'
-python3 scripts/check_session_history.py --binary DerivedData/Build/Products/Debug/Spookky.app/Contents/MacOS/Spookky --output .cache/history-check.json
+swift test --jobs 2 --filter 'SessionCatalogTests|HistoryResumeTests|ConversationCatalogReconcilerTests|ProviderOwnershipTests'
+python3 scripts/check_session_history.py --binary DerivedData/Build/Products/Release/Spookky.app/Contents/MacOS/Spookky --output .cache/history-check.json
 ```
 
-Add `--background` to the native fixture for programmatic checks behind user windows. It excludes physical input verification. Foreground checks require the shared GUI lock.
+The native history fixture uses synthetic metadata and a fake CLI. It must verify page expansion, older search results, selection preservation, bounded rows and zero conversation launches during discovery. Passing older fixtures does not establish the version 7 interface. Current results and remaining gates are recorded in [status](status.md).
 
-The installed metadata check uses a disposable provider root and unreachable loopback model endpoint. No model service is called. The separate inventory prints counts and elapsed time only:
-
-```sh
-SPOOKKY_HISTORY_CODEX="$(command -v codex)" swift test --jobs 2 --filter testInstalledCodexExternalMetadataLifecycleWhenRequested
-SPOOKKY_HISTORY_INVENTORY="$(command -v codex)" swift test --jobs 2 --filter testRepresentativeMetadataInventoryWhenRequested
-```
-
-The native fixture checks 600 saved entries, bounded rows, Show more, and row reuse. Search covers entries outside the recent page and inside collapsed projects. Refresh preserves selection, aliases, drafts, closed views, and support metadata. Continuation checks exact ID/cwd, one live owned process, known-ended resume, and retained unsent terminal input. Its provider is fake. Browser/artifact rendering belongs to the separate supporting-content host and is not established by this fixture.
-
-The initial read-only inventory found 428 Codex and 65 Claude Code conversations. Codex took 489 ms; Claude took 119 ms cold and 5 ms warm. Neither configured bound was reached. These are single local samples. They exclude terminal rendering, WebKit, provider runtime memory, and total user-session costs. Revised Debug value reconciliation for 600 records took about one second in a concurrent-build sample. Preparation runs off the main UI thread. This does not establish the combined switch, echo, idle CPU, or release performance targets.
-
-Sources: [Codex app-server](https://learn.chatgpt.com/docs/app-server), [Claude local metadata reads](https://platform.claude.com/cookbook/claude-agent-sdk-05-building-a-session-browser). The ignored handoff records exact current test logs and native evidence.
+Sources: [Codex app-server](https://learn.chatgpt.com/docs/app-server), [Claude local metadata reads](https://platform.claude.com/cookbook/claude-agent-sdk-05-building-a-session-browser).

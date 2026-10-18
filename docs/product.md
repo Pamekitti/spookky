@@ -1,6 +1,6 @@
 # Product contract
 
-Status: conversation-workspace direction accepted 17 October 2026; layout and startup refined 18 October 2026. Product name: Spookky, adopted 12 October 2026.
+Status: conversation-workspace direction accepted 17 October 2026; landing, paged history and tab workflow refined 18 October 2026. Product name: Spookky, adopted 12 October 2026.
 
 ## Purpose
 
@@ -46,7 +46,9 @@ V1 is a local macOS desktop application for one OS user. Apple Silicon is the in
 | Project | A registered folder or repository. It can be non-Git. |
 | Checkout | A concrete Git working directory, including the original checkout or a worktree. |
 | Session | User-facing sidebar entry for one primary conversation or standalone shell, its anchor and supporting tabs. |
-| Workspace | Internal metadata record for that session. Several sessions may share a checkout. |
+| Workspace | Internal record for an open or retained session. Several sessions may share a checkout. |
+| History catalog | Provider metadata keyed by provider and session ID, independent of terminals and workspaces. |
+| Landing | Retained global or project draft shown whenever no session view is selected. |
 | Tab | A supporting file, Changes, browser, artifact, or optional shell view. Terminal backing records retain stable process IDs and drafts. |
 | Split view | Primary TUI on the left and the last selected supporting view on the right, beneath aligned headers. |
 | Full view | Primary tab first and supporting tabs on one row; selected content fills the area below. |
@@ -62,14 +64,14 @@ Use New session in the UI. Existing workspace type and persistence names remain 
 
 | Area | Contract |
 | --- | --- |
-| Immediate start | Cmd+N creates a New session draft. The bottom composer starts Codex or Claude Code with an optional prompt. Open Terminal below starts a shell and retains that draft. Cmd+T opens a browser target in the supporting panel. |
+| Immediate start | With no open view, show the composer. Cmd+N selects the global draft; project + selects its project draft. Start promotes it into a session. Open Terminal retains the agent draft. Cmd+T opens a supporting browser. |
 | Projects | Register an existing folder, clone a repository, or create a folder with optional Git initialization. |
 | Locations | Home, one-off folder, Local checkout, existing worktree, or new worktree. |
 | Worktrees | Explicit source and optional working branch name. Generated branch names are allowed. |
 | Terminals | Real shell, Codex CLI, and Claude Code CLI; optional initial agent prompt. |
-| Parallel work | Each UI-launched agent gets a sibling sidebar workspace. Supporting + opens Browser, Files & Changes, Artifact or Terminal. Split and Full view retain live views and drafts. |
+| Parallel work | Each UI-launched agent gets a sibling sidebar workspace. Supporting + opens Browser, Files, Changes, Artifact or Terminal. Split and Full view retain live views and drafts. |
 | Agent attention | Provider-reported activity, unread completions, workspace rollups, and optional native notifications. See [agent activity](agent-activity.md). |
-| Navigation | Compact project/workspace sidebar, project +, workspace ×, search, collapsible icon rail. |
+| Navigation | Single-line project history, five recent entries and repeated ten-entry expansion, one search field, contextual actions and a collapsible icon rail. |
 | File inspection | Full file tree, file search, read-only preview, external-editor action. |
 | Change inspection | Uncommitted groups and committed comparison against a selected branch; unified/split diff. |
 | Recovery | Clear launch errors, retained successful worktree creation, reconnect, ended sessions, explicit resume. |
@@ -100,9 +102,9 @@ Testing, staging, commits, pushes, and PRs remain available through the user's C
 3. Conversations that share a checkout share files. Worktrees isolate edits, not ports, credentials, databases, or services.
 4. A shell's directory change does not repoint the workspace. An explicit action can open that directory as another workspace.
 5. Conversation identity is provider plus session ID. Several conversation workspaces may share one checkout. Drafts and standalone shells have optional conversation identity.
-6. Closing views retains metadata and processes. Stop primary terminal is separate and confirmed. Shared provider execution may continue. Worktree deletion is a separate operation with checks.
+6. Closing views retains metadata and processes. The final session view returns to the landing composer. Stop primary terminal is separate and confirmed. Shared provider execution may continue. Worktree deletion is separate.
 7. Switching views never starts an extra agent, drops a draft, or resends a prompt.
-8. Conversation resume, live reattachment, remote control, and cloud copies are described honestly.
+8. Capability-based continuation preserves exact IDs and original folders. Native resume does not establish exclusive Claude ownership. Remote control and cloud copies are described honestly.
 
 ## What success means
 

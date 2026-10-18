@@ -25,12 +25,12 @@ The goal is to make parallel AI development easier to manage while keeping the t
 
 ## Features
 
-- Immediate shell access with Cmd+N, then Open Terminal.
-- New session with an optional starting prompt, provider/folder choices, and direct shell access.
+- A ready-to-type landing composer and immediate shell access.
+- Retained global and project drafts with optional prompts and provider/folder choices.
 - Optional projects and worktrees.
 - A primary conversation with supporting files, Changes, browser previews, artifacts and shells.
 - File browsing, read-only previews, syntax colors, and unified or split diffs.
-- Project conversation history, provider titles and icons, and reattachment to surviving processes.
+- Five recent conversations per project, paged history search, provider titles/icons, and continuation on selection.
 - Ordinary shells, Codex CLI, and Claude Code CLI with their own authentication and permissions.
 
 Speed, bounded resource use, and reliable recovery guide the implementation. Performance goals are separate from measured results.

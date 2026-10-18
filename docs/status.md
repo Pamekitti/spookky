@@ -2,6 +2,24 @@
 
 Spookky is an early native macOS development preview. The terminal, workspace, project/worktree, file/diff, and metadata layers are implemented. Daily-use and distribution acceptance remain incomplete.
 
+## Session workflow revision, 18 October 2026
+
+Metadata version 7 separates requested provider history from open workspaces. The sidebar uses five recent entries per project, ten-entry expansion, paged search and one-line virtualized rows. Global and project landing drafts retain their own provider, folder and prompt. Closing the final session view returns to the composer. Shared bounded tabs join in Full view and align to the divider in Split view. Changes and individual file tabs have separate responsibilities.
+
+Continuation now detects installed capabilities rather than exact or minimum CLI versions. Known owned terminals reattach. Codex uses native exact-ID resume. Claude blocks a reported interactive owner, attaches a supported live background owner, and permits ordinary resume when reporting is absent. This fallback does not establish exclusive cross-app ownership. Errors belong to the selected conversation.
+
+The full Swift run passed 278 cases, with three opt-in cases skipped: 261 of 264 XCTest cases passed, and all 17 Swift Testing cases passed. All 30 Python tests passed. The repository checker passed 20 required files, 154 local links, JavaScript syntax and prototype synchronization. Targeted persistence checks also cover global/project drafts across database restart, migration, alias updates, project removal and preservation of provider metadata.
+
+The native workflow batch passed 177 assertions: 24 sidebar, 30 lazy history, 86 identity/layout/startup, 27 close/reopen and 10 project-grouping checks. They cover five-entry project pages, repeated ten-entry expansion, older search results, zero agent launches during discovery, bounded native rows, stationary-pointer scroll reconciliation, cancellation before launch, retained drafts/processes and Split/Full tab geometry in both appearances.
+
+Browser/artifact verification passed another 36 checks and three cold-restore checks. The file/diff fixture passed 24 checks and 100 selection cycles. Across 30 observations, selected-diff readiness measured 115.9 ms p95 and syntax readiness measured 207.9 ms p95. The fixture retained its preview, metadata, surface and watcher bounds. These measurements exclude physical display latency. See [performance](performance.md) for workload and resource boundaries.
+
+The before/after comparison measured empty readiness p95 at 514.4 ms versus 365.1 ms. Warm selection p95 was 18.9 ms versus 20.7 ms; recreated selection was 51.9 ms versus 51.2 ms. Both crash/restore checks preserved processes and viewport. Memory results were mixed, with lower RSS and higher physical footprint in short occluded observations. See [performance](performance.md) for surface counts and measurement limits.
+
+Installed offline fixtures passed nine Codex CLI 0.163.0 checks and seven Claude Code 2.1.302 checks. Codex's first same-server resume succeeded after persisted/indexed readiness, with zero resume retries. Claude resumed provider-created saved history in a foreground TUI and attached its exact background registry ID. Resume and attach sent no extra model turn. The fixture response used an owned loopback stub, with no external model service or user-session changes.
+
+These results cover automated native development fixtures. Installed delivery requires its own app-identity and preserved-data readback. Native pointer and keyboard events do not establish physical typing or IME behavior. Desktop return, remote pairing, spoken VoiceOver and extended sleep/reboot continuity remain unverified. OpenCode remains deferred. Earlier results below describe preceding revisions.
+
 ## Layout and startup refinement, 18 October 2026
 
 The accepted interface now uses one 40-point row for the primary header and supporting tabs. Full view joins the primary first and every supporting tab. Selecting the primary keeps supporting tabs visible. Split restores the primary left and last support right with the retained divider width and live state.

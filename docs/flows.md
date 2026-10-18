@@ -6,9 +6,10 @@ Status: current product behavior. [Current status](status.md) records implementa
 
 ```text
 Open Spookky
-  Returning user -> restore saved list and view metadata
-  First use      -> New session, Codex selected, no process
-  Cmd+N          -> independent New session draft
+  Returning user -> restore the last open view
+  Nothing open   -> retained landing composer, input focused
+  Cmd+N          -> global landing draft
+  Project +      -> project landing draft
                        |
                        +-- Optional prompt
                        +-- Provider chip: Codex or Claude Code
@@ -23,22 +24,22 @@ The bottom composer is at most 800 points wide with 24-point outer padding. Prov
 
 First use selects Codex. New sessions then remember the last agent choice independently of shell launches. Restored drafts retain their saved provider and text. Once running, the provider's real TUI replaces the composer and owns subsequent input.
 
-Restoring saved state does not create another blank session or launch every saved conversation. A plain Home shell requires no project or provider account.
+The global landing and each project landing retain separate drafts. Showing one creates no agent or history entry. Starting an agent promotes its draft into a session. Restoring state never launches every saved conversation. A plain Home shell requires no project or provider account.
 
 ## Keyboard and mouse contract
 
 | Action | Result |
 | --- | --- |
-| Cmd+N / New session | Create and select an independent conversation draft immediately. |
+| Cmd+N / New session | Select the retained global landing draft and focus its composer. |
 | Project row | Toggle its workspace rows without changing the selected workspace or stopping processes. |
-| Project + | Create an unbound workspace with that project selected, Local by default, and expand the group. |
+| Project + | Select that project's retained landing draft, Local by default, and expand its group. |
 | Cmd+T | Open and select a persisted browser supporting tab. Keep the primary CLI and draft. |
-| Supporting + | Choose Browser, Files & Changes, Artifact or Terminal. |
+| Supporting + | Choose Browser, Files, Changes, Artifact or Terminal. |
 | Cmd+Enter in launch composer | Launch selected tool with optional initial prompt. |
 | Enter in initial prompt | Insert a newline. |
-| Cmd+W | Close the focused supporting tab, otherwise hide the workspace view. Keep owned processes. |
-| Workspace × | Hide the conversation view. Keep its sidebar history entry, processes, files, and branch. |
-| Cmd+K | Find a workspace and reveal its parent project group. |
+| Cmd+W | Close the focused supporting tab or session view. The last session returns to landing. On landing, close the window. |
+| Close view | Contextual session action. Keep history, processes, files and branch. |
+| Cmd+K | Focus the single history search field, including older uncached conversations. |
 | Right-click / Shift+F10 on a sidebar entry | Open secondary contextual actions. |
 | Double-click selected terminal tab | Rename its UI label. |
 | Full view | Join the primary tab first and supporting tabs on one row. Selected content fills the area below. |
@@ -92,7 +93,7 @@ Creating a worktree and launching an agent are separate operations. An agent fai
 
 ## Launch and initial prompt
 
-New workspaces receive a friendly two-word name, such as Quiet Maple. Generated friendly names are unique among open workspaces; a numbered variant is used when all word combinations are occupied. Starting a shell or an agent without a prompt keeps that name.
+Landing drafts are titled New session and stay outside ordinary session history. Agent launch promotes the draft to a named session. Existing friendly names and explicit aliases remain intact. Standalone shells keep a terminal label.
 
 The first starting prompt supplied through Spookky's composer names the workspace once. Agent launches use a primary conversation workspace. Use the first nonempty line, collapse whitespace, and keep up to six words and 48 Unicode characters. The title is saved with accepted launch intent before process creation. Failures, retries, reconnects, and later prompts keep it. A manual rename always wins. Naming does not indicate prompt acknowledgment. Input typed directly in a CLI is not inspected.
 
@@ -127,21 +128,21 @@ A supporting shell is explicit. Another UI-launched agent becomes a sibling work
 | Origin | Correct continuation |
 | --- | --- |
 | Live session owned by Spookky | Reattach the same process. |
-| Saved local CLI conversation | Open the matching directory and provider resume picker. |
-| Existing process in another terminal | Keep it there, or start another CLI and explicitly resume saved history. No automatic process transfer. |
+| Saved local CLI conversation | Select it to resume its exact provider ID in the saved original folder. |
+| Existing process in another terminal | Use supported native attach when available. A known Claude foreground owner blocks resume here. Unknown reporting allows ordinary native resume without claiming exclusive ownership. |
 | Provider-supported cloud handoff | Use the documented CLI flow in a compatible, clean, dedicated checkout. |
 | Cloud code branch without handoff | Fetch branch, open checkout, start a new CLI conversation with supplied context. |
 | Mobile/web controlling local CLI | Return to that same local process while its owner is alive. |
 | Other desktop app | Locate its checkout; use supported handoff or start with its files and explicit context. |
 | Ordinary web chat | Select/create a project and paste useful context into a new CLI. |
 
-The prototype demonstrates Codex local resume and illustrative Claude handoff/remote-control commands. Provider commands must be verified against installed versions during implementation. See [architecture](architecture.md). There is no universal import screen or promise of cross-provider conversation conversion.
+Installed help determines resume, attach and optional handoff capabilities. Exact version numbers are not admission gates for continuation. See [ownership](provider-ownership.md) for the execution decision. Cross-provider conversion and universal imports remain unsupported.
 
 Do not run a handoff that switches a branch in a checkout used by another active agent. A copied branch does not include conversation history, ignored files, secrets, or environment setup.
 
 ## Files and Changes
 
-Files lists complete workspace content, including unchanged files. Changes belongs to the checkout, not the selected agent.
+Files opens a searchable native picker within the workspace and reuses individual file tabs by path. Changes owns its change list and selected diff. Both use the checkout anchor.
 
 - **Uncommitted:** separately show staged, unstaged, untracked, and conflicted paths. A path can have both staged and unstaged changes.
 - **Against branch:** committed changes from the merge base of selected base and HEAD to HEAD. Label this comparison and the base. Outstanding working-tree edits remain in Uncommitted.
@@ -149,7 +150,7 @@ Files lists complete workspace content, including unchanged files. Changes belon
 - An unborn Git branch supports untracked/index changes; no committed comparison exists yet.
 - Renames, deletions, binary content, symlinks, mode changes, submodules, conflicts, and large files need explicit representations.
 
-Open a file/diff beside the terminal, maximize it, change layout, or close it. On narrow windows the preview uses available space and the overlaid file list dismisses after selection. A split-diff preference is retained while narrow views render unified content.
+Open a file or Changes beside the terminal, switch Full/Split layout, or close its tab. On narrow windows the preview uses available space and the overlaid file list dismisses after selection. A split-diff preference is retained while narrow views render unified content.
 
 Commits, pushes, tests, and PRs happen through the user's preferred tools. Spookky never requires a review sequence.
 
@@ -159,7 +160,8 @@ Commits, pushes, tests, and PRs happen through the user's preferred tools. Spook
 | --- | --- |
 | Switch tab/workspace | Preserve process and view state. |
 | Close supporting tab | Select the nearest left support, otherwise the next support, otherwise primary. Retain any terminal backing record and process. |
-| Close primary/workspace view | Retain the conversation entry, primary terminal, drafts, and support metadata. Select another open workspace or close the window. |
+| Close primary/workspace view | Retain history, primary terminal, drafts and support metadata. Select the most recently used already-open view, otherwise the landing composer. |
+| Cmd+W on landing | Close the window. The landing tab itself has no close button. |
 | Stop primary terminal | Confirm, verify runtime ownership, then terminate only that primary terminal. Retain history and supporting tabs. |
 | Close window | Retain UI restore records and processes. |
 | Quit with live sessions | Keep running and quit by default, Cancel, or explicitly End terminals and quit. The last choice ends all owned terminal sessions. Shared provider execution may continue. |
@@ -170,7 +172,7 @@ Commits, pushes, tests, and PRs happen through the user's preferred tools. Spook
 
 Process continuity is subject to M0 validation. A saved conversation is not a surviving process. Hidden sessions still consume resources; never kill them only because their views are hidden.
 
-View closure needs no termination confirmation. Stop uses a separate confirmation with Stop and Cancel. Reopening a retained entry reattaches its terminal without resending a prompt. First use opens a blank Home draft with direct shell access.
+View closure needs no termination confirmation. Stop uses a separate confirmation with Stop and Cancel. Reopening a retained entry reattaches its terminal without resending a prompt. First use shows the focused landing composer with direct shell access.
 
 ## Recovery
 

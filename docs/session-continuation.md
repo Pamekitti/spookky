@@ -34,11 +34,11 @@ Spookky has no verified per-conversation execution-stop integration. Codex docum
 
 ## History integration
 
-Install `WorkspaceWindowController.continuationMetadata` as a synchronous lookup into history's existing latest catalog snapshot. It returns canonical `ConversationMetadata` by provider plus session ID. This supplies the provider's saved cwd independently of checkout grouping or a supporting shell's cwd. No second catalog, reader or transcript store is added here.
+`WorkspaceWindowController.continuationMetadata` reads canonical metadata for the opened conversation from its workspace. The separate paged history catalog supplies that record when the row is opened. The saved provider cwd remains independent of checkout grouping and supporting shell directories. No transcript store is introduced.
 
-`ProviderContinuationCapabilities` keeps bounded help/version probes and exact-ID argument builders. `guide` has defaulted live-provider and owned-binding parameters for presentation. `resumeSpec` never supplies a prompt, newest-session selector, fork or permission override. `desktopSpec` describes Claude's native exact-ID launcher. Neither builder establishes ownership or launches anything.
+`ProviderContinuationCapabilities` detects each route from bounded installed-help probes. Version strings are diagnostic information, not minimum/exact-version gates. Help results are cached until the executable or version changes, with a 32-identity bound. It supplies exact-ID argument builders. `guide` has defaulted live-provider and owned-binding parameters for presentation. `resumeSpec` never supplies a prompt, newest-session selector, fork or permission override. `desktopSpec` describes Claude's native exact-ID launcher. Neither builder establishes ownership or launches anything.
 
-Use [provider ownership](provider-ownership.md) when history evaluates saved resume. Codex's verified native writer arbitration differs from Claude's positive ownership metadata. Unknown ownership remains explicit. A hidden window, stopped TUI, absent file descriptor or missing registry row never proves release. Never delete provider locks, freeze a CLI or resend an uncertain initial prompt.
+Use [provider ownership](provider-ownership.md) when history evaluates saved resume. Codex delegates native resume admission to its CLI. Claude blocks a known interactive owner, attaches a supported background owner, and uses ordinary resume when ownership reporting is absent. That fallback does not establish exclusive cross-app ownership. A hidden window, stopped TUI, absent file descriptor or missing registry row never proves release. Never delete provider locks, freeze a CLI or resend an uncertain initial prompt.
 
 ## Verification boundaries
 
@@ -46,7 +46,7 @@ Earlier disposable checks used Codex CLI 0.162.1, Claude Code 2.1.296, ChatGPT D
 
 Claude `/desktop` exited its disposable CLI with status 0. Desktop accessibility readback showed the same UUID, original folder and test exchange. Its return menu did not respond to native automation. Claude Desktop screen capture failed. Desktop return remains unverified, and no remote pairing was enabled. Later ownership checks cover Claude Code 2.1.302 and Codex's Desktop server build separately.
 
-Current coordinator tests cover support-focus independence, saved entries, cancellation, changing primary identity/terminal/binding/cwd, closed views, failed probes, unsupported versions, unknown ownership and inspection-only reconnect. Native verification results and the exact foundation-relative diff are recorded in the local continuity handoff. Combined browser/artifact runtime acceptance remains with integration.
+Current coordinator tests cover support-focus independence, saved entries, cancellation, changing primary identity/terminal/binding/cwd, closed views, failed probes, missing capabilities and inspection-only reconnect. The 18 October offline provider checks passed nine Codex cases on CLI 0.163.0 and seven Claude cases on Code 2.1.302. They verify saved native resume/attach without extra turns. They do not verify a Desktop round trip, remote pairing or the revised combined native interface.
 
 Official references checked on 17 October 2026:
 

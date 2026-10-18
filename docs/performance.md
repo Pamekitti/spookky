@@ -169,3 +169,22 @@ Two short resource observations used five seconds of warm-up and about 15 second
 | 5 | 120.2 MiB | 135.2 MiB |
 
 CPU counters rounded to zero over these short windows. This does not establish zero CPU use or replace the 60-second idle acceptance measurement. Physical keyboard/IME, spoken VoiceOver and extended sleep/reboot continuity remain separate gates. Direct desktop automation could not bind this development app identity; native verification used app fixtures and screenshots.
+
+## Session workflow revision, 18 October 2026
+
+The final workflow build (`1f497426efea`, source `4195347`) was compared with the installed `e59ad24` implementation. The private baseline copy changed only its bundle identifier and signatures so it could use isolated fixture roots. All four executable text sections matched the installed originals. No user session was stopped.
+
+| Measurement | Samples per build | Baseline | Workflow revision |
+| --- | ---: | ---: | ---: |
+| Empty readiness, median / p95 | 30 | 366.5 / 514.4 ms | 335.0 / 365.1 ms |
+| Warm conversation selection, p95 | 35 | 18.9 ms | 20.7 ms |
+| Recreated terminal selection, p95 | 105 | 51.9 ms | 51.2 ms |
+| Five-shell app RSS, median | 62 / 65 | 109.3 MiB | 91.9 MiB |
+| App plus owned runtime/shell RSS, median | 62 / 65 | 120.9 MiB | 102.5 MiB |
+| App physical footprint observation | 1 | 43.8M | 55.2M |
+
+Memory results are mixed. Both resource windows were occluded and inactive at the CPU boundaries. The baseline retained one terminal surface; the revision retained two. Each observation followed five seconds of warm-up and ran for about 15 seconds with five surviving clean shell conversations. CPU observations of 0.066% and 0% were near collector resolution. They do not establish zero CPU use or the full 60-second idle gate.
+
+Empty readiness excludes provider discovery, first-frame rendering and an interactive CLI. Selection ends at native attachment, layout and focus. The baseline ran before the revision; caches may be warm. These measurements do not establish active-provider or browser resource costs. Both crash/restore checks retained process IDs and the visible history marker without creating extra sessions.
+
+The large-diff fixture passed 24 checks with 30 measured selections, 100 lifecycle cycles, diff p95 115.9 ms and syntax p95 207.9 ms. The virtualized sidebar fixture mounted fewer than 100 views for 5,000 metadata rows. Reports and binary hashes remain in private ignored evidence.
