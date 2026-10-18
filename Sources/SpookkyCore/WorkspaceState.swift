@@ -115,6 +115,8 @@ public struct Workspace: Codable, Identifiable, Equatable, Sendable {
     public var primaryTerminalID: UUID?
     public var support: SupportingPanelState?
     public var viewClosed: Bool?
+    public var landingContext: String?
+    public var lastViewedAt: Date?
     public var primaryTerminal: WorkspaceTab? { tabs.first { $0.id == primaryTerminalID } }
     public var directory: String { anchor?.path ?? selectedLocation.path }
     public var activityState: AgentActivityState? {
@@ -196,7 +198,7 @@ extension WorkspaceState {
 }
 
 public struct WorkspaceState: Codable, Equatable, Sendable {
-    public var version = 6
+    public var version = 7
     public var locations: LocationMetadata?
     public var projectDraft: ProjectCreationDraft?
     public private(set) var projects: [Project] = []
@@ -244,8 +246,9 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     @discardableResult public mutating func newWorkspace(location: WorkspaceLocation, projectID: UUID? = nil) -> UUID {
         let preferredAgent = lastAgentTool.flatMap { $0 == .shell ? nil : $0 }
         let tool = version < 6 ? lastTool : preferredAgent ?? (lastTool == .shell ? .codex : lastTool)
-        let workspace = Workspace(location: location, projectID: projectID, tool: tool,
+        var workspace = Workspace(location: location, projectID: projectID, tool: tool,
                                   title: WorkspaceNaming.friendly(excluding: workspaces.map(\.title)))
+        if version >= 7 { workspace.lastViewedAt = Date() }
         workspaces.append(workspace); selectedWorkspaceID = workspace.id
         if let projectID { setProjectCollapsed(projectID, false) }
         return workspace.id
@@ -257,6 +260,9 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     public mutating func selectWorkspace(_ id: UUID) {
         if let workspace = workspaces.first(where: { $0.id == id }) {
             if workspace.viewClosed == true { workspaces[workspaces.firstIndex { $0.id == id }!].viewClosed = false }
+            if version >= 7, selectedWorkspaceID != id || workspace.viewClosed == true {
+                workspaces[workspaces.firstIndex { $0.id == id }!].lastViewedAt = Date()
+            }
             selectedWorkspaceID = id
             if let projectID = workspace.projectID { setProjectCollapsed(projectID, false) }
         }
@@ -363,6 +369,11 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
             updateTab(tab.id) { $0.status = .draft; $0.failure = nil }
         }
     }
+    public mutating func cancelPreparation(_ id: UUID, restoring original: WorkspaceTab) {
+        guard original.id == id, let current = tab(id), current.status == .preparing,
+              current.launch == original.launch, current.binding == original.binding else { return }
+        updateTab(id) { $0.status = original.status; $0.failure = original.failure }
+    }
     public mutating func setViewport(_ viewport: SessionViewport?, tabID: UUID) {
         updateTab(tabID) { $0.viewport = viewport }
     }
@@ -417,7 +428,13 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     }
     public mutating func removeProject(_ id: UUID) {
         projects.removeAll { $0.id == id }
-        for w in workspaces.indices where workspaces[w].projectID == id { workspaces[w].projectID = nil }
+        for w in workspaces.indices where workspaces[w].projectID == id {
+            workspaces[w].projectID = nil
+            if workspaces[w].isLanding {
+                workspaces[w].landingContext = nil; workspaces[w].viewClosed = false
+                if !workspaces[w].customTitle { workspaces[w].title = "Draft"; workspaces[w].automaticTitle = .friendly }
+            }
+        }
     }
     public mutating func renameWorkspace(_ id: UUID, _ name: String) {
         guard let index = workspaces.firstIndex(where: { $0.id == id }), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
@@ -529,7 +546,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     public func validate() throws {
         let tabs = workspaces.flatMap(\.tabs)
         for operation in locations?.operations ?? [] { try operation.request.validate() }
-        guard [1, 2, 3, 4, 5, 6].contains(version), lastAgentTool != .shell,
+        guard [1, 2, 3, 4, 5, 6, 7].contains(version), lastAgentTool != .shell,
               Set(locations?.operations.map(\.id) ?? []).count == (locations?.operations.count ?? 0),
               Set(locations?.checkouts.map(\.id) ?? []).count == (locations?.checkouts.count ?? 0),
               (locations?.operations.allSatisfy { $0.request.destination.hasPrefix("/") && !$0.request.destination.contains("\0") } ?? true),

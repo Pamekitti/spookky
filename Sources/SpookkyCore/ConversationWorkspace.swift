@@ -65,7 +65,7 @@ extension Workspace {
 
 extension WorkspaceState {
     public var primaryTerminalID: UUID? { selected?.primaryTerminalID }
-    public var openWorkspaces: [Workspace] { workspaces.filter { $0.viewClosed != true } }
+    public var openWorkspaces: [Workspace] { workspaces.filter { $0.viewClosed != true && !$0.isLanding } }
     public func workspace(for id: ConversationID) -> Workspace? { workspaces.first { $0.conversationID == id } }
 
     @discardableResult public mutating func ensureConversationWorkspace(_ id: ConversationID, location: WorkspaceLocation,
@@ -97,14 +97,24 @@ extension WorkspaceState {
     public mutating func hideWorkspace(_ id: UUID) {
         guard let index = workspaces.firstIndex(where: { $0.id == id }) else { return }
         workspaces[index].viewClosed = true
-        if selectedWorkspaceID == id { selectedWorkspaceID = openWorkspaces.last?.id }
+        if selectedWorkspaceID == id {
+            selectedWorkspaceID = version >= 7
+                ? openWorkspaces.max { ($0.lastViewedAt ?? .distantPast) < ($1.lastViewedAt ?? .distantPast) }?.id
+                : openWorkspaces.last?.id
+            if version >= 7, selectedWorkspaceID == nil {
+                showLanding(homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path)
+            }
+        }
     }
     @discardableResult public mutating func openSupport(_ target: SupportingTarget, title: String, workspaceID: UUID? = nil,
                                                       fileView: FileViewState? = nil) -> UUID? {
         guard let index = workspaces.firstIndex(where: { $0.id == (workspaceID ?? selectedWorkspaceID) }) else { return nil }
         var context = fileView
-        if case .file(let path) = target, context == nil {
-            var view = FileViewState(); view.selectedPath = path; view.preview = true; context = view
+        if case .file(let path) = target {
+            var view = context ?? FileViewState()
+            view.selectedPath = path; view.preview = true; view.sidebar = false
+            view.changes = false; view.selectedGroup = nil; view.againstBranch = false; view.reference = nil
+            context = view
         }
         if context?.changes == false { context?.selectedGroup = nil; context?.againstBranch = false; context?.reference = nil }
         guard context?.isValid != false else { return nil }
@@ -112,11 +122,6 @@ extension WorkspaceState {
         // Browser tabs may share a URL while retaining separate form state.
         let existing = panel.tabs.first { tab in
             if case .browser = target { return false }
-            if case .file = target, let context {
-                let saved = tab.fileView ?? workspaces[index].fileView ?? FileViewState()
-                return tab.target == target && saved.changes == context.changes && saved.selectedGroup == context.selectedGroup &&
-                    saved.againstBranch == context.againstBranch && (!context.againstBranch || saved.reference == context.reference)
-            }
             return tab.target == target
         }
         let id = existing?.id ?? UUID()

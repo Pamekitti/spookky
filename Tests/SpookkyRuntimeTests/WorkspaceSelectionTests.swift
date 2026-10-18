@@ -54,7 +54,9 @@ final class WorkspaceSelectionTests: XCTestCase {
         state.setSupportingLayout(.collapsed)
         XCTAssertEqual(state.visibleTabIDs, [primary])
         state.hideWorkspace(state.selectedWorkspaceID!)
-        XCTAssertEqual(state.visibleTabIDs, [])
+        XCTAssertEqual(state.selected?.isLanding, true)
+        XCTAssertEqual(state.visibleTabIDs, [try XCTUnwrap(state.primaryTerminalID)])
+        XCTAssertNil(state.selectedTab?.binding); XCTAssertNil(state.selectedTab?.launch)
         try state.validate()
     }
 

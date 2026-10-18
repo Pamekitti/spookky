@@ -6,6 +6,42 @@ import SpookkyCore
 // It never loads a thread, subscribes to a turn, or repairs provider metadata.
 struct CodexHistoryReader {
     static let sourceKinds = ["cli", "vscode", "appServer", "exec", "unknown"]
+    static func page(executable: String, environment: [String: String], query: HistoryQuery,
+                     cursor: String? = nil) throws -> HistoryPage {
+        let rpc = try MetadataRPC(executable: executable, environment: environment)
+        defer { rpc.close() }
+        _ = try rpc.request("initialize", ["clientInfo": ["name": "spookky_history", "title": "Spookky History", "version": "0.1.0"]])
+        try rpc.send(["method": "initialized", "params": [:]])
+        var entries: [ConversationMetadata] = [], cursor = cursor, seen = Set<String>(), scanned = 0
+        var useDirectoryFilter = query.exactDirectories && !query.directories.isEmpty
+        var useTitleFilter = query.titleSearchOnly && !query.search.isEmpty
+        let budget = 200
+        repeat {
+            if Task.isCancelled { throw CancellationError() }
+            var params: [String: Any] = ["limit": min(query.limit - entries.count, budget - scanned),
+                "sortKey": "updated_at", "sortDirection": "desc", "sourceKinds": sourceKinds,
+                "modelProviders": [], "useStateDbOnly": true]
+            if let cursor { params["cursor"] = cursor }
+            if useDirectoryFilter { params["cwd"] = query.directories.count == 1 ? query.directories[0] as Any : query.directories as Any }
+            if useTitleFilter { params["searchTerm"] = query.search }
+            let result: [String: Any]
+            do { result = try rpc.request("thread/list", params) }
+            catch let error as MetadataRPC.RequestFailure where (useDirectoryFilter || useTitleFilter) && error.code == -32602 {
+                // Older metadata schemas can omit filters. Keep the provider cursor and filter locally.
+                params.removeValue(forKey: "cwd"); params.removeValue(forKey: "searchTerm")
+                useDirectoryFilter = false; useTitleFilter = false
+                result = try rpc.request("thread/list", params)
+            }
+            guard let rows = result["data"] as? [[String: Any]] else { throw MetadataRPC.failure() }
+            scanned += rows.count
+            entries += rows.compactMap(metadata).filter(query.matches)
+            cursor = result["nextCursor"] as? String
+            if let cursor, !seen.insert(cursor).inserted { throw MetadataRPC.failure() }
+            if entries.count >= query.limit || scanned >= budget { break }
+        } while cursor != nil
+        return HistoryPage(conversations: entries, nextCursor: cursor, truncated: scanned >= budget && cursor != nil)
+    }
+
     static func read(executable: String, environment: [String: String], limit: Int = 5_000) throws -> SessionCatalogSnapshot {
         let rpc = try MetadataRPC(executable: executable, environment: environment)
         defer { rpc.close() }
@@ -40,6 +76,9 @@ struct CodexHistoryReader {
 }
 
 private final class MetadataRPC {
+    struct RequestFailure: Error {
+        let code: Int
+    }
     private let process = Process()
     private let input = Pipe(), output = Pipe()
     private var buffer = Data(), nextID = 0, received = 0
@@ -63,7 +102,8 @@ private final class MetadataRPC {
         while true {
             let value = try line()
             guard value["id"] as? Int == nextID else { continue }
-            guard value["error"] == nil, let result = value["result"] as? [String: Any] else { throw Self.failure() }
+            if let error = value["error"] as? [String: Any] { throw RequestFailure(code: error["code"] as? Int ?? 0) }
+            guard let result = value["result"] as? [String: Any] else { throw Self.failure() }
             return result
         }
     }
@@ -74,6 +114,7 @@ private final class MetadataRPC {
                 guard let value = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw Self.failure() }
                 return value
             }
+            if Task.isCancelled { throw CancellationError() }
             guard ProcessInfo.processInfo.systemUptime < deadline, buffer.count < 4_194_304, received < 67_108_864 else { throw Self.failure() }
             var fd = pollfd(fd: output.fileHandleForReading.fileDescriptor, events: Int16(POLLIN), revents: 0)
             let ready = poll(&fd, 1, 100)

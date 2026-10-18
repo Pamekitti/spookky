@@ -139,7 +139,7 @@ final class ConversationTitleTests: XCTestCase {
         for tab in backing { XCTAssertEqual(migrated.tab(tab.id), tab) }
         XCTAssertTrue(migrated.workspaces.allSatisfy { $0.displayTitle == "Workspace alias" })
         let modern = try JSONDecoder().decode(WorkspaceState.self, from: JSONEncoder().encode(WorkspaceState()))
-        XCTAssertEqual(modern.version, 6)
+        XCTAssertEqual(modern.version, 7)
     }
     func testHideReopenAndSupportCloseKeepPrimaryPresentationAndReceipts() throws {
         var state = WorkspaceState(); let workspace = conversation(&state, session: sessionA, title: "Retained title")

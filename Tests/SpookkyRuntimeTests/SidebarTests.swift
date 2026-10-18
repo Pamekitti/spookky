@@ -52,7 +52,7 @@ final class SidebarTests: XCTestCase {
         try await database.save(state)
         let restored = try await database.load()
         XCTAssertEqual(restored?.projects.first?.isCollapsed, true)
-        XCTAssertEqual(restored?.version, 6)
+        XCTAssertEqual(restored?.version, 7)
         var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(state)) as! [String: Any]
         var projects = json["projects"] as! [[String: Any]]
         projects[0].removeValue(forKey: "isCollapsed"); json["projects"] = projects

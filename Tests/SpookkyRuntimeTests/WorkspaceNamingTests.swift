@@ -108,7 +108,7 @@ final class WorkspaceNamingTests: XCTestCase {
         }
         let database = try WorkspaceDatabase(path: path)
         let loaded = try await database.load(), restored = try XCTUnwrap(loaded)
-        XCTAssertEqual(restored.version, 6)
+        XCTAssertEqual(restored.version, 7)
         XCTAssertEqual(restored.workspaces.map(\.id), legacy.workspaces.map(\.id))
         XCTAssertEqual(restored.workspaces.map(\.tabs), legacy.workspaces.map(\.tabs))
         XCTAssertEqual(restored.workspaces.map(\.selectedLocation), legacy.workspaces.map(\.selectedLocation))
@@ -153,7 +153,7 @@ final class WorkspaceNamingTests: XCTestCase {
         }
         let database = try WorkspaceDatabase(path: path)
         let loaded = try await database.load(), restored = try XCTUnwrap(loaded)
-        XCTAssertEqual(restored.version, 6)
+        XCTAssertEqual(restored.version, 7)
         XCTAssertEqual(restored.selected?.automaticTitle, .friendly)
         XCTAssertFalse(WorkspaceNaming.isGeneric(restored.selected!.title))
         for tab in state.workspaces[0].tabs { XCTAssertEqual(restored.tab(tab.id), tab) }
@@ -177,13 +177,13 @@ final class WorkspaceNamingTests: XCTestCase {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
         let path = root.appendingPathComponent("state.sqlite").path
-        var state = WorkspaceState(); state.version = 7; state.newWorkspace(directory: "/tmp")
+        var state = WorkspaceState(); state.version = 8; state.newWorkspace(directory: "/tmp")
         let payload = try JSONEncoder().encode(state), queue = try DatabaseQueue(path: path)
         try await queue.write { db in
             try db.execute(sql: "CREATE TABLE workspace_snapshot (id INTEGER PRIMARY KEY, version INTEGER NOT NULL, payload BLOB NOT NULL)")
             try db.execute(sql: "CREATE TABLE grdb_migrations (identifier TEXT NOT NULL PRIMARY KEY)")
             try db.execute(sql: "INSERT INTO grdb_migrations VALUES ('workspace-v1'), ('workspace-v2'), ('workspace-v3')")
-            try db.execute(sql: "INSERT INTO workspace_snapshot VALUES (1, 7, ?)", arguments: [payload])
+            try db.execute(sql: "INSERT INTO workspace_snapshot VALUES (1, 8, ?)", arguments: [payload])
         }
         XCTAssertThrowsError(try WorkspaceDatabase(path: path))
         let bytes = try await queue.read { try Data.fetchOne($0, sql: "SELECT payload FROM workspace_snapshot") }

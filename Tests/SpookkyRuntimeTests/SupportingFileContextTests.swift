@@ -20,20 +20,20 @@ final class SupportingFileContextTests: XCTestCase {
         try state.validate()
         XCTAssertEqual(try JSONDecoder().decode(WorkspaceState.self, from: JSONEncoder().encode(state)), state)
     }
-    func testSourceAndDifferentComparisonsOfSamePathDoNotOverwriteEachOther() throws {
+    func testFileReusesPathAndChangesKeepsItsOwnReviewContext() throws {
         var state = WorkspaceState(); state.newWorkspace(directory: "/tmp")
         var comparison = FileViewState(); comparison.changes = true; comparison.preview = true
         comparison.selectedPath = "sample.swift"; comparison.selectedGroup = "Unstaged"
-        let diff = state.openSupport(.file(path: "sample.swift"), title: "sample", fileView: comparison)!
-        let source = state.openSupport(.file(path: "sample.swift"), title: "sample")!
-        XCTAssertNotEqual(diff, source)
+        let review = state.openSupport(.changes, title: "Changes", fileView: comparison)!
+        let source = state.openSupport(.file(path: "sample.swift"), title: "sample", fileView: comparison)!
+        XCTAssertNotEqual(review, source)
         XCTAssertEqual(state.selected?.support?.selected?.fileView?.changes, false)
         XCTAssertNil(state.selected?.support?.selected?.fileView?.selectedGroup)
-        XCTAssertEqual(state.openSupport(.file(path: "sample.swift"), title: "sample", fileView: comparison), diff)
         comparison.againstBranch = true; comparison.reference = "refs/heads/main"; comparison.selectedGroup = "Committed"
-        let committed = state.openSupport(.file(path: "sample.swift"), title: "sample", fileView: comparison)!
-        XCTAssertNotEqual(committed, diff); XCTAssertNotEqual(committed, source)
-        state.selectSupport(diff)
+        XCTAssertEqual(state.openSupport(.file(path: "sample.swift"), title: "sample", fileView: comparison), source)
+        XCTAssertEqual(state.selected?.support?.tabs.count, 2)
+        XCTAssertEqual(state.selected?.support?.selected?.fileView?.againstBranch, false)
+        state.selectSupport(review)
         XCTAssertEqual(state.selected?.support?.selected?.fileView?.selectedGroup, "Unstaged")
         XCTAssertEqual(state.selected?.support?.selected?.fileView?.againstBranch, false)
         try state.validate()

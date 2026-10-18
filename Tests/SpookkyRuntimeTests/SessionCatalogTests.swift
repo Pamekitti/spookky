@@ -136,7 +136,7 @@ def request(i, method, params):
     while True:
         v=json.loads(p.stdout.readline())
         if v.get('id') == i:
-            if 'error' in v: raise RuntimeError('fixture metadata RPC failed')
+            if 'error' in v: raise RuntimeError('fixture metadata RPC failed: '+json.dumps(v['error']))
             return v['result']
 try:
     request(1,'initialize',dict(clientInfo=dict(name='spookky_external_fixture',version='1')))
@@ -144,6 +144,18 @@ try:
     result=request(2,'thread/start',dict(cwd=os.environ['SPOOKKY_FIXTURE_CHECKOUT'], modelProvider='spookky_fixture',model='fixture',config={'model_providers':{'spookky_fixture':{'name':'Offline history fixture','base_url':'http://127.0.0.1:9/v1','wire_api':'responses','requires_openai_auth':False,'request_max_retries':0,'stream_max_retries':0}}}))
     sid=result['thread']['id']
     request(3,'turn/start',dict(threadId=sid,cwd=os.environ['SPOOKKY_FIXTURE_CHECKOUT'],input=[dict(type='text',text='Disposable offline history fixture')]))
+    history_path=result['thread'].get('path')
+    deadline=time.monotonic()+5
+    while True:
+        records=[]
+        if history_path and os.path.isfile(history_path):
+            with open(history_path,'rb') as history:
+                for line in history.read(32768).splitlines():
+                    try: records.append(json.loads(line))
+                    except (ValueError,UnicodeDecodeError): pass
+        if any(row.get('type')=='session_meta' and row.get('payload',{}).get('id')==sid for row in records): break
+        if time.monotonic()>=deadline: raise RuntimeError('fixture rollout metadata did not become readable before naming')
+        time.sleep(.01)
     request(4,'thread/name/set',dict(threadId=sid,name='Disposable external title'))
     for attempt in range(20):
         page=request(10+attempt,'thread/list',dict(useStateDbOnly=True,modelProviders=[],sourceKinds=['vscode','cli','appServer','exec','unknown']))
@@ -156,12 +168,18 @@ finally:
     except subprocess.TimeoutExpired: p.terminate(); p.wait(timeout=5)
 """#
         let created = try ProcessRunner.run("/usr/bin/python3", ["-c", script], timeout: 20, environment: environment)
-        XCTAssertEqual(created.status, 0, "Disposable app-server metadata fixture failed")
+        XCTAssertEqual(created.status, 0, "Disposable app-server metadata fixture failed: " + String(created.error.prefix(2_048)))
+        guard created.status == 0 else { return }
         let fixture = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(created.output.utf8)) as? [String: String])
         let id = try XCTUnwrap(fixture["id"])
         XCTAssertNotNil(UUID(uuidString: id))
         XCTAssertEqual(fixture["started"], checkout.path)
         XCTAssertEqual(fixture["listed"], fixture["started"])
+        let page = try CodexHistoryReader.page(executable: executable, environment: environment,
+            query: HistoryQuery(directories: [checkout.path], search: "Disposable external", limit: 5,
+                exactDirectories: true, titleSearchOnly: true))
+        XCTAssertEqual(page.conversations.map(\.id.sessionID), [id])
+        XCTAssertNil(page.nextCursor)
         let snapshot = try CodexHistoryReader.read(executable: executable, environment: environment)
         let item = try XCTUnwrap(snapshot.conversations.first { $0.id.sessionID == id })
         XCTAssertEqual(item.title, "Disposable external title")
