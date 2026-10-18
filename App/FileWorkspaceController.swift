@@ -21,8 +21,6 @@ import SpookkySyntax
     private let fileTable = FileTable(), diffTable = FileTable()
     private let fileScroll = NSScrollView(), diffScroll = NSScrollView()
     private let search = NSSearchField()
-    private let filesMode = ActionButton("Files", symbol: "doc", help: "Show files", action: {})
-    private let changesMode = ActionButton("Changes", symbol: "arrow.triangle.branch", help: "Show changes", action: {})
     private let comparison = NSPopUpButton(), reference = NSPopUpButton(), stage = NSPopUpButton()
     private let scope = NSTextField(labelWithString: ""), status = NSTextField(wrappingLabelWithString: ""), title = NSTextField(labelWithString: "")
     private let previewNotice = NSTextField(wrappingLabelWithString: "")
@@ -102,10 +100,6 @@ import SpookkySyntax
     deinit { loadTask?.cancel(); previewTask?.cancel(); syntaxTask?.cancel(); if let activation { NotificationCenter.default.removeObserver(activation) }; if let scrollObserver { NotificationCenter.default.removeObserver(scrollObserver) } }
     private func build() {
         [sidebar, preview].forEach { $0.wantsLayer = true }
-        filesMode.handler = { [weak self] in self?.changeMode(changes: false) }
-        changesMode.handler = { [weak self] in self?.changeMode(changes: true) }
-        let modeTabs = NSStackView(views: [filesMode, changesMode]); modeTabs.spacing = 4; modeTabs.distribution = .fillEqually
-        modeTabs.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).isActive = true
         for control in [comparison, reference, stage, search] { SpookkyStyle.configure(control) }
         comparison.addItems(withTitles: ["Uncommitted", "Against branch"]); comparison.target = self; comparison.action = #selector(changeComparison)
         comparison.setAccessibilityLabel("Comparison scope")
@@ -145,11 +139,11 @@ import SpookkySyntax
             return false
         }
         fileScroll.documentView = fileTable; fileScroll.hasVerticalScroller = true; fileScroll.autohidesScrollers = true
-        let sideStack = NSStackView(views: [modeTabs, scopeRow, comparison, reference, tools, fileScroll])
+        let sideStack = NSStackView(views: [scopeRow, comparison, reference, tools, fileScroll])
         sideStack.orientation = .vertical; sideStack.alignment = .centerX; sideStack.spacing = 4
-        sideStack.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0)
+        sideStack.edgeInsets = NSEdgeInsets(top: 8, left: 0, bottom: 0, right: 0)
         pin(sideStack, to: sidebar)
-        for view in [modeTabs, scopeRow, comparison, reference, tools] { view.widthAnchor.constraint(equalTo: sideStack.widthAnchor, constant: -16).isActive = true }
+        for view in [scopeRow, comparison, reference, tools] { view.widthAnchor.constraint(equalTo: sideStack.widthAnchor, constant: -16).isActive = true }
         fileScroll.widthAnchor.constraint(equalTo: sideStack.widthAnchor).isActive = true
         fileScroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 40).isActive = true
         fileScroll.setContentHuggingPriority(.defaultLow, for: .vertical)
@@ -181,14 +175,11 @@ import SpookkySyntax
         }
         previewOverflow.isHidden = true
         diffTable.onMenu = { _ in previewMenu() }
-        let maximize = ActionButton("", symbol: "arrow.up.left.and.arrow.down.right", help: "Maximize or restore preview") { [weak self] in self?.edit { $0.maximized.toggle() } }
-        let close = ActionButton("", symbol: "xmark", help: "Close file preview") { [weak self] in self?.closePreview() }
-        for button in [informationButton, contextButton, unifiedButton, layoutButton, open, reveal, previewOverflow, maximize, close] { button.widthAnchor.constraint(equalToConstant: 28).isActive = true }
+        for button in [informationButton, contextButton, unifiedButton, layoutButton, open, reveal, previewOverflow] { button.widthAnchor.constraint(equalToConstant: 28).isActive = true }
         let inspection = NSStackView(views: [informationButton, contextButton]); inspection.spacing = 4; inspectionControls = inspection
         let layouts = NSStackView(views: [unifiedButton, layoutButton]); layouts.spacing = 0; layoutControls = layouts
         let external = NSStackView(views: [open, reveal, previewOverflow]); external.spacing = 4
-        let panes = NSStackView(views: [maximize, close]); panes.spacing = 4
-        let header = NSStackView(views: [title, NSView(), inspection, layouts, external, panes]); header.spacing = 8
+        let header = NSStackView(views: [title, NSView(), inspection, layouts, external]); header.spacing = 8
         comparisonCaptions.addArrangedSubview(oldCaption); comparisonCaptions.addArrangedSubview(newCaption)
         comparisonCaptions.distribution = .fillEqually; comparisonCaptions.spacing = 8
         comparisonCaptions.edgeInsets = NSEdgeInsets(top: 0, left: 8, bottom: 0, right: 8)
@@ -245,7 +236,7 @@ import SpookkySyntax
         store.update(debounced: true) { state in
             state.setFileView(next, workspaceID: id)
             state.setSupportingFileView(next, workspaceID: id)
-            if next.preview, let path = next.selectedPath {
+            if !layout.supportingOnly, next.preview, let path = next.selectedPath {
                 state.openSupport(.file(path: path), title: (path as NSString).lastPathComponent, workspaceID: id, fileView: next)
             }
             if next.maximized != self.state.maximized { state.setSupportingLayout(next.maximized ? .fullWidth : .split, workspaceID: id) }
@@ -280,8 +271,13 @@ import SpookkySyntax
             if hidden { next.sidebar = false; next.preview = false }
             else {
                 switch workspace?.support?.selected?.target {
-                case .changes: next.sidebar = true
-                case .file(let path): next.selectedPath = path; next.preview = true
+                case .changes:
+                    if workspace?.support?.selected?.fileView == nil && !next.changes { next = FileViewState() }
+                    next.changes = true; next.sidebar = true
+                    next.maximized = panel?.layout == .fullWidth
+                case .file(let path):
+                    next.changes = false; next.sidebar = false; next.selectedPath = path; next.preview = true
+                    next.selectedGroup = nil; next.againstBranch = false; next.reference = nil
                 default: next.sidebar = false; next.preview = false
                 }
             }
@@ -310,17 +306,16 @@ import SpookkySyntax
             fileTable.backgroundColor = SpookkyPalette.sidebar; diffTable.backgroundColor = SpookkyPalette.background
             fileScroll.backgroundColor = SpookkyPalette.sidebar; diffScroll.backgroundColor = SpookkyPalette.background
         }
-        filesMode.selected = !state.changes; changesMode.selected = state.changes
-        filesMode.contentTintColor = state.changes ? SpookkyPalette.secondary : SpookkyPalette.text
-        changesMode.contentTintColor = state.changes ? SpookkyPalette.text : SpookkyPalette.secondary
-        filesMode.setAccessibilityValue(state.changes ? "" : "Selected")
-        changesMode.setAccessibilityValue(state.changes ? "Selected" : "")
         comparison.selectItem(at: state.againstBranch ? 1 : 0)
         comparison.isHidden = !state.changes || identity.isEmpty; reference.isHidden = comparison.isHidden || !state.againstBranch
-        scope.stringValue = pending ? "Worktree not created" : (root == FileManager.default.homeDirectoryForCurrentUser.path ? "Home" : URL(fileURLWithPath: root).lastPathComponent)
+        let projectName = workspace?.projectID.flatMap { id in store.state.projects.first { $0.id == id }?.name }
+        scope.stringValue = pending ? "Worktree not created" : (projectName ?? (root == FileManager.default.homeDirectoryForCurrentUser.path ? "Home" : URL(fileURLWithPath: root).lastPathComponent))
         scope.toolTip = pending ? "Create the worktree to browse its files" : root
         scope.setAccessibilityLabel("Workspace scope · " + (pending ? "Worktree not created" : root))
         if search.stringValue != state.query { search.stringValue = state.query }
+        search.placeholderString = state.changes ? "Filter changed files" : "Search files"
+        search.setAccessibilityLabel(state.changes ? "Filter changed files" : "Search workspace files")
+        fileTable.setAccessibilityLabel(state.changes ? "Git changes" : "Workspace files")
         if switched {
             loadTask?.cancel(); previewTask?.cancel(); releaseSyntax(); clearSyntaxCache(); generation = UUID(); previewGeneration = UUID()
             directories.removeAll(); rows.removeAll(); diff.removeAll(); snapshot = nil; selectedFile = nil; lastPreviewKey = ""; reference.removeAllItems()
@@ -337,6 +332,12 @@ import SpookkySyntax
     func refresh(refreshPreview: Bool = true) {
         guard !root.isEmpty, state.sidebar || state.preview, layout.window?.isVisible == true else { return }
         loadTask?.cancel(); if refreshPreview { previewTask?.cancel(); syntaxTask?.cancel(); previewGeneration = UUID() }
+        if !state.changes && !state.sidebar {
+            loadTask = nil; directories.removeAll(); rows.removeAll(); snapshot = nil; selectedFile = nil
+            fileTable.reloadData()
+            if refreshPreview { openSelection() }
+            return
+        }
         let focusedRow = fileTable.selectedRow
         let focusedPath = focusedRow >= 0 && focusedRow < rows.count ? rows[focusedRow].2 : state.selectedPath
         generation = UUID(); let token = generation, root = root, id = workspaceID, view = state
@@ -414,7 +415,6 @@ import SpookkySyntax
             } catch is CancellationError {} catch { if token == generation { setStatus(error.localizedDescription) } }
         }
     }
-    private func changeMode(changes: Bool) { edit { $0.changes = changes; $0.query = ""; if !$0.changes { $0.selectedGroup = nil } }; refresh() }
     @objc private func changeComparison() { edit { $0.againstBranch = comparison.indexOfSelectedItem == 1 }; refresh() }
     @objc private func changeReference() { edit { $0.reference = reference.selectedItem?.representedObject as? String }; refresh() }
     @objc private func changeStage() { openSelection() }
@@ -810,15 +810,19 @@ import SpookkySyntax
         let informationStable = (!informationButton.isHidden) == informationVisible
         await settleForFixture()
         let selectionSurvivedRefresh = diffTable.selectedRowIndexes == selectedRows && diffTable.copyText?() == selectedText
-        changeMode(changes: false); await settleForFixture()
-        let rawFile = selectedFile == nil && !diff.contains { $0.kind == .addition || $0.kind == .removal }
-        changeMode(changes: true); await settleForFixture()
-        let restoredComparison = selectedFile?.group == .unstaged && diff.contains { $0.kind == .addition }
+        guard let workspaceID, let changesTabID = store.state.selected?.support?.selectedTabID,
+              let selectedPath = state.selectedPath else { throw ChangesError.unsupported("Changes fixture selection is missing.") }
+        store.update { $0.openSupport(.file(path: selectedPath), title: (selectedPath as NSString).lastPathComponent, workspaceID: workspaceID) }
+        await settleForFixture()
+        let rawFile = !state.changes && !state.sidebar && selectedFile == nil && !diff.contains { $0.kind == .addition || $0.kind == .removal }
+        store.update { $0.selectSupport(changesTabID, workspaceID: workspaceID) }
+        await settleForFixture()
+        let restoredComparison = state.changes && state.sidebar && selectedFile?.group == .unstaged && diff.contains { $0.kind == .addition }
         let live = URL(fileURLWithPath: root).appendingPathComponent("live.txt")
         try Data("event 0".utf8).write(to: live)
-        edit { $0.changes = false; $0.selectedPath = "live.txt"; $0.selectedGroup = nil; $0.preview = true }
+        store.update { $0.openSupport(.file(path: "live.txt"), title: "live.txt", workspaceID: workspaceID) }
         refresh(); await settleForFixture()
-        layout.window?.makeFirstResponder(fileTable)
+        layout.window?.makeFirstResponder(diffTable)
         let writer = Task.detached {
             for index in 1...40 {
                 try Data("event \(index)".utf8).write(to: live)
@@ -831,7 +835,7 @@ import SpookkySyntax
             try await Task.sleep(for: .milliseconds(20))
         }
         let refreshed = diff.contains { $0.text == "event 40" }
-        let focused = layout.window?.firstResponder === fileTable
+        let focused = layout.window?.firstResponder === diffTable
         try FileManager.default.removeItem(at: live)
         refresh(); await settleForFixture()
         let unavailableVisible = !previewNotice.isHidden && !previewNotice.stringValue.isEmpty
@@ -840,13 +844,13 @@ import SpookkySyntax
         let errorSurvivedRefresh = !previewNotice.isHidden && previewNotice.stringValue == unavailableText
         await settleForFixture()
         edit { $0.preview = false; $0.sidebar = false }
-        if layout.supportingOnly, let workspaceID { store.update { $0.setSupportingLayout(.collapsed, workspaceID: workspaceID) } }
+        if layout.supportingOnly { store.update { $0.setSupportingLayout(.collapsed, workspaceID: workspaceID) } }
         return ["modified_added_modified_geometry": unifiedTransition, "split_added_split_geometry": splitTransition,
                 "latest_selection_wins": lastSelection, "selected_rows_copy": copied, "preview_selection_survived_refresh": selectionSurvivedRefresh,
                 "sidebar_refresh_quiet": quietSidebar, "preview_refresh_geometry_stable": quietPreview,
                 "preview_information_control_stable": informationStable, "unavailable_preview_notice_visible": unavailableVisible,
                 "error_notice_survived_refresh": errorSurvivedRefresh,
-                "files_changes_scope_switch": rawFile && restoredComparison,
+                "files_changes_tab_context_isolation": rawFile && restoredComparison,
                 "continuous_edits_refreshed": refreshed, "refresh_preserved_focus": focused,
                 "hidden_watcher_stopped": diagnostics["watchers"] == 0]
     }

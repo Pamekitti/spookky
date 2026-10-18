@@ -47,11 +47,12 @@ import SpookkyRuntime
         }
         window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
         try await wait("Fixture did not activate") { NSApp.isActive && window.isKeyWindow }
-        let initial = state(), workspaceID = initial.selectedWorkspaceID!
-        let primaryID = initial.primaryTerminalID!
-        checks["blank_home_draft"] = initial.selected?.anchor == nil && initial.selectedTab?.isEditable == true
+        let initial = state(), landingID = initial.selectedWorkspaceID!, landingTerminal = initial.primaryTerminalID!
+        checks["blank_home_draft"] = initial.selected?.isLanding == true && initial.selected?.anchor == nil && initial.selectedTab?.isEditable == true
         openTerminal()
-        try await wait("Immediate shell failed") { state().tab(primaryID)?.status == .running && view(primaryID) != nil }
+        try await wait("Immediate shell failed") { state().selectedTab?.status == .running && state().selectedTab.flatMap { view($0.id) } != nil }
+        let workspaceID = state().selectedWorkspaceID!, primaryID = state().primaryTerminalID!
+        checks["shell_from_landing_preserves_draft"] = workspaceID != landingID && state().tab(landingTerminal)?.draft == initial.tab(landingTerminal)?.draft && state().tab(landingTerminal)?.binding == nil
         guard let binding = state().tab(primaryID)?.binding, let terminal = view(primaryID) else { throw LaunchError.invalid("Shell unavailable") }
         let before = try await runtime.inspect(binding)
         try await wait("Shell prompt unavailable") { terminal.visibleText().trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix("%") }
@@ -94,9 +95,13 @@ import SpookkyRuntime
         checks["support_close_keeps_unsent_input"] = view(primaryID)?.visibleText().contains("SPOOKKY_FOUNDATION_UNSENT") == true
         if let primary = view(primaryID) { window.makeFirstResponder(primary) }
         try await send("w", code: 13)
-        try await wait("Primary view did not hide") { !window.isVisible && state().selectedWorkspaceID == nil }
+        try await wait("Primary close did not return to landing") { window.isVisible && state().selectedWorkspaceID == landingID && state().selected?.isLanding == true }
         let afterHide = try await runtime.inspect(binding)
-        checks["primary_close_retains_process_and_records"] = afterHide?.processID == before?.processID && state().workspaces.count == 1 && state().workspaces[0].viewClosed == true && state().tab(primaryID)?.binding == binding
+        checks["primary_close_retains_process_and_records"] = afterHide?.processID == before?.processID && state().workspaces.first { $0.id == workspaceID }?.viewClosed == true && state().tab(primaryID)?.binding == binding
+        checks["last_view_close_shows_landing"] = state().selected?.isLanding == true && state().selectedTab?.isEditable == true
+        try await send("w", code: 13)
+        try await wait("Landing Cmd+W did not close the window") { !window.isVisible }
+        checks["landing_cmd_w_closes_window"] = state().selectedWorkspaceID == landingID && state().tab(primaryID)?.binding == binding
         selectWorkspace(workspaceID); reopen()
         try await wait("Primary did not reattach") { view(primaryID) != nil && window.isVisible }
         let afterReopen = try await runtime.inspect(binding)
@@ -146,9 +151,10 @@ import SpookkyRuntime
         try await wait("Explicit Stop failed") { state().tab(primaryID)?.status == .ended && state().tab(primaryID)?.binding == nil }
         let stopped = try await runtime.inspect(binding)
         let supportingAfterStop = try await runtime.inspect(supportBinding)
-        checks["explicit_stop_ends_only_owned_primary"] = supportingAfterStop?.processID == supportBefore?.processID && stopped == nil && state().workspaces.count == 1 && state().workspaces[0].primaryTerminalID == primaryID && state().workspaces[0].support?.tabs.count == 1
+        let retained = state().workspaces.first { $0.id == workspaceID }
+        checks["explicit_stop_ends_only_owned_primary"] = supportingAfterStop?.processID == supportBefore?.processID && stopped == nil && retained?.primaryTerminalID == primaryID && retained?.support?.tabs.count == 1
         try await send("n", code: 45)
-        checks["cmd_n_independent_draft"] = state().workspaces.count == 2 && state().selectedWorkspaceID != workspaceID && state().selectedTab?.binding == nil
+        checks["cmd_n_restores_landing_draft"] = state().workspaces.count == 2 && state().selectedWorkspaceID == landingID && state().selected?.isLanding == true && state().selectedTab?.binding == nil
         try state().validate()
         checks["metadata_valid"] = true
         try PrivateFiles.write(checks, to: root.appendingPathComponent("close-checks.json"))

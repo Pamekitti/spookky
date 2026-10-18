@@ -23,8 +23,26 @@ import SpookkyCore
     var onAdd: ((NSView) -> Void)?
     var onLayout: ((SupportingLayout, Double?) -> Void)?
     var onGeometryChange: (() -> Void)?
-    private var stripKey = ""
-    var headerFittingWidth: CGFloat { strip.fittingSize.width + 60 }
+    private var items: [UUID: WorkspaceTabView] = [:]
+    private var primaryItem: WorkspaceTabView?
+    private(set) var joinsPrimary = false
+    private var supportingTabItems: [WorkspaceTabView] { state.tabs.compactMap { items[$0.id] } }
+    var tabItems: [WorkspaceTabView] { (joinsPrimary ? primaryItem.map { [$0] } ?? [] : []) + supportingTabItems }
+    private var tabWidth: CGFloat { tabItems.reduce(0) { $0 + $1.naturalWidth } + CGFloat(max(0, tabItems.count - 1)) * strip.spacing }
+    var headerFittingWidth: CGFloat { tabWidth + 60 }
+    var selectedTabFullyVisible: Bool {
+        guard let item = selectedTabItem else { return true }
+        return scroll.contentView.bounds.insetBy(dx: -0.5, dy: 0).contains(item.frame)
+    }
+    var selectedTabCanFit: Bool { selectedTabItem.map { $0.frame.width <= scroll.contentView.bounds.width + 0.5 } ?? true }
+    var selectedTabVisibleWidth: CGFloat { selectedTabItem.map { scroll.contentView.bounds.intersection($0.frame).width } ?? 0 }
+    private var selectedTabItem: WorkspaceTabView? {
+        if joinsPrimary && state.layout == .fullWidth && state.resolvedFullWidthSelection == .primary { return primaryItem }
+        if isSplit || state.layout == .fullWidth && state.resolvedFullWidthSelection != .primary {
+            return state.selectedTabID.flatMap { items[$0] }
+        }
+        return nil
+    }
     var isSplit: Bool { state.layout == .split && !state.tabs.isEmpty }
     var primaryPaneWidth: CGFloat { primaryPaneWidth(in: bounds.width) }
     func primaryPaneWidth(in width: CGFloat) -> CGFloat {
@@ -41,7 +59,7 @@ import SpookkyCore
         panel.addSubview(content)
         headerView.addSubview(scroll); headerView.addSubview(controls)
         headerView.onLayout = { [weak self] in self?.layoutHeader() }
-        strip.orientation = .horizontal; strip.spacing = 2
+        strip.orientation = .horizontal; strip.spacing = 0; strip.alignment = .centerY
         scroll.documentView = strip; scroll.hasHorizontalScroller = true; scroll.autohidesScrollers = true; scroll.drawsBackground = false
         scroll.scrollerStyle = .overlay
         let add = ActionButton("", symbol: "plus", help: "Open supporting tab", action: {})
@@ -61,6 +79,15 @@ import SpookkyCore
         divider.onKey = { [weak self] delta in guard let self else { return }; onLayout?(.split, state.fraction + delta) }
     }
     required init?(coder: NSCoder) { fatalError() }
+    func setPrimaryItem(_ item: WorkspaceTabView?, joined: Bool) {
+        if let previous = primaryItem, previous !== item || !joined, previous.superview === strip {
+            strip.removeArrangedSubview(previous); previous.removeFromSuperview()
+        }
+        primaryItem = item; joinsPrimary = joined && item != nil
+        if joinsPrimary, let item { item.move(to: strip) }
+        for (index, support) in supportingTabItems.enumerated() { support.move(to: strip, at: index + (joinsPrimary ? 1 : 0)) }
+        headerView.needsLayout = true
+    }
     var hasFocus: Bool {
         guard let responder = window?.firstResponder as? NSView else { return false }
         if let editor = responder as? NSTextView, editor.isFieldEditor, let control = editor.delegate as? NSView {
@@ -71,30 +98,30 @@ import SpookkyCore
     func update(_ state: SupportingPanelState) {
         self.state = state
         let selected = state.layout == .split || (state.layout == .fullWidth && state.resolvedFullWidthSelection != .primary)
-        let key = state.tabs.map { $0.id.uuidString + $0.displayTitle + $0.contentLabel }.joined() + String(describing: state.selectedTabID) + String(selected)
-        if key != stripKey {
-            stripKey = key
-            strip.arrangedSubviews.forEach { strip.removeArrangedSubview($0); $0.removeFromSuperview() }
-            for tab in state.tabs {
-                let select = ActionButton(tab.displayTitle, symbol: SpookkyStyle.supportingSymbol(tab.target), help: tab.displayTitle + " · " + tab.contentLabel) { [weak self] in self?.onSelect?(tab.id) }
-                switch tab.target {
-                case .file(let path), .artifact(let path): select.toolTip = tab.displayTitle + " · " + tab.contentLabel + "\n" + path
-                case .browser(let url): select.toolTip = tab.displayTitle + " · Browser\n" + url
-                case .changes, .terminal: break
-                }
-                select.selected = selected && tab.id == state.selectedTabID; select.drawsInteractionFill = false
-                select.setAccessibilityValue(select.selected ? "Selected" : nil)
-                select.lineBreakMode = .byTruncatingTail
-                select.widthAnchor.constraint(lessThanOrEqualToConstant: 200).isActive = true
-                select.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).isActive = true
-                let close = ActionButton("", symbol: "xmark", help: "Close " + tab.displayTitle) { [weak self] in self?.onClose?(tab.id) }
-                close.widthAnchor.constraint(equalToConstant: 24).isActive = true
-                close.heightAnchor.constraint(equalToConstant: 24).isActive = true
-                let pair = ChromeStackView(views: [select, close]); pair.spacing = 0
-                pair.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).isActive = true
-                pair.selected = select.selected; pair.cornerRadius = 0; pair.drawsTrailingBorder = true
-                strip.addArrangedSubview(pair)
+        let ids = Set(state.tabs.map(\.id))
+        for id in Array(items.keys) where !ids.contains(id) {
+            guard let item = items.removeValue(forKey: id) else { continue }
+            strip.removeArrangedSubview(item); item.removeFromSuperview()
+        }
+        for (index, tab) in state.tabs.enumerated() {
+            var help = tab.displayTitle + " · " + tab.contentLabel
+            switch tab.target {
+            case .file(let path), .artifact(let path): help += "\n" + path
+            case .browser(let url): help += "\n" + url
+            case .changes, .terminal: break
             }
+            let item: WorkspaceTabView
+            if let retained = items[tab.id] { item = retained }
+            else {
+                item = WorkspaceTabView(title: tab.displayTitle,
+                    onSelect: { [weak self] in self?.onSelect?(tab.id) },
+                    onClose: { [weak self] in self?.onClose?(tab.id) })
+                items[tab.id] = item
+            }
+            item.update(title: tab.displayTitle,
+                image: NSImage(systemSymbolName: SpookkyStyle.supportingSymbol(tab.target), accessibilityDescription: nil),
+                help: help, selected: selected && tab.id == state.selectedTabID)
+            item.move(to: strip, at: index + (joinsPrimary ? 1 : 0))
         }
         layoutButton.isEnabled = !state.tabs.isEmpty
         layoutButton.image = NSImage(systemSymbolName: isSplit ? "arrow.up.left.and.arrow.down.right" : "rectangle.split.2x1", accessibilityDescription: nil)
@@ -128,12 +155,19 @@ import SpookkyCore
     private func layoutHeader() {
         let width = max(0, headerView.bounds.width - 60)
         scroll.frame = NSRect(x: 0, y: 0, width: width, height: SpookkyStyle.headerHeight)
-        strip.frame = NSRect(x: 0, y: 0, width: max(width, strip.fittingSize.width), height: SpookkyStyle.headerHeight)
+        strip.frame = NSRect(x: 0, y: 0, width: tabWidth, height: SpookkyStyle.headerHeight)
         controls.frame = NSRect(x: width + 4, y: 6, width: 56, height: 28)
         strip.layoutSubtreeIfNeeded()
-        if isSplit || (state.layout == .fullWidth && state.resolvedFullWidthSelection != .primary),
-           let index = state.tabs.firstIndex(where: { $0.id == state.selectedTabID }), strip.arrangedSubviews.indices.contains(index) {
-            let selected = strip.arrangedSubviews[index]; selected.scrollToVisible(selected.bounds)
+        if let selected = selectedTabItem {
+            let clip = scroll.contentView
+            let viewport = clip.bounds
+            var offset = viewport.minX
+            if selected.frame.width > viewport.width || selected.frame.minX < viewport.minX { offset = selected.frame.minX }
+            else if selected.frame.maxX > viewport.maxX { offset = selected.frame.maxX - viewport.width }
+            offset = max(0, min(offset, max(0, tabWidth - viewport.width)))
+            if abs(viewport.minX - offset) > 0.5 {
+                clip.scroll(to: NSPoint(x: offset, y: 0)); scroll.reflectScrolledClipView(clip)
+            }
         }
     }
 }

@@ -26,7 +26,7 @@ def main():
                     shutil.copy2(source, args.output.parent / ('failed-grouping-' + name))
             raise
         checks = json.loads((fixture.root / 'project-association-checks.json').read_text())
-        required = {'primary_row_exposes_limitation', 'primary_row_refreshes_without_recreation',
+        required = {'primary_row_exposes_limitation', 'primary_row_refreshes_with_stable_identity',
                     'support_focus_does_not_change_owner', 'association_is_presented_on_conversation_row',
                     'same_checkout_has_distinct_conversation_entries', 'project_assignment_preserves_execution_directory',
                     'hidden_result_retains_closed_view_and_selection', 'association_preserves_primary_process_and_input',

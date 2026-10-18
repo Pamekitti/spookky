@@ -59,7 +59,7 @@ enum SpookkyStyle {
     static let controlHeight: CGFloat = 28
     static let compactHeight: CGFloat = 24
     static let headerHeight: CGFloat = 40
-    static let workspaceRowHeight: CGFloat = 46
+    static let workspaceRowHeight: CGFloat = 32
     static let sidebarWidth: CGFloat = 232
     static let railWidth: CGFloat = 58
     static let fileSidebarWidth: CGFloat = 248
@@ -264,7 +264,7 @@ class ActionButton: NSButton {
     var onContextMenu: (() -> NSMenu?)?
     var onNavigate: ((UInt16) -> Void)?
     var contentInset: CGFloat = SpookkyStyle.controlInset
-    var menuIndicator = false
+    var menuIndicator = false { didSet { invalidateIntrinsicContentSize() } }
     var compactUtility = false
     var revealOnInteraction = false { didSet { updateInteractionVisibility() } }
     var interactionActive = false { didSet { updateInteractionVisibility() } }
@@ -302,7 +302,7 @@ class ActionButton: NSButton {
         let text = (title as NSString).size(withAttributes: [.font: font ?? NSFont.systemFont(ofSize: 13)]).width
         let iconWidth = image == nil ? 0 : SpookkyStyle.iconSlot + SpookkyStyle.iconLabelGap
         return NSSize(width: title.isEmpty ? targetHeight :
-            text + 2 * SpookkyStyle.controlInset + iconWidth + (menuIndicator ? 16 : 0), height: targetHeight)
+            ceil(text) + 1 + 2 * contentInset + iconWidth + (menuIndicator ? 16 : 0), height: targetHeight)
     }
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
