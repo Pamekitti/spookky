@@ -29,7 +29,9 @@ final class FadingTitleButton: ActionButton {
         CATransaction.commit()
     }
     override func drawTitle(in content: NSRect, tint: NSColor) {
-        let label = NSAttributedString(string: title, attributes: [.font: font ?? NSFont.systemFont(ofSize: 13), .foregroundColor: tint])
+        var layerColor = tint
+        effectiveAppearance.performAsCurrentDrawingAppearance { layerColor = tint.usingColorSpace(.deviceRGB) ?? tint }
+        let label = NSAttributedString(string: title, attributes: [.font: font ?? NSFont.systemFont(ofSize: 13), .foregroundColor: layerColor])
         let size = label.size(), width = max(0, content.width)
         let overflow = max(0, size.width - width)
         let reducedMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion

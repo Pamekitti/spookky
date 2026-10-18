@@ -8,10 +8,10 @@ Spookky's native controls follow the geometry and interaction rules below. The l
 | --- | --- | --- |
 | Sidebar | 232-point column, 58-point rail, 8-point outer selection inset | Keeps project and workspace navigation compact |
 | Project row | 28 points, 16-point icon slot, separate 28-point add action | Click toggles expansion; avatar becomes a chevron on hover/focus; add appears on hover/focus |
-| Workspace row | 46 points, one 28-point title line and secondary metadata | Shows checkout and session context; close appears on hover/focus; long titles fade and reveal once |
-| Tab | 40-point strip, muted inactive title, one selection/hover fill, 24-by-24-point close target | Full-height native tabs use a trailing separator; close appears on hover/focus |
-| Composer | 560-point maximum width, 80-point minimum prompt, 13-point card radius | Prompt is optional; Terminal collapses the input; provider and launch action share one card |
-| Files/Changes | 40-point header, two quiet named buttons, 28-point file rows | Provides file and change inspection within the workspace scope |
+| Conversation row | 32 points, one title line, optional attention indicator | Static truncation, full tooltip, contextual actions on hover/focus, separate selection and keyboard focus |
+| Tab | 40-point strip, muted inactive title, one selection/hover fill, 24-by-24-point close target | One shared bounded-width tab component uses a trailing separator; close appears on hover/focus |
+| Composer | 800-point maximum width, 80-point minimum prompt, 13-point card radius | Always available on landing; optional prompt; supporting Terminal retains the agent draft |
+| Files / Changes | Native file picker and a dedicated Changes view, 28-point list rows | Individual file tabs remain separate from change-review context |
 | Preview | 40-point header, 28-point utility targets, muted notices, explicit diff signs | Read-only native selection/copy and Spookky's existing limit states remain intact |
 | Menus and dialogs | Native NSMenu, NSAlert, and folder picker; shared type, path, warning, and destination styling | Uses macOS placement, focus, cancellation, and platform metrics |
 
@@ -19,7 +19,7 @@ Leading symbols use 14 points in a 16-point slot. Add and close symbols use 12-p
 
 Dark hover and selection washes use the foreground at 7% and 10% opacity. Light washes use 4% and 6%. They composite over the current surface instead of using a separate opaque gray for every component. Light OKLCH reference values are converted to fixed sRGB values at development time. There is no runtime color-conversion dependency.
 
-Metadata uses an independently tuned native pair, `#9a9795` and `#605e5d`, to retain at least 4.5:1 contrast over both ordinary and selected sidebar rows. Inactive tabs and Files/Changes labels use the secondary foreground. Preview actions stay aligned to the right edge.
+Metadata uses an independently tuned native pair, `#9a9795` and `#605e5d`, to retain at least 4.5:1 contrast over both ordinary and selected sidebar rows. Inactive tabs and supporting labels use the secondary foreground. Preview actions stay aligned to the right edge.
 
 Native keyboard focus keeps the macOS focus indicator. Disabled controls remain visible at 45% opacity and do not gain a hover fill. Error text uses the warning role and keeps its recovery action nearby. Destructive confirmations retain native dialog semantics.
 

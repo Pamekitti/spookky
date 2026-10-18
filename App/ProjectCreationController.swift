@@ -4,14 +4,14 @@ import SpookkyWorkspace
 
 @MainActor final class ProjectCreationController: NSObject, NSTextFieldDelegate, NSWindowDelegate {
     let panel: NSWindow
-    private let alert = NSAlert()
-    private let name = NSTextField()
-    private let url = NSTextField()
-    private let git = NSButton(checkboxWithTitle: "Initialize Git repository", target: nil, action: nil)
+    private let alert = ChromeAlert()
+    private let name = ChromeTextField()
+    private let url = ChromeTextField()
+    private let git = ChromeButton(checkboxWithTitle: "Initialize Git repository", target: nil, action: nil)
     private let destination = ActionButton("Destination", symbol: "folder", action: {})
-    private let path = NSTextField(wrappingLabelWithString: "")
-    private let status = NSTextField(wrappingLabelWithString: "")
-    private let fieldError = NSTextField(wrappingLabelWithString: "")
+    private let path = ChromeTextField(wrappingLabelWithString: "")
+    private let status = ChromeTextField(wrappingLabelWithString: "")
+    private let fieldError = ChromeTextField(wrappingLabelWithString: "")
     private let submit: NSButton
     private let cancel: NSButton
     private var draft: ProjectCreationDraft

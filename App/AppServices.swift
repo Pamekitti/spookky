@@ -10,7 +10,7 @@ import SpookkyCore
     }
 
     static func showGuidance() {
-        let alert = NSAlert()
+        let alert = ChromeAlert()
         alert.messageText = "Move Spookky to Applications"
         alert.informativeText = "Drag Spookky into Applications, then open it there. This lets Spookky save your work and install updates."
         alert.addButton(withTitle: "Show in Finder")
@@ -107,7 +107,7 @@ import SpookkyCore
                 install()
             } catch {
                 guard pendingInstallID == installID else { return }
-                let alert = NSAlert()
+                let alert = ChromeAlert()
                 alert.messageText = "The update is waiting"
                 alert.informativeText = error.localizedDescription + "\nYour sessions will keep running when Spookky restarts."
                 alert.addButton(withTitle: "Later")
@@ -122,7 +122,7 @@ import SpookkyCore
         if pendingInstall != nil { resumeInstallation() }
         else if let controller { controller.checkForUpdates(sender) }
         else {
-            let alert = NSAlert()
+            let alert = ChromeAlert()
             alert.messageText = "Updates are unavailable in this build"
             alert.informativeText = "Install a signed public release to receive updates."
             alert.runModal()
@@ -140,17 +140,17 @@ import SpookkyCore
         if let settings { refreshSettings(); settings.makeKeyAndOrderFront(nil); return }
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 540), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Spookky Settings"; window.isReleasedWhenClosed = false
-        let checks = NSButton(checkboxWithTitle: "Check for updates automatically", target: self, action: #selector(changeChecks(_:)))
+        let checks = ChromeButton(checkboxWithTitle: "Check for updates automatically", target: self, action: #selector(changeChecks(_:)))
         checks.state = controller?.updater.automaticallyChecksForUpdates == true ? .on : .off
         checks.isEnabled = controller != nil
-        let downloads = NSButton(checkboxWithTitle: "Download updates automatically", target: self, action: #selector(changeDownloads(_:)))
+        let downloads = ChromeButton(checkboxWithTitle: "Download updates automatically", target: self, action: #selector(changeDownloads(_:)))
         downloads.state = controller?.updater.automaticallyDownloadsUpdates == true ? .on : .off
         downloads.isEnabled = controller != nil
-        let previews = NSButton(checkboxWithTitle: "Include Preview releases", target: self, action: #selector(changePreviews(_:)))
+        let previews = ChromeButton(checkboxWithTitle: "Include Preview releases", target: self, action: #selector(changePreviews(_:)))
         previews.state = UserDefaults.standard.bool(forKey: "receivePreviewUpdates") ? .on : .off
         previews.isEnabled = controller != nil
         updateChecks = checks; updateDownloads = downloads; previewUpdates = previews
-        let detail = NSTextField(wrappingLabelWithString: controller == nil ? "Update settings are available in signed public releases." : "Updates check once a day while Spookky runs. Restarting keeps your terminal sessions running.")
+        let detail = ChromeTextField(wrappingLabelWithString: controller == nil ? "Update settings are available in signed public releases." : "Updates check once a day while Spookky runs. Restarting keeps your terminal sessions running.")
         detail.textColor = .secondaryLabelColor
         let stack = NSStackView(views: [checks, downloads, previews, detail, activitySettings()]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 12
         stack.translatesAutoresizingMaskIntoConstraints = false; window.contentView!.addSubview(stack)
@@ -160,7 +160,7 @@ import SpookkyCore
     private func activitySettings() -> NSView {
         activityChecks.removeAll()
         func check(_ title: String, _ key: WritableKeyPath<AgentNotificationPreferences, Bool>) -> NSButton {
-            let button = NSButton(checkboxWithTitle: title, target: self, action: #selector(changeActivity(_:)))
+            let button = ChromeButton(checkboxWithTitle: title, target: self, action: #selector(changeActivity(_:)))
             button.state = agentPreferences[keyPath: key] ? .on : .off
             activityChecks[ObjectIdentifier(button)] = { [weak self] value in self?.agentPreferences[keyPath: key] = value }
             return button
@@ -179,14 +179,15 @@ import SpookkyCore
                 grid.cell(atColumnIndex: column, rowIndex: row).contentView?.setAccessibilityLabel(["Needs input", "Turn finished", "Failed"][row - 1] + (column == 1 ? " banner" : " app sound"))
             }
         }
-        let sounds = NSPopUpButton(); sounds.addItems(withTitles: ["Glass", "Tink", "Ping", "Pop", "Submarine"])
+        let sounds = ChromePopUpButton(); sounds.addItems(withTitles: ["Glass", "Tink", "Ping", "Pop", "Submarine"])
         sounds.selectItem(withTitle: agentPreferences.sound); sounds.target = self; sounds.action = #selector(changeActivitySound(_:)); sounds.setAccessibilityLabel("Notification sound")
         let volume = NSSlider(value: Double(agentPreferences.volume), minValue: 0, maxValue: 1, target: self, action: #selector(changeActivityVolume(_:)))
+        SpookkyStyle.suppressFocusRing(volume)
         volume.setAccessibilityLabel("Notification volume"); volume.widthAnchor.constraint(equalToConstant: 150).isActive = true
         let soundRow = NSStackView(views: [sounds, volume]); soundRow.spacing = 12
-        let note = NSTextField(wrappingLabelWithString: "Monitoring begins on the next agent launch. Codex keeps its normal hook trust review. Existing CLI sound hooks stay active.")
+        let note = ChromeTextField(wrappingLabelWithString: "Monitoring begins on the next agent launch. Codex keeps its normal hook trust review. Existing CLI sound hooks stay active.")
         note.font = .systemFont(ofSize: 11); note.textColor = .secondaryLabelColor
-        let testResult = NSTextField(wrappingLabelWithString: ""); testResult.font = .systemFont(ofSize: 11); testResult.textColor = .secondaryLabelColor
+        let testResult = ChromeTextField(wrappingLabelWithString: ""); testResult.font = .systemFont(ofSize: 11); testResult.textColor = .secondaryLabelColor
         let test = ActionButton("Test notification") { [weak self, weak testResult] in
             Task { testResult?.stringValue = await self?.testAgentNotification?() ?? "Notifications are unavailable." }
         }

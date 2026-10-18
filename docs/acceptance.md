@@ -17,7 +17,7 @@ The native app must satisfy these requirements before release. [Current status](
 | S09 | New worktree from local branch | Source local ref distinguished from remote tracking ref |
 | S10 | New worktree from origin/dev | Fetch or explicit cached choice; new working branch; optional prompt |
 | S11 | Existing feature branch | Reuse its checkout or create one without bypassing branch protection |
-| S12 | Existing bound workspace, Cmd+T | Blank tab inherits anchor; subsequent Cmd+T opens shell |
+| S12 | Existing bound workspace, Cmd+T | Browser supporting target opens; primary CLI remains unchanged |
 | S13 | Saved local CLI conversation | Same provider's explicit resume in correct folder; no live-process claim |
 | S14 | Other provider's session/files | New provider conversation with user-supplied context; shared files only |
 | S15 | Compatible cloud coding session | Supported CLI handoff in clean dedicated checkout; copy/continuation labeled accurately |
@@ -26,14 +26,46 @@ The native app must satisfy these requirements before release. [Current status](
 
 For S01-S12, exercise Terminal, Codex without/with a prompt, and Claude Code without/with a prompt where repository state permits. An empty prompt is always valid. The agent choice never determines whether a folder needs Git isolation.
 
+## Version 7 workflow checks
+
+The version 7 production code passed 199 automated native workflow assertions, 39 browser/artifact and cold-restore assertions, and 24 file/diff assertions. The full Swift run passed 281 cases with three opt-in cases skipped. All 30 Python tests and the repository checker passed. Native fixtures use programmatic pointer and keyboard events; they do not establish physical typing, IME composition or spoken VoiceOver.
+
+- [x] First use and final-view closure show the landing composer without an intermediate button or blank window.
+- [x] Cmd+N and project + select independent drafts. Persistence tests retain both through database restart.
+- [x] Five recent entries and repeated ten-entry expansion work independently per project. Search includes older uncached history.
+- [x] Startup, project expansion, pagination and search start zero conversation agents.
+- [x] Native scroll checks reconcile a stationary pointer, one hover and one selected row, with static titles and preserved keyboard focus.
+- [x] Project clicks toggle without selecting the header. App-owned controls suppress focus rings, and keyboard feedback preserves control geometry.
+- [x] Shared tabs remain bounded, aligned and selectable in Split/Full layouts at narrow and wide sizes in both themes.
+- [x] File and Changes tabs preserve independent preview/diff context without duplicated mode or close controls.
+- [x] Last support/session closure selects the correct neighbor or landing and preserves processes and drafts.
+- [x] Migration preserves user-created sessions, aliases, drafts, supporting tabs, launch receipts and bindings.
+- [x] Current startup, switching and resource costs are measured without stopping hidden agents. See [performance](performance.md) for workload and visibility limits.
+
 ## Interaction checks
 
+Earlier evidence: the initial 18 October layout/startup candidate passed 191 targeted native checks. The installed-app fixes then passed 105 affected checks, including narrow-window tab visibility and warning/content separation. Desktop automation verified newline entry, ASCII shell input, the native folder picker and retained drafts across Full/Split changes in the privately installed app. Physical keyboard/IME, spoken VoiceOver and extended continuity remain separate checks.
+
+- [x] Split headers share one 40-point row and align at the divider in wide/narrow windows and both appearances.
+- [x] Full view joins primary first and all support tabs; selecting primary keeps those tabs visible.
+- [x] The selected supporting tab remains visible after narrow-window layout. Overflow selection moves focus into that view; its close handler closes the support rather than the workspace.
+- [x] Returning to Split restores the primary left, last support right and the same divider width.
+- [x] Browser/artifact form state, terminal input and primary process identity survive layout and selection changes.
+- [ ] Supporting + offers Browser, Files, Changes, Artifact and Terminal; new agents use New session/project +/Cmd+N.
+- [x] Support closure chooses nearest left, then next, then primary. Primary closure hides the view and retains history/processes.
+- [x] Startup has a bottom composer, maximum width 800 points, 24-point padding, optional prompt and provider/folder chips inside.
+- [x] First use chooses Codex; new drafts remember the last agent independently of shells; existing drafts keep their provider and text.
+- [ ] Local defaults in the folder popover; worktree/source/branch controls remain there.
+- [ ] Enter adds a newline; Cmd+Return in the composer launches. Running CLI content replaces the composer.
+
 - [ ] Cmd+N, Cmd+T, Cmd+W, Cmd+K, Cmd+Enter, and mouse equivalents follow the current contract.
-- [ ] Cmd+N then Cmd+T works without pointer input, including focus routing immediately after render.
-- [ ] Quick Terminal retains a typed agent draft in another tab.
-- [ ] Project + preselects its project. Workspace × targets the correct workspace.
-- [ ] Closing an inactive workspace preserves current selection; closing the last tab removes its workspace without creating a replacement tab. Closing the final tab closes the window.
-- [x] Enter confirms tab closure and Escape cancels with terminal focus retained. Cmd+T after final-tab closure opens one Home terminal without an empty intermediate page.
+- [x] Cmd+N selects the retained global landing draft; Cmd+T opens a browser target without launching a CLI. Direct shell access remains available.
+- [x] Open Terminal below the startup composer starts a shell and retains the agent draft and last agent preference.
+- [x] Project + selects its retained draft. Conversation contextual actions target the correct view.
+- [ ] Closing an inactive workspace preserves current selection. Closing the final primary view retains metadata and processes and selects landing. Cmd+W on landing closes the window.
+- [x] Stop is separate from view closure. Stop confirmation preserves ownership verification. Cancel retains the primary and its input.
+
+The following historical keyboard records predate the current landing contract. They do not verify the current Cmd+T or close/Stop behavior.
 
 Earlier targeted native check, 13 October 2026: final blank-tab and confirmed running-shell closure closed the window without a replacement tab. Cancel retained the shell and terminal focus. Closing a second tab retained the first shell and window. Cmd+N reopened a workspace after final-tab closure. The earlier installed local app also passed final blank-tab closure. Release build, 83 XCTest cases, 13 Swift Testing cases, and the repository checker passed. This record preceded the combined selection/closure installer. It does not establish the full acceptance suite.
 
@@ -45,14 +77,14 @@ The maintainer confirmed the physical keyboard checks on 13 October 2026. Cmd+T 
 
 - [ ] Tabs can be selected, renamed, closed, and explicitly split; active tabs stay visible in overflow.
 - [ ] Project clicks collapse/expand rows without creating workspaces or stopping processes; collapse survives restore. Project + and workspace search reveal the group.
-- [ ] Sidebar add and workspace/tab close actions reveal on hover and keyboard focus, keep fixed title alignment, and retain close confirmations.
-- [ ] Long workspace titles fade and reveal once; short titles remain still and Reduce Motion disables scrolling.
+- [x] Project add and conversation menus reveal on hover/focus with fixed title alignment. Tab close controls use a shared 24-point target.
+- [x] Long conversation titles truncate without animation and retain complete tooltips and accessibility names.
 - [ ] GitHub origin-owner avatars load without blocking UI; offline, invalid-image, and non-GitHub cases retain cached images or monograms.
-- [x] New workspace names are readable and unique. The first composer starting prompt names a workspace once, including after a shell launch. Manual names win; retries, additional prompts, and restart keep the title. Saved generic automatic labels upgrade without changing readable/manual names, paths, branches, drafts, or process identities. See [targeted naming verification](status.md#workspace-naming-verification).
+- [ ] New workspace names are readable and unique. The first composer starting prompt names a workspace once, including after a shell launch. Manual names win; retries, additional prompts, and restart keep the title. Saved generic automatic labels upgrade without changing readable/manual names, paths, branches, drafts, or process identities. See [targeted naming verification](status.md#workspace-naming-verification).
 - [ ] Project/workspace context menus support right-click and keyboard access.
-- [ ] Tab/workspace switching preserves drafts, processes, output, scroll, and file selection.
-- [ ] Root directory identity and start subdirectory remain distinct.
-- [ ] Duplicate Git checkout offers Switch and add tab; independent Home/non-Git workspaces remain possible.
+- [x] Tab/workspace switching preserves drafts, processes, output, scroll, and file selection.
+- [x] Root directory identity and start subdirectory remain distinct.
+- [x] Distinct conversations may share a checkout. Saved identity deduplication uses provider plus session ID.
 
 ## Git and preview checks
 
@@ -66,6 +98,8 @@ The maintainer confirmed the physical keyboard checks on 13 October 2026. Cmd+T 
 
 Targeted diff check, 15 October 2026: modified → untracked → modified preserved code and gutter widths in unified and split views. The Release fixture passed all 24 checks and 100 selection cycles. Preview p95 was 100.2 ms across 30 samples; syntax readiness p95 was 163.2 ms. Native visual checks covered M → A → M in dark appearance and narrow resizing in light appearance. These checks do not establish full v1 acceptance or installed delivery.
 
+Current file/diff verification passed all 24 assertions and 100 selection cycles. Selected-diff readiness measured 107.3 ms p95 across 30 observations; syntax readiness measured 172.5 ms p95. Preview, metadata, surface and watcher bounds passed. These checks preserve file/Changes context, terminal drafts, selected rows and focus during continuous edits. They do not complete the broader Git scenarios above.
+
 ## Failure and lifecycle checks
 
 Extended continuity remains blocked by an unsent-input preservation failure. The cause of the missing fixture panes is unresolved. See [current status](status.md).
@@ -76,12 +110,12 @@ Extended continuity remains blocked by an unsent-input preservation failure. The
 - [ ] Cancellation at each phase records retained artifacts and never removes unknown files.
 - [ ] Uncertain initial prompt delivery requires explicit recovery without automatic resend.
 - [ ] UI crash, window close, explicit background quit, sleep, owner failure, and reboot have distinct outcomes.
-- [ ] Reattach preserves a live process; resume is an explicit new process using provider history.
-- [ ] Closing active agents/jobs confirms termination; unknown job state does not silently lose work.
+- [x] Reattach preserves a live process; resume is an explicit new process using provider history.
+- [x] Closing views retains processes. Explicit terminal termination confirms ownership and explains that shared provider work may continue.
 - [ ] Workspace/project removal keeps files and branches.
 - [ ] Worktree deletion blocks active processes and unsafe dirty/unmerged/unpushed work; exact folder is confirmed.
 - [ ] Save failure preserves in-memory drafts and produces a visible warning.
-- [ ] Reload/startup restores compatible metadata without an extra blank workspace.
+- [x] Reload/startup restores compatible metadata without an extra blank workspace.
 
 ## Terminal and UI checks
 

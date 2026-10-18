@@ -5,6 +5,7 @@ final class FileWorkspaceLayout: NSView {
     let sidebar: NSView
     let preview: NSView
     let divider = FileDivider()
+    var supportingOnly = false
     var showSidebar = false
     var showPreview = false
     var maximized = false
@@ -27,6 +28,15 @@ final class FileWorkspaceLayout: NSView {
     required init?(coder: NSCoder) { fatalError() }
     override func layout() {
         super.layout()
+        if supportingOnly {
+            terminal.isHidden = true; divider.isHidden = true
+            sidebar.isHidden = !showSidebar; preview.isHidden = !showPreview
+            let side: CGFloat = showSidebar ? (showPreview ? min(SpookkyStyle.fileSidebarWidth, bounds.width * 0.38) : bounds.width) : 0
+            sidebar.frame = NSRect(x: 0, y: 0, width: side, height: bounds.height)
+            preview.frame = NSRect(x: side, y: 0, width: max(0, bounds.width - side), height: bounds.height)
+            onPreviewWidth?(preview.bounds.width)
+            return
+        }
         let narrow = (window?.frame.width ?? bounds.width) < 800
         let sidebarWidth: CGFloat = showSidebar && !narrow ? SpookkyStyle.fileSidebarWidth : 0
         let available = bounds.width - sidebarWidth
@@ -58,11 +68,13 @@ final class FileDivider: NSView {
     }
     override func draw(_ dirtyRect: NSRect) {
         let focused = window?.firstResponder === self && window?.isKeyWindow == true
-        (focused ? NSColor.keyboardFocusIndicatorColor : SpookkyPalette.border).setFill()
-        NSRect(x: focused ? 1 : 2, y: 0, width: focused ? 3 : 1, height: bounds.height).fill()
+        (focused ? SpookkyPalette.secondary : SpookkyPalette.border).setFill()
+        NSRect(x: 2, y: 0, width: 1, height: bounds.height).fill()
     }
 }
 final class FileTable: NSTableView {
+    override init(frame: NSRect = .zero) { super.init(frame: frame); SpookkyStyle.suppressFocusRing(self) }
+    required init?(coder: NSCoder) { super.init(coder: coder); SpookkyStyle.suppressFocusRing(self) }
     var onKey: ((NSEvent) -> Bool)?
     var copyText: (() -> String)?
     var onMenu: ((Int) -> NSMenu?)?
@@ -187,8 +199,5 @@ final class WorkspaceTableRow: NSTableRowView {
         guard isSelected else { return }
         let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 4, dy: 1), xRadius: 4, yRadius: 4)
         SpookkyPalette.selected.setFill(); path.fill()
-        if window?.isKeyWindow == true, window?.firstResponder === superview {
-            NSColor.keyboardFocusIndicatorColor.withAlphaComponent(0.7).setStroke(); path.lineWidth = 1; path.stroke()
-        }
     }
 }

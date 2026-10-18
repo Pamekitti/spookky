@@ -120,7 +120,10 @@ do {
     if folderProbe { FileHandle.standardError.write(Data("SPOOKKY_FOLDER_CHDIR_BEGIN\n".utf8)) }
     guard chdir(spec.directory) == 0 else { throw POSIXError(.init(rawValue: errno) ?? .ENOENT) }
     if folderProbe { FileHandle.standardError.write(Data("SPOOKKY_FOLDER_CHDIR_END\n".utf8)) }
-    for (key, value) in spec.environment { setenv(key, value, 1) }
+    let inherited = ProcessInfo.processInfo.environment
+    let terminalEnvironment = TerminalEnvironment.nativePTY(inherited: inherited, overrides: spec.environment)
+    for key in inherited.keys where terminalEnvironment[key] == nil { unsetenv(key) }
+    for (key, value) in terminalEnvironment where inherited[key] != value { setenv(key, value, 1) }
     let resultURL = URL(fileURLWithPath: request.resultPath)
     try PrivateFiles.write(ExecutionReceipt(operationID: spec.operationID, processID: getpid(), state: "executing"), to: resultURL)
     let arguments = ([spec.executable] + spec.arguments).map { strdup($0) }

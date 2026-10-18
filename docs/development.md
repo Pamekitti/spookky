@@ -47,6 +47,18 @@ python3 scripts/dev.py run
 python3 scripts/dev.py run --configuration Release
 ```
 
+## Prototype layout verification
+
+For the startup and primary/support layout reference, edit `prototype/spookky-workspace.html`, then regenerate before checking:
+
+```sh
+python3 scripts/render_prototype.py
+python3 scripts/check_repo.py
+python3 -m http.server 48766 --bind 127.0.0.1 --directory prototype
+```
+
+Inspect the main flow in the browser at desktop and narrow widths. Check the bottom composer and folder popover, aligned Split headers, joined Full tabs, primary selection with support tabs retained, and synthetic form retention. Do not execute terminal sample text. This simulated preview does not establish native focus, provider compatibility, process retention or performance. Repeat native acceptance against the changed development binary. Keep the installed app and existing sessions intact.
+
 ## State and ownership
 
 Open `Spookky.xcodeproj`, select the **Spookky** scheme, and run when using the debugger. Normal launch opens the workspace interface. `--terminal-harness` opens the diagnostic terminal harness. The launcher gives each checkout a distinct macOS bundle identity; Xcode's default identity remains the shared development identifier.
@@ -78,6 +90,14 @@ python3 scripts/check_agent_hooks.py --real
 ```
 
 The real check sends provider requests and can run existing user hooks. It asks for a plain OK response without tools or file changes. It proves launch, prompt, and completion callbacks for the installed versions. It does not prove interactive permission or question dialogs. See [agent activity](agent-activity.md) for configuration and runtime limits.
+
+## Session continuation checks
+
+```sh
+swift test --jobs 2 --filter ProviderContinuationTests
+```
+
+[Session continuation](session-continuation.md) describes the native instructions panel, provider ownership limits, and the exact-ID integration boundary. Exercise provider transfers only with disposable sessions. Do not use an active user conversation as a fixture.
 
 ## Public website and releases
 
@@ -124,13 +144,14 @@ python3 scripts/check_surface_races.py --output .cache/surface-races.json
 python3 scripts/check_terminal_selection.py --output .cache/terminal-selection.json
 python3 scripts/check_workspace_close.py --output .cache/workspace-close.json
 python3 scripts/check_sidebar.py --output .cache/sidebar.json
+python3 scripts/check_conversation_identity.py --output .cache/identity.json
 swift scripts/check_prototype.swift --output .cache/prototype-webkit.json
 python3 scripts/check_provider_continuity.py --output .cache/provider-interfaces.json
 ```
 
 The prototype check uses an offscreen WebKit renderer with temporary website storage. It checks navigation, drafts, icon geometry, and narrow layouts without opening a browser window. It records focus-dependent CSS checks as skipped when the offscreen page has no active OS keyboard window.
 
-Input replay uses native events, briefly selects already-enabled keyboard layouts, and restores the original selection. It needs at least two enabled layouts for its source-switch assertion. It does not establish human typing or IME composition. Provider-interface probes send no model prompts and do not prove provider responses.
+Input replay uses native events, briefly selects already-enabled keyboard layouts, and restores the original selection. It needs at least two enabled layouts for its source-switch assertion. It does not establish human typing or IME composition. Provider-interface probes send no model prompts and do not prove provider responses. The [local project history checks](session-history.md#verification) cover metadata discovery and exact-ID continuation without a model service.
 
 For hands-on input collection, omit `--replay`. The collector prints its private root and launches a disposable byte receiver. Create the printed root's `finish` file, or quit the owned fixture, to collect its report. Use test text only. With `--interactive-checks`, the harness provides clipboard fixtures and a Restore original clipboard action. Restore before finishing; a crash cannot guarantee clipboard restoration.
 
@@ -146,6 +167,9 @@ python3 scripts/terminal_input_fixture.py --output /tmp/spookky-input-check.json
 python3 scripts/benchmark_m0.py --mode timing --output .cache/terminal-timing.json
 python3 scripts/benchmark_render_m0.py --output .cache/rendered-input.json
 python3 scripts/benchmark_m1.py --mode timing --resize --output .cache/workspace-timing.json
+python3 scripts/benchmark_m1.py --conversations --mode resources --sessions 1 5 10 --output .cache/conversation-resources.json
+python3 scripts/benchmark_m1.py --conversations --mode timing --output .cache/conversation-timing.json
+python3 scripts/benchmark_m1.py --mode startup --output .cache/workspace-startup.json
 python3 scripts/benchmark_activity.py --foreground --seconds 30 --output .cache/activity-benchmarks.json
 python3 scripts/benchmark_m3.py --mode diff --output .cache/diff.json
 python3 scripts/benchmark_m3.py --mode resources --panel open --output .cache/resources-open.json
@@ -171,3 +195,16 @@ The activity measurement compares clean shells against simulated provider states
 | `Dependencies/` | Pinned vendored code, dependency provenance, and notices |
 
 Terminal bytes stay inside the terminal stack. File scanning, Git, persistence, and bounded diagnostic writes run away from the main UI thread. See [architecture](architecture.md).
+
+## Project association checks
+
+See [project and checkout association](project-association.md) for metadata-only integration bounds, installed-provider fixtures, and remaining desktop verification.
+
+## Conversation workspace foundation
+
+```sh
+swift test --jobs 2 --filter ConversationWorkspaceTests
+python3 scripts/check_workspace_close.py --binary DerivedData/Build/Products/Debug/Spookky.app/Contents/MacOS/Spookky --output .cache/workspace-close.json
+```
+
+The close fixture uses disposable metadata and a private runtime socket. It checks the browser-target shortcut seam, real shell input, retained closure and reattachment. Browser rendering is outside this fixture. Acquire the shared GUI verification lock before running it when coordinating several worktrees. Development builds now bound Xcode and Swift compiler jobs to two.

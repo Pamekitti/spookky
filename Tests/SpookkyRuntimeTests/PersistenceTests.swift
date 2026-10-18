@@ -78,6 +78,6 @@ extension PersistenceTests {
         view.expanded = ["src"]; view.scroll = 42; view.fraction = 0.6; view.splitDiff = true
         state.setFileView(view, workspaceID: id); try await database.save(state)
         let restored = try await database.load(); XCTAssertEqual(restored?.selected?.fileView, view)
-        XCTAssertEqual(restored?.version, 5)
+        XCTAssertEqual(restored?.version, 7)
     }
 }

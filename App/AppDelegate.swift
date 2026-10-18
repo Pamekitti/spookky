@@ -29,13 +29,13 @@ private struct HarnessSession {
     private var root: URL!
     private var sessions: [HarnessSession] = []
     private var selectedID: UUID?
-    private let tool = NSPopUpButton()
-    private let mode = NSPopUpButton()
-    private let retention = NSButton(checkboxWithTitle: "Release hidden views", target: nil, action: nil)
-    private let directory = NSTextField(string: FileManager.default.homeDirectoryForCurrentUser.path)
-    private let prompt = NSTextField(string: "")
+    private let tool = ChromePopUpButton()
+    private let mode = ChromePopUpButton()
+    private let retention = ChromeButton(checkboxWithTitle: "Release hidden views", target: nil, action: nil)
+    private let directory = ChromeTextField(string: FileManager.default.homeDirectoryForCurrentUser.path)
+    private let prompt = ChromeTextField(string: "")
     private let status = NSTextField(labelWithString: "Native terminal feasibility harness")
-    private let selector = NSPopUpButton()
+    private let selector = ChromePopUpButton()
     private let terminalContainer = NSView()
     private var busy = false
     private var savedClipboard: [[NSPasteboard.PasteboardType: Data]]?
@@ -97,7 +97,7 @@ private struct HarnessSession {
                             fputs(error.localizedDescription + "\n", stderr)
                             _exit(1)
                         }
-                        let alert = NSAlert()
+                        let alert = ChromeAlert()
                         alert.messageText = "Spookky could not restore workspaces"
                         alert.informativeText = error.localizedDescription + "\nYour database and running sessions were preserved.\nDatabase folder: " + metadata
                         alert.addButton(withTitle: "Quit")
@@ -168,7 +168,7 @@ private struct HarnessSession {
         directory.setAccessibilityLabel("Working directory")
         prompt.placeholderString = "Optional agent prompt"
         prompt.setAccessibilityLabel("Optional agent prompt")
-        let launch = NSButton(title: "Open session", target: self, action: #selector(openSession))
+        let launch = ChromeButton(title: "Open session", target: self, action: #selector(openSession))
         launch.keyEquivalent = "\r"
         launch.keyEquivalentModifierMask = .command
         let controls = NSStackView(views: [tool, mode, launch, retention])
@@ -176,10 +176,10 @@ private struct HarnessSession {
         let locationRow = NSStackView(views: [NSTextField(labelWithString: "Folder"), directory])
         locationRow.spacing = 10
         let sessionRow = NSStackView(views: [selector,
-                                            NSButton(title: "Detach view", target: self, action: #selector(detach)),
-                                            NSButton(title: "Reattach", target: self, action: #selector(reattach)),
-                                            NSButton(title: "End session", target: self, action: #selector(endSession)),
-                                            NSButton(title: "Inspect", target: self, action: #selector(inspectSession))])
+                                            ChromeButton(title: "Detach view", target: self, action: #selector(detach)),
+                                            ChromeButton(title: "Reattach", target: self, action: #selector(reattach)),
+                                            ChromeButton(title: "End session", target: self, action: #selector(endSession)),
+                                            ChromeButton(title: "Inspect", target: self, action: #selector(inspectSession))])
         sessionRow.spacing = 8
         status.textColor = .secondaryLabelColor
         status.font = .systemFont(ofSize: 11)
@@ -691,7 +691,7 @@ private struct HarnessSession {
     }
     @objc private func endSession() {
         guard !busy, let index = sessions.firstIndex(where: { $0.id == selectedID }) else { return }
-        let alert = NSAlert()
+        let alert = ChromeAlert()
         alert.messageText = "End this session?"
         alert.informativeText = "Its terminal process will stop. Provider history and files remain."
         alert.addButton(withTitle: "End session")
@@ -716,7 +716,7 @@ private struct HarnessSession {
             return .terminateCancel
         }
         guard !sessions.isEmpty else { return .terminateNow }
-        let alert = NSAlert()
+        let alert = ChromeAlert()
         alert.messageText = "Quit Spookky?"
         alert.informativeText = "Persistent sessions can continue in the background. Direct sessions end when the app exits."
         alert.addButton(withTitle: "Continue in background")
@@ -815,7 +815,7 @@ private struct HarnessSession {
     }
     private func show(_ error: Error) {
         status.stringValue = error.localizedDescription
-        let alert = NSAlert()
+        let alert = ChromeAlert()
         alert.messageText = "Spookky"
         alert.informativeText = error.localizedDescription
         alert.runModal()

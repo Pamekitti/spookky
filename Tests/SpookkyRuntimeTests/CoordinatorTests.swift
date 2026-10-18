@@ -6,6 +6,13 @@ import SpookkyRuntime
 private actor FixtureRuntime: SessionRuntime {
     var creates = 0
     var bindings: [SessionBinding] = []
+    private var specs: [LaunchSpec] = []
+    private var createObserver: CheckedContinuation<Void, Never>?
+    func launchedSpecs() -> [LaunchSpec] { specs }
+    func waitForCreate() async {
+        if creates > 0 { return }
+        await withCheckedContinuation { createObserver = $0 }
+    }
     enum Mode {
         case normal, missingExecutable, uncertainLaunch, unavailable, partialShutdown, ended, missingFolder
     }
@@ -13,7 +20,8 @@ private actor FixtureRuntime: SessionRuntime {
     func configure(_ value: Mode) { mode = value }
     func count() -> Int { creates }
     func create(_ spec: LaunchSpec) async throws -> SessionBinding {
-        creates += 1
+        creates += 1; specs.append(spec)
+        createObserver?.resume(); createObserver = nil
         try await Task.sleep(for: .milliseconds(30))
         if mode == .missingExecutable { throw LaunchError.invalid("Missing executable") }
         if mode == .missingFolder { throw LaunchError.folderUnavailable(spec.directory) }
@@ -37,6 +45,31 @@ private actor FixtureRuntime: SessionRuntime {
 private struct FixtureResolver: ExecutableResolver {
     func resolve(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec {
         try LaunchSpec(tool: tool, executable: "/bin/cat", directory: directory, initialPrompt: tool == .shell ? nil : prompt)
+    }
+}
+private actor GatedLaunchResolver: ExecutableResolver {
+    private var waiting: CheckedContinuation<LaunchSpec, Never>?
+    private var observer: CheckedContinuation<Void, Never>?
+    private var pending: LaunchSpec?
+    private var calls = 0
+    func count() -> Int { calls }
+    func resolve(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec {
+        calls += 1
+        pending = try LaunchSpec(tool: tool, executable: "/bin/cat", directory: directory, initialPrompt: tool == .shell ? nil : prompt)
+        return await withCheckedContinuation { waiting = $0; observer?.resume(); observer = nil }
+    }
+    func entered() async {
+        if waiting != nil { return }
+        await withCheckedContinuation { observer = $0 }
+    }
+    func release() {
+        guard let pending else { return }
+        waiting?.resume(returning: pending); waiting = nil
+    }
+}
+private struct UnexpectedLaunchResolver: ExecutableResolver {
+    func resolve(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec {
+        throw LaunchError.invalid("A prepared continuation must not resolve its provider again.")
     }
 }
 private actor FailedPersistence: WorkspacePersistence {
@@ -284,4 +317,106 @@ private actor FailedPersistence: WorkspacePersistence {
         XCTAssertEqual(store.state.tab(id)?.status, .ended)
         let count = await runtime.count(); XCTAssertEqual(count, 1)
     }
+    func testPreparedContinuationPreservesExactNativeResumeAndAttachArguments() async throws {
+        let session = "11111111-1111-4111-8111-111111111111", directory = "/tmp/original checkout/subdir"
+        for (provider, arguments) in [(SessionTool.codex, ["resume", session, "-C", directory]),
+                                      (.codex, ["resume", session]), (.claude, ["--resume", session]),
+                                      (.claude, ["attach", "background-42"])] {
+            let store = WorkspaceStore(), runtime = FixtureRuntime()
+            store.update { $0.newWorkspace(directory: "/tmp/original checkout") }
+            let id = try XCTUnwrap(store.state.selectedTab?.id)
+            let item = ConversationMetadata(id: ConversationID(provider: provider, sessionID: session), title: nil,
+                                            directory: directory, updatedAt: Date())
+            let prepared = try LaunchSpec(tool: provider, executable: "/tmp/native-provider", arguments: arguments,
+                                          directory: directory, environment: ["PATH": "/tmp/provider-bin"])
+            let coordinator = LaunchCoordinator(store: store, runtime: runtime, resolver: UnexpectedLaunchResolver())
+            await coordinator.resume(id, conversation: item, prepared: prepared)
+            let specs = await runtime.launchedSpecs()
+            XCTAssertEqual(specs, [prepared])
+            XCTAssertEqual(store.state.tab(id)?.promptDelivery, PromptDelivery.none)
+            XCTAssertEqual(store.state.selected?.directory, "/tmp/original checkout")
+            await coordinator.resume(id, conversation: item, prepared: prepared)
+            let count = await runtime.count(); XCTAssertEqual(count, 1)
+        }
+    }
+    func testPreparedContinuationRejectsOtherIDsFoldersPromptsAndPermissionOverrides() async throws {
+        let session = "11111111-1111-4111-8111-111111111111"
+        let badSpecs: [LaunchSpec] = [
+            try LaunchSpec(tool: .claude, executable: "/bin/cat", arguments: ["--resume", session], directory: "/tmp"),
+            try LaunchSpec(tool: .codex, executable: "/bin/cat", arguments: ["resume", session], directory: "/elsewhere"),
+            try LaunchSpec(tool: .codex, executable: "/bin/cat", arguments: ["resume", "22222222-2222-4222-8222-222222222222"], directory: "/tmp"),
+            try LaunchSpec(tool: .codex, executable: "/bin/cat", arguments: ["resume", session, "new prompt"], directory: "/tmp"),
+            try LaunchSpec(tool: .codex, executable: "/bin/cat", arguments: ["resume", session, "--dangerously-bypass-approvals-and-sandbox"], directory: "/tmp")
+        ]
+        for prepared in badSpecs {
+            let store = WorkspaceStore(), runtime = FixtureRuntime()
+            store.update { $0.newWorkspace(directory: "/tmp") }
+            let id = try XCTUnwrap(store.state.selectedTab?.id)
+            let item = ConversationMetadata(id: ConversationID(provider: .codex, sessionID: session), title: nil, directory: "/tmp", updatedAt: Date())
+            await LaunchCoordinator(store: store, runtime: runtime, resolver: UnexpectedLaunchResolver()).resume(id, conversation: item, prepared: prepared)
+            let count = await runtime.count(); XCTAssertEqual(count, 0)
+            XCTAssertEqual(store.state.tab(id)?.status, .failed)
+            XCTAssertNil(store.state.tab(id)?.launch)
+        }
+    }
+    func testConcurrentResumeReservesOnePreflightAndCreatesOneProcess() async throws {
+        let store = WorkspaceStore(), runtime = FixtureRuntime(), resolver = GatedLaunchResolver()
+        store.update { $0.newWorkspace(directory: "/tmp") }
+        let id = try XCTUnwrap(store.state.selectedTab?.id)
+        let item = ConversationMetadata(id: ConversationID(provider: .codex, sessionID: "11111111-1111-4111-8111-111111111111"),
+                                        title: nil, directory: "/tmp", updatedAt: Date())
+        let coordinator = LaunchCoordinator(store: store, runtime: runtime, resolver: resolver)
+        let first = Task { await coordinator.resume(id, conversation: item) }
+        await resolver.entered()
+        XCTAssertTrue(coordinator.isBusy(id))
+        await coordinator.resume(id, conversation: item)
+        await resolver.release(); await first.value
+        let resolutions = await resolver.count(), creates = await runtime.count()
+        XCTAssertEqual(resolutions, 1); XCTAssertEqual(creates, 1)
+    }
+    func testCancelledLandingPreflightKeepsItsDraftAndDoesNotPromoteOrLaunch() async throws {
+        let store = WorkspaceStore(), runtime = FixtureRuntime(), resolver = GatedLaunchResolver()
+        store.update { $0.showLanding(homeDirectory: "/tmp"); $0.editDraft($0.primaryTerminalID!, tool: .codex, prompt: "Keep this landing draft") }
+        let id = try XCTUnwrap(store.state.primaryTerminalID), before = store.state
+        let coordinator = LaunchCoordinator(store: store, runtime: runtime, resolver: resolver)
+        let operation = Task { await coordinator.launch(id) }
+        await resolver.entered()
+        XCTAssertTrue(store.state.selected?.isLanding == true)
+        operation.cancel(); await resolver.release(); await operation.value
+        XCTAssertEqual(store.state, before)
+        let count = await runtime.count(); XCTAssertEqual(count, 0)
+    }
+    func testLandingAgentPromotesAtIntentAndCancellationAfterCreateStillRecordsReceipt() async throws {
+        let store = WorkspaceStore(), runtime = FixtureRuntime()
+        store.update { $0.showLanding(homeDirectory: "/tmp"); $0.editDraft($0.primaryTerminalID!, tool: .claude, prompt: "Retain this instruction") }
+        let id = try XCTUnwrap(store.state.primaryTerminalID), workspaceID = try XCTUnwrap(store.state.selectedWorkspaceID)
+        let coordinator = LaunchCoordinator(store: store, runtime: runtime, resolver: FixtureResolver())
+        let operation = Task { await coordinator.launch(id) }
+        await runtime.waitForCreate()
+        XCTAssertFalse(store.state.selected?.isLanding == true)
+        XCTAssertNotNil(store.state.tab(id)?.launch)
+        operation.cancel(); await operation.value
+        XCTAssertEqual(store.state.tab(id)?.status, .running)
+        XCTAssertNotNil(store.state.tab(id)?.binding)
+        XCTAssertEqual(store.state.tab(id)?.promptDelivery, .suppliedToProcess)
+        XCTAssertEqual(store.state.tab(id)?.draft.prompt, "Retain this instruction")
+        await coordinator.launch(id)
+        let count = await runtime.count(); XCTAssertEqual(count, 1)
+        store.update { $0.showLanding(homeDirectory: "/tmp") }
+        XCTAssertNotEqual(store.state.selectedWorkspaceID, workspaceID)
+        XCTAssertEqual(store.state.selectedTab?.draft.prompt, "")
+    }
+    func testSupportingShellKeepsLandingAgentDraftUnpromoted() async throws {
+        let store = WorkspaceStore(), runtime = FixtureRuntime()
+        store.update { $0.showLanding(homeDirectory: "/tmp"); $0.editDraft($0.primaryTerminalID!, tool: .codex, prompt: "Agent draft") }
+        let primary = try XCTUnwrap(store.state.primaryTerminalID)
+        store.update { $0.newTab() }
+        let shell = try XCTUnwrap(store.state.selectedTab?.id)
+        await LaunchCoordinator(store: store, runtime: runtime, resolver: FixtureResolver()).launch(shell, tool: .shell)
+        XCTAssertTrue(store.state.selected?.isLanding == true)
+        XCTAssertEqual(store.state.tab(primary)?.draft.prompt, "Agent draft")
+        XCTAssertNil(store.state.tab(primary)?.launch)
+        XCTAssertEqual(store.state.tab(shell)?.status, .running)
+    }
+
 }

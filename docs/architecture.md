@@ -1,6 +1,6 @@
 # Native architecture
 
-Status: implemented development stack, with compatibility and release gates pending. Product behavior is settled in [product](product.md) and [flows](flows.md). [current status](status.md) record the pinned terminal build and current evidence. Production persistence, supported OS versions, and runtime adoption remain gated.
+Status: implemented development stack, with compatibility and release gates pending. Product behavior is settled in [product](product.md) and [flows](flows.md). [Current status](status.md) records the pinned terminal build and current evidence. Production persistence, supported OS versions, and runtime adoption remain gated.
 
 Projects, worktrees, and starting prompts remain optional. Delivery operations stay in the CLI or external tools.
 
@@ -50,7 +50,9 @@ The launch coordinator, Git services, and persistence are app modules. A separat
 | --- | --- |
 | Project | Stable ID, name, registered directory ID, preferred source reference, last-used time |
 | Directory/Checkout | Stable ID, canonical path, selected path, Git common-dir identity, worktree identity, current branch, kind, ownership, availability |
-| Workspace | Stable ID, nullable anchor ID, name, active tab ID, view state |
+| Workspace | Stable ID, nullable anchor ID, conversation ID, primary terminal ID, alias, landing context, supporting panel and closed-view state |
+| ConversationCatalogRecord | Provider/session key, metadata, project association, local alias and optional retained workspace/terminal IDs |
+| SupportingTab | Stable ID, content target, title, optional file/comparison view state |
 | LaunchDraft | Workspace/tab ID, selected project/location/mode/ref, branch mode/name, tool, optional prompt |
 | TerminalTab | Stable ID, workspace ID, tool, title, launch ID, process-binding ID, last observed cwd, optional provider-session ID, status |
 | ProcessBinding | Owner identity, session/window/pane IDs, creation token, process identity, attachment state |
@@ -61,6 +63,8 @@ The launch coordinator, Git services, and persistence are app modules. A separat
 Model plain folders, unborn repositories, regular checkouts, existing worktrees, and remote refs explicitly. A remote ref is a source for a checkout, never itself a workspace directory.
 
 Use stable IDs for relationships. Names, array indices, PIDs, and paths alone are insufficient identity. Store directory identity so a symlink alias or repo subdirectory does not accidentally create a second isolated-looking workspace for the same checkout.
+
+Metadata version 7 separates paged provider history from open workspace records. Its earlier version 6 layer separates conversation ownership from supporting content. File tabs retain their own selected path and comparison context. Selecting a tab updates the existing native file controller's data without changing checkout scope or terminal ownership. Older descriptors without this optional context use the workspace's retained file state. Migration backs up the database and preserves terminal bindings and drafts. See [conversation workspaces](conversation-workspaces.md).
 
 Metadata version 5 adds optional automatic-title provenance (friendly, prompt, or legacy) beside the manual-title flag. New workspace names use a fixed local word collection. A bounded scan of the composer prompt derives a title during the accepted launch-intent transition, without a model request or terminal inspection. Binding a folder does not overwrite the title. The first prompt title freezes automatic naming; manual names take precedence.
 
@@ -83,7 +87,7 @@ Failure at any step -> retain draft + completed receipts -> retry failed step
 ```
 
 1. Capture an immutable launch request with an operation ID. Persist intent before external side effects.
-2. Resolve canonical checkout identity. If already open, obtain the user's Switch and add tab choice before launching there.
+2. Resolve canonical checkout scope. Conversation workspace identity remains separate. Several conversations may share this scope.
 3. For a new worktree, reserve path/name and resolve the source to a commit. Serialize app-owned Git writes by common repository.
 4. After each step, record observed results. A canceled fetch differs from a completed checkout followed by a launch failure.
 5. Start the exact executable with arguments as data, in the chosen directory. Provider login remains in its terminal.
@@ -106,7 +110,7 @@ Use an app-specific socket/configuration and a user-only runtime directory. Neve
 | Spookky metadata | Projects, workspaces, launch drafts, bindings, UI layout, operation receipts |
 | Git and filesystem | Actual files, refs, index, checkouts |
 
-Closing a window or releasing a hidden view must not implicitly terminate the inner process. Explicit tab/workspace close follows [the confirmation rules](flows.md). Reboot or session-owner failure ends live execution. Restore metadata and offer explicit restart/resume.
+Closing a window or releasing a hidden view must not implicitly terminate the inner process. Supporting-tab and workspace-view closure retain terminal backing records. Stop is a separate ownership-checked operation. Reboot or session-owner failure ends live execution. Restore metadata and offer explicit restart/resume.
 
 Do not silently terminate hidden agents to meet memory targets. Release rendering surfaces and derived caches instead. A reconnect never replays the starting command or prompt.
 
@@ -131,11 +135,13 @@ Native CLI resume, supported cloud handoff, and remote control can be used insid
 
 Do not mutate global agent configuration or overwrite user hooks. Activity hooks use per-invocation configuration and preserve existing hooks. Codex monitoring preserves the provider hook trust checks. Model approval and sandbox settings remain provider-owned. Unsupported activity detection shows unknown state. Standard CLI permissions remain usable with app hints disabled. See [agent activity](agent-activity.md).
 
+Native terminal launches clear inherited captured-output color flags and advertise true color. A missing or dumb terminal type becomes `tmux-256color` inside the private runtime and `xterm-ghostty` for a direct surface. Explicit launch environment values take precedence. This applies when launching or resuming a process, including launches into a surviving private server. Existing processes retain their original environment. Provider configuration and shell startup files remain unchanged.
+
 ## Persistence and recovery
 
 M1 implements these boundaries in SpookkyCore, SpookkyWorkspace, SpookkyPersistence, and the AppKit presentation layer. Its v1 SQLite schema stores a validated metadata snapshot per transaction through pinned GRDB. WorkspaceStore shares one in-flight write across concurrent flush callers, then saves newer revisions in order. Launch intent is durable before SessionRuntime.create is called.
 
-The AppKit surface manager retains at most two visible terminals plus one warm hidden terminal. Stable selection generations reject late attachments. Terminal sizing is updated on native frame/backing-scale changes, with unchanged geometry skipped. Owner-backed scroll metadata and normal window geometry support restoration without storing transcripts. See [current status](status.md) for evidence and unresolved checks.
+The AppKit surface manager retains at most three terminal surfaces: two visible plus one warm hidden, or up to two hidden when a full-width tool covers both terminal panes. Hidden panes keep their last geometry until shown. Stable selection generations reject late attachments. Terminal sizing is updated on native frame/backing-scale changes, with unchanged geometry skipped. Owner-backed scroll metadata and normal window geometry support restoration without storing transcripts. See [current status](status.md) for evidence and unresolved checks.
 
 Use schema-versioned SQLite transactions, one serial writer, and a documented migration path. Back up metadata before destructive schema migration. A write failure produces a visible unsaved-state warning while retaining current drafts in memory.
 
@@ -172,3 +178,21 @@ SpookkyFiles provides directory enumeration and bounded previews. SpookkyGit pro
 AgentActivityResolver wraps executable resolution without changing LaunchCoordinator's process ownership. Private PATH wrappers also support manually entered CLI commands. Interactive zsh uses private startup delegates so user configuration can complete before the wrapper path is restored. AgentIntegration provides bounded capability detection and invocation configuration. The launch helper forwards bounded normalized hook events through AgentActivityReceiver's private datagram socket.
 
 The receiver validates the binding, invocation, provider, and secret against private active registration. WorkspaceState applies events separately from terminal lifecycle and preserves completion acknowledgments. SQLite version 4 migrates the optional per-tab activity record with a pre-migration backup. AppKit renders the existing status slots and UserNotifications handles alerts. No terminal bytes enter this model. See [agent activity](agent-activity.md) for limits and recovery semantics.
+
+## Session metadata and paged history, version 7
+
+`ConversationCatalogRecord` stores requested provider metadata in a separate SQLite table keyed by provider plus session ID. Catalog rows contain no terminal, agent or transcript. Indexed page queries retrieve recent entries without decoding every workspace. Opening a row creates or restores its workspace by stable identity.
+
+`HistoryQuery` carries project/folder filters, search text, a limit and a provider continuation cursor. `HistoryPage` returns metadata, another cursor and partial-result notices. `SessionCatalog` merges provider pages off the UI thread. `ConversationHistoryCatalog` resolves only the requested folders and persists those records. Filesystem observation requests debounced refreshes; activation and manual refresh recover missed events. See [history limits](session-history.md).
+
+`landingContext` distinguishes one global draft and one per project. Landing drafts stay outside ordinary session rows. Starting an agent promotes the selected draft at launch intent. Supporting shells retain it. Closing the final session view selects landing; Cmd+W on landing closes the window. `lastViewedAt` selects among already-open views without resuming saved history.
+
+Workspaces retain primary terminal UUIDs, optional conversation IDs, anchors, drafts, aliases and supporting state. Supporting targets identify Changes, individual files, browsers, artifacts or shell backing records. Full view selection remains distinct from the last selected support. The shared 40-point header reparents retained views when layout changes and never launches a process.
+
+Version 7 migration extracts imported history placeholders into the catalog and preserves user-created records, bindings, launch receipts, drafts, aliases and supporting views. The database backup precedes migration. Catalog insertion and workspace conversion commit together. Earlier version 6 migration still splits legacy multi-agent workspaces while preserving terminal identity and location-operation ownership. No migration invokes the runtime.
+
+`WorkspaceState.lastAgentTool` remains separate from shell preferences. Provider titles update stable identities while explicit local aliases take precedence. A provider-native identity change can move a live terminal to another conversation without losing the previous entry. Ambiguous ownership retains every terminal.
+
+`ConversationExecutionCheck.prepare` returns a capability-based ownership assessment and exact native launch specification. LaunchCoordinator preserves and validates that specification. One operation owns each terminal through preflight and creation. Cancellation before durable intent restores the draft. After creation begins, receipt recording completes independently of view-task cancellation. Resume supplies no initial prompt or permission override.
+
+`SupportingContentHost` caches views by supporting-tab ID, including hidden retained sessions. Changes owns its list and diff context. Plain file tabs show independent content without enumerating a file tree. Browser and artifact forms survive live switching, but unsent web input is not persisted across renderer or app restart.

@@ -17,6 +17,53 @@ import SpookkyRuntime
         }
     }
 
+    @Test func realTerminalDoesNotInheritCapturedOutputColorFlags() {
+        let inherited = ["NO_COLOR": "1", "TERM": "dumb", "COLORTERM": "", "FORCE_COLOR": "0", "PATH": "/bin"]
+        let values = TerminalEnvironment.nativePTY(inherited: inherited, overrides: [:])
+        #expect(values["NO_COLOR"] == nil && values["FORCE_COLOR"] == nil)
+        #expect(values["TERM"] == "xterm-ghostty" && values["COLORTERM"] == "truecolor")
+        #expect(values["PATH"] == "/bin")
+    }
+
+    @Test func terminalCapabilitiesAndExplicitColorChoicesArePreserved() {
+        let values = TerminalEnvironment.nativePTY(inherited: ["TMUX": "/owned/socket,1,0", "TERM": "tmux-256color"],
+            overrides: ["NO_COLOR": "1", "COLORTERM": "custom", "PATH": "/explicit/bin"])
+        #expect(values["TERM"] == "tmux-256color" && values["NO_COLOR"] == "1")
+        #expect(values["COLORTERM"] == "custom" && values["PATH"] == "/explicit/bin")
+    }
+
+    @Test func newLaunchCorrectsColorEnvironmentFromSurvivingServer() async throws {
+        let (runtime, root) = try fixture()
+        let socket = await runtime.socket
+        defer {
+            _ = try? ProcessRunner.run(PackagedRuntime.tmux(), ["-S", socket, "kill-server"])
+            try? FileManager.default.removeItem(at: root)
+        }
+        let survivor = try await runtime.create(LaunchSpec(tool: .shell, executable: "/bin/cat", directory: root.path))
+        let original = try #require(await runtime.inspect(survivor))
+        for (key, value) in ["NO_COLOR": "1", "COLORTERM": "", "TERM": "dumb"] {
+            let result = try ProcessRunner.run(PackagedRuntime.tmux(), ["-S", socket, "set-environment", "-g", key, value])
+            #expect(result.status == 0)
+        }
+        let script = "import json,os,sys; values={k:os.environ.get(k) for k in ['TERM','COLORTERM','NO_COLOR']}; values['tty']=os.isatty(1); json.dump(values,open(sys.argv[1],'w'))"
+        for explicit in [false, true] {
+            let output = root.appendingPathComponent(explicit ? "explicit-color.json" : "native-color.json")
+            _ = try await runtime.create(LaunchSpec(tool: .shell, executable: "/usr/bin/python3", arguments: ["-c", script, output.path],
+                directory: root.path, environment: explicit ? ["NO_COLOR": "1"] : [:]))
+            var values: [String: Any]?
+            for _ in 0..<100 {
+                if let data = try? Data(contentsOf: output), let result = try? JSONSerialization.jsonObject(with: data) as? [String: Any] { values = result; break }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            let result = try #require(values)
+            #expect(result["tty"] as? Bool == true && result["TERM"] as? String == "tmux-256color")
+            #expect(result["COLORTERM"] as? String == "truecolor")
+            if explicit { #expect(result["NO_COLOR"] as? String == "1") }
+            else { #expect(result["NO_COLOR"] is NSNull) }
+        }
+        #expect(try await runtime.inspect(survivor)?.processID == original.processID)
+    }
+
     @Test func mouseRoutingPreservesApplicationInputAndNativeHistorySelection() async throws {
         let (runtime, root) = try fixture()
         let socket = await runtime.socket

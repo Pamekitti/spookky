@@ -20,6 +20,7 @@ import SpookkyRuntime
     func isResizing(_ id: UUID) -> Bool { resizing[id] != nil }
     var onExit: ((UUID) -> Void)?
     var onFocus: ((UUID) -> Void)?
+    var onOpenURL: ((UUID, URL) -> Bool)?
     var onViewport: ((UUID, SessionViewport?) -> Void)?
     var onViewportFailure: ((UUID, Error) -> Void)?
 
@@ -59,8 +60,9 @@ import SpookkyRuntime
         generation += 1
         let current = generation
         let visible = Set(tabs.map(\.id))
-        let hidden = recent.reversed().first { !visible.contains($0) && views[$0] != nil }
-        for id in Array(views.keys) where !visible.contains(id) && id != hidden {
+        // Full-width tools can hide both panes of the current terminal split.
+        let hidden = Set(recent.reversed().filter { !visible.contains($0) && views[$0] != nil }.prefix(max(1, 2 - visible.count)))
+        for id in Array(views.keys) where !visible.contains(id) && !hidden.contains(id) {
             await captureViewport(id)
             guard current == generation else { return nil }
             release(id)
@@ -77,6 +79,7 @@ import SpookkyRuntime
             let tabID = tab.id
             view.onExit = { [weak self] _ in self?.onExit?(tabID) }
             view.onFocus = { [weak self] in self?.onFocus?(tabID) }
+            view.onOpenURL = { [weak self] url in self?.onOpenURL?(tabID, url) ?? false }
             if let mouseOwner = runtime as? any SessionMouseRuntime {
                 view.applicationCapturesMouse = { try await mouseOwner.applicationCapturesMouse(binding) }
             }

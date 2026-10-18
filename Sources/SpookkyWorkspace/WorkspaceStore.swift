@@ -11,6 +11,7 @@ public protocol WorkspacePersistence: Sendable {
     public private(set) var saveError: String?
     public var onChange: (() -> Void)?
     private let persistence: (any WorkspacePersistence)?
+    public var historyPersistence: (any HistoryCatalogPersistence)? { persistence as? any HistoryCatalogPersistence }
     private var saveTask: Task<Void, Never>?
     private var revision = 0
     private var savedRevision = 0

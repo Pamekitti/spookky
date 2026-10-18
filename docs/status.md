@@ -2,6 +2,58 @@
 
 Spookky is an early native macOS development preview. The terminal, workspace, project/worktree, file/diff, and metadata layers are implemented. Daily-use and distribution acceptance remain incomplete.
 
+## Session workflow revision, 18 October 2026
+
+Metadata version 7 separates requested provider history from open workspaces. The sidebar uses five recent entries per project, ten-entry expansion, paged search and one-line virtualized rows. Global and project landing drafts retain their own provider, folder and prompt. Closing the final session view returns to the composer. Shared bounded tabs join in Full view and align to the divider in Split view. Changes and individual file tabs have separate responsibilities.
+
+Continuation now detects installed capabilities rather than exact or minimum CLI versions. Known owned terminals reattach. Codex uses native exact-ID resume. Claude blocks a reported interactive owner, attaches a supported live background owner, and permits ordinary resume when reporting is absent. This fallback does not establish exclusive cross-app ownership. Errors belong to the selected conversation.
+
+The full Swift run passed 281 cases, with three opt-in cases skipped: 261 of 264 XCTest cases passed, and all 20 Swift Testing cases passed. All 30 Python tests passed. The repository checker passed 20 required files, 157 local links, JavaScript syntax and prototype synchronization. Targeted persistence checks also cover global/project drafts across database restart, migration, alias updates, project removal and preservation of provider metadata.
+
+The native workflow batch passed 199 assertions: 42 sidebar, 34 lazy history, 86 identity/layout/startup, 27 close/reopen and 10 project-grouping checks. They cover five-entry project pages, repeated ten-entry expansion, older search results, zero agent launches during discovery, bounded native rows, stationary-pointer scroll reconciliation, row action visibility after activation, keyboard access, cancellation before launch, retained drafts/processes and Split/Full tab geometry in both appearances.
+
+Project clicks toggle expansion without selecting the header or leaving keyboard-focus styling behind. Only the active conversation carries selection. Native controls, tabs, forms and file tables suppress focus outlines. Keyboard navigation keeps neutral feedback inside the existing target. Composer borders and divider widths stay constant through focus changes. Native checks cover project mouse clicks, keyboard recovery, unchanged button geometry and settings controls.
+
+Collapse resets only that project to five recent entries and cancels pending expansion results. Plain table geometry keeps project icons at 16 points with one further 16-point indent for conversations. Both sidebar containers reject horizontal scrolling and bounce. Native red/green pixel checks and six isolated installed-Claude checks verified color-capable terminal launches, exact saved resume and no extra model turn. Existing CLI processes keep their inherited environment until a later native launch or resume.
+
+Browser/artifact verification passed another 36 checks and three cold-restore checks. The file/diff fixture passed 24 checks and 100 selection cycles. Across 30 observations, selected-diff readiness measured 107.3 ms p95 and syntax readiness measured 172.5 ms p95. The fixture retained its preview, metadata, surface and watcher bounds. These measurements exclude physical display latency. See [performance](performance.md) for workload and resource boundaries.
+
+The before/after comparison measured empty readiness p95 at 514.4 ms versus 365.1 ms. Warm selection p95 was 18.9 ms versus 20.7 ms; recreated selection was 51.9 ms versus 51.2 ms. Both crash/restore checks preserved processes and viewport. Memory results were mixed, with lower RSS and higher physical footprint in short occluded observations. See [performance](performance.md) for surface counts and measurement limits.
+
+Installed offline fixtures passed nine Codex CLI 0.163.0 checks and seven Claude Code 2.1.302 checks. Codex's first same-server resume succeeded after persisted/indexed readiness, with zero resume retries. Claude resumed provider-created saved history in a foreground TUI and attached its exact background registry ID. Resume and attach sent no extra model turn. The fixture response used an owned loopback stub, with no external model service or user-session changes.
+
+These results cover automated native development fixtures. Installed delivery requires its own app-identity and preserved-data readback. Native pointer and keyboard events do not establish physical typing or IME behavior. Desktop return, remote pairing, spoken VoiceOver and extended sleep/reboot continuity remain unverified. OpenCode remains deferred. Earlier results below describe preceding revisions.
+
+## Layout and startup refinement, 18 October 2026
+
+The accepted interface now uses one 40-point row for the primary header and supporting tabs. Full view joins the primary first and every supporting tab. Selecting the primary keeps supporting tabs visible. Split restores the primary left and last support right with the retained divider width and live state.
+
+New session opens a bottom composer with an optional prompt, provider/folder chips, Local by default and worktree controls inside the location popover. First use selects Codex. Shell launches retain the agent draft and do not replace the last agent preference. The running provider TUI replaces the composer.
+
+The initial Release candidate passed 191 native checks: 77 identity/layout/startup, 24 closure, 17 history, 10 project grouping, 36 browser/artifact, three cold-preview restore and 24 large-diff checks. They cover both appearances, wide/narrow windows, selected-tab visibility, overflow focus, actual Open Terminal control activation, retained terminal geometry/input and process identity. The full Swift run passed 239 cases with three opt-in checks skipped. The affected state/switch cleanup passed another 18 targeted cases. All 30 Python tests and the repository checker passed.
+
+An earlier layout candidate measured warm switching at p95 17.4 ms, recreated-terminal selection at 51.0 ms and empty readiness at 366.2 ms. See [performance](performance.md) for measurement boundaries. App crash/restore retained process identities and the visible history marker.
+
+The prototype main flow was checked in the in-app browser at desktop and a requested 390-pixel viewport. Native captures covered 1120 and 680 points. Desktop automation verified the privately installed app, including newline entry, ASCII shell input, the native folder picker and retained drafts across Full/Split changes. The update preserved existing project, workspace, tab, draft and binding records through metadata version 5 to 6. The previous app and database were backed up before replacement.
+
+Installed testing exposed a folder-discovery deadline that hid available conversation history. Refresh now retains every history row and reports partial folder association. Resume still checks the folder and current ownership. The warning has separate space below workspace content. Header geometry now follows current window bounds before descendant layout. These fixes passed all 240 Swift cases, with three opt-in checks skipped, and 105 affected native checks: 78 identity/layout/startup, 17 history and 10 project grouping.
+
+Physical keyboard/IME, spoken VoiceOver and extended sleep/reboot continuity remain unverified. The private local installer does not establish signed public delivery.
+
+## Conversation workspace integration, 17 October 2026
+
+The local integration adds direct provider history, primary conversation titles and icons, checkout association, continuation guidance, and native browser/artifact tabs. Metadata version 6 splits older multi-agent workspaces while retaining terminal identities, bindings and drafts. Provider-native conversation switches now retain the previous entry and move the live terminal to the new conversation. See [conversation workspaces](conversation-workspaces.md).
+
+The combined Release app passed 133 native fixture assertions: 24 for close/reopen, 43 for identity, conversation switching and independent file tabs, 10 for project association, 17 for the 600-conversation sidebar, and 39 for browser/artifact behavior and lazy restoration. The history fixture kept 51 native workspace rows for 600 saved entries. The final Swift run passed 206 XCTest cases and 17 Swift Testing cases, with three opt-in checks skipped. Thirty Python tests passed.
+
+The large-diff fixture passed another 24 checks and 100 selection cycles through the supporting panel. Preview selection measured 113.5 ms p95 across 30 samples. Syntax readiness measured 179.2 ms p95. The checks covered file/comparison switching, visible geometry, selection and focus retention, external edits, bounded buffers and stopping the hidden watcher. File-tab context now persists independently, and native switching between two files loaded each file's actual content.
+
+Native accessibility interaction confirmed browser form retention when switching to an interactive HTML artifact. Cancel preserved the workspace. Keep running and quit exited the app while preserving the exact shell PID. Reopening the same disposable state restored its unsent terminal input and all 17 supporting descriptors. End terminals and quit then ended only that owned terminal. The UI explains that shared provider execution may continue. These are disposable shell and metadata checks, not proof that a provider turn was interrupted.
+
+Browser form state survives live view switching. An app or WebKit restart can lose unsent web input. Only supporting route, title, selection and layout metadata persist. Current provider ownership evidence and desktop/remote limitations are recorded in [continuation](session-continuation.md) and [provider ownership](provider-ownership.md). A complete Codex Desktop return and remote pairing remain unverified. Codex GUI inspection was unavailable to this task.
+
+This is a local development result. It does not establish installed delivery, older macOS compatibility, physical keyboard/IME behavior, spoken VoiceOver or extended sleep/reboot continuity. OpenCode remains deferred.
+
 ## Verified development snapshot
 
 On 13 October 2026, the local development snapshot passed:
@@ -27,7 +79,7 @@ The [public launch report](public-launch.md) records new packaging, website, upd
 - Physical typing, composing input methods, spoken VoiceOver, and terminal-originated desktop link/file activation need hands-on verification.
 - Provider responses and explicit history resume need complete compatibility coverage.
 - Sleep/wake and reboot recovery remain pending user-controlled checks.
-- Developer ID signing, notarization, actual installation/update behavior, and supported OS versions remain release work.
+- Developer ID signing, notarization, signed installation/update behavior, and supported OS versions remain release work.
 
 Unknown activity stays unknown. A running process does not prove an agent is working, a prompt was acknowledged, or a task succeeded.
 

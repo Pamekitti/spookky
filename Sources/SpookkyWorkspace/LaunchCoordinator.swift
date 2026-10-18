@@ -17,30 +17,40 @@ public protocol ExecutableResolver: Sendable {
     public func isBusy(_ id: UUID) -> Bool { operations.contains(id) }
 
     public func launch(_ id: UUID, tool: SessionTool? = nil) async {
-        guard !operations.contains(id), let tab = store.state.tab(id),
+        guard !operations.contains(id) else { return }
+        operations.insert(id); defer { operations.remove(id) }
+        await performLaunch(id, tool: tool)
+    }
+    private func performLaunch(_ id: UUID, tool: SessionTool? = nil, prepared: LaunchSpec? = nil, resuming: Bool = false) async {
+        guard !Task.isCancelled, let tab = store.state.tab(id),
               let workspace = store.state.workspace(containing: id),
               tab.binding == nil, tab.isEditable || tab.status == .preparing || (tab.status == .failed && tab.launch != nil) else { return }
-        operations.insert(id); defer { operations.remove(id) }
         store.update { $0.apply(.preparing, to: id) }
         var starting = false
         do {
             let spec: LaunchSpec
-            if let frozen = tab.launch { spec = frozen }
+            if let frozen = tab.launch ?? prepared { spec = frozen }
             else {
                 spec = try await resolver.resolve(tool ?? tab.draft.tool,
                     directory: tab.startDirectory ?? workspace.directory,
                     prompt: tab.draft.prompt.isEmpty ? nil : tab.draft.prompt)
             }
+            try Task.checkCancellation()
             store.update {
                 $0.bindWorkspace(workspace.id)
-                $0.apply(.intent(spec, tab.draft.prompt.isEmpty || spec.tool == .shell ? .none : .pending), to: id)
+                if spec.tool != .shell { $0.promoteLanding(workspace.id) }
+                $0.apply(.intent(spec, resuming || tab.draft.prompt.isEmpty || spec.tool == .shell ? .none : .pending), to: id)
             }
             try await store.flush()
             starting = true
-            let binding = try await runtime.create(spec)
+            // Durable intent is the commit point. Finish recording the owned result even if its view closes.
+            let runtime = self.runtime
+            let binding = try await Task { try await runtime.create(spec) }.value
             store.update { $0.apply(.observed(binding, dead: false, exitCode: nil,
-                prompt: tab.draft.prompt.isEmpty || spec.tool == .shell ? PromptDelivery.none : .suppliedToProcess), to: id) }
+                prompt: resuming || tab.draft.prompt.isEmpty || spec.tool == .shell ? PromptDelivery.none : .suppliedToProcess), to: id) }
             try await store.flush()
+        } catch is CancellationError where !starting && store.state.tab(id)?.status == .preparing && store.state.tab(id)?.launch == tab.launch {
+            store.update { $0.cancelPreparation(id, restoring: tab) }
         } catch {
             if starting {
                 do {
@@ -62,6 +72,58 @@ public protocol ExecutableResolver: Sendable {
             } else { fail(id, status: .failed, phase: .validation, error: error, clearIntent: true) }
         }
     }
+    /// Explicit history continuation carries no initial prompt, including a retained composer draft.
+    public func resume(_ id: UUID, conversation: ConversationMetadata, prepared: LaunchSpec? = nil) async {
+        guard !operations.contains(id), !Task.isCancelled, conversation.availability == .local,
+              UUID(uuidString: conversation.id.sessionID) != nil, conversation.id.provider != .shell,
+              let tab = store.state.tab(id), let workspace = store.state.workspace(containing: id),
+              workspace.conversationID == nil || workspace.conversationID == conversation.id else { return }
+        let fresh = tab.isEditable && tab.binding == nil && tab.launch == nil && tab.draft.prompt.isEmpty
+        let ended = tab.status == .ended && tab.promptDelivery != .pending && tab.promptDelivery != .uncertain
+        guard fresh || ended else { return }
+        operations.insert(id); defer { operations.remove(id) }
+        do {
+            let spec: LaunchSpec
+            if let prepared {
+                try validatePreparedResume(prepared, conversation: conversation)
+                spec = prepared
+            } else {
+                let base = try await resolver.resolve(conversation.id.provider, directory: conversation.directory, prompt: nil)
+                let arguments = try ProviderContinuationCapabilities.resumeArguments(provider: conversation.id.provider,
+                    sessionID: conversation.id.sessionID, originalDirectory: conversation.directory)
+                spec = try LaunchSpec(operationID: base.operationID, tool: conversation.id.provider, executable: base.executable,
+                    arguments: base.arguments + arguments, directory: conversation.directory, environment: base.environment)
+            }
+            try Task.checkCancellation()
+            guard store.state.tab(id) == tab else { return }
+            store.update {
+                if ended { $0.prepareEndedConversationResume(id) }
+                $0.editDraft(id, tool: conversation.id.provider)
+            }
+            await performLaunch(id, prepared: spec, resuming: true)
+        } catch is CancellationError { return }
+        catch { fail(id, status: .failed, phase: .validation, error: error, clearIntent: true) }
+    }
+
+    private func validatePreparedResume(_ spec: LaunchSpec, conversation: ConversationMetadata) throws {
+        guard spec.tool == conversation.id.provider, spec.directory == conversation.directory else {
+            throw LaunchError.invalid("The prepared continuation no longer matches this conversation or its original folder.")
+        }
+        let id = conversation.id.sessionID, arguments = spec.arguments
+        let valid: Bool
+        switch conversation.id.provider {
+        case .codex:
+            valid = arguments == ["resume", id] || arguments == ["resume", id, "--cd", conversation.directory] ||
+                arguments == ["resume", id, "-C", conversation.directory]
+        case .claude:
+            valid = arguments == ["--resume", id] ||
+                (arguments.count == 2 && arguments[0] == "attach" && ProviderContinuationCapabilities.validAttachID(arguments[1]))
+        case .shell: valid = false
+        }
+        guard valid else { throw LaunchError.invalid("The prepared continuation has unexpected arguments. Refresh this conversation before continuing.") }
+    }
+
+
     public func reconcile(_ id: UUID) async {
         guard !operations.contains(id), let tab = store.state.tab(id) else { return }
         if tab.status == .ended && tab.binding == nil { return }

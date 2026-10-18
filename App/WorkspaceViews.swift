@@ -27,6 +27,7 @@ enum SpookkyPalette {
     static let ring = color("3a3837", "a1a1a1")
     static let selected = foregroundWash(dark: 0.10, light: 0.06)
     static let hover = foregroundWash(dark: 0.07, light: 0.04)
+    static let keyboardFocus = foregroundWash(dark: 0.16, light: 0.10)
     static let text = color("eae8e6", "0a0a0a")
     static let secondary = color("a8a5a3", "4a4847")
     static let metadata = color("9a9795", "605e5d")
@@ -49,8 +50,9 @@ enum SpookkyPalette {
 }
 final class WorkspaceRootView: NSView {
     var onAppearance: (() -> Void)?
+    var onBeforeLayout: (() -> Void)?
     var onLayout: (() -> Void)?
-    override func layout() { super.layout(); onLayout?() }
+    override func layout() { onBeforeLayout?(); super.layout(); onLayout?() }
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); onAppearance?() }
 }
 
@@ -58,11 +60,11 @@ enum SpookkyStyle {
     static let controlHeight: CGFloat = 28
     static let compactHeight: CGFloat = 24
     static let headerHeight: CGFloat = 40
-    static let workspaceRowHeight: CGFloat = 46
+    static let workspaceRowHeight: CGFloat = 32
     static let sidebarWidth: CGFloat = 232
     static let railWidth: CGFloat = 58
     static let fileSidebarWidth: CGFloat = 248
-    static let composerWidth: CGFloat = 560
+    static let composerWidth: CGFloat = 800
     static let composerRadius: CGFloat = 13
     static let cornerRadius: CGFloat = 8
     static let iconSlot: CGFloat = 16
@@ -71,9 +73,13 @@ enum SpookkyStyle {
     static let iconLabelGap: CGFloat = 6
     static let controlInset: CGFloat = 8
     static func configure(_ control: NSControl, size: CGFloat = 12) {
+        suppressFocusRing(control)
         control.font = .systemFont(ofSize: size)
         control.controlSize = .small
         if let popup = control as? NSPopUpButton { popup.isBordered = false }
+    }
+    static func suppressFocusRing(_ control: NSControl) {
+        control.focusRingType = .none; control.cell?.focusRingType = .none
     }
     static func abbreviatedPath(_ path: String) -> String {
         let home = FileManager.default.homeDirectoryForCurrentUser.path
@@ -96,6 +102,24 @@ enum SpookkyStyle {
             SpookkyPalette.selected.setFill(); NSBezierPath(roundedRect: bounds, xRadius: 4, yRadius: 4).fill()
             let value = NSAttributedString(string: letters.uppercased(), attributes: [.font: NSFont.systemFont(ofSize: 8, weight: .semibold), .foregroundColor: SpookkyPalette.secondary])
             let size = value.size(); value.draw(at: NSPoint(x: (16 - size.width) / 2, y: (16 - size.height) / 2)); return true
+        }
+    }
+    static func toolImage(_ tool: SessionTool) -> NSImage? {
+        guard tool != .shell else { return NSImage(systemSymbolName: "terminal", accessibilityDescription: "Terminal") }
+        let name = tool == .codex ? "ProviderCodex" : "ProviderClaude"
+        let image = NSImage(named: name)?.copy() as? NSImage
+        image?.size = NSSize(width: leadingIconSize, height: leadingIconSize)
+        image?.isTemplate = true
+        image?.accessibilityDescription = tool.displayName
+        return image
+    }
+    static func supportingSymbol(_ target: SupportingTarget) -> String {
+        switch target {
+        case .changes: "arrow.triangle.branch"
+        case .file: "doc.text"
+        case .browser: "globe"
+        case .artifact: "doc.richtext"
+        case .terminal: "terminal"
         }
     }
     static func toolSymbol(_ tool: SessionTool) -> String {
@@ -130,6 +154,28 @@ enum SpookkyStyle {
     }
 }
 
+final class ChromeTextField: NSTextField {
+    override init(frame: NSRect = .zero) { super.init(frame: frame); SpookkyStyle.suppressFocusRing(self) }
+    required init?(coder: NSCoder) { super.init(coder: coder); SpookkyStyle.suppressFocusRing(self) }
+}
+final class ChromeSearchField: NSSearchField {
+    override init(frame: NSRect = .zero) { super.init(frame: frame); SpookkyStyle.suppressFocusRing(self) }
+    required init?(coder: NSCoder) { super.init(coder: coder); SpookkyStyle.suppressFocusRing(self) }
+}
+final class ChromePopUpButton: NSPopUpButton {
+    override init(frame: NSRect = .zero, pullsDown: Bool = false) { super.init(frame: frame, pullsDown: pullsDown); SpookkyStyle.suppressFocusRing(self) }
+    required init?(coder: NSCoder) { super.init(coder: coder); SpookkyStyle.suppressFocusRing(self) }
+}
+final class ChromeButton: NSButton {
+    override init(frame: NSRect = .zero) { super.init(frame: frame); SpookkyStyle.suppressFocusRing(self) }
+    required init?(coder: NSCoder) { super.init(coder: coder); SpookkyStyle.suppressFocusRing(self) }
+}
+final class ChromeAlert: NSAlert {
+    @discardableResult override func addButton(withTitle title: String) -> NSButton {
+        let button = super.addButton(withTitle: title); SpookkyStyle.suppressFocusRing(button); return button
+    }
+}
+
 final class ChromeStackView: NSStackView {
     var selected = false { didSet { if selected != oldValue { needsDisplay = true } } }
     var raised = false
@@ -161,9 +207,7 @@ final class ChromeStackView: NSStackView {
         let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: cornerRadius, yRadius: cornerRadius)
         (raised ? SpookkyPalette.raised : selected ? SpookkyPalette.selected : interactionActive ? SpookkyPalette.hover : .clear).setFill(); path.fill()
         if raised {
-            let focused = (window?.firstResponder as? NSView)?.isDescendant(of: self) == true
-            (focused ? NSColor.keyboardFocusIndicatorColor : SpookkyPalette.border).setStroke()
-            path.lineWidth = focused ? 2 : 1; path.stroke()
+            SpookkyPalette.border.setStroke(); path.lineWidth = 1; path.stroke()
         }
         if drawsTrailingBorder { SpookkyPalette.border.setFill(); NSRect(x: bounds.width - 1, y: 0, width: 1, height: bounds.height).fill() }
     }
@@ -171,7 +215,7 @@ final class ChromeStackView: NSStackView {
 }
 
 final class InlineRenameEditor: NSObject, NSTextFieldDelegate {
-    private let field = NSTextField()
+    private let field = ChromeTextField()
     private weak var button: ActionButton?
     private let completion: (String?, Bool) -> Void
     private var finished = false
@@ -228,7 +272,7 @@ final class PromptTextView: NSTextView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         if string.isEmpty {
-            NSAttributedString(string: "Start with a prompt…", attributes: [.font: font ?? NSFont.systemFont(ofSize: 14), .foregroundColor: SpookkyPalette.secondary])
+            NSAttributedString(string: "Start a session…", attributes: [.font: font ?? NSFont.systemFont(ofSize: 14), .foregroundColor: SpookkyPalette.secondary])
                 .draw(at: NSPoint(x: textContainerInset.width + 5, y: textContainerInset.height))
         }
     }
@@ -245,13 +289,15 @@ class ActionButton: NSButton {
     var onContextMenu: (() -> NSMenu?)?
     var onNavigate: ((UInt16) -> Void)?
     var contentInset: CGFloat = SpookkyStyle.controlInset
-    var menuIndicator = false
+    var menuIndicator = false { didSet { invalidateIntrinsicContentSize() } }
     var compactUtility = false
     var revealOnInteraction = false { didSet { updateInteractionVisibility() } }
     var interactionActive = false { didSet { updateInteractionVisibility() } }
     var onFocusChange: ((Bool) -> Void)?
     var onHoverChange: ((Bool) -> Void)?
     private var keyboardFocused = false
+    private var receivingPointer = false
+    var showsKeyboardFocus: Bool { keyboardFocused && window?.firstResponder === self && window?.isKeyWindow == true }
     private let targetHeight: CGFloat
     var isRevealed: Bool { !revealOnInteraction || interactionActive || keyboardFocused }
     func updateInteractionVisibility() {
@@ -267,7 +313,7 @@ class ActionButton: NSButton {
         handler = action; targetHeight = height
         super.init(frame: .zero)
         self.title = title; target = self; self.action = #selector(invoke)
-        isBordered = false; focusRingType = .none; font = .systemFont(ofSize: 13)
+        isBordered = false; SpookkyStyle.suppressFocusRing(self); font = .systemFont(ofSize: 13)
         if let symbol { image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil); imagePosition = title.isEmpty ? .imageOnly : .imageLeading }
         compactUtility = symbol == "plus" || symbol == "xmark"
         toolTip = help ?? title; setAccessibilityLabel(help ?? title)
@@ -283,7 +329,7 @@ class ActionButton: NSButton {
         let text = (title as NSString).size(withAttributes: [.font: font ?? NSFont.systemFont(ofSize: 13)]).width
         let iconWidth = image == nil ? 0 : SpookkyStyle.iconSlot + SpookkyStyle.iconLabelGap
         return NSSize(width: title.isEmpty ? targetHeight :
-            text + 2 * SpookkyStyle.controlInset + iconWidth + (menuIndicator ? 16 : 0), height: targetHeight)
+            ceil(text) + 1 + 2 * contentInset + iconWidth + (menuIndicator ? 16 : 0), height: targetHeight)
     }
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
@@ -296,7 +342,7 @@ class ActionButton: NSButton {
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
     override func becomeFirstResponder() -> Bool {
         let result = super.becomeFirstResponder()
-        if result { keyboardFocused = true; updateInteractionVisibility(); onFocusChange?(true) }
+        if result { keyboardFocused = !receivingPointer; updateInteractionVisibility(); onFocusChange?(keyboardFocused) }
         needsDisplay = true; return result
     }
     override func resignFirstResponder() -> Bool {
@@ -313,12 +359,12 @@ class ActionButton: NSButton {
         case .primary: SpookkyPalette.text
         case .secondary: SpookkyPalette.raised
         case .destructive: SpookkyPalette.destructive
-        case .quiet: pressed || selected ? SpookkyPalette.selected : hovered ? SpookkyPalette.hover : .clear
+        case .quiet: pressed || selected ? SpookkyPalette.selected : showsKeyboardFocus ? SpookkyPalette.keyboardFocus : hovered ? SpookkyPalette.hover : .clear
         }
-        if emphasis != .quiet || drawsInteractionFill && (selected || pressed || hovered && isEnabled) {
+        if emphasis != .quiet || drawsInteractionFill && (selected || pressed || (hovered || showsKeyboardFocus) && isEnabled) {
             fill.withAlphaComponent(fill.alphaComponent * (isEnabled ? 1 : 0.45)).setFill(); shape.fill()
         }
-        if emphasis != .quiet, isEnabled, pressed || hovered {
+        if emphasis != .quiet, isEnabled, pressed || hovered || showsKeyboardFocus {
             let overlay = emphasis == .secondary ? (pressed ? SpookkyPalette.selected : SpookkyPalette.hover)
                 : SpookkyPalette.background.withAlphaComponent(pressed ? 0.15 : 0.08)
             overlay.setFill(); shape.fill()
@@ -349,16 +395,21 @@ class ActionButton: NSButton {
             let scale = min(1, SpookkyStyle.iconSlot / max(size.width, size.height, 1))
             let drawn = NSRect(x: slot.midX - size.width * scale / 2, y: slot.midY - size.height * scale / 2,
                 width: size.width * scale, height: size.height * scale)
-            symbol.draw(in: drawn)
+            if image.isTemplate {
+                // Custom drawing must tint template assets explicitly.
+                let tinted = NSImage(size: symbol.size, flipped: false) { bounds in
+                    symbol.draw(in: bounds)
+                    tint.setFill(); bounds.fill(using: .sourceAtop)
+                    return true
+                }
+                tinted.draw(in: drawn)
+            } else { symbol.draw(in: drawn) }
             if !utility {
                 let width = SpookkyStyle.iconSlot + SpookkyStyle.iconLabelGap
                 content.origin.x += width; content.size.width = max(0, content.width - width)
             }
         }
         drawTitle(in: content, tint: tint)
-        if window?.firstResponder === self, window?.isKeyWindow == true {
-            NSColor.keyboardFocusIndicatorColor.setStroke(); shape.lineWidth = 2; shape.stroke()
-        }
     }
     func drawTitle(in content: NSRect, tint: NSColor) {
         guard !title.isEmpty else { return }
@@ -370,6 +421,7 @@ class ActionButton: NSButton {
     @objc private func invoke() { handler?() }
     override var acceptsFirstResponder: Bool { true }
     override func keyDown(with event: NSEvent) {
+        keyboardFocused = true; updateInteractionVisibility(); onFocusChange?(true)
         if event.keyCode == 109, event.modifierFlags.contains(.shift), let menu = onContextMenu?() {
             menu.popUp(positioning: nil, at: NSPoint(x: 0, y: bounds.height), in: self)
             if window?.attachedSheet == nil { window?.makeFirstResponder(self) }
@@ -380,8 +432,14 @@ class ActionButton: NSButton {
         } else { super.keyDown(with: event) }
     }
     override func mouseDown(with event: NSEvent) {
+        receivingPointer = true; keyboardFocused = false; updateInteractionVisibility(); onFocusChange?(false)
+        defer { receivingPointer = false }
         if event.clickCount == 2, let onDoubleClick { onDoubleClick() } else { super.mouseDown(with: event) }
     }
+}
+
+final class PassthroughImageView: NSImageView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
 
 final class ContextRow: NSView {
@@ -417,6 +475,7 @@ final class ContextRow: NSView {
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
     override func mouseDown(with event: NSEvent) { primary?.handler?() }
     var icon: NSImageView?
+    var statusBadge: NSImageView?
     var restingIcon: NSImage?
     var groupCollapsed = false
     var primary: ActionButton?
@@ -439,23 +498,31 @@ private final class ComposerDocumentView: NSView {
 @MainActor final class LaunchComposerView: NSView, NSTextViewDelegate {
     let tabID: UUID
     let prompt = PromptTextView()
-    private let picker = ActionButton("Terminal", symbol: "terminal", help: "Choose launch tool", action: {})
-    private var promptHeight: NSLayoutConstraint!
-    private let promptScroll = NSScrollView()
-    private let launch: ActionButton
     let locationOptions = WorktreeOptionsView(frame: .zero)
     var repositorySnapshot: RepositorySnapshot?
-    private let context = ResponsiveStackView()
+    private let picker = ActionButton("Codex", help: "Choose provider", action: {})
+    private let folder = ActionButton("Home", symbol: "folder", help: "Choose folder or project", action: {})
+    private let launch = ActionButton("", symbol: "arrow.up", action: {})
     private let card = ChromeStackView()
+    private let controls = NSStackView()
+    private let promptScroll = NSScrollView()
+    private var promptHeight: NSLayoutConstraint!
+    private var launchWidth: NSLayoutConstraint!
+    private let message = ChromeTextField(wrappingLabelWithString: "")
     private let terminalRow = NSStackView()
-    private let message = NSTextField(wrappingLabelWithString: "")
+    private let terminal = ActionButton("Open Terminal", symbol: "terminal", help: "Open Terminal and keep this session draft", action: {})
+    private let locationPopover = NSPopover()
+    private let locationPanel = NSStackView()
+    private let projectPicker = ActionButton("Choose project", symbol: "folder", action: {})
     private let directory = NSTextField(labelWithString: "")
-    private let recents = NSStackView()
-    private let heading = NSTextField(labelWithString: "New workspace")
+    private let locationActions = NSStackView()
+    private let chooseFolder = ActionButton("Use folder once…", action: {})
+    private let addProject = ActionButton("Add project…", symbol: "plus", action: {})
+    private let locate = ActionButton("Locate folder…", symbol: "folder", action: {})
+    private var projects: [Project] = []
+    private var selectedProjectID: UUID?
     private var currentTool: SessionTool?
-    private var contextKey = ""
-    private weak var projectPickerButton: ActionButton?
-    private weak var recentsAddButton: ActionButton?
+    private var folderTitle = "Home"
     var onDraft: ((SessionTool?, String?) -> Void)?
     var onLaunch: (() -> Void)?
     var onTerminal: (() -> Void)?
@@ -467,52 +534,56 @@ private final class ComposerDocumentView: NSView {
 
     init(tabID: UUID) {
         self.tabID = tabID
-        launch = ActionButton("Open Terminal", symbol: "terminal", action: {})
         super.init(frame: .zero)
-        heading.font = .systemFont(ofSize: 22, weight: .medium)
-        heading.textColor = SpookkyPalette.text
         prompt.font = .systemFont(ofSize: 14)
         prompt.isRichText = false; prompt.allowsUndo = true; prompt.isAutomaticQuoteSubstitutionEnabled = false
         prompt.isAutomaticDashSubstitutionEnabled = false
         prompt.textContainerInset = NSSize(width: 12, height: 12)
         prompt.delegate = self; prompt.drawsBackground = false; prompt.textColor = SpookkyPalette.text
         prompt.onFocusChange = { [weak card] in card?.needsDisplay = true }
-        prompt.setAccessibilityLabel("Optional initial agent prompt")
+        prompt.setAccessibilityLabel("Optional prompt for new session")
         promptScroll.documentView = prompt; promptScroll.hasVerticalScroller = true
         promptScroll.borderType = .noBorder; promptScroll.drawsBackground = false
         prompt.isVerticallyResizable = true; prompt.isHorizontallyResizable = false
         prompt.autoresizingMask = [.width]; prompt.textContainer?.widthTracksTextView = true
         promptHeight = promptScroll.heightAnchor.constraint(equalToConstant: 80); promptHeight.isActive = true
         promptScroll.autohidesScrollers = true
-        picker.menuIndicator = true
+        picker.menuIndicator = true; folder.menuIndicator = true
         picker.handler = { [weak self] in self?.chooseTool() }
+        folder.handler = { [weak self] in self?.showLocationPicker() }
         launch.handler = { [weak self] in self?.onLaunch?() }
-        let controls = NSStackView(views: [picker, NSView(), launch]); controls.spacing = 8
+        launch.emphasis = .primary
+        launchWidth = launch.widthAnchor.constraint(equalToConstant: SpookkyStyle.controlHeight); launchWidth.isActive = true
+        let spacer = NSView(); spacer.setContentHuggingPriority(.init(1), for: .horizontal)
+        for view in [picker, folder, spacer, launch] { controls.addArrangedSubview(view) }
+        controls.spacing = 4; controls.alignment = .centerY
         controls.edgeInsets = NSEdgeInsets(top: 0, left: 12, bottom: 8, right: 12)
         controls.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).isActive = true
-        launch.heightAnchor.constraint(equalToConstant: SpookkyStyle.controlHeight).isActive = true
-        launch.emphasis = .primary
-        card.orientation = .vertical; card.alignment = .leading; card.spacing = 4; card.raised = true; card.cornerRadius = SpookkyStyle.composerRadius
+        picker.widthAnchor.constraint(greaterThanOrEqualToConstant: SpookkyStyle.controlHeight).isActive = true
+        folder.widthAnchor.constraint(greaterThanOrEqualToConstant: SpookkyStyle.controlHeight).isActive = true
+        folder.widthAnchor.constraint(lessThanOrEqualToConstant: 300).isActive = true
+        folder.lineBreakMode = .byTruncatingMiddle
+        folder.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        picker.setContentCompressionResistancePriority(.required, for: .horizontal)
+        card.orientation = .vertical; card.alignment = .leading; card.spacing = 4
+        card.raised = true; card.cornerRadius = SpookkyStyle.composerRadius
+        card.setAccessibilityLabel("New session"); card.setAccessibilityRole(.group)
         card.addArrangedSubview(promptScroll); card.addArrangedSubview(controls)
         promptScroll.widthAnchor.constraint(equalTo: card.widthAnchor).isActive = true
         controls.widthAnchor.constraint(equalTo: card.widthAnchor).isActive = true
-        context.orientation = .horizontal; context.spacing = 8; context.breakpoint = 400
-        let terminal = ActionButton("Open Terminal  ⌘T", symbol: "terminal", help: "Open Terminal · ⌘T") { [weak self] in self?.onTerminal?() }
-        terminal.emphasis = .secondary
-        terminalRow.addArrangedSubview(terminal)
-        terminalRow.spacing = 8
-        directory.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
-        directory.textColor = SpookkyPalette.metadata; directory.lineBreakMode = .byTruncatingMiddle
-        message.font = .systemFont(ofSize: 11); message.textColor = SpookkyPalette.secondary
-        recents.orientation = .vertical; recents.alignment = .leading; recents.spacing = 4
-        let stack = NSStackView(views: [heading, card, context, locationOptions, directory, message, terminalRow, recents])
+        terminal.handler = { [weak self] in self?.onTerminal?() }
+        terminal.emphasis = .quiet
+        terminalRow.addArrangedSubview(terminal); terminalRow.addArrangedSubview(NSView()); terminalRow.spacing = 8
+        message.font = .systemFont(ofSize: 11); message.textColor = SpookkyPalette.warning
+        message.maximumNumberOfLines = 3
+        let stack = NSStackView(views: [message, card, terminalRow])
         stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 8
         let scroll = NSScrollView(), document = ComposerDocumentView()
         scroll.drawsBackground = false; scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true
         scroll.documentView = document
         scroll.translatesAutoresizingMaskIntoConstraints = false; document.translatesAutoresizingMaskIntoConstraints = false
         addSubview(scroll); stack.translatesAutoresizingMaskIntoConstraints = false; document.addSubview(stack)
-        let preferredWidth = stack.widthAnchor.constraint(equalTo: document.widthAnchor, multiplier: 0.85)
+        let preferredWidth = stack.widthAnchor.constraint(equalTo: document.widthAnchor, constant: -48)
         preferredWidth.priority = .defaultHigh
         let preferredHeight = document.heightAnchor.constraint(equalTo: scroll.contentView.heightAnchor)
         preferredHeight.priority = .defaultLow
@@ -523,124 +594,187 @@ private final class ComposerDocumentView: NSView {
             document.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
             document.heightAnchor.constraint(greaterThanOrEqualTo: scroll.contentView.heightAnchor),
             document.heightAnchor.constraint(greaterThanOrEqualTo: stack.heightAnchor, constant: 48), preferredHeight,
-            stack.centerXAnchor.constraint(equalTo: document.centerXAnchor), stack.centerYAnchor.constraint(equalTo: document.centerYAnchor),
+            stack.centerXAnchor.constraint(equalTo: document.centerXAnchor), stack.bottomAnchor.constraint(equalTo: document.bottomAnchor, constant: -24),
+            stack.topAnchor.constraint(greaterThanOrEqualTo: document.topAnchor, constant: 24),
             stack.widthAnchor.constraint(lessThanOrEqualToConstant: SpookkyStyle.composerWidth),
             stack.leadingAnchor.constraint(greaterThanOrEqualTo: document.leadingAnchor, constant: 24),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: document.trailingAnchor, constant: -24),
-            preferredWidth,
-            card.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            context.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            terminalRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            directory.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            message.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            locationOptions.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            recents.widthAnchor.constraint(equalTo: stack.widthAnchor)
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: document.trailingAnchor, constant: -24), preferredWidth,
+            card.widthAnchor.constraint(equalTo: stack.widthAnchor), terminalRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            message.widthAnchor.constraint(equalTo: stack.widthAnchor)
         ])
+        configureLocationPicker()
     }
     required init?(coder: NSCoder) { fatalError("Use init") }
+
+    private func configureLocationPicker() {
+        locationPopover.behavior = .transient
+        let controller = NSViewController(), scroll = NSScrollView(), document = ComposerDocumentView()
+        controller.view = NSView(frame: NSRect(x: 0, y: 0, width: 560, height: 240))
+        scroll.drawsBackground = false; scroll.hasVerticalScroller = true; scroll.autohidesScrollers = true
+        scroll.documentView = document; scroll.translatesAutoresizingMaskIntoConstraints = false
+        document.translatesAutoresizingMaskIntoConstraints = false
+        controller.view.addSubview(scroll)
+        locationPanel.orientation = .vertical; locationPanel.alignment = .leading; locationPanel.spacing = 12
+        locationPanel.translatesAutoresizingMaskIntoConstraints = false; document.addSubview(locationPanel)
+        let title = NSTextField(labelWithString: "Folder and project")
+        title.font = .systemFont(ofSize: 13, weight: .medium); title.textColor = SpookkyPalette.text
+        directory.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+        directory.textColor = SpookkyPalette.metadata; directory.lineBreakMode = .byTruncatingMiddle
+        projectPicker.menuIndicator = true; projectPicker.setAccessibilityLabel("Choose project")
+        projectPicker.handler = { [weak self] in
+            guard let self else { return }
+            projectMenu().popUp(positioning: nil, at: NSPoint(x: 0, y: projectPicker.bounds.height), in: projectPicker)
+        }
+        chooseFolder.handler = { [weak self] in self?.locationPopover.performClose(nil); self?.onChooseFolder?() }
+        addProject.handler = { [weak self] in
+            guard let self else { return }; locationPopover.performClose(nil); onAddProject?(folder)
+        }
+        locate.handler = { [weak self] in self?.locationPopover.performClose(nil); self?.onLocate?() }
+        for view in [chooseFolder, addProject] { locationActions.addArrangedSubview(view) }
+        locationActions.spacing = 8
+        for view in [title, directory, projectPicker, locationOptions, locationActions, locate] { locationPanel.addArrangedSubview(view) }
+        for view in [directory, projectPicker, locationOptions, locationActions] { view.widthAnchor.constraint(equalTo: locationPanel.widthAnchor).isActive = true }
+        NSLayoutConstraint.activate([
+            scroll.leadingAnchor.constraint(equalTo: controller.view.leadingAnchor), scroll.trailingAnchor.constraint(equalTo: controller.view.trailingAnchor),
+            scroll.topAnchor.constraint(equalTo: controller.view.topAnchor), scroll.bottomAnchor.constraint(equalTo: controller.view.bottomAnchor),
+            document.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor), document.topAnchor.constraint(equalTo: scroll.contentView.topAnchor),
+            document.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
+            locationPanel.leadingAnchor.constraint(equalTo: document.leadingAnchor, constant: 12),
+            locationPanel.trailingAnchor.constraint(equalTo: document.trailingAnchor, constant: -12),
+            locationPanel.topAnchor.constraint(equalTo: document.topAnchor, constant: 12),
+            locationPanel.bottomAnchor.constraint(equalTo: document.bottomAnchor, constant: -12)
+        ])
+        locationPopover.contentViewController = controller
+    }
+
     func update(_ tab: WorkspaceTab, workspace: Workspace, state: WorkspaceState) {
-        heading.stringValue = workspace.anchor == nil && workspace.tabs.count == 1 ? "New workspace" : "New tab"
         if prompt.string != tab.draft.prompt { prompt.string = tab.draft.prompt }
-        currentTool = tab.draft.tool
-        picker.title = tab.draft.tool.displayName
-        picker.image = NSImage(systemSymbolName: tab.draft.tool == .shell ? "terminal" : "chevron.left.forwardslash.chevron.right", accessibilityDescription: nil)
-        picker.setAccessibilityLabel("Launch tool · " + tab.draft.tool.displayName); picker.toolTip = "Choose launch tool · " + tab.draft.tool.displayName
-        promptScroll.isHidden = tab.draft.tool == .shell
+        currentTool = tab.draft.tool; projects = state.projects; selectedProjectID = workspace.projectID
+        let project = projects.first { $0.id == workspace.projectID }
         let enabled = tab.isEditable
-        locationOptions.update(snapshot: repositorySnapshot, workspace: workspace,
-            project: state.projects.first { $0.id == workspace.projectID },
+        let needsLocate = tab.failure?.recovery == .locateFolder
+        let canChooseLocation = enabled && workspace.anchor == nil
+        locationOptions.update(snapshot: repositorySnapshot, workspace: workspace, project: project,
             operation: state.locations?.operations.first { $0.id == workspace.locationOperationID }, enabled: enabled)
-        prompt.isEditable = enabled; picker.isEnabled = enabled
+        prompt.isEditable = enabled; picker.isEnabled = enabled; folder.isEnabled = enabled || needsLocate
+        promptScroll.isHidden = tab.draft.tool == .shell
         let needsBranch = workspace.anchor == nil && workspace.locationDraft?.mode == .worktree && workspace.locationDraft?.branchMode == .existing && workspace.locationDraft?.branch.isEmpty == true
         launch.isEnabled = enabled && !needsBranch
-        let launchTitle = tab.draft.tool == .shell ? "Open Terminal" : tab.draft.prompt.isEmpty ? "Open " + tab.draft.tool.displayName : "Start " + tab.draft.tool.displayName
-        launch.title = tab.draft.tool == .shell ? launchTitle + "  ⌘T" : ""
+        let hasPrompt = !tab.draft.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let launchTitle = tab.draft.tool == .shell ? "Open Terminal" : (hasPrompt ? "Start " : "Open ") + tab.draft.tool.displayName
         launch.image = NSImage(systemSymbolName: tab.draft.tool == .shell ? "terminal" : "arrow.up", accessibilityDescription: nil)
-        launch.setAccessibilityLabel(launchTitle); launch.toolTip = launchTitle + (tab.draft.tool == .shell ? " · ⌘T" : " · ⌘Return")
-        terminalRow.isHidden = tab.draft.tool == .shell
-        terminalRow.arrangedSubviews.compactMap { $0 as? NSControl }.forEach { $0.isEnabled = enabled }
-        card.needsDisplay = true
+        launch.setAccessibilityLabel(launchTitle); launch.toolTip = launchTitle + " · ⌘Return"
+        picker.image = SpookkyStyle.toolImage(tab.draft.tool)
+        picker.setAccessibilityLabel("Choose provider · " + tab.draft.tool.displayName)
+        picker.toolTip = "Choose provider · " + tab.draft.tool.displayName
+        terminalRow.isHidden = tab.draft.tool == .shell; terminal.isEnabled = enabled
         let path = workspace.directory
-        directory.stringValue = SpookkyStyle.abbreviatedPath(path)
-        directory.toolTip = path
-        let reusedCheckout = workspace.anchor == nil && workspace.locationDraft?.mode == .worktree && workspace.locationDraft?.branchMode == .existing &&
-            repositorySnapshot?.checkouts.contains(where: { $0.branch == workspace.locationDraft?.branch }) == true
-        directory.isHidden = reusedCheckout
-        message.stringValue = tab.failure?.message ?? (enabled ? (tab.draft.tool == .shell ? "" : "Prompt optional · ⌘Return to start") : tab.status == .preparing ? "Preparing location…" : "Starting CLI…")
-        message.isHidden = message.stringValue.isEmpty
-        resizePrompt()
-        message.textColor = tab.failure == nil ? SpookkyPalette.secondary : SpookkyPalette.warning
-        recents.isHidden = workspace.anchor != nil || workspace.projectID != nil
-        let nextContext = String(describing: workspace.projectID) + String(workspace.anchor != nil) + String(describing: tab.failure?.recovery) + String(enabled) +
-            tab.draft.tool.rawValue + state.projects.map { $0.id.uuidString + $0.name + String(describing: $0.lastUsed) }.joined()
-        guard contextKey != nextContext else { return }
-        contextKey = nextContext
-        let projects = state.projects
-        for view in context.arrangedSubviews { context.removeArrangedSubview(view); view.removeFromSuperview() }
-        if workspace.anchor == nil {
-            let projectPicker = ActionButton(projects.first { $0.id == workspace.projectID }?.name ?? "Choose project", symbol: "folder") { [weak self] in
-                guard let self, let button = self.projectPickerButton else { return }
-                self.projectMenu(projects).popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height), in: button)
+        directory.stringValue = SpookkyStyle.abbreviatedPath(path); directory.toolTip = path
+        let name = project?.name ?? (path == FileManager.default.homeDirectoryForCurrentUser.path ? "Home" : URL(fileURLWithPath: path).lastPathComponent)
+        let git = workspace.anchor?.isGit ?? workspace.selectedLocation.isGit
+        folderTitle = name + (git ? (workspace.locationDraft?.mode == .worktree ? " · Worktree" : " · Local") : "")
+        folder.toolTip = folderTitle + "\n" + path
+        folder.setAccessibilityLabel("Choose folder or project · " + folderTitle)
+        projectPicker.title = project?.name ?? "Choose project"
+        projectPicker.toolTip = project?.location.path ?? "Projects are optional"
+        projectPicker.isEnabled = canChooseLocation
+        chooseFolder.isHidden = !canChooseLocation; addProject.isHidden = !canChooseLocation
+        locationActions.isHidden = !canChooseLocation; locate.isHidden = !needsLocate
+        if let failure = tab.failure { message.stringValue = failure.message }
+        else if needsBranch { message.stringValue = "Choose an existing branch before starting." }
+        else {
+            switch tab.status {
+            case .preparing: message.stringValue = "Preparing location…"
+            case .launching: message.stringValue = "Starting " + tab.draft.tool.displayName + "…"
+            case .uncertain: message.stringValue = "Session status needs checking."
+            case .unavailable: message.stringValue = "Session unavailable."
+            case .failed: message.stringValue = "Could not start session."
+            default: message.stringValue = ""
             }
-            projectPicker.toolTip = projects.first { $0.id == workspace.projectID }?.location.path ?? "Choose a project"
-            projectPicker.menuIndicator = true
-            projectPickerButton = projectPicker
-            context.addArrangedSubview(projectPicker)
-            context.addArrangedSubview(ActionButton("Use folder once…", action: { [weak self] in self?.onChooseFolder?() }))
-
-        } else if tab.failure?.recovery == .locateFolder {
-            context.addArrangedSubview(ActionButton("Locate folder…", symbol: "folder", action: { [weak self] in self?.onLocate?() }))
         }
-        for control in context.arrangedSubviews.compactMap({ $0 as? NSControl }) {
-            control.isEnabled = enabled; control.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        }
-        for view in recents.arrangedSubviews { recents.removeArrangedSubview(view); view.removeFromSuperview() }
-        if workspace.anchor == nil && workspace.projectID == nil {
-            let recentProjects = state.projects.filter { $0.lastUsed != nil }.sorted(by: { $0.lastUsed! > $1.lastUsed! }).prefix(5)
-            if !recentProjects.isEmpty {
-                let label = NSTextField(labelWithString: "Recent projects"); label.font = .systemFont(ofSize: 12, weight: .medium)
-                recents.addArrangedSubview(label)
-            }
-            for project in recentProjects {
-                let button = ActionButton(project.name, symbol: "folder", help: project.location.path) { [weak self] in self?.onProject?(project.id) }
-                let path = NSTextField(labelWithString: SpookkyStyle.abbreviatedPath(project.location.path))
-                path.font = .systemFont(ofSize: 11); path.textColor = SpookkyPalette.metadata; path.lineBreakMode = .byTruncatingMiddle
-                path.toolTip = project.location.path
-                path.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-                let row = NSStackView(views: [button, NSView(), path]); row.spacing = 8
-                recents.addArrangedSubview(row); row.widthAnchor.constraint(equalTo: recents.widthAnchor).isActive = true
-            }
-            let addProject = ActionButton("Add project…", symbol: "plus") { [weak self] in
-                guard let self else { return }; self.onAddProject?(self.recentsAddButton ?? self.recents)
-            }
-            recentsAddButton = addProject
-            recents.addArrangedSubview(addProject)
-        }
+        message.isHidden = message.stringValue.isEmpty; message.toolTip = message.stringValue
+        message.setAccessibilityLabel(message.stringValue)
+        message.textColor = tab.failure != nil || needsBranch || [.failed, .uncertain, .unavailable].contains(tab.status) ? SpookkyPalette.warning : SpookkyPalette.secondary
+        configureFooter(); resizePrompt(); card.needsDisplay = true
+        if locationPopover.isShown { resizeLocationPicker() }
     }
-    func focus() { window?.makeFirstResponder(currentTool == .shell ? launch : prompt) }
-    var hasInputFocus: Bool { window?.firstResponder === prompt || window?.firstResponder === launch || window?.firstResponder === picker }
-    private func projectMenu(_ projects: [Project]) -> NSMenu {
-        let menu = NSMenu()
-        for project in projects {
-            let item = ClosureMenuItem(project.name + " · " + SpookkyStyle.abbreviatedPath(project.location.path)) { [weak self] in self?.onProject?(project.id) }
-            item.toolTip = project.location.path
-            menu.addItem(item)
+
+    private func configureFooter() {
+        let tool = currentTool ?? .codex, compact = card.bounds.width > 0 && card.bounds.width < 280
+        let providerTitle = compact ? "" : tool == .claude ? "Claude" : tool.displayName
+        if picker.title != providerTitle { picker.title = providerTitle }
+        let title = compact ? "" : folderTitle
+        if folder.title != title { folder.title = title }
+        let launchTitle = tool == .shell && card.bounds.width >= 380 ? "Open Terminal" : ""
+        if launch.title != launchTitle { launch.title = launchTitle }
+        let width = launchTitle.isEmpty ? SpookkyStyle.controlHeight : launch.intrinsicContentSize.width
+        if abs(launchWidth.constant - width) > 0.5 { launchWidth.constant = width }
+        let inset: CGFloat = compact ? 8 : 12
+        if controls.edgeInsets.left != inset { controls.edgeInsets = NSEdgeInsets(top: 0, left: inset, bottom: 8, right: inset) }
+    }
+    private func showLocationPicker() {
+        if locationPopover.isShown { locationPopover.performClose(nil); return }
+        resizeLocationPicker()
+        locationPopover.show(relativeTo: folder.bounds, of: folder, preferredEdge: .maxY)
+        resizeLocationPicker()
+    }
+    private func resizeLocationPicker() {
+        let available = window?.contentView?.bounds.size ?? bounds.size
+        let width = min(560, max(280, available.width - 48))
+        let maximumHeight = max(140, min(420, available.height - 48))
+        let current = locationPopover.contentSize
+        let provisional = NSSize(width: width, height: min(maximumHeight, max(100, current.height)))
+        if abs(current.width - provisional.width) > 0.5 || abs(current.height - provisional.height) > 0.5 { locationPopover.contentSize = provisional }
+        if !locationPopover.isShown { locationPopover.contentViewController?.view.setFrameSize(provisional) }
+        locationPopover.contentViewController?.view.layoutSubtreeIfNeeded()
+        let height = min(maximumHeight, max(100, ceil(locationPanel.fittingSize.height) + 24))
+        if abs(locationPopover.contentSize.height - height) > 0.5 { locationPopover.contentSize = NSSize(width: width, height: height) }
+    }
+    private func projectMenu() -> NSMenu {
+        let menu = NSMenu(); menu.autoenablesItems = false
+        let recent = projects.filter { $0.lastUsed != nil }.sorted { $0.lastUsed! > $1.lastUsed! }.prefix(5)
+        let recentIDs = Set(recent.map(\.id))
+        func append(_ project: Project) {
+            let item = ClosureMenuItem(project.name + " · " + SpookkyStyle.abbreviatedPath(project.location.path)) { [weak self] in
+                self?.locationPopover.performClose(nil); self?.onProject?(project.id)
+            }
+            item.toolTip = project.location.path; item.state = project.id == selectedProjectID ? .on : .off
+            item.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil); menu.addItem(item)
         }
-        menu.addItem(.separator())
+        if !recent.isEmpty {
+            let label = NSMenuItem(title: "Recent projects", action: nil, keyEquivalent: ""); label.isEnabled = false; menu.addItem(label)
+            recent.forEach(append)
+        }
+        let remaining = projects.filter { !recentIDs.contains($0.id) }.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        if !remaining.isEmpty {
+            if !recent.isEmpty { menu.addItem(.separator()) }
+            remaining.forEach(append)
+        }
+        if !projects.isEmpty { menu.addItem(.separator()) }
+        menu.addItem(ClosureMenuItem("Use folder once…") { [weak self] in self?.locationPopover.performClose(nil); self?.onChooseFolder?() })
         menu.addItem(ClosureMenuItem("Add project…") { [weak self] in
-            guard let self else { return }; self.onAddProject?(self.projectPickerButton ?? self.context)
+            guard let self else { return }; locationPopover.performClose(nil); onAddProject?(folder)
         })
         return menu
     }
     private func chooseTool() {
         let menu = NSMenu()
-        for tool in [SessionTool.shell, .codex, .claude] {
-            let item = ClosureMenuItem(tool.displayName) { [weak self] in self?.onDraft?(tool, nil); self?.focus() }
+        for tool in [SessionTool.codex, .claude] {
+            let item = ClosureMenuItem(tool == .claude ? "Claude" : tool.displayName) { [weak self] in self?.onDraft?(tool, nil); self?.focus() }
+            item.image = SpookkyStyle.toolImage(tool)
             item.state = currentTool == tool ? .on : .off; menu.addItem(item)
         }
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: picker.bounds.height), in: picker)
     }
-    override func layout() { super.layout(); resizePrompt() }
+    func focus() { window?.makeFirstResponder(currentTool == .shell ? launch : prompt) }
+    var hasInputFocus: Bool {
+        !locationPopover.isShown && (window?.firstResponder === prompt || window?.firstResponder === launch || window?.firstResponder === picker)
+    }
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if newWindow == nil { locationPopover.performClose(nil) }
+        super.viewWillMove(toWindow: newWindow)
+    }
+    override func layout() { super.layout(); configureFooter(); resizePrompt() }
     private func resizePrompt() {
         guard let manager = prompt.layoutManager, let container = prompt.textContainer, promptScroll.contentSize.width > 0 else { return }
         manager.ensureLayout(for: container)

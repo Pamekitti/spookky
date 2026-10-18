@@ -64,8 +64,11 @@ final class GhosttyEngine {
                 return true
             case GHOSTTY_ACTION_OPEN_URL:
                 if let pointer = action.action.open_url.url,
-                   let url = URL(string: String(cString: pointer)), ["http", "https", "file"].contains(url.scheme ?? "") {
-                    DispatchQueue.main.async { NSWorkspace.shared.open(url) }
+                   let url = URL(string: String(cString: pointer)), ["http", "https", "file"].contains(url.scheme?.lowercased() ?? "") {
+                    DispatchQueue.main.async { [weak view] in
+                        guard let view else { return }
+                        if view.onOpenURL?(url) != true { NSWorkspace.shared.open(url) }
+                    }
                 }
                 return true
             default: return false
@@ -83,7 +86,7 @@ final class GhosttyEngine {
             guard let pointer, let text else { return }
             let view = Unmanaged<TerminalHostView>.fromOpaque(pointer).takeUnretainedValue()
             guard let surface = view.surface else { return }
-            let alert = NSAlert()
+            let alert = ChromeAlert()
             alert.messageText = "Allow terminal clipboard access?"
             alert.informativeText = "The terminal requested a clipboard operation."
             alert.addButton(withTitle: "Allow")
@@ -98,7 +101,7 @@ final class GhosttyEngine {
             guard let pointer, let contents else { return }
             let clipboard = Unmanaged<TerminalHostView>.fromOpaque(pointer).takeUnretainedValue().engine.clipboard
             if confirmation {
-                let alert = NSAlert()
+                let alert = ChromeAlert()
                 alert.messageText = "Allow terminal to write the clipboard?"
                 alert.addButton(withTitle: "Allow")
                 alert.addButton(withTitle: "Cancel")

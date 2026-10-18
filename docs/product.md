@@ -1,6 +1,6 @@
 # Product contract
 
-Status: accepted direction for v1, 26 September 2026. Product name: Spookky, adopted 12 October 2026.
+Status: conversation-workspace direction accepted 17 October 2026; landing, paged history and tab workflow refined 18 October 2026. Product name: Spookky, adopted 12 October 2026.
 
 ## Purpose
 
@@ -45,46 +45,53 @@ V1 is a local macOS desktop application for one OS user. Apple Silicon is the in
 | --- | --- |
 | Project | A registered folder or repository. It can be non-Git. |
 | Checkout | A concrete Git working directory, including the original checkout or a worktree. |
-| Workspace | A sidebar entry anchored to a directory. Its tabs share that scope. |
-| Tab | A terminal process or an unstarted launch draft. |
-| Split | An explicit arrangement of two or more terminal views in one workspace. |
+| Session | User-facing sidebar entry for one primary conversation or standalone shell, its anchor and supporting tabs. |
+| Workspace | Internal record for an open or retained session. Several sessions may share a checkout. |
+| History catalog | Provider metadata keyed by provider and session ID, independent of terminals and workspaces. |
+| Landing | Retained global or project draft shown whenever no session view is selected. |
+| Tab | A supporting file, Changes, browser, artifact, or optional shell view. Terminal backing records retain stable process IDs and drafts. |
+| Split view | Primary TUI on the left and the last selected supporting view on the right, beneath aligned headers. |
+| Full view | Primary tab first and supporting tabs on one row; selected content fills the area below. |
 | Starting reference | A commit source such as HEAD, local dev, or origin/dev. |
 | Working branch | The branch checked out in the selected or new worktree. |
 | Initial prompt | Optional input for a fresh agent launch. Never a shell command. |
 | Resume | Start a CLI with provider-owned saved conversation history. |
 | Reattach | Connect a view to the same surviving process. |
 
-Use these names in UI and code. Do not revert to a task model that requires a worktree, task title, or primary agent.
+Use New session in the UI. Existing workspace type and persistence names remain internal implementation terms. Do not revert to a task model that requires a worktree, task title, or primary agent.
 
 ## Included in v1
 
 | Area | Contract |
 | --- | --- |
-| Immediate start | Cmd+N creates a blank workspace. Cmd+T there opens Terminal at the chosen location, Home by default. |
+| Immediate start | With no open view, show the composer. Cmd+N selects the global draft; project + selects its project draft. Start promotes it into a session. Open Terminal retains the agent draft. Cmd+T opens a supporting browser. |
 | Projects | Register an existing folder, clone a repository, or create a folder with optional Git initialization. |
 | Locations | Home, one-off folder, Local checkout, existing worktree, or new worktree. |
 | Worktrees | Explicit source and optional working branch name. Generated branch names are allowed. |
 | Terminals | Real shell, Codex CLI, and Claude Code CLI; optional initial agent prompt. |
-| Parallel work | Switch, rename, close, and split terminal tabs; preserve process and view state. |
+| Parallel work | Each UI-launched agent gets a sibling sidebar workspace. Supporting + opens Browser, Files, Changes, Artifact or Terminal. Split and Full view retain live views and drafts. |
 | Agent attention | Provider-reported activity, unread completions, workspace rollups, and optional native notifications. See [agent activity](agent-activity.md). |
-| Navigation | Compact project/workspace sidebar, project +, workspace ×, search, collapsible icon rail. |
+| Navigation | Single-line project history, five recent entries and repeated ten-entry expansion, one search field, contextual actions and a collapsible icon rail. |
 | File inspection | Full file tree, file search, read-only preview, external-editor action. |
 | Change inspection | Uncommitted groups and committed comparison against a selected branch; unified/split diff. |
 | Recovery | Clear launch errors, retained successful worktree creation, reconnect, ended sessions, explicit resume. |
 | Lifecycle | Safe close behavior, explicit background continuation, metadata restore after restart. |
 | Polish | Stable keyboard focus, tooltips, native appearance, readable density, accessibility, and bounded resource use. |
 
+First use selects Codex. New sessions remember the last agent choice independently of shell launches. Existing drafts keep their saved provider and text.
+
 Both agent CLIs use their own credentials, configuration, permissions, model controls, and conversation histories. Spookky does not require its own account. A shell works without either agent installed.
 
 ## Excluded from v1
 
 - Custom chat rendering, model APIs, prompt orchestration, or an agent SDK protocol.
-- Automation, schedules, tasks, team accounts, plugins, or an embedded browser.
+- Automation, schedules, tasks, team accounts, plugins, or browser automation.
 - Mandatory worktrees, mandatory starting prompts, or required workspace naming.
 - A bottom shell opened by a layout button, or an extra global top bar.
 - Inline review comments, viewed-file checklists, staging/commit forms, and PR creation UI.
 - Automatic project setup scripts, dependency installation, or remote synchronization.
 - A full editor, universal session import, cloud execution, or a Spookky mobile app.
+- OpenCode integration in this batch. Codex and Claude Code are the supported agent choices.
 
 Testing, staging, commits, pushes, and PRs remain available through the user's CLI, agent, or external tools. The app refreshes the resulting Git state.
 
@@ -92,12 +99,12 @@ Testing, staging, commits, pushes, and PRs remain available through the user's C
 
 1. Local keeps the current branch and existing edits untouched.
 2. New worktree is an explicit choice. It does not copy dirty source files or merge itself back later.
-3. Two agents in one workspace share files. Worktrees isolate edits, not ports, credentials, databases, or services.
+3. Conversations that share a checkout share files. Worktrees isolate edits, not ports, credentials, databases, or services.
 4. A shell's directory change does not repoint the workspace. An explicit action can open that directory as another workspace.
-5. One Git checkout has one workspace identity. A duplicate launch offers Switch and add tab. Independent Home/non-Git workspaces are allowed.
-6. Closing entries does not delete files or branches. Worktree deletion is a separate operation with checks.
+5. Conversation identity is provider plus session ID. Several conversation workspaces may share one checkout. Drafts and standalone shells have optional conversation identity.
+6. Closing views retains metadata and processes. The final session view returns to the landing composer. Stop primary terminal is separate and confirmed. Shared provider execution may continue. Worktree deletion is separate.
 7. Switching views never starts an extra agent, drops a draft, or resends a prompt.
-8. Conversation resume, live reattachment, remote control, and cloud copies are described honestly.
+8. Capability-based continuation preserves exact IDs and original folders. Native resume does not establish exclusive Claude ownership. Remote control and cloud copies are described honestly.
 
 ## What success means
 
