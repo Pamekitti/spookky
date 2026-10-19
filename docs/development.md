@@ -187,6 +187,8 @@ python3 scripts/benchmark_m4.py --output .cache/continuity.json
 python3 scripts/benchmark_m4.py --overnight --output .cache/overnight.json
 ```
 
+`benchmark_m1.py --binary /absolute/path/to/Spookky.app/Contents/MacOS/Spookky` measures a frozen build. Use the same runner, workload and observation duration for both builds.
+
 The default M4 fixture runs ten warm-ups, 100 measured lifecycle cycles, a 30-minute workload, and a 60-second idle observation. The overnight mode is eight hours. Run measurements separately with no builds in progress. Neither mode prevents or initiates sleep. Add `--background` to keep the automated fixture behind user windows without keyboard focus or mouse input. This mode measures programmatic native attachment and excludes physical typing.
 
 `benchmark_agents_m0.py` uses a separately prepared `/tmp/spookky-m0-agent-fixture` folder trusted through normal provider flows. It opens provider interfaces without model prompts. See [performance](performance.md) for resource boundaries and [recovery](m4-recovery.md) for hands-on sleep/reboot checks.
