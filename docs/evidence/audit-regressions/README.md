@@ -55,20 +55,20 @@ First failures remain in private local evidence. Fullscreen fixtures now wait fo
 
 | Measurement | Samples per build | Baseline | Candidate |
 | --- | ---: | ---: | ---: |
-| Empty readiness, median / p95 | 30 | 298.2 / 429.0 ms | 291.9 / 328.7 ms |
-| Warm conversation selection, p95 | 35 | 25.5 ms | 25.2 ms |
-| Recreated terminal selection, p95 | 105 | 60.3 ms | 59.2 ms |
-| Five-shell foreground app RSS, two medians | 2 x 60 seconds | 104.1 / 127.6 MiB | 114.4 / 123.9 MiB |
-| App plus owned runtime/shell RSS, same cases | 2 x 60 seconds | 114.7 / 139.6 MiB | 126.1 / 135.6 MiB |
-| Foreground idle CPU, percent of one core | 2 x 60 seconds | 0.48 / 0.48% | 0.45 / 0.47% |
+| Empty readiness, median / p95 | 30 | 291.3 / 321.9 ms | 293.2 / 312.5 ms |
+| Warm conversation selection, p95 | 35 | 26.0 ms | 24.4 ms |
+| Recreated terminal selection, p95 | 105 | 60.3 ms | 60.2 ms |
+| Five-shell foreground app RSS, two medians | 2 x 60 seconds | 102.8 / 128.9 MiB | 116.7 / 104.0 MiB |
+| App plus owned runtime/shell RSS, same cases | 2 x 60 seconds | 112.6 / 140.6 MiB | 131.4 / 113.7 MiB |
+| Foreground idle CPU, percent of one core | 2 x 60 seconds | 0.48 / 0.46% | 0.48 / 0.48% |
 
-Both foreground pairs stayed visible and active at their CPU boundaries. Both process sets stayed stable. RSS differences changed direction across the two pairs. Separate vmmap physical-footprint observations were 128.5M / 88.6M for baseline and 87.5M / 87.7M for candidate. RSS includes shared pages and compression effects. These observations do not establish a causal memory change or performance improvement.
+Both foreground pairs stayed visible and active at their CPU boundaries. Both process sets stayed stable. RSS differences changed direction across the two pairs. Separate vmmap physical-footprint observations were 89.1M / 88.7M for baseline and 128.3M / 88.7M for candidate. RSS includes shared pages and compression effects. These observations do not establish a causal memory change or performance improvement.
 
 The separate 1/5/10-conversation matrix also completed two runs per build and count with stable process sets. Those windows were occluded and inactive at the boundaries. Their low CPU values are near collector resolution and do not replace foreground idle evidence. The JSON retains each case and its visibility boundary.
 
 Empty readiness excludes provider discovery, the first rendered frame and CLI readiness. Selection ends at native attachment, layout and focus. It excludes first bytes and physical display latency. Both builds passed wrapped resize and crash restoration with unchanged process identities and viewport markers.
 
-The preceding application source, `67aa7fe`, completed these 20 matched cases, including four foreground observations. Its continuity run was deliberately interrupted after 40 minutes 35 seconds to repair project-opening completion. All 110 setup cycles passed their resource checks. Corrected source `5c4f716` is repeating the matched matrix before a new complete eight-hour test. No eight-hour pass or performance improvement is claimed here yet.
+Source `5c4f716` completed all 20 matched cases, including four foreground observations. Its continuity attempt was interrupted after 12 minutes 51 seconds to repair startup acknowledgment during a native conversation switch. All 110 setup cycles passed their 13 resource checks. The preceding `67aa7fe` attempt was interrupted after 40 minutes 35 seconds to repair project-opening completion. Neither attempt is an eight-hour pass. The corrected executable will receive a new complete run.
 
 ## Remaining limits
 
@@ -79,6 +79,8 @@ The user has no 1x display available, so physical 1x-to-2x transitions remain ha
 The native project picker intermittently remained in a loading state during automation. Later registrations succeeded. A stock picker comparison worked. The cause is unconfirmed; a speculative deferral was reverted.
 
 Claude resume displayed saved output but could stop accepting input on the surviving GUI-owned private server. The same native CLI also stalled there without a Spookky surface. Fresh independent private servers accepted input with the same environment and terminal settings. A later fresh GUI-owned runtime reproduced the wait after its disposable checkout gained Git metadata. Its native main thread waited inside `openat`. A plain file probe opened that checkout's Git config, the global Git config and Claude settings, then waited opening a public README in Documents. The OS cause remains unconfirmed. No privacy settings were changed and the server with a running Codex session was retained. A native SessionStart callback confirms monitoring integration; it does not prove input responsiveness.
+
+The development bundle's existing Documents grant resolves to an earlier frozen app copy. That copy, the later resume owner and the final executable have different ad-hoc designated signature requirements. Stale signing/privacy state is a concrete hypothesis. No permission reset or new grant was performed.
 
 Real Codex activity hooks remained gated by its native trust decision. Claude activity callbacks passed. Missing monitoring stays unknown. Native resume does not establish exclusive cross-application Claude ownership.
 
