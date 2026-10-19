@@ -175,7 +175,7 @@ Each composer owns up to 50 Undo levels. Undo and Redo operate only on native te
 
 Menus close on Escape and restore focus. Arrow keys navigate contextual actions. Dialogs keep keyboard focus inside while open. Visible action labels and accessibility names must agree.
 
-Inputs retain focus while typing; do not rebuild the entire interface per keystroke. Validation retains values and places the error near the relevant action. Loading states identify the current step and allow cancellation when safe.
+Inputs retain focus while typing; do not rebuild the entire interface per keystroke. Asynchronous terminal attachment preserves file-picker, sidebar and supporting input focus. Explicit conversation selection still focuses its content. Validation retains values and places the error near the relevant action. Loading states identify the current step and allow cancellation when safe.
 
 Keep primary launch actions visible. Reveal sidebar utilities on hover and keyboard focus. Keep compact controls distinguishable in both themes. Native VoiceOver behavior needs real testing; the HTML checks do not establish native accessibility.
 

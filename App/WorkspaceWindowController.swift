@@ -879,6 +879,12 @@ import SpookkyGit
     private func clear(_ stack: NSStackView) {
         for view in stack.arrangedSubviews { stack.removeArrangedSubview(view); view.removeFromSuperview() }
     }
+    private var retainsInputFocusOutsideTerminals: Bool {
+        if window.attachedSheet != nil || filePicker?.popover.isShown == true { return true }
+        guard let view = window.firstResponder as? NSView, view.window === window,
+              view !== window.contentView else { return false }
+        return !view.isDescendant(of: body) && !view.isDescendant(of: supportingTerminal)
+    }
     func render() {
         let state = store.state
         let activeLocation = state.locations?.operations.first { $0.status == .running }
@@ -952,7 +958,7 @@ import SpookkyGit
         updateStartupFeedback()
         guard key != contentKey else { return }
         contentKey = key; renderTask?.cancel(); surfaces.invalidate()
-        if !workspaceLayout.hasFocus { window.makeFirstResponder(nil) }
+        if !workspaceLayout.hasFocus && !retainsInputFocusOutsideTerminals { window.makeFirstResponder(nil) }
         let started = ProcessInfo.processInfo.systemUptime
         renderTask = Task { [weak self] in await self?.renderContent(started: started) }
     }
@@ -1854,6 +1860,27 @@ import SpookkyGit
         checks["agent_draft_survives_shell_and_collapse"] = store.state.tab(original.selectedTabID)?.draft == original.tabs[0].draft
         checks.merge(try await checkActivityRecovery(root: root, terminal: shellID), uniquingKeysWith: { _, new in new })
         try await activate()
+        chooseSupportingFile()
+        guard let picker = filePicker, let pickerWindow = picker.view.window,
+              let pickerResponder = pickerWindow.firstResponder else { throw LaunchError.invalid("Focus fixture file picker did not open.") }
+        checks["focus_fixture_file_picker_is_key"] = picker.popover.isShown && pickerWindow.isKeyWindow
+        contentKey = ""; render()
+        if let renderTask { await renderTask.value }
+        checks["terminal_reattach_preserves_file_picker_focus"] = picker.popover.isShown && pickerWindow.isKeyWindow && pickerWindow.firstResponder === pickerResponder
+        picker.popover.performClose(nil)
+        try await activate()
+        window.makeFirstResponder(historySearch)
+        guard let searchResponder = historySearch.currentEditor() else { throw LaunchError.invalid("Focus fixture sidebar search did not begin editing.") }
+        contentKey = ""; render()
+        if let renderTask { await renderTask.value }
+        checks["terminal_reattach_preserves_sidebar_search_focus"] = window.firstResponder === searchResponder && historySearch.currentEditor() === searchResponder
+        window.makeFirstResponder(surface)
+        contentKey = ""; render()
+        window.makeFirstResponder(historySearch)
+        guard let laterResponder = historySearch.currentEditor() else { throw LaunchError.invalid("Late focus fixture sidebar search did not begin editing.") }
+        if let renderTask { await renderTask.value }
+        checks["late_terminal_attachment_preserves_new_search_focus"] = window.firstResponder === laterResponder && historySearch.currentEditor() === laterResponder
+        window.makeFirstResponder(surface)
         func nativeControls(_ view: NSView) -> [NSControl] { (view as? NSControl).map { [$0] } ?? view.subviews.flatMap(nativeControls) }
         let controls = nativeControls(window.contentView!).filter { control in
             if let field = control as? NSTextField { return field.isEditable || field.isSelectable }
@@ -1994,7 +2021,7 @@ import SpookkyGit
             if case .terminal(let id) = store.state.selected?.support?.selected?.target,
                let terminal = records.first(where: { $0.id == id }) { install(pane(terminal, surface: prepared[id]), in: supportingTerminal) }
             let active = store.state.selectedTab?.id
-            if !workspaceLayout.hasFocus {
+            if !workspaceLayout.hasFocus && !retainsInputFocusOutsideTerminals {
                 if let active, let surface = prepared[active] { window.makeFirstResponder(surface) }
                 else if let active { composers[active]?.focus() }
             }
@@ -2166,7 +2193,7 @@ import SpookkyGit
         if store.state.selectedWorkspaceID != id { cancelLaunchPreflight() }
         renameEditor?.cancel(); renameEditor = nil
         if store.state.selectedWorkspaceID == id { focusSelectedContent() }
-        else { store.update { $0.selectWorkspace(id) } }
+        else { window.makeFirstResponder(nil); store.update { $0.selectWorkspace(id) } }
         scheduleRepositoryRefresh()
         refreshAgentAttention(clearManual: true)
     }
