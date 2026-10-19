@@ -3452,7 +3452,7 @@ import SpookkyGit
             }
             if let startup = primary.startup {
                 let text = startup.interactionObserved ? "Native provider activity was observed. This does not prove task success." :
-                    "The terminal process is connected. Provider startup and starting-prompt acceptance are not confirmed. Spookky will not replay input or restart it automatically."
+                    "The terminal process is connected. Provider startup and starting-prompt acceptance are not confirmed. Check macOS file-access prompts if the CLI waits while reading other folders. Spookky will not replay input or restart it automatically."
                 let status = ChromeTextField(wrappingLabelWithString: text)
                 status.font = .systemFont(ofSize: SpookkyStyle.points(11)); status.textColor = SpookkyPalette.secondary
                 views.append(status)

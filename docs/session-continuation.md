@@ -22,6 +22,8 @@ Save unsent CLI input before entering a slash command. Provider-native authentic
 
 Runtime attachment does not prove that the provider initialized or accepted a starting prompt. New launches retain a separate startup observation. After 15 seconds without native confirmation, the conversation shows a quiet explanation with Focus terminal and Details. Details offers Copy starting prompt and Dismiss startup notice. Neither action submits text or starts another process. Declining activity hooks can leave startup unconfirmed even while the terminal is usable.
 
+The explanation also points to macOS file access. A native CLI can wait while reading configuration or history outside its conversation folder. Spookky does not grant that access or restart the owning runtime automatically.
+
 Initial prompts continue through ordinary native launch arguments. Spookky never converts a delayed launch into background execution, automatically retries an uncertain prompt, or removes provider locks. The retained prompt and native refusal output remain available for explicit recovery.
 
 ## Primary identity and supporting views

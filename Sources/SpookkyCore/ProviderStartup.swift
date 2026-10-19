@@ -33,8 +33,8 @@ extension WorkspaceTab {
     public func startupMessage(at now: Date = Date()) -> String? {
         guard let pending = pendingStartup, now >= pending.noticeDate else { return nil }
         return pending.expectsPrompt
-            ? "The terminal is connected, but the provider has not confirmed the starting prompt. Check its native input or trust prompts before copying any text."
-            : "The terminal is connected, but provider startup has not been confirmed. Check its native input or trust prompts. Activity may be unavailable."
+            ? "Starting-prompt acceptance is unconfirmed. Check native prompts and macOS file access before copying text."
+            : "Provider startup is unconfirmed. Check its terminal, trust prompts or macOS file access. Activity may be unavailable."
     }
 }
 
