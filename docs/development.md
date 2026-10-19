@@ -108,7 +108,7 @@ python3 scripts/check_claude_ownership.py --executable /path/to/claude --output 
 
 Use the installed native Claude executable rather than a Spookky shell wrapper. The Claude fixture uses a loopback response stub, isolated configuration, a disposable folder and its own tmux socket. It retains native onboarding and trust. It never sends a request to an external model service or stops an unrelated owner. Explicit background startup tests native attach; the app's ordinary resume policy remains unchanged.
 
-Add `--activity-helper /path/to/Spookky.app/Contents/MacOS/spookky-launch` to exercise both native routes through the bundled monitoring integration. This retains the same saved ID and checks that neither resume nor attach sends another model turn.
+Add `--activity-helper /path/to/Spookky.app/Contents/MacOS/spookky-launch` to exercise both native routes through the bundled monitoring integration. This retains the same saved ID and verifies that both routes accept unsent input without another model turn. Control commands receive empty standard input so a wrapper's input cannot become a provider prompt.
 
 ## Public website and releases
 

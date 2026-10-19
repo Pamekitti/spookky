@@ -115,7 +115,7 @@ def check(executable, *, activity_helper=None):
 
             def cli(*arguments, timeout=15):
                 return subprocess.run([executable, *arguments], cwd=checkout, env=environment,
-                                      capture_output=True, text=True, timeout=timeout)
+                                      stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=timeout)
 
             def tmux(*arguments):
                 return subprocess.run([tmux_path(), "-S", str(socket), *arguments], env=environment,
