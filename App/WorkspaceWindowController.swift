@@ -3012,10 +3012,8 @@ import SpookkyGit
         var seen = Set<ConversationID>()
         let search = historySearch.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         let selectedWorkspace = state.selected
-        let workspaceByKey = Dictionary(grouping: state.workspaces, by: \.threadKey).mapValues { matches in
-            matches.first { $0.primaryTerminal?.status == .running } ??
-                matches.first { $0.id == state.selectedWorkspaceID } ?? matches[0]
-        }
+        let workspaceByKey = Dictionary(grouping: state.workspaces, by: \.threadKey)
+            .compactMapValues { state.preferredWorkspace(in: $0) }
         func append(_ records: [ConversationCatalogRecord], projectID: UUID?, key: String) {
             let supplemental = state.workspaces.filter { workspace in
                 !workspace.isLanding && !state.isArchived(workspace) && (key == "search" || workspace.projectID == projectID) &&

@@ -68,7 +68,9 @@ extension WorkspaceState {
     public var primaryTerminalID: UUID? { selected?.primaryTerminalID }
     public var openWorkspaces: [Workspace] { workspaces.filter { !$0.isLanding && $0.viewClosed != true && (version < 8 || !isArchived($0)) } }
     public func workspace(for id: ConversationID) -> Workspace? {
-        let matches = workspaces.filter { $0.conversationID == id }
+        preferredWorkspace(in: workspaces.filter { $0.conversationID == id })
+    }
+    public func preferredWorkspace(in matches: [Workspace]) -> Workspace? {
         return matches.first { $0.primaryTerminal?.status == .running } ??
             matches.first { $0.id == selectedWorkspaceID } ?? matches.first
     }
