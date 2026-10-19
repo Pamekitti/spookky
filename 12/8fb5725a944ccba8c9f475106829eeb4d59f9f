@@ -1,0 +1,19 @@
+scripts/check_new_session.py
+  s_72d3c2ec773986::t_cd64a576b2779d 9,30,34-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "128fb5725a944ccba8c9f475106829eeb4d59f9f",
+  "prompts": {},
+  "sessions": {
+    "s_72d3c2ec773986": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14987-431c-7973-a91e-bca18c5e418a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
