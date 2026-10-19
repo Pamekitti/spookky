@@ -169,6 +169,7 @@ def main():
     parser.add_argument("--real", action="store_true", help="Send one minimal turn to each installed provider using its existing configuration")
     parser.add_argument("--helper", type=Path, default=HELPER)
     args = parser.parse_args()
+    args.helper = args.helper.resolve()
     if not args.helper.is_file():
         parser.error("Build spookky-launch first")
     cases = [run(provider, real=args.real, failure=failure, helper=args.helper)

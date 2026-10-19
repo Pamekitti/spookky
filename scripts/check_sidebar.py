@@ -51,6 +51,16 @@ def main():
         resources["app_rss_mib_at_ready"] = app_kib / 1024
         resources["runtime_and_shell_rss_mib"] = runtime_kib / 1024
         resources["total_session_rss_mib"] = (app_kib + runtime_kib) / 1024
+        resources["private_runtime_panes"] = len(pane_pids)
+        resources["owned_runtime_processes"] = sum(pid in owned for pid, _, _, _ in rows)
+        app_descendants = {fixture.process.pid}
+        previous = set()
+        while previous != app_descendants:
+            previous = set(app_descendants)
+            app_descendants.update(pid for pid, parent, _, _ in rows if parent in app_descendants)
+        resources["app_git_subprocesses_at_ready"] = sum(
+            pid in app_descendants and Path(command.split(None, 1)[0]).name in {"git", "gh"}
+            for pid, _, _, command in rows)
         screenshots = []
         for theme in ["dark", "light"]:
             destination = args.output.with_name(args.output.stem + "-" + theme + ".png")

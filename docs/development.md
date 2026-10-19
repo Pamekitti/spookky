@@ -213,6 +213,24 @@ The close fixture uses disposable metadata and a private runtime socket. It chec
 
 Run `python3 scripts/check_sidebar.py --display --output .cache/display-checks.json` against the Release build for the light/dark zoom and hit-target matrix. Use disposable state and serialize native GUI fixtures. The matrix includes Ghostty theme variants, recursive includes, invalid-config recovery and creation of a previously missing config directory. It does not replace physical display-transition or provider visual-parity checks.
 
+## Sidebar attention checks
+
+```sh
+swift test --jobs 2 --filter SidebarStatusTests
+python3 scripts/check_sidebar_reference.py --output .cache/sidebar-reference.json
+python3 scripts/check_sidebar_restart.py --output .cache/sidebar-restart.json
+```
+
+The native check covers both appearances, wide/narrow layouts, 100%/150% zoom, title movement, action identity, hover-card placement, Reduce Motion and recycled rows. It records focus losses separately and retries only when the app lost focus. Each CPU sample combines active half-second intervals totaling at least five seconds. It records visible rows, animated titles and pending hover tasks. Provider and WindowServer costs are excluded. The ordinary sidebar check also exercises real terminal scrollback acknowledgment, background completion, input requests and failures.
+
+Add `--external-captures` to pause each variant for native screenshots through a computer-use driver. The printed private root exposes `capture-ready.json`; save `reference-native-VARIANT.png` and create `captured-VARIANT` to continue. This avoids blank AppKit captures of layer-backed window content. [Measured results and screenshots](evidence/sidebar-reference/README.md) record the verified development pass.
+
+The following opt-in check reads the status of an existing merged public PR through the installed GitHub CLI. It uses existing authentication and makes no remote changes:
+
+```sh
+SPOOKKY_REAL_PR_CHECK=1 swift test --jobs 2 --filter SidebarStatusTests
+```
+
 ## Private-runtime focus regression
 
 `python3 scripts/build_runtime.py` applies the documented tmux focus-event backport and runs its parser regression before accepting a new runtime build. To repeat the parser check against the configured local sources, run:

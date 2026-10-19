@@ -6,9 +6,9 @@ Spookky's native controls follow the geometry and interaction rules below. The l
 
 | Component | Geometry | Behavior |
 | --- | --- | --- |
-| Sidebar | 232-point column, 12-point outer selection inset with 8-point internal row padding | Separates row content from the window edge while keeping navigation compact |
-| Project row | 28 points, 16-point icon slot, separate 28-point add action | Click toggles expansion; avatar becomes a chevron on hover/focus; add appears on hover/focus |
-| Conversation row | 32 points, one title line, optional attention indicator | Static truncation, full tooltip, contextual actions on hover/focus, separate selection and keyboard focus |
+| Sidebar | 264-point default column; selection insets are 3 points left and 8 right | Retains saved widths and uses a neutral palette confined to the sidebar |
+| Project row | 28 points, outlined folder, label at 35 points, separate 28-point add action | Click toggles expansion; folder becomes a chevron on hover/focus; add appears on hover/focus |
+| Conversation row | 31 points, regular 14-point title at 35 points, two trailing accessory targets | No leading provider mark; hover/focus reveals Pin and Archive; overflowing titles scroll within their clip |
 | Tab | 40-point strip, muted inactive title, one selection/hover fill, 24-by-24-point close target | Shared bounded tabs use rounded inset fills; supporting close appears on hover/focus and primary never closes |
 | Composer | 800-point maximum width, 80-point minimum prompt, 13-point card radius | Always available on landing; optional prompt; supporting Terminal retains the agent draft |
 | Files / Changes | Native file picker and a dedicated Changes view, 28-point list rows | Individual file tabs remain separate from change-review context |
@@ -20,6 +20,12 @@ Leading symbols use 14 points in a 16-point slot. Add and close symbols use 12-p
 Dark hover and selection washes use the foreground at 7% and 10% opacity. Light washes use 4% and 6%. They composite over the current surface instead of using a separate opaque gray for every component. Light OKLCH reference values are converted to fixed sRGB values at development time. There is no runtime color-conversion dependency.
 
 Metadata uses an independently tuned native pair, `#9a9795` and `#605e5d`, to retain at least 4.5:1 contrast over both ordinary and selected sidebar rows. Inactive tabs and supporting labels use the secondary foreground. Preview actions stay aligned to the right edge.
+
+The sidebar overrides these general tokens with neutral dark `#151515`, text `#d9d9d9`, hover `#272727`, and selection `#2d2d2d`, plus corresponding light colors. Highlights are 30 points high with 10-point corners. An unread completion uses an 8-point blue dot. Working uses a 10-point gray ring. Needs input uses a 23-point blue pill with 13-point text.
+
+Long titles start moving after 500 ms at 30 points per second, pause for 800 ms, then restart. Movement stays inside the title area and resets on exit or geometry changes. A non-activating details card appears after 500 ms. It contains the full title, project, relative time and known metadata. Its width is at most 320 scaled points and its placement stays on screen. Reduce Motion keeps titles and the ring static. Hover does not select or acknowledge a conversation.
+
+The linked-worktree and merged-PR glyphs are original small vector drawings. Other native controls use SF Symbols. A purple merge glyph requires verified GitHub state. Activity takes precedence in the final accessory position. Pin/Archive replace the accessories on hover or keyboard focus. Provider identity remains in thread details and accessibility labels.
 
 Native keyboard focus keeps the macOS focus indicator. Disabled controls remain visible at 45% opacity and do not gain a hover fill. Error text uses the warning role and keeps its recovery action nearby. Destructive confirmations retain native dialog semantics.
 
@@ -41,8 +47,6 @@ The range adapter and its upstream dependency notices are recorded in [dependenc
 
 ## Component finish pass
 
-The native interface includes an expanding composer, labeled worktree fields, full-height tabs, inline rename, project avatars with monogram fallbacks, lifecycle indicators and compact preview overflow. Native file categories replace generic document icons. Code retains its native selection and fixed gutters, with 18-point rows and explicit comparison captions.
-
-Native controls, cached GitHub owner avatars, generated text monograms and SF Symbols implement these roles. Avatar loading permits two concurrent downloads, limits each response to 512 KiB, and decodes images to 64 pixels. The cache holds 32 images in memory and at most 10 MiB on disk. Images refresh after seven days; failed refreshes retain stale images and wait an hour before retrying on demand.
+The native interface includes an expanding composer, labeled worktree fields, full-height tabs, inline rename, outlined project folders, lifecycle indicators and compact preview overflow. Sidebar rendering does not request avatar downloads. Native file categories replace generic document icons. Code retains its native selection and fixed gutters, with 18-point rows and explicit comparison captions.
 
 Verification boundaries are recorded in [current status](status.md).
