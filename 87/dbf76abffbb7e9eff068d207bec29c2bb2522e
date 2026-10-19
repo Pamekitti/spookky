@@ -1,0 +1,29 @@
+scripts/check_agent_hooks.py
+  s_8b632e4ace3371::t_13b85f7ab09a93 117,119-121,125,173
+scripts/test_check_agent_hooks.py
+  s_bb6f40919cf638::t_c4f39729022dab 1-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "87dbf76abffbb7e9eff068d207bec29c2bb2522e",
+  "prompts": {},
+  "sessions": {
+    "s_8b632e4ace3371": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a154ae-c841-79c0-a213-9bef0d62820b",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_bb6f40919cf638": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a154ae-c841-79c0-a213-9bef0d62820b",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
