@@ -220,6 +220,11 @@ extension ConversationTitleTests {
         XCTAssertEqual(state.selected?.anchor?.scopePath, location.path)
         XCTAssertEqual(state.selected?.anchor?.checkoutIdentity, observed.checkoutIdentity)
         XCTAssertEqual(state.selected?.anchor?.branch, "main")
+        let canonical = WorkspaceLocation(path: "/private/tmp/repo/child", checkoutIdentity: "/private/tmp/repo/.git", branch: "updated", commonRepository: "/private/tmp/repo/.git")
+        state.refreshRepositoryMetadata(canonical, workspaceID: workspace, scope: location.path)
+        XCTAssertEqual(state.selected?.anchor?.path, location.path)
+        XCTAssertEqual(state.selected?.anchor?.id, location.id)
+        XCTAssertEqual(state.selected?.anchor?.branch, "updated")
         try state.validate()
     }
 }

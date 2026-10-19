@@ -380,7 +380,7 @@ import SpookkySyntax
                        ((current.anchor ?? current.selectedLocation).checkoutIdentity != discovered.checkoutIdentity ||
                         (current.anchor ?? current.selectedLocation).commonRepository != discovered.commonRepository ||
                         (current.anchor ?? current.selectedLocation).branch != discovered.branch) {
-                        store.update { $0.refreshRepositoryMetadata(discovered, workspaceID: id) }
+                        store.update { $0.refreshRepositoryMetadata(discovered, workspaceID: id, scope: root) }
                     }
                     comparison.isHidden = identity.isEmpty
                     reference.isHidden = comparison.isHidden || !view.againstBranch

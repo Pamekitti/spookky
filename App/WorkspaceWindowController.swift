@@ -970,10 +970,11 @@ import SpookkyGit
             let contextPath = activityRoot.appendingPathComponent("agent-terminal-" + binding.id.uuidString + ".json").path
             let context = await Task.detached { try? AgentIntegration.read(AgentTerminalContext.self, path: contextPath) }.value
             guard context?.secret == receipt.secret else { continue }
-            let page = await sessionCatalog.page(query: HistoryQuery(directories: [binding.directory], limit: 100, exactDirectories: true), force: true)
+            let directories = await HistoryQuery.folderAliases(binding.directory)
+            let page = await sessionCatalog.page(query: HistoryQuery(directories: directories, limit: 100, exactDirectories: true), force: true)
             guard !Task.isCancelled else { return }
             let matches = page.conversations.filter {
-                $0.id.provider == .codex && $0.source == "cli" && receipt.candidates.contains($0.id.sessionID) && $0.directory == binding.directory
+                $0.id.provider == .codex && $0.source == "cli" && receipt.candidates.contains($0.id.sessionID) && directories.contains($0.directory)
             }
             guard matches.count == 1, let metadata = matches.first,
                   store.state.tab(primary.id)?.binding == binding else { continue }

@@ -61,6 +61,19 @@ final class ProviderIdentityTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(original, ["/usr/bin/true", "preserve literal"])
     }
 
+    func testIdentityFolderAliasesPreserveSelectedSubdirectory() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("spookky-alias-" + UUID().uuidString)
+        let target = root.appendingPathComponent("real folder/child")
+        try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let link = root.appendingPathComponent("alias")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: target.deletingLastPathComponent())
+        let aliases = await HistoryQuery.folderAliases(link.appendingPathComponent("child").path)
+        XCTAssertTrue(aliases.contains(link.appendingPathComponent("child").path))
+        XCTAssertTrue(aliases.contains(target.resolvingSymlinksInPath().path))
+        XCTAssertFalse(aliases.contains(target.deletingLastPathComponent().path))
+    }
+
     func testReceiptNeverRetainsPromptOrNotificationText() throws {
         let context = AgentTerminalContext(bindingID: UUID(), root: "/tmp/identity-fixture", helper: "/usr/bin/true")
         let ids = (0..<12).map { _ in UUID().uuidString }
