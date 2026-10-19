@@ -116,6 +116,46 @@ final class ProviderIdentityTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(metadata?.id.sessionID, id)
     }
 
+    func testCancelledIdentityQueryReleasesMetadataProcess() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("spookky-identity-cancel-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cli = root.appendingPathComponent("codex"), ready = cli.appendingPathExtension("ready")
+        let script = """
+        #!/usr/bin/python3
+        import json,os,pathlib,sys
+        for line in sys.stdin:
+            request=json.loads(line)
+            if request['method']=='initialize':
+                print(json.dumps({'id':request['id'],'result':{}}),flush=True)
+            elif request['method']=='thread/list':
+                pathlib.Path(__file__).with_suffix('.ready').write_text(str(os.getpid()))
+        """
+        try script.write(to: cli, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: cli.path)
+        let query = Task {
+            await ProviderIdentityResolver.codex(candidates: [UUID().uuidString], directory: root.path,
+                resolver: IdentityFixtureResolver(executable: cli.path))
+        }
+        defer { query.cancel() }
+        let clock = ContinuousClock(), deadline = ContinuousClock.now.advanced(by: .seconds(5))
+        while !FileManager.default.fileExists(atPath: ready.path), clock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        guard let text = try? String(contentsOf: ready, encoding: .utf8), let pid = Int32(text) else {
+            query.cancel(); _ = await query.value
+            XCTFail("The metadata process did not reach its first thread/list request")
+            return
+        }
+        let started = clock.now
+        query.cancel()
+        let result = await query.value
+        XCTAssertNil(result)
+        XCTAssertLessThan(started.duration(to: clock.now), .seconds(3))
+        XCTAssertEqual(kill(pid, 0), -1)
+        XCTAssertEqual(errno, ESRCH)
+    }
+
     func testReceiptNeverRetainsPromptOrNotificationText() throws {
         let context = AgentTerminalContext(bindingID: UUID(), root: "/tmp/identity-fixture", helper: "/usr/bin/true")
         let ids = (0..<12).map { _ in UUID().uuidString }
