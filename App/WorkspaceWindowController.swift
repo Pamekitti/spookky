@@ -1659,6 +1659,7 @@ import SpookkyGit
             try PrivateFiles.write(hits, to: root.appendingPathComponent("header-hit-grid.json"))
         }
         let tabClose = pair.closeButton
+        checks["section_accessibility_press_is_inert"] = sidebarCellForFixture("section:projects")?.accessibilityPerformPress() == false
         checks["single_line_conversation_row"] = cell.subviews.compactMap { $0 as? NSTextField }.count == 1 && abs(cell.bounds.height - 32) < 0.5
         let projectIcon = sidebarCellForFixture(projectKey)?.subviews.compactMap { $0 as? NSImageView }.first
         let conversationIcon = cell.subviews.compactMap { $0 as? NSImageView }.first
@@ -1714,7 +1715,8 @@ import SpookkyGit
         if let refresh = historyRefreshTask { refresh.cancel(); await refresh.value }
         let originalActivate = conversationSidebar.onActivate
         var activations = 0
-        conversationSidebar.onActivate = { _ in activations += 1 }
+        var lastActivatedID: String?
+        conversationSidebar.onActivate = { activations += 1; lastActivatedID = $0 }
         let virtual = (0..<5_000).map { WorkspaceSidebarItem(id: "fixture:" + String($0), kind: .conversation, title: name + " " + String($0), image: SpookkyStyle.toolImage(.codex)) }
         conversationSidebar.update(items: [virtual[0], virtual[0]], collapsed: false)
         checks["duplicate_history_ids_do_not_duplicate_rows"] = conversationSidebar.itemCount == 1
@@ -1731,6 +1733,9 @@ import SpookkyGit
         conversationSidebar.update(items: updated, collapsed: false); window.contentView?.layoutSubtreeIfNeeded()
         let afterY = sidebarCellForFixture(focusedID).map { $0.convert($0.bounds, to: window.contentView).minY }
         checks["refresh_preserves_scroll_anchor_and_focus"] = conversationSidebar.focusedItemID == focusedID && beforeY != nil && afterY != nil && abs(beforeY! - afterY!) < 1
+        let priorActivations = activations
+        checks["accessibility_press_opens_exact_row_after_refresh"] = sidebarCellForFixture(focusedID)?.accessibilityPerformPress() == true &&
+            activations == priorActivations + 1 && lastActivatedID == focusedID
         if let scroller = conversationSidebar.subviews.first as? NSScrollView, let table = scroller.documentView as? NSTableView {
             let origin = scroller.contentView.bounds.origin
             for x in [CGFloat(120), -120] {
