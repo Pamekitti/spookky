@@ -1,0 +1,23 @@
+App/PromptImageFixture.swift
+  s_72d3c2ec773986::t_787c11a275a148 33
+App/WorkspaceViews.swift
+  s_72d3c2ec773986::t_c31a558315327d 724,751,903,916,1020-1022,1025,1142,1144,1156-1157,1170-1171,1186,1191-1192,1196-1197,1212,1253,1272
+App/WorkspaceWindowController.swift
+  s_72d3c2ec773986::t_92f1cd2d2ad1c4 1929
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "439f25c0333465fa5034c632759aec277fad596a",
+  "prompts": {},
+  "sessions": {
+    "s_72d3c2ec773986": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14987-431c-7973-a91e-bca18c5e418a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
