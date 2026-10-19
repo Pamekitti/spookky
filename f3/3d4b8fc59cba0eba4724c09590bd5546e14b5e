@@ -1,0 +1,57 @@
+Sources/SpookkyCore/AgentModelSelection.swift
+  s_e930ef33ab12e2::t_b5465b4854c60e 1-19
+Sources/SpookkyWorkspace/CLIResolver.swift
+  s_1ff090e2823b59::t_fb27d45ddb455d 58,64-72
+Sources/SpookkyWorkspace/ProviderModelCatalog.swift
+  s_1ff090e2823b59::t_b734160b0e63f6 1-132
+Tests/SpookkyRuntimeTests/CLIResolverTests.swift
+  s_1ff090e2823b59::t_a2ea765002209c 49-60
+Tests/SpookkyRuntimeTests/ModelSelectionTests.swift
+  s_e930ef33ab12e2::t_8c5f1ac5008d8c 1-183
+Sources/SpookkyCore/HistoryCatalog.swift
+  s_bcb1ddf772ef56::t_81bd8fda0c3a2a 31-32,56-60
+Sources/SpookkyCore/WorkspaceState.swift
+  s_bcb1ddf772ef56::t_c2d2b3bf3057a1 22-32,229-232,275,412,416,428-436,609-610
+Sources/SpookkyWorkspace/AgentActivityResolver.swift
+  s_bcb1ddf772ef56::t_1054d0707e7993 16-18,20
+Sources/SpookkyWorkspace/CodexProjectClient.swift
+  s_bcb1ddf772ef56::t_c275869e926be8 122-123,128,131,188
+Sources/SpookkyWorkspace/LaunchCoordinator.swift
+  s_bcb1ddf772ef56::t_6d42f73c5182db 6,13-15,52
+Sources/SpookkyWorkspace/ModelLaunchOptions.swift
+  s_bcb1ddf772ef56::t_40633bf7803cb6 1-23
+Tests/SpookkyRuntimeTests/CoordinatorTests.swift
+  s_bcb1ddf772ef56::t_801c35afe19b10 81-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f33d4b8fc59cba0eba4724c09590bd5546e14b5e",
+  "prompts": {},
+  "sessions": {
+    "s_1ff090e2823b59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a154c8-cb0d-7330-8ed0-d1ed0b9dcc24",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_bcb1ddf772ef56": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a154c1-0f11-70a3-892f-fe280f57b618",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_e930ef33ab12e2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a154c8-cb0d-7330-8ed0-d1ed0b9dcc24",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
