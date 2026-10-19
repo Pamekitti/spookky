@@ -119,14 +119,16 @@ public actor CodexProjectRPC: CodexProjectConnection {
     private var received = 0
     private var initialized = false
 
-    public init(executable: String, environment: [String: String] = ProcessInfo.processInfo.environment) throws {
+    public init(executable: String, environment: [String: String] = ProcessInfo.processInfo.environment,
+                directory: String? = nil, timeout: TimeInterval = 15) throws {
         let process = Process(), stdin = Pipe(), stdout = Pipe()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = ["app-server"]
         process.environment = environment
+        if let directory { process.currentDirectoryURL = URL(fileURLWithPath: directory) }
         process.standardInput = stdin; process.standardOutput = stdout; process.standardError = FileHandle.nullDevice
         self.process = process; input = stdin.fileHandleForWriting; output = stdout.fileHandleForReading
-        deadline = Date().addingTimeInterval(15)
+        deadline = Date().addingTimeInterval(timeout)
         let completed = self.completed
         process.terminationHandler = { _ in completed.signal() }
         try process.run()
@@ -183,6 +185,7 @@ public actor CodexProjectRPC: CodexProjectConnection {
     }
     private func readLine() throws -> Data {
         while true {
+            try Task.checkCancellation()
             if let newline = pending.firstIndex(of: 10) {
                 let line = pending.prefix(upTo: newline); pending.removeSubrange(...newline); return Data(line)
             }

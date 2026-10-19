@@ -19,6 +19,17 @@ public enum WorkspaceTransition: Sendable {
 public struct TerminalDraft: Codable, Equatable, Sendable {
     public var tool: SessionTool
     public var prompt: String
+    private var modelChoices: [String: AgentModelSelection]?
+    public func recordedModelSelection(for tool: SessionTool) -> AgentModelSelection? { modelChoices?[tool.rawValue] }
+    public var modelSelection: AgentModelSelection { recordedModelSelection(for: tool) ?? AgentModelSelection() }
+    public mutating func selectModel(_ value: AgentModelSelection, for provider: SessionTool) {
+        guard provider != .shell, value.isValid else { return }
+        if modelChoices == nil { modelChoices = [:] }
+        modelChoices?[provider.rawValue] = value
+    }
+    public var hasValidModelChoices: Bool {
+        modelChoices?.allSatisfy { entry in [SessionTool.codex, .claude].contains { $0.rawValue == entry.key } && entry.value.isValid } ?? true
+    }
     private var imagePaths: [String]?
     public var images: [String] {
         get { imagePaths ?? [] }
@@ -215,6 +226,10 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     public internal(set) var selectedWorkspaceID: UUID?
     public var lastTool: SessionTool = .shell
     public var lastAgentTool: SessionTool?
+    private var lastModelChoices: [String: AgentModelSelection]?
+    public func lastModelSelection(for tool: SessionTool) -> AgentModelSelection {
+        lastModelChoices?[tool.rawValue] ?? AgentModelSelection()
+    }
     public var sidebarCollapsed = false
     public var appearance: WorkspaceAppearance = .system
     public var windowFrame: WorkspaceWindowFrame?
@@ -257,6 +272,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
         let tool = version < 6 ? lastTool : preferredAgent ?? (lastTool == .shell ? .codex : lastTool)
         var workspace = Workspace(location: location, projectID: projectID, tool: tool,
                                   title: WorkspaceNaming.friendly(excluding: workspaces.map(\.title)))
+        if tool != .shell { workspace.tabs[0].draft.selectModel(lastModelSelection(for: tool), for: tool) }
         if version >= 7 { workspace.lastViewedAt = Date() }
         workspaces.append(workspace); selectedWorkspaceID = workspace.id
         if let projectID { setProjectCollapsed(projectID, false) }
@@ -393,9 +409,11 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     }
     public mutating func editDraft(_ id: UUID, tool: SessionTool? = nil, prompt: String? = nil, images: [String]? = nil) {
         guard tab(id)?.isEditable == true else { return }
+        let fallback = tool.map { lastModelSelection(for: $0) }
         updateTab(id) {
             if let tool {
                 $0.draft.tool = tool
+                if $0.draft.recordedModelSelection(for: tool) == nil, let fallback { $0.draft.selectModel(fallback, for: tool) }
                 if let metadata = $0.providerTitle, metadata.provider != tool { $0.providerTitle = nil }
             }
             if let prompt { $0.draft.prompt = prompt }
@@ -406,6 +424,15 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
             lastTool = tool
             if tool != .shell { lastAgentTool = tool }
         }
+    }
+    public mutating func editModelSelection(_ id: UUID, selection: AgentModelSelection) {
+        guard let tab = tab(id), tab.isEditable, tab.draft.tool != .shell, selection.isValid else { return }
+        updateTab(id) {
+            $0.draft.selectModel(selection, for: tab.draft.tool)
+            $0.launch = nil; $0.failure = nil; $0.status = .draft
+        }
+        if lastModelChoices == nil { lastModelChoices = [:] }
+        lastModelChoices?[tab.draft.tool.rawValue] = selection
     }
     public mutating func setLocation(_ location: WorkspaceLocation, projectID: UUID?, workspaceID: UUID) {
         guard let index = workspaces.firstIndex(where: { $0.id == workspaceID }),
@@ -579,6 +606,8 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
         let tabs = workspaces.flatMap(\.tabs)
         for operation in locations?.operations ?? [] { try operation.request.validate() }
         guard [1, 2, 3, 4, 5, 6, 7, 8].contains(version), lastAgentTool != .shell,
+              lastModelChoices?.values.allSatisfy(\.isValid) != false,
+              tabs.allSatisfy({ $0.draft.hasValidModelChoices }),
               Set(locations?.operations.map(\.id) ?? []).count == (locations?.operations.count ?? 0),
               Set(locations?.checkouts.map(\.id) ?? []).count == (locations?.checkouts.count ?? 0),
               (locations?.operations.allSatisfy { $0.request.destination.hasPrefix("/") && !$0.request.destination.contains("\0") } ?? true),
