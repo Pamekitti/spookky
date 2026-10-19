@@ -37,6 +37,8 @@ import SpookkyCore
     private var indexByID: [String: Int] = [:]
     private var collapsed = false
     private var keyboardNavigation = false
+    private var trackingMenus = Set<ObjectIdentifier>()
+    private var pendingUpdate: (items: [WorkspaceSidebarItem], collapsed: Bool)?
     private(set) var hoveredItemID: String?
     private(set) var focusedItemID: String?
     var keyboardFocusItemID: String? { hasKeyboardFocus && keyboardNavigation ? focusedItemID : nil }
@@ -74,6 +76,9 @@ import SpookkyCore
         scroll.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(geometryChanged),
             name: NSView.boundsDidChangeNotification, object: scroll.contentView)
+        for name in [NSMenu.didBeginTrackingNotification, NSMenu.didEndTrackingNotification] {
+            NotificationCenter.default.addObserver(self, selector: #selector(menuTrackingChanged), name: name, object: nil)
+        }
         addSubview(scroll)
     }
     required init?(coder: NSCoder) { fatalError("Use init") }
@@ -100,6 +105,7 @@ import SpookkyCore
         refreshVisibleRows(); needsLayout = true
     }
     func update(items: [WorkspaceSidebarItem], collapsed: Bool) {
+        guard trackingMenus.isEmpty else { pendingUpdate = (items, collapsed); return }
         let restoreKeyboardFocus = hasKeyboardFocus
         let origin = scroll.contentView.bounds.origin
         let firstRow = table.row(at: NSPoint(x: 0, y: origin.y))
@@ -122,6 +128,16 @@ import SpookkyCore
         scroll.reflectScrolledClipView(scroll.contentView)
         if restoreKeyboardFocus { window?.makeFirstResponder(table) }
         reconcileHover(); refreshVisibleRows()
+    }
+
+    @objc private func menuTrackingChanged(_ notification: Notification) {
+        guard let menu = notification.object as? NSMenu else { return }
+        if notification.name == NSMenu.didBeginTrackingNotification { trackingMenus.insert(ObjectIdentifier(menu)) }
+        else { trackingMenus.remove(ObjectIdentifier(menu)) }
+        if trackingMenus.isEmpty, let pendingUpdate {
+            self.pendingUpdate = nil
+            update(items: pendingUpdate.items, collapsed: pendingUpdate.collapsed)
+        }
     }
 
     func focusItem(_ id: String? = nil) {

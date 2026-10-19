@@ -1779,6 +1779,31 @@ import SpookkyGit
             await Task.yield()
             checks["revealed_row_accessory_accepts_keyboard_focus"] = accessory != nil && window.firstResponder === accessory && accessory?.isHidden == false
         }
+        guard let menuAnchor = sidebarCellForFixture(focusedID) else { throw LaunchError.invalid("Menu refresh fixture anchor is unavailable.") }
+        let refreshMenu = NSMenu(); refreshMenu.addItem(ClosureMenuItem("Retained history action") {})
+        var menuOpened = false, menuEnded = false, refreshedDuringMenu = false
+        let began = NotificationCenter.default.addObserver(forName: NSMenu.didBeginTrackingNotification, object: refreshMenu, queue: .main) { _ in
+            MainActor.assumeIsolated { menuOpened = true }
+        }
+        let ended = NotificationCenter.default.addObserver(forName: NSMenu.didEndTrackingNotification, object: refreshMenu, queue: .main) { _ in
+            MainActor.assumeIsolated { menuEnded = true }
+        }
+        let menuRefresh = Timer(timeInterval: 0.2, repeats: false) { [self] _ in
+            MainActor.assumeIsolated {
+                conversationSidebar.update(items: Array(updated.prefix(20)), collapsed: false)
+                conversationSidebar.update(items: Array(updated.prefix(25)), collapsed: false)
+                refreshedDuringMenu = true
+                checks["history_refresh_retains_open_menu_anchor"] = conversationSidebar.itemCount == updated.count && sidebarCellForFixture(focusedID) === menuAnchor
+                checks["history_refresh_keeps_native_menu_tracking"] = menuOpened && !menuEnded
+                refreshMenu.cancelTracking()
+            }
+        }
+        RunLoop.main.add(menuRefresh, forMode: .common)
+        refreshMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: menuAnchor.bounds.maxY), in: menuAnchor)
+        menuRefresh.invalidate(); NotificationCenter.default.removeObserver(began); NotificationCenter.default.removeObserver(ended)
+        await Task.yield()
+        checks["native_menu_refresh_fixture_exercised"] = menuOpened && refreshedDuringMenu
+        checks["menu_close_applies_latest_history_snapshot"] = conversationSidebar.itemCount == 25
         checks["history_navigation_starts_no_agents"] = store.state.workspaces.flatMap(\.tabs).compactMap(\.binding) == bindings
         conversationSidebar.onActivate = originalActivate
         renderChrome(); conversationSidebar.focusItem(workspaceKey)
