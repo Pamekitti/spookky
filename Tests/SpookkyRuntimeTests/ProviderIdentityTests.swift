@@ -35,6 +35,32 @@ final class ProviderIdentityTests: XCTestCase, @unchecked Sendable {
         XCTAssertFalse(unsupported.arguments.contains("--session-id"))
     }
 
+    func testCodexNotificationOverrideIsValidTomlAndKeepsTheExistingCommand() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("spookky-identity-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let cli = root.appendingPathComponent("codex")
+        let script = """
+        #!/usr/bin/python3
+        import json,sys
+        for line in sys.stdin:
+            request=json.loads(line)
+            result={} if request['method']=='initialize' else {'config':{'notify':['/usr/bin/true','preserve literal']}}
+            if 'id' in request:
+                print(json.dumps({'id':request['id'],'result':result}),flush=True)
+        """
+        try script.write(to: cli, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: cli.path)
+        let resolver = AgentActivityResolver(base: IdentityFixtureResolver(executable: cli.path), root: root, helper: "/usr/bin/true")
+        let spec = try await resolver.resolveFresh(.codex, directory: root.path, prompt: nil)
+        let argument = try XCTUnwrap(spec.arguments.first { $0.hasPrefix("notify=") })
+        XCTAssertFalse(argument.contains("\\/"), "JSON slash escapes are not TOML escapes")
+        let command = try JSONDecoder().decode([String].self, from: Data(argument.dropFirst(7).utf8))
+        XCTAssertEqual(Array(command.prefix(2)), ["/usr/bin/true", "--agent-identity"])
+        let original = try JSONDecoder().decode([String].self, from: XCTUnwrap(Data(base64Encoded: command[3])))
+        XCTAssertEqual(original, ["/usr/bin/true", "preserve literal"])
+    }
+
     func testReceiptNeverRetainsPromptOrNotificationText() throws {
         let context = AgentTerminalContext(bindingID: UUID(), root: "/tmp/identity-fixture", helper: "/usr/bin/true")
         let ids = (0..<12).map { _ in UUID().uuidString }

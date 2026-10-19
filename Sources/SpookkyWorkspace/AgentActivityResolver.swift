@@ -26,7 +26,7 @@ public struct AgentActivityResolver: ExecutableResolver {
                       let forward = try? JSONEncoder().encode(command) {
                 let context = root.appendingPathComponent("agent-terminal-" + original.operationID.uuidString + ".json").path
                 let callback = [helper, "--agent-identity", context, forward.base64EncodedString()]
-                if let json = try? JSONEncoder().encode(callback),
+                if let json = try? JSONSerialization.data(withJSONObject: callback, options: [.withoutEscapingSlashes]),
                    let prepared = try? LaunchSpec(operationID: original.operationID, tool: tool, executable: original.executable,
                        arguments: ["-c", "notify=" + String(decoding: json, as: UTF8.self)] + original.arguments,
                        directory: directory, environment: original.environment) { spec = prepared }

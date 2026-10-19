@@ -11,6 +11,7 @@ import CoreServices
     private var firstEvent: TimeInterval?
     private(set) var isWatching = false
     var onChange: (() -> Void)?
+    var onPaths: (([String]) -> Void)?
     var onIssue: ((String?) -> Void)?
 
     func watch(_ paths: [String]) {
@@ -24,13 +25,16 @@ import CoreServices
         }
         readiness = timeout
         DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: timeout)
-        worker.watch(paths, token: token) { [weak self] ready in
+        worker.watch(paths, token: token) { [weak self] ready, changedPaths in
             DispatchQueue.main.async { [weak self] in
                 guard let self, generation == token else { return }
                 if let ready {
                     readiness?.cancel(); readiness = nil; isWatching = ready
                     onIssue?(ready ? nil : "File watching is unavailable. Use Refresh to update files and changes.")
-                } else { invalidate() }
+                } else {
+                    onPaths?(changedPaths)
+                    if onChange != nil { invalidate() }
+                }
             }
         }
     }
@@ -60,10 +64,10 @@ import CoreServices
         init(beforeRegistration: @escaping @Sendable () -> Void) { self.beforeRegistration = beforeRegistration }
         private var requested = UUID()
         private var stream: FSEventStreamRef?
-        private var change: (@Sendable (Bool?) -> Void)?
+        private var change: (@Sendable (Bool?, [String]) -> Void)?
         private func request(_ token: UUID) { lock.lock(); requested = token; lock.unlock() }
         private func current(_ token: UUID) -> Bool { lock.lock(); defer { lock.unlock() }; return requested == token }
-        func watch(_ paths: [String], token: UUID, change: @escaping @Sendable (Bool?) -> Void) {
+        func watch(_ paths: [String], token: UUID, change: @escaping @Sendable (Bool?, [String]) -> Void) {
             request(token)
             queue.async { [self] in
                 guard current(token) else { return }
@@ -71,19 +75,20 @@ import CoreServices
                 beforeRegistration()
                 guard current(token) else { return }
                 var context = FSEventStreamContext(version: 0, info: Unmanaged.passUnretained(self).toOpaque(), retain: nil, release: nil, copyDescription: nil)
-                let created = FSEventStreamCreate(nil, { _, info, _, _, _, _ in
+                let created = FSEventStreamCreate(nil, { _, info, _, paths, _, _ in
                     guard let info else { return }
-                    Unmanaged<Worker>.fromOpaque(info).takeUnretainedValue().change?(nil)
+                    let changed = unsafeBitCast(paths, to: NSArray.self) as? [String] ?? []
+                    Unmanaged<Worker>.fromOpaque(info).takeUnretainedValue().change?(nil, changed)
                 }, &context, paths as CFArray, FSEventStreamEventId(kFSEventStreamEventIdSinceNow), 0.1,
-                    FSEventStreamCreateFlags(kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot))
+                    FSEventStreamCreateFlags(kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot | kFSEventStreamCreateFlagUseCFTypes))
                 stream = created
                 guard current(token) else { releaseStream(); return }
                 if let created {
                     FSEventStreamSetDispatchQueue(created, queue)
                     let started = FSEventStreamStart(created)
                     if !started { releaseStream() }
-                    change(started)
-                } else { change(false) }
+                    change(started, [])
+                } else { change(false, []) }
             }
         }
         func stop() {
