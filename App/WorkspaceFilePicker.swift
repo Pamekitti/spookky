@@ -14,6 +14,8 @@ import SpookkyFiles
     private var directory = ""
     private var entries: [FileEntry] = []
     private var task: Task<Void, Never>?
+    private var loading = false, openWhenReady = false
+    private var resultsQuery = "", resultsFolder = ""
     private(set) var popover = NSPopover()
     init(root: String) { self.root = root; super.init(nibName: nil, bundle: nil) }
     required init?(coder: NSCoder) { fatalError("Use init") }
@@ -56,6 +58,7 @@ import SpookkyFiles
     func controlTextDidChange(_ obj: Notification) { refresh() }
     private func refresh() {
         task?.cancel(); let query = search.stringValue, folder = directory
+        loading = true; openWhenReady = false; entries = []; table.reloadData(); notice.stringValue = "Searching…"
         path.stringValue = folder.isEmpty ? (root as NSString).lastPathComponent : folder
         task = Task { [weak self] in
             guard let self else { return }
@@ -63,13 +66,22 @@ import SpookkyFiles
                 if !query.isEmpty { try await Task.sleep(for: .milliseconds(150)) }
                 let result = try await (query.isEmpty ? service.list(root: root, path: folder) : service.search(root: root, query: query, matchLimit: 100))
                 try Task.checkCancellation()
+                loading = false; resultsQuery = query; resultsFolder = folder
                 entries = Array(result.entries.prefix(100)); notice.stringValue = result.incomplete ? "Results limited. Narrow your search." : entries.isEmpty ? "No matching files" : "Return to open · Escape to dismiss"
                 table.reloadData(); table.tableColumns.first?.width = scroll.contentSize.width
                 if !entries.isEmpty { table.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false) }
-            } catch is CancellationError {} catch { entries = []; table.reloadData(); notice.stringValue = error.localizedDescription }
+                if openWhenReady { openWhenReady = false; choose() }
+            } catch is CancellationError {} catch {
+                guard !Task.isCancelled else { return }
+                loading = false; entries = []; table.reloadData(); notice.stringValue = error.localizedDescription
+            }
         }
     }
     @objc private func choose() {
+        if loading || resultsQuery != search.stringValue || resultsFolder != directory {
+            if !loading { refresh() }
+            openWhenReady = true; return
+        }
         guard entries.indices.contains(table.selectedRow) else { return }
         let entry = entries[table.selectedRow]
         if entry.kind == .directory || entry.kind == .repository { directory = entry.path; search.stringValue = ""; refresh() }

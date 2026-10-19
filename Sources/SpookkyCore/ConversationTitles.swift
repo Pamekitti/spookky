@@ -51,7 +51,8 @@ extension Workspace {
         if primary.customTitle { return primary.title }
         guard let conversationID, let metadata = primary.providerTitle,
               metadata.id == conversationID, primary.matchesConversation(conversationID), let name = metadata.title else { return title }
-        return name
+        let generic = conversationID.provider.displayName + " " + String(conversationID.sessionID.prefix(8))
+        return name == generic ? title : name
     }
     public var displayProvider: SessionTool {
         conversationID?.provider ?? primaryTerminal?.displayTool ?? .shell
@@ -96,6 +97,9 @@ extension WorkspaceState {
         let metadata = ProviderConversationTitle(provider: provider, sessionID: sessionID, title: title)
         for workspace in workspaces where workspace.conversationID == id {
             guard let primary = workspace.primaryTerminal, primary.matchesConversation(id) else { continue }
+            let generic = provider.displayName + " " + String(sessionID.prefix(8))
+            if metadata.title == generic, let previous = primary.providerTitle, previous.id == id,
+               previous.title != nil, previous.title != generic { continue }
             updateTab(primary.id) { $0.providerTitle = metadata }
         }
     }

@@ -47,9 +47,11 @@ import SpookkyCore
     var requestsSplit: Bool { state.layout == .split && !state.tabs.isEmpty }
     var effectiveFull: Bool { state.layout == .fullWidth || compact && requestsSplit }
     var isSplit: Bool { requestsSplit && !compact }
+    private var minimumPaneWidth: CGFloat { SpookkyStyle.points(320) }
+    var minimumSplitWidth: CGFloat { minimumPaneWidth * 2 + 5 }
     var primaryPaneWidth: CGFloat { primaryPaneWidth(in: bounds.width) }
     func primaryPaneWidth(in width: CGFloat) -> CGFloat {
-        isSplit ? max(SpookkyStyle.points(160), min(width - SpookkyStyle.points(200), width * state.fraction)) : width
+        isSplit ? max(minimumPaneWidth, min(width - minimumPaneWidth - 5, width * state.fraction)) : width
     }
     var showsSupportingContent: Bool {
         guard !state.tabs.isEmpty, state.layout != .collapsed else { return false }
@@ -102,7 +104,7 @@ import SpookkyCore
     }
     func update(_ state: SupportingPanelState) {
         self.state = state
-        let selected = state.layout == .split || (state.layout == .fullWidth && state.resolvedFullWidthSelection != .primary)
+        let selected = isSplit || effectiveFull && state.resolvedFullWidthSelection != .primary
         let ids = Set(state.tabs.map(\.id))
         for id in Array(items.keys) where !ids.contains(id) {
             guard let item = items.removeValue(forKey: id) else { continue }
@@ -128,10 +130,10 @@ import SpookkyCore
                 help: help, selected: selected && tab.id == state.selectedTabID)
             item.move(to: strip, at: index + (joinsPrimary ? 1 : 0))
         }
-        layoutButton.isEnabled = !state.tabs.isEmpty
+        layoutButton.isEnabled = !state.tabs.isEmpty && !compact
         layoutButton.title = isSplit ? "Full" : "Split"
         layoutButton.image = nil
-        layoutButton.toolTip = isSplit ? "Show selected supporting tab at full width" : "Show conversation and supporting tab side by side"
+        layoutButton.toolTip = compact ? "Widen the window or reduce zoom to show two readable panes" : isSplit ? "Show selected supporting tab at full width" : "Show conversation and supporting tab side by side"
         layoutButton.setAccessibilityLabel(layoutButton.toolTip!)
         needsLayout = true; headerView.needsLayout = true
     }

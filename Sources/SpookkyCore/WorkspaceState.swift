@@ -409,6 +409,20 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
         guard let id = selectedWorkspaceID else { return }
         setLocation(WorkspaceLocation(path: directory), projectID: nil, workspaceID: id)
     }
+    /// Refresh repository facts without moving the workspace or replacing its stable location ID.
+    public mutating func refreshRepositoryMetadata(_ observed: WorkspaceLocation, workspaceID: UUID, scope: String? = nil) {
+        guard let index = workspaces.firstIndex(where: { $0.id == workspaceID }) else { return }
+        func refreshed(_ old: WorkspaceLocation) -> WorkspaceLocation {
+            guard old.scopePath == (scope ?? observed.path) else { return old }
+            var value = old
+            // A newly discovered ancestor repository must not broaden the workspace's file scope.
+            value.checkoutIdentity = observed.checkoutIdentity; value.commonRepository = observed.commonRepository
+            value.branch = observed.branch
+            return value
+        }
+        workspaces[index].selectedLocation = refreshed(workspaces[index].selectedLocation)
+        if let anchor = workspaces[index].anchor { workspaces[index].anchor = refreshed(anchor) }
+    }
     public mutating func relocateWorkspace(_ id: UUID, location: WorkspaceLocation) {
         guard let index = workspaces.firstIndex(where: { $0.id == id }),
               workspaces[index].tabs.allSatisfy({ $0.status == .ended || $0.isEditable }) else { return }

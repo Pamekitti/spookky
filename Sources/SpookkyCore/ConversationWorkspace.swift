@@ -67,7 +67,13 @@ extension Workspace {
 extension WorkspaceState {
     public var primaryTerminalID: UUID? { selected?.primaryTerminalID }
     public var openWorkspaces: [Workspace] { workspaces.filter { !$0.isLanding && $0.viewClosed != true && (version < 8 || !isArchived($0)) } }
-    public func workspace(for id: ConversationID) -> Workspace? { workspaces.first { $0.conversationID == id } }
+    public func workspace(for id: ConversationID) -> Workspace? {
+        preferredWorkspace(in: workspaces.filter { $0.conversationID == id })
+    }
+    public func preferredWorkspace(in matches: [Workspace]) -> Workspace? {
+        return matches.first { $0.primaryTerminal?.status == .running } ??
+            matches.first { $0.id == selectedWorkspaceID } ?? matches.first
+    }
 
     @discardableResult public mutating func ensureConversationWorkspace(_ id: ConversationID, location: WorkspaceLocation,
                                                                       projectID: UUID? = nil, select: Bool = true) -> UUID {
@@ -88,7 +94,27 @@ extension WorkspaceState {
         guard id.provider != .shell, !id.sessionID.isEmpty, id.sessionID.utf8.count <= 256, !id.sessionID.contains("\0"),
               let index = workspaces.firstIndex(where: { $0.id == workspaceID }),
               workspaces[index].conversationID == nil || workspaces[index].conversationID == id else { return }
+        let previousKey = workspaces[index].threadKey
         workspaces[index].conversationID = id
+        if previousKey != id.threadKey, let previous = threadPresentations?.removeValue(forKey: previousKey) {
+            var shared = presentation(for: id.threadKey)
+            shared.pinnedAt = shared.pinnedAt ?? previous.pinnedAt
+            shared.archivedAt = shared.archivedAt ?? previous.archivedAt
+            shared.lastVisitedAt = max(shared.lastVisitedAt ?? .distantPast, previous.lastVisitedAt ?? .distantPast)
+            if !shared.hasProjectOverride, previous.hasProjectOverride {
+                shared.hasProjectOverride = true; shared.projectOverride = previous.projectOverride
+            }
+            threadPresentations?[id.threadKey] = shared
+        }
+        let placeholders = Set(workspaces.filter { candidate in
+            candidate.id != workspaceID && candidate.conversationID == id && candidate.catalogMetadata != nil &&
+                !candidate.customTitle && candidate.anchor == nil && candidate.locationOperationID == nil &&
+                candidate.locationOwnerWorkspaceID == nil && candidate.support?.tabs.isEmpty != false &&
+                candidate.tabs.allSatisfy { $0.isEditable && $0.binding == nil && $0.launch == nil &&
+                    $0.draft.prompt.isEmpty && !$0.customTitle }
+        }.map(\.id))
+        workspaces.removeAll { placeholders.contains($0.id) }
+        if let selectedWorkspaceID, placeholders.contains(selectedWorkspaceID) { self.selectedWorkspaceID = workspaceID }
         let matches = workspaces.indices.filter { workspaces[$0].conversationID == id }
         for index in matches { workspaces[index].conversationOwnershipAmbiguous = matches.count > 1 }
     }

@@ -15,10 +15,12 @@ enum SupportingTool: CaseIterable {
     private let scroll = NSScrollView()
     private let canvas = StartPageCanvas()
     private let stack = NSStackView()
+    private let retainedSection = NSStackView()
+    private var retainedKeys: [String] = []
     private var toolRows: [NSStackView] = []
     private var singleColumnWidths: [NSLayoutConstraint] = []
     private var singleColumn = false
-    init(recent: [SupportingTab]) {
+    init(recent: [SupportingTab], retainedTerminals: [WorkspaceTab] = []) {
         super.init(frame: .zero)
         DisplayMetrics.registerRoot(self)
         address.placeholderString = "Search or enter a URL"; address.setAccessibilityLabel("Search or enter a URL")
@@ -45,6 +47,9 @@ enum SupportingTool: CaseIterable {
             let button = ActionButton(tab.displayTitle, symbol: SpookkyStyle.supportingSymbol(tab.target)) { [weak self] in self?.onRecent?(tab.target, tab.displayTitle) }
             button.alignment = .left; stack.addArrangedSubview(button)
         }
+        retainedSection.orientation = .vertical; retainedSection.alignment = .leading
+        retainedSection.spacing = SpookkyStyle.points(12); stack.addArrangedSubview(retainedSection)
+        updateRetainedTerminals(retainedTerminals)
         scroll.documentView = canvas; scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = false
         scroll.drawsBackground = false; scroll.horizontalScrollElasticity = .none
         addSubview(scroll); canvas.addSubview(stack)
@@ -57,6 +62,24 @@ enum SupportingTool: CaseIterable {
             address.widthAnchor.constraint(equalTo: stack.widthAnchor), address.heightAnchor.constraint(equalToConstant: 32).displayScaled(),
             tools.widthAnchor.constraint(equalTo: stack.widthAnchor)
         ])
+    }
+    func updateRetainedTerminals(_ terminals: [WorkspaceTab]) {
+        let keys = terminals.map { $0.id.uuidString + $0.title + $0.status.rawValue }
+        guard keys != retainedKeys else { return }; retainedKeys = keys
+        retainedSection.arrangedSubviews.forEach { retainedSection.removeArrangedSubview($0); $0.removeFromSuperview() }
+        retainedSection.isHidden = terminals.isEmpty
+        guard !terminals.isEmpty else { return }
+        let heading = SpookkyStyle.label("Reopen terminal"); heading.textColor = SpookkyPalette.secondary
+        retainedSection.addArrangedSubview(heading)
+        for terminal in terminals {
+            let label = terminal.title + (terminal.status == .ended ? " · Ended" : "")
+            let target = SupportingTarget.terminal(tabID: terminal.id), title = terminal.title
+            let button = ActionButton(label, symbol: "terminal") { [weak self] in self?.onRecent?(target, title) }
+            button.identifier = .init("reopen-terminal:" + terminal.id.uuidString)
+            button.toolTip = "Reattach this terminal view · " + (terminal.startDirectory ?? terminal.binding?.directory ?? "")
+            button.alignment = .left; retainedSection.addArrangedSubview(button)
+        }
+        needsLayout = true
     }
     required init?(coder: NSCoder) { fatalError("Use init") }
     override func layout() {

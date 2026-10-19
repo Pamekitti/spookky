@@ -49,6 +49,14 @@ final class ConversationWorkspaceTests: XCTestCase {
         XCTAssertTrue(state.workspaces.allSatisfy { $0.conversationOwnershipAmbiguous == true })
         XCTAssertTrue(state.workspaces.allSatisfy { $0.conversationID == ConversationID(provider: .codex, sessionID: "same") })
         for tab in before { XCTAssertEqual(state.tab(tab.id), tab) }
+        let id = ConversationID(provider: .codex, sessionID: "same")
+        let original = state.workspaces[0], other = state.workspaces[1]
+        state.selectWorkspace(original.id)
+        state.apply(.terminated, to: original.primaryTerminalID!)
+        XCTAssertEqual(state.workspace(for: id)?.id, other.id)
+        XCTAssertEqual(state.preferredWorkspace(in: state.workspaces)?.id, other.id)
+        state.apply(.terminated, to: other.primaryTerminalID!)
+        XCTAssertEqual(state.workspace(for: id)?.id, original.id)
     }
     func testShellOnlyEmptyAndUnstartedMigration() throws {
         var empty = WorkspaceState(); empty.version = 5; empty.migrateConversationWorkspaces(); try empty.validate()

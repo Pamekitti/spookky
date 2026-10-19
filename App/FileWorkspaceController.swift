@@ -18,6 +18,8 @@ import SpookkySyntax
     private var syntaxReadyMilliseconds: Double?
     private var syntaxCacheBytes = 0
     private let watcher = WorkspaceFileWatcher()
+    private var watcherIssue: String?
+    private var statusText = ""
     private let fileTable = FileTable(), diffTable = FileTable()
     private let fileScroll = NSScrollView(), diffScroll = NSScrollView()
     private let search = ChromeSearchField()
@@ -67,6 +69,10 @@ import SpookkySyntax
         layout = FileWorkspaceLayout(terminal: terminal, sidebar: sidebar, preview: preview)
         super.init(); build()
         watcher.onChange = { [weak self] in self?.refresh() }
+        watcher.onIssue = { [weak self] issue in
+            guard let self else { return }
+            watcherIssue = issue; setStatus(statusText)
+        }
         layout.onResize = { [weak self] fraction in self?.edit { $0.fraction = fraction } }
         layout.onPreviewWidth = { [weak self] width in
             guard let self else { return }
@@ -209,7 +215,7 @@ import SpookkySyntax
         stage.setAccessibilityLabel("Conflict content")
         previewNotice.font = .systemFont(ofSize: SpookkyStyle.points(11)); previewNotice.textColor = SpookkyPalette.secondary
         diffTable.style = .plain; diffTable.columnAutoresizingStyle = .noColumnAutoresizing
-        diffTable.headerView = nil; diffTable.rowHeight = SpookkyStyle.points(18); diffTable.intercellSpacing = .zero; diffTable.allowsMultipleSelection = true
+        diffTable.headerView = nil; diffTable.rowHeight = DiffCell.lineHeight; diffTable.intercellSpacing = .zero; diffTable.allowsMultipleSelection = true
         diffTable.dataSource = self; diffTable.delegate = self; diffTable.setAccessibilityLabel("File content and diff")
         diffTable.copyText = { [weak self] in
             guard let self else { return "" }
@@ -270,7 +276,7 @@ import SpookkySyntax
     func displayChanged(ratio: Double) {
         let selected = diffTable.selectedRowIndexes
         let origin = diffScroll.contentView.bounds.origin
-        fileTable.rowHeight = SpookkyStyle.controlHeight; diffTable.rowHeight = SpookkyStyle.points(18)
+        fileTable.rowHeight = SpookkyStyle.controlHeight; diffTable.rowHeight = DiffCell.lineHeight
         updateDiffMetrics(); sizeDiffColumns(); diffTable.reloadData(); restyleVisibleRows()
         diffTable.selectRowIndexes(selected, byExtendingSelection: false)
         diffScroll.contentView.scroll(to: NSPoint(x: origin.x * ratio, y: origin.y * ratio))
@@ -343,7 +349,11 @@ import SpookkySyntax
             else if selectionChanged { openSelection() }
         } else { suspend(); if pending { setStatus("Files will appear after worktree creation.") } }
     }
-    private func setStatus(_ text: String) { status.isHidden = text.isEmpty; status.stringValue = text; status.toolTip = text; status.setAccessibilityValue(text) }
+    private func setStatus(_ text: String) {
+        statusText = text
+        let message = [text.isEmpty ? nil : text, watcherIssue].compactMap { $0 }.joined(separator: "\n")
+        status.isHidden = message.isEmpty; status.stringValue = message; status.toolTip = message; status.setAccessibilityValue(message)
+    }
     func refresh(refreshPreview: Bool = true) {
         guard !root.isEmpty, state.sidebar || state.preview, layout.window?.isVisible == true else { return }
         loadTask?.cancel(); if refreshPreview { previewTask?.cancel(); syntaxTask?.cancel(); previewGeneration = UUID() }
@@ -361,6 +371,20 @@ import SpookkySyntax
             do {
                 var metadataLimited = false
                 if view.changes {
+                    // Discovery also checks repositories created after this workspace opened.
+                    let discovered = try await Task.detached { try await LocationDiscovery.discover(URL(fileURLWithPath: root)) }.value
+                    guard token == generation, id == workspaceID, !Task.isCancelled else { return }
+                    identity = discovered.checkoutIdentity ?? ""
+                    if let id, let current = store.state.workspaces.first(where: { $0.id == id }) {
+                        let location = current.anchor ?? current.selectedLocation
+                        if location.scopePath == root,
+                           location.checkoutIdentity != discovered.checkoutIdentity ||
+                           location.commonRepository != discovered.commonRepository || location.branch != discovered.branch {
+                            store.update { $0.refreshRepositoryMetadata(discovered, workspaceID: id, scope: root) }
+                        }
+                    }
+                    comparison.isHidden = identity.isEmpty
+                    reference.isHidden = comparison.isHidden || !view.againstBranch
                     guard !identity.isEmpty else { rows = []; snapshot = nil; fileTable.reloadData(); setStatus("This folder has no Git repository."); if state.preview && refreshPreview { openSelection() }; return }
                     if refreshPreview || reference.numberOfItems == 0 {
                         let repository = try await changes.git.referenceSnapshot(root)

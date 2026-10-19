@@ -47,7 +47,7 @@ public enum MarkdownDocument {
         return """
         <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Markdown preview</title>
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
-        <style>:root{color-scheme:light dark}body{font:14px -apple-system,system-ui;line-height:1.6;margin:0;padding:24px;overflow-wrap:anywhere}h1,h2,h3{line-height:1.25}pre,code{font-family:ui-monospace,monospace}pre{padding:16px;overflow:auto;background:light-dark(#f2f2f2,#222);border-radius:8px;white-space:pre}table{border-collapse:collapse;width:100%}th,td{padding:8px 12px;border:1px solid light-dark(#ccc,#555);text-align:left}blockquote{margin-left:0;padding-left:16px;border-left:3px solid #888}a{color:light-dark(#0759b5,#72aaff)}</style>
+        <style>:root{color-scheme:light dark}body{font:14px -apple-system,system-ui;line-height:1.6;margin:0 auto;padding:24px;max-width:80ch;overflow-wrap:anywhere}h1,h2,h3{line-height:1.25}pre,code{font-family:ui-monospace,monospace}pre{padding:16px;overflow:auto;background:light-dark(#f2f2f2,#222);border-radius:8px;white-space:pre}table{display:block;overflow-x:auto;max-width:100%;border-collapse:collapse;width:100%}th,td{padding:8px 12px;border:1px solid light-dark(#ccc,#555);text-align:left}blockquote{margin-left:0;padding-left:16px;border-left:3px solid #888}a{color:light-dark(#0759b5,#72aaff)}</style>
         </head><body>\(output)</body></html>
         """
     }

@@ -3,7 +3,14 @@ import SpookkyCore
 import SpookkyRuntime
 
 public protocol ExecutableResolver: Sendable {
+    func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec
     func resolve(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec
+}
+
+extension ExecutableResolver {
+    public func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec {
+        try await resolve(tool, directory: directory, prompt: prompt)
+    }
 }
 
 @MainActor public final class LaunchCoordinator {
@@ -31,7 +38,7 @@ public protocol ExecutableResolver: Sendable {
             let spec: LaunchSpec
             if let frozen = tab.launch ?? prepared { spec = frozen }
             else {
-                spec = try await resolver.resolve(tool ?? tab.draft.tool,
+                spec = try await resolver.resolveFresh(tool ?? tab.draft.tool,
                     directory: tab.startDirectory ?? workspace.directory,
                     prompt: tab.draft.prompt.isEmpty ? nil : tab.draft.prompt)
             }
@@ -39,6 +46,9 @@ public protocol ExecutableResolver: Sendable {
             store.update {
                 $0.bindWorkspace(workspace.id)
                 if spec.tool != .shell { $0.promoteLanding(workspace.id) }
+                if !resuming, let sessionID = spec.environment["SPOOKKY_PROVIDER_SESSION_ID"], UUID(uuidString: sessionID) != nil {
+                    $0.associateConversation(provider: spec.tool, sessionID: sessionID, title: nil, workspaceID: workspace.id)
+                }
                 $0.apply(.intent(spec, resuming || tab.draft.prompt.isEmpty || spec.tool == .shell ? .none : .pending), to: id)
             }
             try await store.flush()

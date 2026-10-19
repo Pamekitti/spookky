@@ -175,3 +175,56 @@ final class ConversationTitleTests: XCTestCase {
         XCTAssertEqual(SupportingTab(target: .browser(url: "about:blank"), title: "Preview form").displayTitle, "Preview form")
     }
 }
+
+extension ConversationTitleTests {
+    func testGenericProviderIdentifierDoesNotReplaceDescriptiveTitle() {
+        var state = WorkspaceState()
+        let id = ConversationID(provider: .claude, sessionID: sessionA)
+        let workspace = state.ensureConversationWorkspace(id, location: WorkspaceLocation(path: "/tmp/checkout"))
+        let index = state.workspaces.firstIndex { $0.id == workspace }!
+        state.workspaces[index].title = "Taskboard filters"
+        state.setProviderTitle("Claude Code " + String(sessionA.prefix(8)), conversationID: id)
+        XCTAssertEqual(state.workspace(for: id)?.displayTitle, "Taskboard filters")
+        state.setProviderTitle("Search and status filters", conversationID: id)
+        state.setProviderTitle("Claude Code " + String(sessionA.prefix(8)), conversationID: id)
+        XCTAssertEqual(state.workspace(for: id)?.displayTitle, "Search and status filters")
+    }
+
+    func testRunningIdentityAbsorbsOnlyEmptyCatalogPlaceholder() throws {
+        var state = WorkspaceState()
+        let id = ConversationID(provider: .codex, sessionID: sessionA)
+        let old = state.ensureConversationWorkspace(id, location: WorkspaceLocation(path: "/tmp/checkout"))
+        state.recordCatalogMetadata(ConversationMetadata(id: id, title: "Saved title", directory: "/tmp/checkout", updatedAt: Date()), workspaceID: old, projectID: nil)
+        let live = state.newWorkspace(location: WorkspaceLocation(path: "/tmp/checkout"))
+        let terminal = state.primaryTerminalID!
+        let spec = try LaunchSpec(tool: .codex, executable: "/usr/bin/true", directory: "/tmp/checkout")
+        state.apply(.intent(spec, .none), to: terminal)
+        state.apply(.observed(SessionBinding(spec: spec), dead: false, exitCode: nil, prompt: .none), to: terminal)
+        state.editThread("workspace:" + live.uuidString) { $0.pinnedAt = Date(timeIntervalSince1970: 100) }
+        state.associateConversation(id, workspaceID: live)
+        XCTAssertEqual(state.workspace(for: id)?.id, live)
+        XCTAssertFalse(state.workspace(for: id)?.conversationOwnershipAmbiguous == true)
+        XCTAssertFalse(state.workspaces.contains { $0.id == old })
+        XCTAssertEqual(state.presentation(for: id.threadKey).pinnedAt, Date(timeIntervalSince1970: 100))
+        try state.validate()
+    }
+
+    func testRepositoryRefreshRetainsAnchorScopeAndIdentity() throws {
+        var state = WorkspaceState()
+        let location = WorkspaceLocation(path: "/tmp/repo/child")
+        let workspace = state.newWorkspace(location: location)
+        state.bindWorkspace(workspace)
+        let observed = WorkspaceLocation(path: location.path, scopePath: "/tmp/repo", checkoutIdentity: "/tmp/repo/.git", branch: "main", commonRepository: "/tmp/repo/.git")
+        state.refreshRepositoryMetadata(observed, workspaceID: workspace)
+        XCTAssertEqual(state.selected?.anchor?.id, location.id)
+        XCTAssertEqual(state.selected?.anchor?.scopePath, location.path)
+        XCTAssertEqual(state.selected?.anchor?.checkoutIdentity, observed.checkoutIdentity)
+        XCTAssertEqual(state.selected?.anchor?.branch, "main")
+        let canonical = WorkspaceLocation(path: "/private/tmp/repo/child", checkoutIdentity: "/private/tmp/repo/.git", branch: "updated", commonRepository: "/private/tmp/repo/.git")
+        state.refreshRepositoryMetadata(canonical, workspaceID: workspace, scope: location.path)
+        XCTAssertEqual(state.selected?.anchor?.path, location.path)
+        XCTAssertEqual(state.selected?.anchor?.id, location.id)
+        XCTAssertEqual(state.selected?.anchor?.branch, "updated")
+        try state.validate()
+    }
+}

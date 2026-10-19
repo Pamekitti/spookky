@@ -182,6 +182,9 @@ final class DiffCell: NSTableCellView {
     static var codeFont: NSFont { typography.code }
     static var commentFont: NSFont { typography.comment }
     static var codeParagraph: NSParagraphStyle { typography.paragraph }
+    static var lineHeight: CGFloat {
+        ceil(codeFont.ascender - codeFont.descender + codeFont.leading) + SpookkyStyle.points(4)
+    }
     let label = SpookkyStyle.label( "")
     private let number: Bool
     private let sign: Bool
@@ -194,9 +197,9 @@ final class DiffCell: NSTableCellView {
     }
     override func layout() {
         super.layout()
-        let leading: CGFloat = number || sign ? 0 : 8
-        let trailing: CGFloat = number ? 6 : 0
-        let height: CGFloat = 16
+        let leading: CGFloat = number || sign ? 0 : SpookkyStyle.points(8)
+        let trailing: CGFloat = number ? SpookkyStyle.points(6) : 0
+        let height = ceil(Self.codeFont.ascender - Self.codeFont.descender + Self.codeFont.leading)
         label.frame = label.frame(forAlignmentRect: NSRect(x: leading, y: (bounds.height - height) / 2,
             width: max(0, bounds.width - leading - trailing), height: height))
     }

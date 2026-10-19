@@ -1,7 +1,18 @@
 import Foundation
+import Darwin
 import SpookkyCore
 
 public struct HistoryQuery: Hashable, Sendable {
+    /// Resolve aliases off the UI thread while preserving the original selected folder.
+    public static func folderAliases(_ directory: String) async -> [String] {
+        await Task.detached {
+            let original = URL(fileURLWithPath: directory).standardizedFileURL.path
+            guard let canonical = realpath(directory, nil) else { return [original] }
+            defer { free(canonical) }
+            return Array(Set([original, String(cString: canonical)])).sorted()
+        }.value
+    }
+
     public let projectID: UUID?
     public let directories: [String]
     public let search: String

@@ -38,4 +38,12 @@ The hidden sidebar has no per-conversation icon rail. Its restore control remain
 
 Version 8 adds optional local thread presentation metadata and repairs landing state. Migration makes a consistent pre-v8 database backup. Legacy hidden views become available threads, not archived conversations. Stable IDs, aliases, bindings, launch intents, drafts and supporting state are preserved.
 
-Browser forms and scroll survive in-process view switching. Persisted browser URLs restore after restart; browser-process termination does not guarantee unsent form restoration.
+Browser forms and scroll survive in-process view switching. Persisted browser URLs and website-managed storage restore after restart. Quit warns when browser tabs exist because unsent forms may be lost. Spookky does not collect or persist form fields.
+
+## Recovery and responsive presentation
+
+New tab lists Reopen terminal actions for retained terminal records whose views were closed. Reopening uses the same backing record and never launches a replacement shell. Stop remains separate.
+
+Split temporarily uses Full when the workspace cannot fit two 320-point panes at the current app zoom. Widening restores the requested Split layout and selection. Native file rows fit the effective font metrics. Rendered Markdown uses an 80-character reading column.
+
+Fresh Claude launches use an explicit UUID when installed help advertises `--session-id`. Codex's native completion notification supplies exact identity independently of activity hooks. Spookky forwards the user's existing notification command unchanged, stores at most eight candidate IDs per owned binding, and confirms CLI source and folder through read-only provider listing before association. No prompt or notification text is stored. Before the first native notification, identity may remain unknown. Failed metadata access does not guess an identity or weaken hook trust.
