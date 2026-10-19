@@ -6,7 +6,7 @@ Provider history is a separate metadata catalog. Reading or expanding it creates
 
 ## Landing and navigation
 
-With no selected thread, Spookky shows the bottom composer immediately. It never leaves a blank page or a full-page New chat button. Cmd+N selects the retained global landing draft. Project + selects that project's draft. Each retains its provider, folder and optional prompt across navigation and restart.
+With no selected thread, Spookky shows the centered composer immediately. It never leaves a blank page or a full-page New chat button. Cmd+N selects the viewed session's project draft, or the global draft without a project. Project + selects that project's draft. Each retains its provider, model, folder, text and images across navigation and restart. Inheritance seeds a new draft and never replaces a retained draft.
 
 Starting an agent promotes its landing draft into a thread at accepted launch intent. Open Terminal starts a supporting shell and keeps the agent draft. Files and browser access require no agent. The landing tab has no close button; Cmd+W there closes the window normally.
 

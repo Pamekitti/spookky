@@ -2,6 +2,17 @@
 
 The native app must satisfy these requirements before release. [Current status](status.md) distinguishes targeted passing checks from unresolved gates. Prototype behavior does not establish native terminal, process, Git, or performance correctness.
 
+## Contextual new-session checks
+
+- [x] Cmd+N and New chat select the viewed primary conversation's project draft, otherwise the global draft. A fresh project draft uses Local.
+- [x] Existing drafts take precedence over inherited context. Text, images and provider-specific model choices survive switching and metadata round trips.
+- [x] Model and supported effort choices appear at the bottom right and reach fresh provider launches as literal arguments. Default adds no override.
+- [x] Project, No project, Local, existing checkout and new-worktree reference choices remain explicit. Discovery launches no agent.
+- [x] Native popup selection restores composer shortcut focus. Real multiline input and disposable shell input/output pass.
+- [x] Centered layout fits desktop and narrow windows in both appearances. Native image paste, removal and retained preview checks pass.
+
+The 19 October batch passed 23 composer, 12 image and 87 conversation/lifecycle assertions. Installed CLI catalog discovery also passed without a model turn. These targeted results do not complete the broader acceptance matrix below. See [current status](status.md).
+
 ## Seventeen starting scenarios
 
 | ID | Start | Expected outcome |
