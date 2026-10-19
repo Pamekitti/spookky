@@ -84,6 +84,15 @@ public struct NativeGitExecutor: GitCommandExecutor {
         self.timeout = timeout; self.outputLimit = outputLimit
     }
     public func execute(_ arguments: [String]) async throws -> GitResult { try await execute(arguments, context: nil) }
+    func executeTool(_ executable: String, arguments: [String]) async throws -> GitResult {
+        let cancellation = CommandCancellation()
+        return try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            return try await Task.detached {
+                try run(arguments, cancellation: cancellation, context: nil, executable: executable, gitOptions: false)
+            }.value
+        } onCancel: { cancellation.cancel() }
+    }
     public func execute(_ arguments: [String], context: GitExecutionContext) async throws -> GitResult { try await execute(arguments, context: Optional(context)) }
     private func execute(_ arguments: [String], context: GitExecutionContext?) async throws -> GitResult {
         let cancellation = CommandCancellation()
@@ -121,6 +130,7 @@ public struct NativeGitExecutor: GitCommandExecutor {
         let argv = ([executable] + options + arguments).map { strdup($0) }
         var environment = ProcessInfo.processInfo.environment
         environment["GIT_TERMINAL_PROMPT"] = "0"
+        if !gitOptions { environment["GH_PROMPT_DISABLED"] = "1"; environment["GH_PAGER"] = "cat" }
         environment["GIT_OPTIONAL_LOCKS"] = "0"
         environment["GIT_SSH_COMMAND"] = environment["GIT_SSH_COMMAND"] ?? "ssh -o BatchMode=yes"
         let env = environment.map { strdup($0.key + "=" + $0.value) }

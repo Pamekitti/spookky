@@ -7,6 +7,7 @@ public struct ThreadPresentation: Codable, Equatable, Sendable {
     public var projectOverride: UUID?
     public var hasProjectOverride = false
     public var conversation: ConversationCatalogRecord?
+    public var pullRequest: ThreadPullRequest?
     public init() {}
 }
 
