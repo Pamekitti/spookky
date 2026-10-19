@@ -74,6 +74,7 @@ public struct WorkspaceTab: Codable, Identifiable, Equatable, Sendable {
     public var activity: AgentActivity?
     public var projectAssociation: ProviderProjectAssociation?
     public var providerTitle: ProviderConversationTitle?
+    public var startup: ProviderStartup?
     public init(id: UUID = UUID(), tool: SessionTool = .shell) { self.id = id; draft = TerminalDraft(tool: tool) }
     public var isEditable: Bool { status == .draft || (status == .failed && failure?.phase == .validation) }
 }
@@ -159,6 +160,7 @@ extension WorkspaceState {
         }
         updateTab(tab.id) {
             $0.activity = activity
+            $0.startup?.observe(event)
             if let metadata = $0.providerTitle, !$0.matchesConversation(metadata.id) { $0.providerTitle = nil }
         }
         if version >= 6, event.childID == nil, let sessionID = activity.sessionID, !sessionID.isEmpty,
@@ -342,6 +344,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
                   tab.launch == nil || tab.launch == spec else { return }
             updateTab(id) {
                 $0.launch = spec; $0.status = .launching; $0.promptDelivery = prompt
+                $0.startup = spec.tool == .shell ? nil : ProviderStartup(operationID: spec.operationID, expectsPrompt: prompt != .none)
                 if let metadata = $0.providerTitle, metadata.provider != spec.tool { $0.providerTitle = nil }
                 if spec.tool != .shell && $0.activity == nil { $0.activity = AgentActivity(invocationID: spec.operationID, provider: spec.tool) }
             }

@@ -34,6 +34,9 @@ import SpookkyGit
     private var continuationTokens: [ConversationID: UUID] = [:]
     private var historySearchTask: Task<Void, Never>?
     private var initialLaunchTasks: [UUID: Task<Void, Never>] = [:]
+    private var startupDeadlineTask: Task<Void, Never>?
+    private var startupDeadline: Date?
+    private var startupNotices: [UUID: ProviderStartupNoticeView] = [:]
     private var continuationErrors: [ConversationID: String] = [:]
     private lazy var historyCatalog = ConversationHistoryCatalog(reader: sessionCatalog, persistence: store.historyPersistence)
     private var historyRecords: [String: [ConversationCatalogRecord]] = [:]
@@ -464,6 +467,7 @@ import SpookkyGit
         if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
         if let displayOptionsObserver { NSWorkspace.shared.notificationCenter.removeObserver(displayOptionsObserver) }
         observationTask?.cancel(); continuationTask?.cancel()
+        startupDeadlineTask?.cancel()
     }
     private func buildWindow() {
         window = WorkspaceNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 760),
@@ -909,6 +913,7 @@ import SpookkyGit
                 composers[id]?.update(tab, workspace: w, state: state)
             }
         }
+        updateStartupFeedback()
         guard key != contentKey else { return }
         contentKey = key; renderTask?.cancel(); surfaces.invalidate()
         if !workspaceLayout.hasFocus { window.makeFirstResponder(nil) }
@@ -1870,7 +1875,7 @@ import SpookkyGit
             }
             let prepared = try await surfaces.prepare(terminals, sizes: sizes)
             guard !Task.isCancelled, let prepared, ids == store.state.visibleTabIDs else { return }
-            body.subviews.forEach { $0.removeFromSuperview() }; paneHeaders.removeAll(); paneTitles.removeAll(); agentHeaderLabels.removeAll()
+            body.subviews.forEach { $0.removeFromSuperview() }; paneHeaders.removeAll(); paneTitles.removeAll(); agentHeaderLabels.removeAll(); startupNotices.removeAll()
             guard !records.isEmpty else {
                 if store.state.selected == nil {
                     store.update { $0.showLanding(homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path) }
@@ -1896,6 +1901,7 @@ import SpookkyGit
             let retained = Set(store.state.workspaces.flatMap(\.tabs).map(\.id))
             composers = composers.filter { retained.contains($0.key) }
             refreshAgentAttention()
+            updateStartupFeedback()
         } catch {
             guard !Task.isCancelled, ids == store.state.visibleTabIDs else { return }
             for tab in records where tab.binding != nil {
@@ -1949,7 +1955,17 @@ import SpookkyGit
             install(composer, in: container)
         } else {
             if tab.status == .running, let surface {
-                install(surface, in: container)
+                if tab.pendingStartup != nil, store.state.primaryTerminalID == tab.id {
+                    let notice = ProviderStartupNoticeView(focus: { [weak self] in self?.focusSelectedContent() },
+                        details: { [weak self] in self?.showThreadDetails() })
+                    startupNotices[tab.id] = notice
+                    let stack = NSStackView(views: [notice, surface]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 0
+                    notice.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+                    surface.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+                    surface.setContentHuggingPriority(.defaultLow, for: .vertical)
+                    surface.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+                    install(stack, in: container)
+                } else { install(surface, in: container) }
                 return container
             }
             let directory = store.state.workspace(containing: tab.id)?.directory ?? ""
@@ -2014,6 +2030,21 @@ import SpookkyGit
                 content.topAnchor.constraint(equalTo: header.bottomAnchor), content.bottomAnchor.constraint(equalTo: container.bottomAnchor)])
         }
         return container
+    }
+    private func updateStartupFeedback() {
+        let now = Date()
+        for (id, notice) in startupNotices { notice.update(message: store.state.tab(id)?.startupMessage(at: now)) }
+        let deadline = window.isVisible ? store.state.visibleTabIDs.compactMap { store.state.tab($0)?.pendingStartup?.noticeDate }.filter { $0 > now }.min() : nil
+        guard deadline != startupDeadline else { return }
+        startupDeadlineTask?.cancel(); startupDeadlineTask = nil; startupDeadline = deadline
+        guard let deadline else { return }
+        startupDeadlineTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(max(0, deadline.timeIntervalSinceNow))) }
+            catch { return }
+            guard let self else { return }
+            startupDeadline = nil; startupDeadlineTask = nil
+            updateStartupFeedback()
+        }
     }
     private func install(_ view: NSView, in parent: NSView) {
         view.translatesAutoresizingMaskIntoConstraints = false; parent.addSubview(view)
@@ -2450,6 +2481,7 @@ import SpookkyGit
     }
     func windowWillClose(_ notification: Notification) {
         cancelLaunchPreflight()
+        startupDeadlineTask?.cancel(); startupDeadlineTask = nil; startupDeadline = nil
         continuationTask?.cancel()
         files.suspend()
         renderTask?.cancel(); surfaces.invalidate(); contentKey = ""
@@ -3270,6 +3302,31 @@ import SpookkyGit
             views.append(ActionButton("Reconnect terminal", symbol: "arrow.clockwise") { [weak self] in
                 self?.reconnect(primary.id); self?.detailsPopover?.performClose(nil)
             })
+            if workspace.displayProvider != .shell, workspace.conversationID == nil {
+                let identity = ChromeTextField(wrappingLabelWithString: "The provider has not reported this conversation’s saved ID yet. Keep using this terminal; its saved history will link when the provider reports it.")
+                identity.font = .systemFont(ofSize: SpookkyStyle.points(11)); identity.textColor = SpookkyPalette.secondary
+                views.append(identity)
+            }
+            if let startup = primary.startup {
+                let text = startup.interactionObserved ? "Native provider activity was observed. This does not prove task success." :
+                    "The terminal process is connected. Provider startup and starting-prompt acceptance are not confirmed. Spookky will not replay input or restart it automatically."
+                let status = ChromeTextField(wrappingLabelWithString: text)
+                status.font = .systemFont(ofSize: SpookkyStyle.points(11)); status.textColor = SpookkyPalette.secondary
+                views.append(status)
+                if !primary.draft.prompt.isEmpty {
+                    views.append(ActionButton("Copy starting prompt", symbol: "doc.on.doc") {
+                        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(primary.draft.prompt, forType: .string)
+                    })
+                }
+                views.append(ActionButton("Focus terminal", symbol: "terminal") { [weak self] in
+                    self?.detailsPopover?.performClose(nil); self?.focusSelectedContent()
+                })
+                if primary.pendingStartup != nil {
+                    views.append(ActionButton("Dismiss startup notice") { [weak self] in
+                        self?.store.update { $0.dismissStartupNotice(primary.id) }; self?.detailsPopover?.performClose(nil)
+                    })
+                }
+            }
         }
         views.append(review)
         if let branch = (workspace.anchor ?? workspace.selectedLocation).branch { views.append(SpookkyStyle.label("Branch: " + branch)) }

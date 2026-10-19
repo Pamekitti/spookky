@@ -18,6 +18,12 @@ The panel checks installed provider capabilities on demand. It never types into 
 
 Save unsent CLI input before entering a slash command. Provider-native authentication, trust, permissions, consent and account eligibility remain in the provider. Unsupported routes show guidance rather than an automatic action.
 
+## Startup feedback
+
+Runtime attachment does not prove that the provider initialized or accepted a starting prompt. New launches retain a separate startup observation. After 15 seconds without native confirmation, the conversation shows a quiet explanation with Focus terminal and Details. Details offers Copy starting prompt and Dismiss startup notice. Neither action submits text or starts another process. Declining activity hooks can leave startup unconfirmed even while the terminal is usable.
+
+Initial prompts continue through ordinary native launch arguments. Spookky never converts a delayed launch into background execution, automatically retries an uncertain prompt, or removes provider locks. The retained prompt and native refusal output remain available for explicit recovery.
+
 ## Primary identity and supporting views
 
 `ConversationContinuationCoordinator` captures the workspace ID, canonical `ConversationID`, primary terminal UUID, original provider cwd and optional owned binding. It ignores supporting selection when resolving this target. A saved entry without a binding can display exact-ID guidance. It does not offer Reconnect or silently start a CLI.
