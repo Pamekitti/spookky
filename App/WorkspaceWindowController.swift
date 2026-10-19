@@ -195,9 +195,7 @@ import SpookkyGit
         services.activityPreferencesDidChange = { [weak self] preferences in self?.saveAgentPreferences(preferences) }
         services.testAgentNotification = { [weak self] in await self?.agentNotifications.test() ?? "Notifications are unavailable." }
         saveAgentPreferences(services.agentPreferences)
-        activityReceiver = try? AgentActivityReceiver(root: root) { [weak self] event in
-            Task { @MainActor [weak self] in self?.receiveAgentEvent(event) }
-        }
+        startActivityMonitoring()
         agentNotifications.onFocus = { [weak self] id in
             guard let self, let workspace = store.state.workspace(containing: id) else { return }
             window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
@@ -277,6 +275,12 @@ import SpookkyGit
             forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor in self?.observeRuntimeEvent() }
             }
+    }
+    private func startActivityMonitoring() {
+        guard activityReceiver == nil else { return }
+        activityReceiver = try? AgentActivityReceiver(root: activityRoot) { [weak self] event in
+            Task { @MainActor [weak self] in self?.receiveAgentEvent(event) }
+        }
     }
     private func saveAgentPreferences(_ preferences: AgentNotificationPreferences) {
         let destination = activityRoot.appendingPathComponent("agent-preferences.json")
@@ -1843,6 +1847,7 @@ import SpookkyGit
         conversationSidebar.onActivate?(projectKey)
         checks["collapse_preserves_terminal_input"] = surface.visibleText().contains("SPOOKKY_SIDEBAR_UNSENT")
         checks["agent_draft_survives_shell_and_collapse"] = store.state.tab(original.selectedTabID)?.draft == original.tabs[0].draft
+        checks.merge(try await checkActivityRecovery(root: root, terminal: shellID), uniquingKeysWith: { _, new in new })
         func nativeControls(_ view: NSView) -> [NSControl] { (view as? NSControl).map { [$0] } ?? view.subviews.flatMap(nativeControls) }
         let controls = nativeControls(window.contentView!).filter { control in
             if let field = control as? NSTextField { return field.isEditable || field.isSelectable }
@@ -1920,6 +1925,38 @@ import SpookkyGit
         try PrivateFiles.write(interactionDetails, to: root.appendingPathComponent("sidebar-interaction-diagnostics.json"))
         try await store.flush(); try PrivateFiles.write(checks, to: root.appendingPathComponent("sidebar-checks.json"))
         guard checks.values.allSatisfy({ $0 }) else { throw LaunchError.invalid("Sidebar fixture failed: " + checks.filter { !$0.value }.keys.sorted().joined(separator: ", ")) }
+    }
+    private func checkActivityRecovery(root: URL, terminal: UUID) async throws -> [String: Bool] {
+        guard let binding = store.state.tab(terminal)?.binding, let surface = surfaces.view(terminal) else {
+            throw LaunchError.invalid("Activity recovery fixture terminal is unavailable.")
+        }
+        let before = try await launches.runtime.inspect(binding), input = surface.visibleText()
+        activityReceiver = nil
+        var otherOwner: AgentActivityReceiver? = try AgentActivityReceiver(root: root) { _ in }
+        withExtendedLifetime(otherOwner) { reopen() }
+        var checks = ["activity_retry_preserves_active_owner": activityReceiver == nil]
+        otherOwner = nil
+        setFocus(true)
+        checks["activation_retries_unavailable_activity_receiver"] = activityReceiver != nil
+        activityReceiver = nil; reopen()
+        checks["window_reopen_retries_unavailable_activity_receiver"] = activityReceiver != nil
+        let context = try AgentIntegration.read(AgentTerminalContext.self,
+            path: root.appendingPathComponent("agent-terminal-" + binding.id.uuidString + ".json").path)
+        let invocation = AgentInvocation(context: context, provider: .claude)
+        try PrivateFiles.write(invocation, to: URL(fileURLWithPath: context.activePath))
+        AgentActivitySocket.send(invocation.event(.working), socket: context.socket)
+        for _ in 0..<100 {
+            if store.state.tab(terminal)?.activity?.invocationID == invocation.id { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        checks["recovered_receiver_applies_provider_socket_event"] = store.state.tab(terminal)?.activity?.state == .working &&
+            store.state.tab(terminal)?.activity?.invocationID == invocation.id
+        if let renderTask { await renderTask.value }
+        let after = try await launches.runtime.inspect(binding)
+        checks["activity_recovery_preserves_process_surface_and_input"] = before?.processID != nil &&
+            before?.processID == after?.processID && surfaces.view(terminal) === surface && surface.visibleText() == input
+        store.update { $0.resetAgent(terminal) }
+        return checks
     }
     private func renderContent(started: Double) async {
         guard window.isVisible else { return }
@@ -2547,6 +2584,7 @@ import SpookkyGit
         Task { await surfaces.captureViewports(); if !window.isVisible { surfaces.releaseAll() }; try? await store.flush() }
     }
     func reopen() {
+        startActivityMonitoring()
         if store.state.selected == nil {
             store.update { $0.showLanding(homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path) }
         }
@@ -2582,7 +2620,10 @@ import SpookkyGit
             })
         try? PrivateFiles.write(snapshot, to: root.appendingPathComponent("continuity-failure.json"))
     }
-    func setFocus(_ focused: Bool) { surfaces.setFocus(focused); if focused { observeRuntimeEvent() } }
+    func setFocus(_ focused: Bool) {
+        surfaces.setFocus(focused)
+        if focused { startActivityMonitoring(); observeRuntimeEvent() }
+    }
     func benchmark(count: Int, root: URL, timing: Bool) async throws {
         let fileFixture = CommandLine.arguments.contains("--workspace-benchmark-files")
         let conversationFixture = CommandLine.arguments.contains("--workspace-benchmark-conversations")
