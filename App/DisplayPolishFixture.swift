@@ -5,6 +5,7 @@ import SpookkyRuntime
 
 @MainActor enum DisplayPolishFixture {
     static func check(window: NSWindow, root: URL, sidebar: WorkspaceSidebarView,
+                      activate: () async throws -> Void,
                       apply: (DisplayPreferences) -> Void, tabs: () -> [WorkspaceTabView],
                       headerActions: () -> [NSView],
                       surfaces: TerminalSurfaceManager, terminal: WorkspaceTab?, runtime: any SessionRuntime,
@@ -234,6 +235,7 @@ import SpookkyRuntime
         }
         }
         apply(DisplayPreferences())
+        try await activate()
         try await transition(fullscreen: true, window: window, root: root)
         checks["native_fullscreen_enter_completed"] = true
         for zoom in [1.0, 2.0] {
@@ -244,6 +246,7 @@ import SpookkyRuntime
                 inspectHeader(key); inspectTabHits(key)
             }
         }
+        try await activate()
         try await transition(fullscreen: false, window: window, root: root)
         checks["native_fullscreen_exit_completed"] = true
         apply(DisplayPreferences()); window.contentView?.layoutSubtreeIfNeeded()

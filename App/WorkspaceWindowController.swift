@@ -1625,12 +1625,15 @@ import SpookkyGit
         try PrivateFiles.write(checks, to: root.appendingPathComponent("identity-checks.json"))
     }
     private func checkSidebar(root: URL) async throws {
-        window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
-        for _ in 0..<250 {
-            if NSApp.isActive && window.isKeyWindow { break }
-            try await Task.sleep(for: .milliseconds(20))
+        func activate() async throws {
+            window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+            for _ in 0..<250 {
+                if NSApp.isActive && window.isKeyWindow { return }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            throw LaunchError.invalid("Sidebar fixture did not activate.")
         }
-        guard NSApp.isActive && window.isKeyWindow else { throw LaunchError.invalid("Sidebar fixture did not activate.") }
+        try await activate()
         let location = WorkspaceLocation(path: root.path)
         var projectID = UUID(), workspaceID = UUID()
         let name = "Investigate workspace navigation and preserve terminal drafts"
@@ -1769,11 +1772,7 @@ import SpookkyGit
             checks["hover_does_not_animate_or_shift_title"] = title?.maximumNumberOfLines == 1 && title?.layer?.animationKeys()?.isEmpty != false
             window.orderOut(nil); await Task.yield()
             checks["inactive_window_hides_all_row_accessories"] = actions(conversationSidebar).allSatisfy(\.isHidden)
-            window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
-            for _ in 0..<250 {
-                if NSApp.isActive && window.isKeyWindow { break }
-                try await Task.sleep(for: .milliseconds(20))
-            }
+            try await activate()
             checks["reactivation_reveals_only_hovered_row_accessory"] = window.isKeyWindow && actions(conversationSidebar).filter { !$0.isHidden }.count == 1
             scroller.contentView.scroll(to: NSPoint(x: 0, y: scroller.contentView.bounds.minY + 96))
             scroller.reflectScrolledClipView(scroller.contentView); await Task.yield()
@@ -1811,6 +1810,7 @@ import SpookkyGit
         refreshMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: menuAnchor.bounds.maxY), in: menuAnchor)
         menuRefresh.invalidate(); NotificationCenter.default.removeObserver(began); NotificationCenter.default.removeObserver(ended)
         await Task.yield()
+        try await activate()
         checks["native_menu_refresh_fixture_exercised"] = menuOpened && refreshedDuringMenu
         checks["menu_close_applies_latest_history_snapshot"] = conversationSidebar.itemCount == 25
         checks["history_navigation_starts_no_agents"] = store.state.workspaces.flatMap(\.tabs).compactMap(\.binding) == bindings
@@ -1853,6 +1853,7 @@ import SpookkyGit
         checks["collapse_preserves_terminal_input"] = surface.visibleText().contains("SPOOKKY_SIDEBAR_UNSENT")
         checks["agent_draft_survives_shell_and_collapse"] = store.state.tab(original.selectedTabID)?.draft == original.tabs[0].draft
         checks.merge(try await checkActivityRecovery(root: root, terminal: shellID), uniquingKeysWith: { _, new in new })
+        try await activate()
         func nativeControls(_ view: NSView) -> [NSControl] { (view as? NSControl).map { [$0] } ?? view.subviews.flatMap(nativeControls) }
         let controls = nativeControls(window.contentView!).filter { control in
             if let field = control as? NSTextField { return field.isEditable || field.isSelectable }
@@ -1901,6 +1902,7 @@ import SpookkyGit
             try PrivateFiles.write(checks, to: root.appendingPathComponent("sidebar-checks.json"))
             store.update { $0.openSupport(.changes, title: "Changes"); $0.openSupport(.file(path: root.appendingPathComponent("appearance-config").path), title: "Settings file") }
             checks.merge(try await DisplayPolishFixture.check(window: window, root: root, sidebar: conversationSidebar,
+                activate: activate,
                 apply: { preferences in self.services.changeDisplay { $0 = preferences } },
                 tabs: { Array(self.tabPairs.values) + self.workspaceLayout.tabItems },
                 headerActions: { [self.navigationBack, self.navigationForward, self.sidebarToggle, self.threadDetails, self.threadActions, self.tabOverflow] + self.workspaceLayout.headerActionViews },
