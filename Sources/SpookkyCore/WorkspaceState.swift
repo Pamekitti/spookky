@@ -137,7 +137,7 @@ public struct Workspace: Codable, Identifiable, Equatable, Sendable {
 extension WorkspaceState {
     @discardableResult public mutating func recordAgentEvent(_ event: AgentEvent, followTerminal: Bool = false) -> UUID? {
         guard event.isValid,
-              let tab = workspaces.flatMap(\.tabs).first(where: { $0.binding?.id == event.bindingID || $0.launch?.operationID == event.bindingID }),
+              var tab = workspaces.flatMap(\.tabs).first(where: { $0.binding?.id == event.bindingID || $0.launch?.operationID == event.bindingID }),
               ![TabStatus.draft, .preparing].contains(tab.status) else { return nil }
         if tab.status == .ended && ![AgentEventKind.finished, .failed, .interrupted, .detached].contains(event.kind) { return nil }
         var activity = tab.activity ?? AgentActivity(invocationID: event.invocationID, provider: event.provider)
@@ -148,6 +148,7 @@ extension WorkspaceState {
             activity.manualUnread = unread
         }
         guard activity.apply(event) else { return nil }
+        tab.startup?.observe(event)
         if tab.status == .ended { activity.disconnect() }
         if version >= 6, event.childID == nil, let sessionID = activity.sessionID, !sessionID.isEmpty,
            let owner = workspace(containing: tab.id), owner.primaryTerminalID == tab.id,
@@ -160,7 +161,7 @@ extension WorkspaceState {
         }
         updateTab(tab.id) {
             $0.activity = activity
-            $0.startup?.observe(event)
+            $0.startup = tab.startup
             if let metadata = $0.providerTitle, !$0.matchesConversation(metadata.id) { $0.providerTitle = nil }
         }
         if version >= 6, event.childID == nil, let sessionID = activity.sessionID, !sessionID.isEmpty,

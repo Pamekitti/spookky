@@ -47,6 +47,32 @@ final class ProviderStartupTests: XCTestCase {
         XCTAssertTrue(empty.interactionObserved)
     }
 
+    func testNativeConversationSwitchObservesStartupInTheMovedTerminal() throws {
+        for (expectsPrompt, kind) in [(false, AgentEventKind.attached), (true, .working)] {
+            let original = ConversationID(provider: .claude, sessionID: UUID().uuidString)
+            let destination = ConversationID(provider: .claude, sessionID: UUID().uuidString)
+            var state = WorkspaceState()
+            let workspace = state.ensureConversationWorkspace(original, location: WorkspaceLocation(path: "/tmp"))
+            let terminal = try XCTUnwrap(state.primaryTerminalID)
+            let spec = try LaunchSpec(tool: .claude, executable: "/bin/cat", directory: "/tmp",
+                                      initialPrompt: expectsPrompt ? "Literal starting prompt" : nil)
+            state.bindWorkspace(workspace)
+            state.apply(.preparing, to: terminal); state.apply(.intent(spec, expectsPrompt ? .pending : .none), to: terminal)
+            let binding = SessionBinding(spec: spec)
+            state.apply(.observed(binding, dead: false, exitCode: nil, prompt: nil), to: terminal)
+            state.updateTab(terminal) { $0.startup = ProviderStartup(operationID: spec.operationID, beganAt: began, expectsPrompt: expectsPrompt) }
+            var native = AgentEvent(bindingID: spec.operationID, invocationID: spec.operationID, secret: UUID(),
+                                    provider: .claude, kind: kind, sessionID: destination.sessionID)
+            native.occurredAt = 1_001
+            XCTAssertEqual(state.recordAgentEvent(native, followTerminal: true), terminal)
+            let moved = try XCTUnwrap(state.workspace(for: destination)?.primaryTerminal)
+            XCTAssertEqual(moved.id, terminal); XCTAssertEqual(moved.binding, binding); XCTAssertEqual(moved.launch, spec)
+            XCTAssertTrue(moved.startup?.interactionObserved == true)
+            XCTAssertNil(moved.startupMessage(at: began.addingTimeInterval(30)))
+            try state.validate()
+        }
+    }
+
     func testStartupStateRestoresAndOldRecordsRemainCompatible() throws {
         var tab = WorkspaceTab(tool: .claude)
         let spec = try LaunchSpec(tool: .claude, executable: "/bin/cat", directory: "/tmp")
