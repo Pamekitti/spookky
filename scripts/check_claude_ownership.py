@@ -134,6 +134,19 @@ def check(executable, *, activity_helper=None):
                 output.check_returncode()
                 return output.stdout
 
+            def check_input(name):
+                marker = "SPOOKKY_UNSENT_" + name.upper()
+                tmux("send-keys", "-t", name, "-l", marker).check_returncode()
+                for _ in range(50):
+                    text = capture(name)
+                    if marker in text:
+                        break
+                    time.sleep(0.1)
+                if not record(name + "_accepts_unsent_input", marker in text, terminal=text[-4_000:]):
+                    return False
+                tmux("send-keys", "-t", name, "C-u").check_returncode()
+                return True
+
             background_baseline = None
             try:
                 result["provider"] = cli("--version").stdout.strip()
@@ -166,6 +179,8 @@ def check(executable, *, activity_helper=None):
                 result["observations"]["onboarding"] = sorted(accepted)
                 if not record("foreground_resume_displays_saved_reply", REPLY in text, terminal=text[-4_000:]):
                     return result
+                if not check_input("resume"):
+                    return result
                 owners = [row for row in registry() if row.get("sessionId") == session and row.get("cwd") == str(checkout)]
                 if not record("foreground_exact_owner_reported", any(row.get("kind") == "interactive" and row.get("pid", 0) > 0 for row in owners), owners=owners):
                     return result
@@ -191,7 +206,10 @@ def check(executable, *, activity_helper=None):
                             break
                         time.sleep(0.1)
                     attached_text = capture("attach")
-                    record("native_attach_displays_saved_reply", REPLY in attached_text, terminal=attached_text[-4_000:])
+                    if not record("native_attach_displays_saved_reply", REPLY in attached_text, terminal=attached_text[-4_000:]):
+                        return result
+                    if not check_input("attach"):
+                        return result
                 result["observations"]["loopback_calls"] = ResponseStub.calls
                 record("resume_and_attach_send_no_extra_model_turn", sum(call["path"] == "/v1/messages" for call in ResponseStub.calls) == 1)
                 return result
