@@ -1,0 +1,67 @@
+App/PromptImageFixture.swift
+  s_1ff090e2823b59::t_1ddb75f36f8613 3-12
+App/WorkspaceViews.swift
+  s_1ff090e2823b59::t_23d79cf888ed76 6-7,71-72,324,558-695,697-698,705-725,751-752,762-763,780,782-786,790-796,799-804,814,817-824,829-844,847-850,867,873-874,882-902,904,910,913-915,953,958,963-964,970-971,999,1004-1005,1024-1028,1033,1039-1041,1058-1067,1070,1091-1092,1094-1115,1124,1127,1142-1167,1169-1188,1190-1201,1203-1238,1240-1256,1269-1270,1274
+App/WorkspaceWindowController.swift
+  s_8b632e4ace3371::t_a020acc8aa431d 910,1545,1925-1926,1929-1935,1942-1946,1948,2111-2249,2252,2254-2256,2389,2391,2404-2406,2409-2411,2413,2420,2807-2810
+docs/interface.md
+  s_bb6f40919cf638::t_de2f321745145e 22,32,35-36,39,41,43,47,49-53,72
+docs/product.md
+  s_bb6f40919cf638::t_c2399e78eee0f9 67,81
+scripts/check_new_session.py
+  s_02baf2a3b32dcc::t_f1ba34bfe1bff4 1-57
+docs/conversation-workspaces.md
+  s_bcb1ddf772ef56::t_e4caea1be12a29 9
+docs/development.md
+  s_bcb1ddf772ef56::t_7022a0cf5daf86 23-31
+docs/flows.md
+  s_bcb1ddf772ef56::t_a7e21c54d7c144 11,16-17,24,26,34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f678802d9a4cbee7a7c1e4b38774916eea44c41f",
+  "prompts": {},
+  "sessions": {
+    "s_02baf2a3b32dcc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a14987-431c-7973-a91e-bca18c5e418a",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_1ff090e2823b59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a154c8-cb0d-7330-8ed0-d1ed0b9dcc24",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_8b632e4ace3371": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a154ae-c841-79c0-a213-9bef0d62820b",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_bb6f40919cf638": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a154ae-c841-79c0-a213-9bef0d62820b",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_bcb1ddf772ef56": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a154c1-0f11-70a3-892f-fe280f57b618",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
