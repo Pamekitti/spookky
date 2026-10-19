@@ -1,0 +1,61 @@
+docs/agent-activity.md
+  s_1ff090e2823b59::t_9ae027f0928e62 19,33,35-45
+docs/development.md
+  s_72d3c2ec773986::t_56e119687a5297 216-233
+docs/evidence/sidebar-reference/README.md
+  s_1ff090e2823b59::t_ef9b42ce0278e6 1-70
+docs/interface.md
+  s_1ff090e2823b59::t_0aa419f654ce9c 59,64,77,81,87,190
+docs/native-design-reference.md
+  s_1ff090e2823b59::t_1393788da172b8 9-11,24-29,50
+docs/status.md
+  s_1ff090e2823b59::t_c765ba3c0f9ef3 5-12
+scripts/check_sidebar.py
+  s_1ff090e2823b59::t_d5c7ac07814f6a 54-63
+scripts/check_sidebar_reference.py
+  s_e930ef33ab12e2::t_2693afbb1c9c6b 1-58
+scripts/check_sidebar_restart.py
+  s_cdf46ccee2ecc1::t_111ac0edfd7948 1-68
+scripts/check_agent_hooks.py
+  s_e930ef33ab12e2::t_c0d8d888481dbe 172
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2a159a9213ee3fda1135f9c834927930ec622828",
+  "prompts": {},
+  "sessions": {
+    "s_1ff090e2823b59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a154c8-cb0d-7330-8ed0-d1ed0b9dcc24",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_72d3c2ec773986": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14987-431c-7973-a91e-bca18c5e418a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_cdf46ccee2ecc1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_e930ef33ab12e2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a154c8-cb0d-7330-8ed0-d1ed0b9dcc24",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
