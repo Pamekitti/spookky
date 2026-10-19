@@ -1,0 +1,21 @@
+App/WorkspaceWindowController.swift
+  s_53d4e1c28831bf::t_fe6e2c79e3b193 2441-2442
+Sources/SpookkyFiles/MarkdownDocument.swift
+  s_53d4e1c28831bf::t_ee29b1b7b36184 50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b463765b2c15dbc768625652a979c614d304f348",
+  "prompts": {},
+  "sessions": {
+    "s_53d4e1c28831bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
