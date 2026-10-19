@@ -1,0 +1,29 @@
+scripts/check_claude_ownership.py
+  s_1ff090e2823b59::t_c413ce19684735 23,127,171,174,194-196
+scripts/check_conversation_identity.py
+  s_1ff090e2823b59::t_cca47cbd9ad564 26
+scripts/check_sidebar.py
+  s_1ff090e2823b59::t_86ca3fa11241ef 25
+scripts/check_terminal_selection.py
+  s_1ff090e2823b59::t_0e07c38c09ca8a 23
+scripts/native_fixture.py
+  s_1ff090e2823b59::t_d46f331eb9a358 31-39
+scripts/test_claude_ownership.py
+  s_1ff090e2823b59::t_68101895e0dcbe 9,22-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "099abded4327ba4dfd22c8fdaa23f79f756a2de8",
+  "prompts": {},
+  "sessions": {
+    "s_1ff090e2823b59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a154c8-cb0d-7330-8ed0-d1ed0b9dcc24",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
