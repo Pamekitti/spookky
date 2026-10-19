@@ -68,6 +68,7 @@ import SpookkyGit
     }
     private let sidebarToggle = ActionButton("", symbol: "sidebar.left", help: "Collapse workspace sidebar · ⌘B", action: {})
     private let tabOverflow = ActionButton("", symbol: "chevron.down", help: "All tabs", action: {})
+    private let trailingHeaderActions = NSStackView()
     private let header = WorkspaceHeaderView()
     private var toggleLeading: NSLayoutConstraint!
     private var navigationLeading: NSLayoutConstraint!
@@ -76,6 +77,7 @@ import SpookkyGit
     private var supportHeaderLeading: NSLayoutConstraint!
     private var workspaceBottom: NSLayoutConstraint!
     private var overflowWidth: NSLayoutConstraint!
+    private var compactHeader = false
     private var updatingHeader = false
     private let cancelLocation = ActionButton("Cancel operation", action: {})
     private let warning = SpookkyStyle.label( "")
@@ -532,14 +534,17 @@ import SpookkyGit
         warning.isHidden = true
         cancelLocation.isHidden = true
         cancelLocation.handler = { [weak self] in guard let self else { return }; locations.activeOperationIDs.forEach { self.locations.cancel($0) } }
-        for view in [header, railScroll, tabScroll, workspaceLayout.headerView, workspaceBody, sidebarToggle, tabOverflow, sidebarDivider, warning, cancelLocation, navigationBack, navigationForward, threadDetails, threadActions] { view.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(view) }
+        trailingHeaderActions.orientation = .horizontal; trailingHeaderActions.alignment = .centerY; trailingHeaderActions.spacing = SpookkyStyle.points(4)
+        trailingHeaderActions.detachesHiddenViews = true
+        for view in [tabOverflow, threadActions, threadDetails] { trailingHeaderActions.addArrangedSubview(view) }
+        for view in [header, railScroll, tabScroll, workspaceLayout.headerView, workspaceBody, sidebarToggle, trailingHeaderActions, sidebarDivider, warning, cancelLocation, navigationBack, navigationForward] { view.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(view) }
         rail.translatesAutoresizingMaskIntoConstraints = false; tabs.translatesAutoresizingMaskIntoConstraints = false
         navigationBack.handler = { [weak self] in self?.navigateThread(-1) }
         navigationForward.handler = { [weak self] in self?.navigateThread(1) }
         threadDetails.handler = { [weak self] in self?.showThreadDetails() }
         threadActions.handler = { [weak self] in
             guard let self, let id = store.state.selectedWorkspaceID else { return }
-            workspaceContextMenu(id).popUp(positioning: nil, at: NSPoint(x: 0, y: threadActions.bounds.minY), in: threadActions)
+            headerActionsMenu(id).popUp(positioning: nil, at: NSPoint(x: 0, y: threadActions.bounds.minY), in: threadActions)
         }
         sidebarDivider.setAccessibilityLabel("Resize workspace sidebar")
         sidebarDivider.onMove = { [weak self] x in self?.services.changeDisplay { $0.sidebarWidth = Double(x) / $0.zoom } }
@@ -563,24 +568,22 @@ import SpookkyGit
             sidebarDivider.widthAnchor.constraint(equalToConstant: 6),
             rail.widthAnchor.constraint(equalTo: railScroll.widthAnchor), rail.heightAnchor.constraint(equalTo: railScroll.heightAnchor),
             tabsLeading, tabsWidth, supportHeaderLeading,
-            workspaceLayout.headerView.trailingAnchor.constraint(equalTo: tabOverflow.leadingAnchor, constant: -4).displayScaled(),
+            workspaceLayout.headerView.trailingAnchor.constraint(equalTo: trailingHeaderActions.leadingAnchor, constant: -4).displayScaled(),
             workspaceLayout.headerView.topAnchor.constraint(equalTo: content.topAnchor),
             workspaceLayout.headerView.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).displayScaled(alreadyScaled: true),
             tabScroll.topAnchor.constraint(equalTo: content.topAnchor), tabScroll.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).displayScaled(alreadyScaled: true),
             tabs.heightAnchor.constraint(equalTo: tabScroll.heightAnchor),
             navigationLeading, toggleLeading, sidebarToggle.topAnchor.constraint(equalTo: content.topAnchor, constant: 6).displayScaled(),
             sidebarToggle.widthAnchor.constraint(equalToConstant: 28).displayScaled(), sidebarToggle.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
-            threadDetails.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -8).displayScaled(),
-            threadActions.trailingAnchor.constraint(equalTo: threadDetails.leadingAnchor, constant: -4).displayScaled(),
-            tabOverflow.trailingAnchor.constraint(equalTo: threadActions.leadingAnchor, constant: -4).displayScaled(), overflowWidth,
+            trailingHeaderActions.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -8).displayScaled(),
+            trailingHeaderActions.centerYAnchor.constraint(equalTo: header.centerYAnchor), overflowWidth,
             threadDetails.widthAnchor.constraint(equalToConstant: 28).displayScaled(), threadDetails.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
             threadActions.widthAnchor.constraint(equalToConstant: 28).displayScaled(), threadActions.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
-            threadDetails.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor), threadActions.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor),
             navigationBack.widthAnchor.constraint(equalToConstant: 28).displayScaled(), navigationBack.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
             navigationForward.widthAnchor.constraint(equalToConstant: 28).displayScaled(), navigationForward.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
             navigationBack.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor), navigationForward.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor),
             navigationForward.leadingAnchor.constraint(equalTo: navigationBack.trailingAnchor),
-            tabOverflow.topAnchor.constraint(equalTo: content.topAnchor, constant: 6).displayScaled(), tabOverflow.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
+            tabOverflow.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
             workspaceBody.leadingAnchor.constraint(equalTo: railScroll.trailingAnchor), workspaceBody.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             workspaceBody.topAnchor.constraint(equalTo: tabScroll.bottomAnchor), workspaceBottom,
             warning.leadingAnchor.constraint(equalTo: workspaceBody.leadingAnchor, constant: 12).displayScaled(),
@@ -620,23 +623,51 @@ import SpookkyGit
             workspaceLayout.setPrimaryItem(item, joined: joined)
             item.selected = !joined || workspace.support?.resolvedFullWidthSelection == .primary
         }
-        let available = max(0, content.bounds.width - tabStart - SpookkyStyle.points(20))
+        compactHeader = content.bounds.width - tabStart < SpookkyStyle.points(240)
+        workspaceLayout.compactHeader = compactHeader
+        threadDetails.isHidden = compactHeader
+        threadActions.isEnabled = compactHeader ? store.state.selected != nil : store.state.selected?.isLanding == false
+        threadActions.toolTip = compactHeader ? "Tabs and thread actions" : "Thread actions"
+        threadActions.setAccessibilityLabel(threadActions.toolTip!)
+        let trailing = SpookkyStyle.points(compactHeader ? 40 : 72)
         let splitStart = width + workspaceLayout.primaryPaneWidth(in: max(0, content.bounds.width - width)) + 5
-        let mainWidth = workspaceLayout.joinsPrimary ? 0 : workspaceLayout.isSplit ? max(0, splitStart - tabStart - 5) : min(tabs.fittingSize.width, available)
-        let supportStart = workspaceLayout.joinsPrimary ? tabStart : workspaceLayout.isSplit ? splitStart : tabStart + mainWidth
-        let supportWidth = max(0, content.bounds.width - SpookkyStyle.points(20) - supportStart)
-        let overflowing = (!workspaceLayout.joinsPrimary && tabs.fittingSize.width > mainWidth) || workspaceLayout.headerFittingWidth > supportWidth
-        tabOverflow.isHidden = !overflowing
-        if overflowWidth.constant != (overflowing ? SpookkyStyle.points(28) : 0) { overflowWidth.constant = overflowing ? SpookkyStyle.points(28) : 0 }
-        if !workspaceLayout.joinsPrimary { for item in tabPairs.values { item.availableWidth = mainWidth } }
-        if tabsWidth.constant != mainWidth { tabsWidth.constant = mainWidth }
-        if supportHeaderLeading.constant != supportStart { supportHeaderLeading.constant = supportStart }
+        let preferredMainWidth = tabs.arrangedSubviews.compactMap { ($0 as? WorkspaceTabView)?.preferredWidth }.reduce(0, +) + tabs.edgeInsets.left + tabs.edgeInsets.right
+        func widths(overflow: CGFloat) -> (main: CGFloat, supportStart: CGFloat, support: CGFloat) {
+            let available = max(0, content.bounds.width - tabStart - trailing - overflow)
+            let main = workspaceLayout.joinsPrimary ? 0 : workspaceLayout.isSplit ? min(available, max(0, splitStart - tabStart - 5)) :
+                min(preferredMainWidth, max(0, available - workspaceLayout.headerControlsWidth))
+            let start = workspaceLayout.joinsPrimary ? tabStart : workspaceLayout.isSplit ? splitStart : tabStart + main
+            return (main, start, max(0, content.bounds.width - trailing - overflow - start))
+        }
+        let initial = widths(overflow: 0)
+        let overflowing = (!workspaceLayout.joinsPrimary && preferredMainWidth > initial.main) || workspaceLayout.headerFittingWidth > initial.support
+        tabOverflow.isHidden = compactHeader || !overflowing
+        let overflow = !compactHeader && overflowing
+        let overflowButtonWidth = overflow ? SpookkyStyle.points(28) : 0
+        if overflowWidth.constant != overflowButtonWidth { overflowWidth.constant = overflowButtonWidth }
+        let resolved = widths(overflow: overflow ? SpookkyStyle.points(32) : 0)
+        if !workspaceLayout.joinsPrimary { for item in tabPairs.values { item.availableWidth = resolved.main } }
+        if tabsWidth.constant != resolved.main { tabsWidth.constant = resolved.main }
+        if supportHeaderLeading.constant != resolved.supportStart { supportHeaderLeading.constant = resolved.supportStart }
         tabScroll.isHidden = store.state.selected == nil || workspaceLayout.joinsPrimary
         workspaceLayout.headerView.isHidden = store.state.selected == nil
     }
     private func showTabOverflow() {
         guard let workspace = store.state.selected else { return }
         tabOverflowMenu(workspace).popUp(positioning: nil, at: NSPoint(x: 0, y: tabOverflow.bounds.height), in: tabOverflow)
+    }
+    private func headerActionsMenu(_ id: UUID) -> NSMenu {
+        let actions = store.state.workspaces.first(where: { $0.id == id })?.isLanding == true ? NSMenu() : workspaceContextMenu(id)
+        guard compactHeader, let workspace = store.state.selected, workspace.id == id else { return actions }
+        let menu = tabOverflowMenu(workspace)
+        menu.addItem(.separator())
+        menu.addItem(ClosureMenuItem("New tab") { [weak self] in self?.newTab() })
+        menu.addItem(ClosureMenuItem("Thread details") { [weak self] in self?.showThreadDetails() })
+        let layout = ClosureMenuItem(workspaceLayout.layoutActionTitle) { [weak self] in self?.workspaceLayout.toggleLayout() }
+        layout.isEnabled = workspaceLayout.canToggleLayout; menu.addItem(layout)
+        if !actions.items.isEmpty { menu.addItem(.separator()) }
+        for item in actions.items { actions.removeItem(item); menu.addItem(item) }
+        return menu
     }
     private func tabOverflowMenu(_ workspace: Workspace) -> NSMenu {
         let menu = NSMenu()
@@ -679,7 +710,7 @@ import SpookkyGit
             focusSupportingContent()
         }
         picker.onDismiss = { [weak self] in self?.filePicker = nil }
-        picker.show(relativeTo: threadDetails)
+        picker.show(relativeTo: compactHeader ? threadActions : threadDetails)
     }
     private func renderSupportingContent() {
         let workspace = store.state.selected
@@ -923,7 +954,6 @@ import SpookkyGit
     private func renderChrome() {
         let state = store.state, collapsed = state.sidebarCollapsed
         recordNavigation()
-        threadActions.isEnabled = state.selected?.isLanding == false
         renderConversationSidebar(state, collapsed: collapsed)
         let tabsKey = String(describing: state.selectedWorkspaceID) + String(describing: state.selected?.primaryTerminalID)
         if tabsKey != tabRevision {
@@ -3340,7 +3370,8 @@ import SpookkyGit
         stack.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
         stack.widthAnchor.constraint(equalToConstant: 320).displayScaled().isActive = true
         controller.view = stack; popover.contentViewController = controller; popover.behavior = .transient
-        popover.show(relativeTo: threadDetails.bounds, of: threadDetails, preferredEdge: .minY)
+        let anchor = compactHeader ? threadActions : threadDetails
+        popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
     }
 
 }

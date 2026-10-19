@@ -12,8 +12,11 @@ import AppKit
     var selected = false { didSet { updateAppearance() } }
     var isHeading = false { didSet { needsDisplay = true } }
     var closable = true { didSet { updateInteraction() } }
+    var preferredWidth: CGFloat {
+        min(Self.maximumWidth, max(Self.minimumWidth, titleButton.intrinsicContentSize.width + SpookkyStyle.points(closable ? 28 : 0)))
+    }
     var naturalWidth: CGFloat {
-        min(availableWidth.map { max(SpookkyStyle.points(48), $0) } ?? Self.maximumWidth, Self.maximumWidth, max(Self.minimumWidth, titleButton.intrinsicContentSize.width + SpookkyStyle.points(closable ? 28 : 0)))
+        min(availableWidth.map { max(SpookkyStyle.points(48), $0) } ?? Self.maximumWidth, preferredWidth)
     }
 
     init(title: String, image: NSImage? = nil, help: String? = nil, closable: Bool = true,
