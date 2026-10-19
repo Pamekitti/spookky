@@ -8,6 +8,30 @@ import SpookkyRuntime
                       layout: (SupportingLayout) -> Void, setAppearance: (WorkspaceAppearance) -> Void) async throws -> [String: Bool] {
         var checks: [String: Bool] = [:]
         var hitDetails: [String: String] = [:]
+        let entered = DispatchSemaphore(value: 0), release = DispatchSemaphore(value: 0)
+        let blockedWatcher = WorkspaceFileWatcher(beforeRegistration: { entered.signal(); release.wait() })
+        var staleReady = false
+        blockedWatcher.onIssue = { if $0 == nil { staleReady = true } }
+        blockedWatcher.watch([root.path])
+        var registrationStarted = false
+        for _ in 0..<100 {
+            if entered.wait(timeout: .now()) == .success { registrationStarted = true; break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        checks["blocked_watcher_registration_keeps_main_actor_responsive"] = registrationStarted && !blockedWatcher.isWatching
+        blockedWatcher.stop(); release.signal()
+        try await Task.sleep(for: .milliseconds(50))
+        checks["cancelled_watcher_discards_stale_readiness"] = !blockedWatcher.isWatching && !staleReady
+
+        for zoom in [0.8, 1.0, 1.5, 2.0] {
+            var preferences = DisplayMetrics.preferences; preferences.zoom = zoom; apply(preferences)
+            let cell = DiffCell(identifier: .init("zoom-fixture"), number: false, sign: false)
+            cell.label.font = DiffCell.codeFont; cell.label.stringValue = "Åg ไทย 0123456789"
+            cell.frame = NSRect(x: 0, y: 0, width: 320, height: DiffCell.lineHeight); cell.layoutSubtreeIfNeeded()
+            checks["preview_text_fits_at_" + String(zoom)] = cell.label.frame.height >= cell.label.intrinsicContentSize.height &&
+                cell.label.frame.minY >= 0 && cell.label.frame.maxY <= cell.bounds.height
+        }
+        apply(DisplayPreferences())
         let light = root.appendingPathComponent("appearance-light"), dark = root.appendingPathComponent("appearance-dark")
         let included = root.appendingPathComponent("appearance-include"), config = root.appendingPathComponent("appearance-config")
         try "background = #ffffff\nforeground = #111111\n".write(to: light, atomically: true, encoding: .utf8)

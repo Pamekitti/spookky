@@ -439,6 +439,7 @@ import SpookkyGit
             do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
             guard let self else { return }
             defer { self.observationTask = nil }
+            await reconcileProviderIdentities()
             while self.observationRequested {
                 self.observationRequested = false
                 let ids = self.store.state.workspaces.flatMap(\.tabs).filter {
@@ -602,7 +603,7 @@ import SpookkyGit
         sidebarToggle.toolTip = (collapsed ? "Expand" : "Collapse") + " workspace sidebar · ⌘B"
         sidebarToggle.setAccessibilityLabel(sidebarToggle.toolTip!)
         sidebarToggle.setAccessibilityValue(collapsed ? "Collapsed" : "Expanded")
-        let compact = content.bounds.width - width < SpookkyStyle.points(360) + 5
+        let compact = content.bounds.width - width < SpookkyStyle.points(640) + 5
         if workspaceLayout.compact != compact {
             workspaceLayout.compact = compact; workspaceLayout.needsLayout = true
             DispatchQueue.main.async { [weak self] in self?.renderSupportingContent() }
@@ -690,8 +691,9 @@ import SpookkyGit
         let key = workspace.id.uuidString + tab.id.uuidString
         switch tab.target {
         case .startPage:
-            let page = startPages[tab.id] ?? SupportingStartPage(recent: workspace.support?.tabs ?? [])
+            let page = startPages[tab.id] ?? SupportingStartPage(recent: workspace.support?.tabs ?? [], retainedTerminals: workspace.retainedSupportingTerminals)
             startPages[tab.id] = page
+            page.updateRetainedTerminals(workspace.retainedSupportingTerminals)
             page.onAddress = { [weak self] input in
                 guard let self, let url = BrowserAddress.submitted(input) else { return }
                 store.update { $0.updateSupport(tab.id, target: .browser(url: url), title: "Browser", workspaceID: workspace.id) }
@@ -699,7 +701,10 @@ import SpookkyGit
             }
             page.onTool = { [weak self] tool in self?.openSupportingTool(tool, replacing: tab.id) }
             page.onRecent = { [weak self] target, title in
-                self?.store.update { $0.openSupport(target, title: title) }; self?.focusSupportingContent()
+                self?.store.update {
+                    if case .terminal = target { $0.closeSupport(tab.id) }
+                    $0.openSupport(target, title: title)
+                }; self?.focusSupportingContent()
             }
             workspaceLayout.show(page)
         case .changes, .file:
@@ -956,6 +961,28 @@ import SpookkyGit
         }
         return excluded
     }
+    private func reconcileProviderIdentities() async {
+        for workspace in store.state.workspaces where workspace.conversationID == nil {
+            guard let primary = workspace.primaryTerminal, let binding = primary.binding, binding.tool == .codex else { continue }
+            let path = activityRoot.appendingPathComponent("agent-identity-" + binding.id.uuidString + ".json").path
+            let receipt = await Task.detached { try? AgentIntegration.read(ProviderIdentityReceipt.self, path: path) }.value
+            guard let receipt, receipt.bindingID == binding.id, !receipt.candidates.isEmpty else { continue }
+            let contextPath = activityRoot.appendingPathComponent("agent-terminal-" + binding.id.uuidString + ".json").path
+            let context = await Task.detached { try? AgentIntegration.read(AgentTerminalContext.self, path: contextPath) }.value
+            guard context?.secret == receipt.secret else { continue }
+            let page = await sessionCatalog.page(query: HistoryQuery(directories: [binding.directory], limit: 100, exactDirectories: true), force: true)
+            guard !Task.isCancelled else { return }
+            let matches = page.conversations.filter {
+                $0.id.provider == .codex && $0.source == "cli" && receipt.candidates.contains($0.id.sessionID) && $0.directory == binding.directory
+            }
+            guard matches.count == 1, let metadata = matches.first,
+                  store.state.tab(primary.id)?.binding == binding else { continue }
+            store.update { state in
+                state.associateConversation(provider: .codex, sessionID: metadata.id.sessionID, title: metadata.title, workspaceID: workspace.id)
+                state.recordCatalogMetadata(metadata, workspaceID: workspace.id, projectID: workspace.projectID)
+            }
+        }
+    }
     func requestCatalogRefresh(force: Bool) {
         let signature = catalogProjectSignature() + "|" + historySearch.stringValue
         if historyRefreshTask != nil && !force && signature == historyQuerySignature { return }
@@ -969,6 +996,7 @@ import SpookkyGit
             defer { if historyGeneration == token { historyRefreshTask = nil } }
             do {
                 if force { await sessionCatalog.invalidatePages() }
+                await reconcileProviderIdentities()
                 if !query.isEmpty {
                     let limit = historyPageLimits["search"] ?? 10
                     let cached = try await historyCatalog.cached(allProjects: true, search: query, limit: limit, excluding: historyExclusions(for: nil, allProjects: true))
@@ -1071,8 +1099,10 @@ import SpookkyGit
         if let identity = workspace.conversationID, continuingConversations.contains(identity), store.state.selectedWorkspaceID == id { return }
         cancelLaunchPreflight()
         selectWorkspace(id)
-        guard let item = workspace.catalogMetadata, workspace.conversationID == item.id,
-              let primary = workspace.primaryTerminal else { return }
+        guard let primary = workspace.primaryTerminal, let identity = workspace.conversationID else { return }
+        let item = workspace.catalogMetadata ?? ConversationMetadata(id: identity, title: workspace.displayTitle,
+            directory: primary.launch?.directory ?? primary.startDirectory ?? workspace.directory, updatedAt: Date())
+        guard identity == item.id else { return }
         guard !continuingConversations.contains(item.id) else { return }
         if workspace.conversationOwnershipAmbiguous == true {
             continuationErrors[item.id] = "More than one retained terminal reports this conversation. Reconnect its original terminal before resuming."
@@ -1938,7 +1968,23 @@ import SpookkyGit
             agentHeaderLabels[tab.id] = activityLabel
             var headerViews: [NSView] = [title, NSView(), activityLabel, split]
             if tab.status == .ended {
-                headerViews.append(ActionButton("Session ended · New terminal", symbol: "plus") { [weak self] in self?.openTerminal(from: tab.id) })
+                if let workspace = store.state.workspace(containing: tab.id), workspace.primaryTerminalID == tab.id,
+                   let identity = workspace.conversationID {
+                    let opening = continuingConversations.contains(identity)
+                    let resume = ActionButton(opening ? "Resuming…" : "Resume conversation", symbol: "arrow.clockwise") { [weak self] in
+                        self?.openConversationWorkspace(workspace.id)
+                    }
+                    resume.isEnabled = !opening
+                    resume.toolTip = continuationErrors[identity] ?? "Resume this exact conversation in its original folder"
+                    headerViews.append(resume)
+                    if let error = continuationErrors[identity] {
+                        let message = ChromeTextField(wrappingLabelWithString: error)
+                        message.textColor = SpookkyPalette.warning; message.toolTip = error
+                        headerViews.append(message)
+                    }
+                } else {
+                    headerViews.append(ActionButton("Session ended · New terminal", symbol: "plus") { [weak self] in self?.openTerminal(from: tab.id) })
+                }
             }
             if store.state.selected?.split != nil {
                 headerViews.append(ActionButton("", symbol: "rectangle", help: "Show one terminal; keep both sessions") { [weak self] in self?.store.update { $0.collapseSplit() } })
@@ -2386,9 +2432,12 @@ import SpookkyGit
         Task {
             do {
                 try await store.flush()
-                if live && !services.installingUpdate {
+                let hasBrowser = store.state.workspaces.contains { workspace in
+                    workspace.support?.tabs.contains { if case .browser = $0.target { return true }; return false } == true
+                }
+                if (live || hasBrowser) && !services.installingUpdate {
                     let alert = ChromeAlert(); alert.messageText = "Quit Spookky?"
-                    alert.informativeText = "Choose whether your terminal sessions should keep running. Ending terminals may leave work running on a shared provider server or in the background. Use the provider’s own Stop or Interrupt control to stop that work first."
+                    alert.informativeText = (hasBrowser ? "Browser URLs and website storage are retained. Unsent browser forms may be lost. Cancel to finish them first.\n\n" : "") + "Choose whether your terminal sessions should keep running. Ending terminals may leave work running on a shared provider server or in the background. Use the provider’s own Stop or Interrupt control to stop that work first."
                     alert.addButton(withTitle: "Keep running and quit"); alert.addButton(withTitle: "Cancel")
                     alert.addButton(withTitle: "End terminals and quit").hasDestructiveAction = true
                     let result = await present(alert)
@@ -2579,7 +2628,15 @@ import SpookkyGit
                 openBrowser: { id in self.store.update { $0.updateSupport(id, target: .browser(url: "about:blank"), title: "Browser") }; self.focusSupportingContent() },
                 supportingView: { self.workspaceLayout.panel }, selectWorkspace: { id in self.store.update { $0.selectWorkspace(id) } },
                 openSupportingTerminal: { if let id = self.store.state.primaryTerminalID { self.openTerminal(from: id) } },
-                reopenSupportingTerminal: { id in self.store.update { state in state.openSupport(.terminal(tabID: id), title: state.tab(id)?.title ?? "Terminal") } },
+                reopenSupportingTerminal: { id in
+                    self.store.update { $0.openSupport(.startPage, title: "New tab") }
+                    self.renderSupportingContent()
+                    func button(_ view: NSView) -> NSButton? {
+                        if view.identifier?.rawValue == "reopen-terminal:" + id.uuidString { return view as? NSButton }
+                        return view.subviews.lazy.compactMap { button($0) }.first
+                    }
+                    if let page = self.workspaceLayout.panel.subviews.first { button(page)?.performClick(nil) }
+                },
                 prepareStop: { self.store.update { state in if let id = state.selectedWorkspaceID { state.associateConversation(ConversationID(provider: .codex, sessionID: "disposable-stop-fixture"), workspaceID: id) } } },
                 stop: { self.stopPrimaryAgent() }, setAppearance: { appearance in self.store.update { $0.appearance = appearance } },
                 support: { id, layout in self.store.update { state in if let id { state.selectSupport(id) }; if let layout { state.setSupportingLayout(layout) } } },
@@ -2957,7 +3014,10 @@ import SpookkyGit
         var seen = Set<ConversationID>()
         let search = historySearch.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         let selectedWorkspace = state.selected
-        let workspaceByKey = Dictionary(state.workspaces.map { ($0.threadKey, $0) }, uniquingKeysWith: { first, _ in first })
+        let workspaceByKey = Dictionary(grouping: state.workspaces, by: \.threadKey).mapValues { matches in
+            matches.first { $0.primaryTerminal?.status == .running } ??
+                matches.first { $0.id == state.selectedWorkspaceID } ?? matches[0]
+        }
         func append(_ records: [ConversationCatalogRecord], projectID: UUID?, key: String) {
             let supplemental = state.workspaces.filter { workspace in
                 !workspace.isLanding && !state.isArchived(workspace) && (key == "search" || workspace.projectID == projectID) &&
@@ -3207,6 +3267,16 @@ import SpookkyGit
         let review = ActionButton("Changes", symbol: "arrow.triangle.branch") { [weak self] in self?.store.update { $0.openSupport(.changes, title: "Changes") }; self?.detailsPopover?.performClose(nil) }
         var views: [NSView] = [title, provider, folder]
         if let activity = workspace.activityState { views.append(SpookkyStyle.label(activity.label)) }
+        if workspace.displayProvider != .shell && workspace.primaryTerminal?.activity?.displayState == .unknown {
+            let help = ChromeTextField(wrappingLabelWithString: "Activity monitoring is unavailable. The provider’s Review action shows Spookky’s local callback definitions before you trust them. They report activity and optional previews to this Mac. Declining keeps the terminal usable, but Working and Needs input cannot be reported.")
+            help.font = .systemFont(ofSize: SpookkyStyle.points(11)); help.textColor = SpookkyPalette.secondary
+            views.append(help)
+        }
+        if let primary = workspace.primaryTerminal, primary.binding != nil {
+            views.append(ActionButton("Reconnect terminal", symbol: "arrow.clockwise") { [weak self] in
+                self?.reconnect(primary.id); self?.detailsPopover?.performClose(nil)
+            })
+        }
         views.append(review)
         if let branch = (workspace.anchor ?? workspace.selectedLocation).branch { views.append(SpookkyStyle.label("Branch: " + branch)) }
         for warning in providerHistoryNotices.sorted() {
