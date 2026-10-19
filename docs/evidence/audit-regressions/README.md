@@ -37,6 +37,7 @@ Hands-on provider tasks built and extended a local checklist with no external de
 - An open sidebar menu retains its anchor while history refresh coalesces into one pending snapshot.
 - Terminal reattachment preserves focus in the file picker, sidebar search and other active editors. Explicit New chat, project draft and Open Terminal actions focus their own target.
 - Native project discovery cancels an unstarted launch and clears departing-editor focus when its result selects a project draft. The shared completion also serves create/clone. A red native check reproduced both failures before the fix. Three new assertions pass, including preservation of the departing folder.
+- Accepted native activity confirms startup before moving a terminal to its observed conversation ID. The regression reproduced four failed assertions before this fix. All 11 focused startup and conversation-switch tests pass.
 - Prepared native continuations now receive the existing activity integration after argument validation. Failure to prepare monitoring falls back to the same native command. Resume does not resolve the executable again, allocate a fresh provider ID or replay a starting prompt.
 - A clean single-instance restart retained exact unsent Unicode terminal input, the process, the conversation and the selected file. Earlier mixed-build automation evidence was discarded after a stale driver binding reopened an older app copy.
 - Browser downloads preserve the live form and offer an explicit external action. PDF and image previews retain native zoom behavior.
@@ -45,13 +46,13 @@ Hands-on provider tasks built and extended a local checklist with no external de
 
 [Native assertion results](checks.json) contain 2,670 passed assertions: 30 closure, 90 identity, 2,498 sidebar/display, 49 supporting-content and three cold-restore checks. These fixtures use synthetic provider metadata and owned real shells. They cover actual completed fullscreen transitions, tab hit areas, accessibility activation, bounded history views, live appearance recovery, selected content and input focus.
 
-Swift reported 297 XCTest cases: 293 passed, four opt-in skips and zero failures. All 22 Swift Testing cases passed. The Python suite has 36 passed cases. Current installed CLI checks passed nine Codex cases and ten isolated Claude resume/ownership/attach cases, including unsent input through resume and attach. The Codex shared-server check used zero resume retries and retained its first-error field. The expanded Claude fixture found inherited wrapper input becoming a native prompt. Control commands now receive empty stdin; both input probes pass with one loopback model turn.
+Swift reported 298 XCTest cases: 294 passed, four opt-in skips and zero failures. All 22 Swift Testing cases passed. The Python suite has 36 passed cases. Current installed CLI checks passed nine Codex cases and ten isolated Claude resume/ownership/attach cases, including unsent input through resume and attach. The Codex shared-server check used zero resume retries and retained its first-error field. The expanded Claude fixture found inherited wrapper input becoming a native prompt. Control commands now receive empty stdin; both input probes pass with one loopback model turn.
 
 First failures remain in private local evidence. Fullscreen fixtures now wait for completed AppKit notifications. The selection fixture derives its origin from the terminal renderer. Those corrections do not turn timing retries into successful provider resumes.
 
 ## Measurements and continuity
 
-[Matched measurements](measurements.json) used frozen baseline and candidate binaries. Resource cases ran serially in AB and BA order with five seconds of warm-up and 60 seconds of collection. Existing user agents and the real provider test sessions remained running. The foreground pairs also retained the fresh-runtime Claude session. Host load was uncontrolled.
+[Matched measurements](measurements.json) used frozen baseline and candidate binaries. These results are from preceding application source `5c4f716`; the final `8b52a31` executable will receive a separate matched run. Resource cases ran serially in AB and BA order with five seconds of warm-up and 60 seconds of collection. Existing user agents and the real provider test sessions remained running. The foreground pairs also retained the fresh-runtime Claude session. Host load was uncontrolled.
 
 | Measurement | Samples per build | Baseline | Candidate |
 | --- | ---: | ---: | ---: |
@@ -80,14 +81,14 @@ The native project picker intermittently remained in a loading state during auto
 
 Claude resume displayed saved output but could stop accepting input on the surviving GUI-owned private server. The same native CLI also stalled there without a Spookky surface. Fresh independent private servers accepted input with the same environment and terminal settings. A later fresh GUI-owned runtime reproduced the wait after its disposable checkout gained Git metadata. Its native main thread waited inside `openat`. A plain file probe opened that checkout's Git config, the global Git config and Claude settings, then waited opening a public README in Documents. The OS cause remains unconfirmed. No privacy settings were changed and the server with a running Codex session was retained. A native SessionStart callback confirms monitoring integration; it does not prove input responsiveness.
 
-The development bundle's existing Documents grant resolves to an earlier frozen app copy. That copy, the later resume owner and the final executable have different ad-hoc designated signature requirements. Stale signing/privacy state is a concrete hypothesis. No permission reset or new grant was performed.
+The development bundle's existing Documents grant resolves to an earlier frozen app copy. That copy, the later resume owner and the final executable have different ad-hoc designated signature requirements. Stale signing/privacy state is a concrete hypothesis. A fresh server created by `8b52a31` also stalled on the same public README in a plain Python process. Its native sample waited in `__open`. No permission reset or new grant was performed.
 
 Real Codex activity hooks remained gated by its native trust decision. Claude activity callbacks passed. Missing monitoring stays unknown. Native resume does not establish exclusive cross-application Claude ownership.
 
 ## Tested application source
 
-Application source commit: `5c4f716a56bdeca8ee379b881e32bb0c4813d70a`.
+Application source commit: `8b52a312073f8d34d56630cdc5403d6fbbdc519c`.
 
-Frozen Release executable SHA-256: `16f58176c27bb5c4a8a365cee8b699600dbed2c4e163025cad34f06f5da560f5`.
+Frozen Release executable SHA-256: `2b421b1a5da3c23c078f3cc696d653216c18ba9506784ffaf28e262d19331861`.
 
 No new dependency or conversation database migration is introduced. The installed daily app is outside this verification build and has not been replaced.

@@ -1,6 +1,6 @@
 {
-  "application_source_commit": "5c4f716a56bdeca8ee379b881e32bb0c4813d70a",
-  "binary_sha256": "16f58176c27bb5c4a8a365cee8b699600dbed2c4e163025cad34f06f5da560f5",
+  "application_source_commit": "8b52a312073f8d34d56630cdc5403d6fbbdc519c",
+  "binary_sha256": "2b421b1a5da3c23c078f3cc696d653216c18ba9506784ffaf28e262d19331861",
   "total_passed": 2670,
   "suites": {
     "closure": {
