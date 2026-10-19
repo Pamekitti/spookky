@@ -25,7 +25,7 @@ Both captures use disposable fixture data. At 650 points and 200 percent zoom, t
 | F09, Markdown reading width | Existing semantic previews retain an 80-character reading column and local code/table scrolling. Native rendering checks passed. |
 | F10, later Git initialization | In a real disposable folder, Changes switched from its non-Git explanation to an untracked file after external Git initialization. No refresh or restart was needed. |
 | F11, browser state | A live form survived switching, zoom and Full/Split. Website storage and selected-file descriptors survived UI restart. Unsent web forms do not survive restart; Quit warns and Cancel retains the live form. |
-| F12, ended primary | Both real CLIs exited through their native flow and resumed the same saved ID. Three repeated clicks joined one launch. Resume arguments contained no initial prompt. Codex accepted new input. Claude displayed saved output but later stalled reading native filesystem paths on its old surviving server. A later real GUI task on a fresh private runtime resumed its exact saved ID and accepted unsent Unicode. That fresh process, server, conversation and input also survived UI restart and accepted new input afterward. The old-server stall remains open. |
+| F12, ended primary | Both real CLIs exited through their native flow and resumed the same saved ID. Three repeated clicks joined one launch. Resume arguments contained no initial prompt. Codex accepted new input. A fresh real Claude task resumed its exact ID and accepted unsent Unicode before and after UI restart. A further saved resume after Git initialization reached native trust and displayed saved output, then reproduced the file-access wait seen on the old server. Usable input after this transition remains open. |
 | F13, project drafts | Real A/B/global draft isolation passed registration, removal, navigation and restart. Removing a project retained its draft and original folder. |
 
 Hands-on provider tasks built and extended a local checklist with no external dependencies. Embedded-browser checks exercised add, completion, filters, search, exact deletion, clear-completed and local storage. They establish these disposable workflows, not general model quality or active-agent resource budgets.
@@ -36,13 +36,14 @@ Hands-on provider tasks built and extended a local checklist with no external de
 - Sidebar rows expose native accessibility Press through the same stable-identity activation path as pointer input. Section rows remain inert.
 - An open sidebar menu retains its anchor while history refresh coalesces into one pending snapshot.
 - Terminal reattachment preserves focus in the file picker, sidebar search and other active editors. Explicit New chat, project draft and Open Terminal actions focus their own target.
+- Native project discovery cancels an unstarted launch and clears departing-editor focus when its result selects a project draft. The shared completion also serves create/clone. A red native check reproduced both failures before the fix. Three new assertions pass, including preservation of the departing folder.
 - Prepared native continuations now receive the existing activity integration after argument validation. Failure to prepare monitoring falls back to the same native command. Resume does not resolve the executable again, allocate a fresh provider ID or replay a starting prompt.
 - A clean single-instance restart retained exact unsent Unicode terminal input, the process, the conversation and the selected file. Earlier mixed-build automation evidence was discarded after a stale driver binding reopened an older app copy.
 - Browser downloads preserve the live form and offer an explicit external action. PDF and image previews retain native zoom behavior.
 
 ## Verification
 
-[Native assertion results](checks.json) contain 2,667 passed assertions: 30 closure, 87 identity, 2,498 sidebar/display, 49 supporting-content and three cold-restore checks. These fixtures use synthetic provider metadata and owned real shells. They cover actual completed fullscreen transitions, tab hit areas, accessibility activation, bounded history views, live appearance recovery, selected content and input focus.
+[Native assertion results](checks.json) contain 2,670 passed assertions: 30 closure, 90 identity, 2,498 sidebar/display, 49 supporting-content and three cold-restore checks. These fixtures use synthetic provider metadata and owned real shells. They cover actual completed fullscreen transitions, tab hit areas, accessibility activation, bounded history views, live appearance recovery, selected content and input focus.
 
 Swift reported 297 XCTest cases: 293 passed, four opt-in skips and zero failures. All 22 Swift Testing cases passed. The Python suite has 36 passed cases. Current installed CLI checks passed nine Codex cases and ten isolated Claude resume/ownership/attach cases, including unsent input through resume and attach. The Codex shared-server check used zero resume retries and retained its first-error field. The expanded Claude fixture found inherited wrapper input becoming a native prompt. Control commands now receive empty stdin; both input probes pass with one loopback model turn.
 
@@ -67,7 +68,7 @@ The separate 1/5/10-conversation matrix also completed two runs per build and co
 
 Empty readiness excludes provider discovery, the first rendered frame and CLI readiness. Selection ends at native attachment, layout and focus. It excludes first bytes and physical display latency. Both builds passed wrapped resize and crash restoration with unchanged process identities and viewport markers.
 
-The final executable completed all 20 matched cases, including four foreground observations. The actual eight-hour background continuity workload is running with ten retained shells and repeated attachment and file updates. No eight-hour pass or performance improvement is claimed here yet.
+The preceding application source, `67aa7fe`, completed these 20 matched cases, including four foreground observations. Its continuity run was deliberately interrupted after 40 minutes 35 seconds to repair project-opening completion. All 110 setup cycles passed their resource checks. Corrected source `5c4f716` is repeating the matched matrix before a new complete eight-hour test. No eight-hour pass or performance improvement is claimed here yet.
 
 ## Remaining limits
 
@@ -77,14 +78,14 @@ The user has no 1x display available, so physical 1x-to-2x transitions remain ha
 
 The native project picker intermittently remained in a loading state during automation. Later registrations succeeded. A stock picker comparison worked. The cause is unconfirmed; a speculative deferral was reverted.
 
-Claude resume displayed saved output but could stop accepting input on the surviving GUI-owned private server. The same native CLI also stalled there without a Spookky surface. Fresh independent private servers accepted input with the same environment and terminal settings. A read-only probe opened Claude settings but waited opening a public README in Documents on the old server. The cause remains unconfirmed. No privacy settings were changed and the server with a running Codex session was retained. A native SessionStart callback confirms that the repaired monitoring integration is connected; it does not prove input responsiveness.
+Claude resume displayed saved output but could stop accepting input on the surviving GUI-owned private server. The same native CLI also stalled there without a Spookky surface. Fresh independent private servers accepted input with the same environment and terminal settings. A later fresh GUI-owned runtime reproduced the wait after its disposable checkout gained Git metadata. Its native main thread waited inside `openat`. A plain file probe opened that checkout's Git config, the global Git config and Claude settings, then waited opening a public README in Documents. The OS cause remains unconfirmed. No privacy settings were changed and the server with a running Codex session was retained. A native SessionStart callback confirms monitoring integration; it does not prove input responsiveness.
 
 Real Codex activity hooks remained gated by its native trust decision. Claude activity callbacks passed. Missing monitoring stays unknown. Native resume does not establish exclusive cross-application Claude ownership.
 
 ## Tested application source
 
-Application source commit: `67aa7fe98010340c32dca2e9d57e259427c70499`.
+Application source commit: `5c4f716a56bdeca8ee379b881e32bb0c4813d70a`.
 
-Frozen Release executable SHA-256: `c886ca2916e9250e5ff153e87cb823f4fe93750d149e1ec63d1b5187663f22ca`.
+Frozen Release executable SHA-256: `16f58176c27bb5c4a8a365cee8b699600dbed2c4e163025cad34f06f5da560f5`.
 
-Later Python collector, provider-checker and evidence commits do not change that application source. No new dependency or conversation database migration is introduced. The installed daily app is outside this verification build and has not been replaced.
+No new dependency or conversation database migration is introduced. The installed daily app is outside this verification build and has not been replaced.

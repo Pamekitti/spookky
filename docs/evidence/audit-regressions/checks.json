@@ -1,7 +1,7 @@
 {
-  "application_source_commit": "67aa7fe98010340c32dca2e9d57e259427c70499",
-  "binary_sha256": "c886ca2916e9250e5ff153e87cb823f4fe93750d149e1ec63d1b5187663f22ca",
-  "total_passed": 2667,
+  "application_source_commit": "5c4f716a56bdeca8ee379b881e32bb0c4813d70a",
+  "binary_sha256": "16f58176c27bb5c4a8a365cee8b699600dbed2c4e163025cad34f06f5da560f5",
+  "total_passed": 2670,
   "suites": {
     "closure": {
       "count": 30,
@@ -2542,7 +2542,7 @@
       }
     },
     "identity": {
-      "count": 87,
+      "count": 90,
       "checks": {
         "session_switch_new_support_is_independent": true,
         "primary_identity_with_terminal": true,
@@ -2630,7 +2630,10 @@
         "rail_snapshot_light": true,
         "full_browser_retains_both_terminal_surfaces": true,
         "leaving_new_prompt_cancels_unstarted_agent": true,
-        "exact_disposable_runtime_count": true
+        "exact_disposable_runtime_count": true,
+        "project_registration_completion_cancels_unstarted_launch": true,
+        "project_registration_focuses_composer": true,
+        "project_registration_preserves_departing_folder": true
       }
     },
     "supporting": {
