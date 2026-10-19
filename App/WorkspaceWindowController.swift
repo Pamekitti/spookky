@@ -1637,7 +1637,7 @@ import SpookkyGit
                 if NSApp.isActive && window.isKeyWindow { return }
                 try await Task.sleep(for: .milliseconds(20))
             }
-            throw LaunchError.invalid("Sidebar fixture did not activate.")
+            throw LaunchError.invalid("Native fixture window did not activate.")
         }
         try await activate()
         let location = WorkspaceLocation(path: root.path)

@@ -199,12 +199,7 @@ import SpookkyRuntime
                 window.setContentSize(NSSize(width: width, height: width == 650 ? 600 : 900))
                 for mode in [SupportingLayout.split, .fullWidth] {
                     layout(mode); await Task.yield(); window.contentView?.layoutSubtreeIfNeeded()
-                    window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
-                    for _ in 0..<100 {
-                        if window.isKeyWindow && NSApp.isActive { break }
-                        try await Task.sleep(for: .milliseconds(20))
-                    }
-                    guard window.isKeyWindow && NSApp.isActive else { throw LaunchError.invalid("Display fixture window did not activate.") }
+                    try await activate()
                     checks["effective_appearance_\(appearance.rawValue)"] = window.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == (appearance == .light ? .aqua : .darkAqua)
                     let key = "\(appearance.rawValue)-\(Int(zoom * 100))-\(width)-\(mode.rawValue)"
                     inspectHeader(key); inspectTabHits(key)
@@ -266,7 +261,7 @@ import SpookkyRuntime
         let state = TransitionState()
         let notification = fullscreen ? NSWindow.didEnterFullScreenNotification : NSWindow.didExitFullScreenNotification
         let observer = NotificationCenter.default.addObserver(forName: notification, object: window, queue: .main) { _ in
-            Task { @MainActor in state.completed = true }
+            MainActor.assumeIsolated { state.completed = true }
         }
         defer { NotificationCenter.default.removeObserver(observer) }
         guard NSApp.sendAction(#selector(NSWindow.toggleFullScreen(_:)), to: window, from: nil) else {
