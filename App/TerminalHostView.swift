@@ -12,6 +12,12 @@ final class TerminalHostView: NSView, NSTextInputClient {
     var onOpenURL: ((URL) -> Bool)?
     var onResize: ((@escaping () -> Void, @escaping () -> Void) -> Void)?
     var onViewportInteraction: (() -> Void)?
+    var onViewportChanged: (() -> Void)?
+    private(set) var terminalViewportAtBottom: Bool?
+    func receiveScrollbar(total: UInt64, offset: UInt64, length: UInt64) {
+        terminalViewportAtBottom = TerminalViewportPosition.atBottom(total: total, offset: offset, length: length)
+        onViewportChanged?()
+    }
     var applicationCapturesMouse: (() async throws -> Bool)?
     private struct PendingMouseGesture {
         let id = UUID()

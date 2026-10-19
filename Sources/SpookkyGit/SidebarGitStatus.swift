@@ -40,7 +40,9 @@ public struct GitHubPullRequestCLI: GitHubPullRequestLoading {
         guard let executable = (paths + ["/opt/homebrew/bin/gh", "/usr/local/bin/gh"]).first(where: {
             $0.hasPrefix("/") && !$0.contains("\0") && FileManager.default.isExecutableFile(atPath: $0)
         }) else { throw LaunchError.invalid("GitHub CLI is unavailable.") }
-        let result = try await NativeGitExecutor(timeout: 10, outputLimit: 131_072).executeTool(executable, arguments: query.arguments)
+        let result = try await GitScheduler.shared.read {
+            try await NativeGitExecutor(timeout: 10, outputLimit: 131_072).executeTool(executable, arguments: query.arguments)
+        }
         _ = try result.checked(); return result.outputData
     }
 }
@@ -98,13 +100,13 @@ public actor GitHubPullRequestService {
     public var pendingCount: Int { pending.count }
     public func cancelPending() { for task in pending.values { task.cancel() } }
     public func status(checkout: SidebarCheckoutInfo, now: Date = Date()) async -> PullRequestStatus? {
-        guard let repository = checkout.repository, repository.isValid, let branch = checkout.branch,
+        guard !Task.isCancelled, let repository = checkout.repository, repository.isValid, let branch = checkout.branch,
               !branch.isEmpty, branch.utf8.count <= 1024, !branch.contains("\0") else { return nil }
         let records = await records(.branch(repository, branch), now: now)
         return records.flatMap { GitHubPullRequestRecord.select($0, checkout: checkout) }
     }
     public func status(association: ThreadPullRequest, now: Date = Date()) async -> PullRequestStatus? {
-        guard association.isValid else { return nil }
+        guard !Task.isCancelled, association.isValid else { return nil }
         let records = await records(.number(association.repository, association.number), now: now)
         guard let record = records?.first, record.number == association.number, record.headRefName == association.branch else { return nil }
         return record.status(repository: association.repository)
@@ -131,6 +133,7 @@ public actor GitHubPullRequestService {
         pending[query] = task
         let result = await task.value
         pending[query] = nil
+        if task.isCancelled { cache[query] = nil; return nil }
         cache[query] = Entry(records: result, date: now)
         while cache.count > 128, let oldest = cache.min(by: { $0.value.date < $1.value.date })?.key { cache[oldest] = nil }
         return result

@@ -116,8 +116,8 @@ import SpookkyRuntime
                         checks["sidebar_stays_in_window_" + key] = content.bounds.contains(sidebar.convert(sidebar.bounds, to: content))
                         if let container = sidebar.superview {
                             let frame = sidebar.convert(sidebar.bounds, to: container)
-                            checks["sidebar_has_balanced_outer_margins_" + key] = abs(frame.minX - 12 * zoom) < 0.5 &&
-                                abs(container.bounds.maxX - frame.maxX - 12 * zoom) < 0.5
+                            checks["sidebar_owns_its_row_insets_" + key] = abs(frame.minX) < 0.5 &&
+                                abs(container.bounds.maxX - frame.maxX) < 0.5
                         }
                         for (index, tab) in tabs().enumerated() where !tab.isHiddenOrHasHiddenAncestor && !tab.bounds.intersection(tab.visibleRect).isEmpty {
                             for horizontal in [0.05, 0.5, 0.95] {

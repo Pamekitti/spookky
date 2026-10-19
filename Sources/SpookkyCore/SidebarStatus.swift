@@ -55,6 +55,13 @@ public struct PullRequestStatus: Equatable, Sendable {
         let prefix = switch state { case .draft: "Draft PR"; case .open: "Open PR"; case .closed: "Closed PR"; case .merged: "Merged PR" }
         return prefix + " #" + String(association.number)
     }
+    public func matchesLiveCheckout(_ checkout: SidebarCheckoutInfo) -> Bool {
+        guard association.repository == checkout.repository, association.branch == checkout.branch else { return false }
+        switch state {
+        case .open, .draft: return true
+        case .closed, .merged: return association.headCommit == checkout.headCommit
+        }
+    }
 }
 
 public struct SidebarCheckoutInfo: Hashable, Sendable {
@@ -82,6 +89,13 @@ public struct AgentCompletionReceipt: Equatable, Sendable {
     public let manualUnread: Bool
     public init(_ activity: AgentActivity) {
         invocationID = activity.invocationID; completionID = activity.completionID; manualUnread = activity.manualUnread
+    }
+}
+
+public enum TerminalViewportPosition {
+    public static func atBottom(total: UInt64, offset: UInt64, length: UInt64) -> Bool? {
+        guard length > 0, length <= total, offset <= total else { return nil }
+        return offset >= total - length
     }
 }
 

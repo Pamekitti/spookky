@@ -5,11 +5,12 @@ import SpookkyGit
 private actor PullRequestFixture: GitHubPullRequestLoading {
     var calls = 0, active = 0, maximumActive = 0
     let data: Data
-    init(data: Data = Data("[]".utf8)) { self.data = data }
+    let delay: Int
+    init(data: Data = Data("[]".utf8), delay: Int = 5) { self.data = data; self.delay = delay }
     func load(_ query: GitHubPullRequestQuery) async throws -> Data {
         calls += 1; active += 1; maximumActive = max(maximumActive, active)
         defer { active -= 1 }
-        try await Task.sleep(for: .milliseconds(5))
+        try await Task.sleep(for: .milliseconds(delay))
         return data
     }
 }
@@ -55,6 +56,13 @@ final class SidebarStatusTests: XCTestCase {
         XCTAssertNil(GitHubPullRequestRecord.select([merged], checkout: reused))
         let detached = SidebarCheckoutInfo(repository: repository, branch: nil, headCommit: head, linkedWorktree: true)
         XCTAssertNil(GitHubPullRequestRecord.select([merged], checkout: detached))
+        let known = try XCTUnwrap(merged.status(repository: repository))
+        XCTAssertFalse(known.matchesLiveCheckout(reused))
+        XCTAssertTrue(known.matchesLiveCheckout(checkout))
+        let changedClosed = try XCTUnwrap(record(state: "CLOSED", head: String(repeating: "b", count: 40)).status(repository: repository))
+        XCTAssertFalse(changedClosed.matchesLiveCheckout(checkout))
+        let open = try XCTUnwrap(record().status(repository: repository))
+        XCTAssertTrue(open.matchesLiveCheckout(reused))
     }
     func testActivityKeepsPriorityOverPRAndUnknownDoesNotInventWork() {
         for state in [AgentActivityState.needsInput, .failed, .working, .finished] {
@@ -93,6 +101,14 @@ final class SidebarStatusTests: XCTestCase {
         activity.apply(event(.failed)); activity.acknowledge()
         XCTAssertEqual(activity.displayState, .failed)
     }
+    func testViewportRequiresObservedRowsAndHandlesLargeScrollback() {
+        XCTAssertNil(TerminalViewportPosition.atBottom(total: 0, offset: 0, length: 0))
+        XCTAssertNil(TerminalViewportPosition.atBottom(total: 20, offset: 0, length: 21))
+        XCTAssertNil(TerminalViewportPosition.atBottom(total: 20, offset: 21, length: 10))
+        XCTAssertEqual(TerminalViewportPosition.atBottom(total: 200, offset: 150, length: 30), false)
+        XCTAssertEqual(TerminalViewportPosition.atBottom(total: 200, offset: 170, length: 30), true)
+        XCTAssertEqual(TerminalViewportPosition.atBottom(total: .max, offset: .max - 30, length: 30), true)
+    }
     func testLookupDeduplicatesRequestsAndExpiresAfterOneMinute() async {
         let loader = PullRequestFixture(), service = GitHubPullRequestService(loader: loader)
         let checkout = checkout
@@ -120,5 +136,47 @@ final class SidebarStatusTests: XCTestCase {
         }
         let maximum = await loader.maximumActive, cached = await service.cacheCount, pending = await service.pendingCount
         XCTAssertEqual(maximum, 2); XCTAssertLessThanOrEqual(cached, 128); XCTAssertEqual(pending, 0)
+    }
+    func testCancelledLookupDoesNotPoisonVisibleRetry() async throws {
+        let loader = PullRequestFixture(delay: 100), service = GitHubPullRequestService(loader: loader)
+        let checkout = checkout
+        let request = Task { await service.status(checkout: checkout) }
+        for _ in 0..<100 {
+            if await loader.calls == 1 { break }
+            try await Task.sleep(for: .milliseconds(1))
+        }
+        await service.cancelPending()
+        _ = await request.value
+        let count = await service.cacheCount
+        XCTAssertEqual(count, 0)
+        _ = await service.status(checkout: checkout)
+        let calls = await loader.calls
+        XCTAssertEqual(calls, 2)
+    }
+    func testInstalledGitHubCLIReportsVerifiedMergedPR() async throws {
+        guard ProcessInfo.processInfo.environment["SPOOKKY_REAL_PR_CHECK"] == "1" else { throw XCTSkip("Opt-in read-only GitHub CLI check") }
+        let association = ThreadPullRequest(repository: GitHubRepositoryID(owner: "Pamekitti", name: "spookky"), number: 16,
+            branch: "codex/agent-activity", headCommit: "5d980b005e44908223abd745e046205ec75a5720")
+        let status = await GitHubPullRequestService().status(association: association)
+        XCTAssertEqual(status?.state, .merged); XCTAssertEqual(status?.association.number, 16)
+    }
+    func testLocalCheckoutAndLinkedWorktreeAreVerifiedFromGit() async throws {
+        let executor = NativeGitExecutor(timeout: 10)
+        guard executor.isAvailable else { throw XCTSkip("Git is unavailable") }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("spookky-sidebar-git-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let git = GitRepository(executor: executor)
+        _ = try await git.command(root.path, ["init", "--initial-branch=main"]).checked()
+        _ = try await git.command(root.path, ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false", "-c", "gc.auto=0", "commit", "--allow-empty", "-m", "Fixture"]).checked()
+        _ = try await git.command(root.path, ["remote", "add", "origin", "git@github.com:owner/example.git"]).checked()
+        let local = try await git.sidebarCheckout(root.path)
+        XCTAssertEqual(local?.linkedWorktree, false); XCTAssertEqual(local?.branch, "main")
+        XCTAssertEqual(local?.repository, repository)
+        let linked = root.appendingPathComponent("linked").path
+        _ = try await git.command(root.path, ["worktree", "add", "-b", "codex/sidebar-check", linked]).checked()
+        let worktree = try await git.sidebarCheckout(linked)
+        XCTAssertEqual(worktree?.linkedWorktree, true); XCTAssertEqual(worktree?.branch, "codex/sidebar-check")
+        XCTAssertEqual(worktree?.headCommit, local?.headCommit)
     }
 }

@@ -62,7 +62,7 @@ final class WorkspaceRootView: NSView {
     static var compactHeight: CGFloat { points(24) }
     static var headerHeight: CGFloat { points(40) }
     static var workspaceRowHeight: CGFloat { points(32) }
-    static var sidebarWidth: CGFloat { points(232) }
+    static var sidebarWidth: CGFloat { points(264) }
     static var sidebarOuterInset: CGFloat { points(12) }
     static var fileSidebarWidth: CGFloat { points(248) }
     static var composerWidth: CGFloat { points(800) }
@@ -850,7 +850,7 @@ final class WorkspaceHeaderView: NSView {
     override func mouseDown(with event: NSEvent) { (window as? WorkspaceNativeWindow)?.dragHeader(with: event) }
     override func draw(_ dirtyRect: NSRect) {
         SpookkyPalette.background.setFill(); bounds.fill()
-        SpookkyPalette.sidebar.setFill(); NSRect(x: 0, y: 0, width: sidebarWidth, height: bounds.height).fill()
+        SidebarPalette.background.setFill(); NSRect(x: 0, y: 0, width: sidebarWidth, height: bounds.height).fill()
         SpookkyPalette.border.setFill(); NSRect(x: 0, y: 0, width: bounds.width, height: 1).fill()
     }
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
