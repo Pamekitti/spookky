@@ -9,7 +9,7 @@ import subprocess
 import time
 from pathlib import Path
 
-from benchmark_m0 import processes
+from benchmark_m0 import cpu_seconds
 from benchmark_m1 import measure_settled, timing
 from benchmark_m3 import prepare
 from native_fixture import NATIVE_BINARY, TMUX, native_fixture
@@ -75,10 +75,11 @@ def main():
             result['memory_sample_boundary'] = 'App RSS and cumulative CPU observed every 30 seconds while waiting for continuity and once after completion. Runtime and shell totals are measured separately after the workload. RSS includes shared pages and can change with compression.'
             observation_started = time.monotonic()
             def sample_app_memory():
-                app = processes().get(fixture.process.pid)
+                sample = subprocess.run(['ps', '-p', str(fixture.process.pid), '-o', 'rss=,time='],
+                                        capture_output=True, text=True, timeout=5).stdout.split()
                 result['app_memory_samples'].append({'elapsed_seconds': time.monotonic() - observation_started,
-                    'pid': fixture.process.pid, 'rss_mib': app[1] / 1024 if app else None,
-                    'cpu_seconds': app[2] if app else None})
+                    'pid': fixture.process.pid, 'rss_mib': int(sample[0]) / 1024 if sample else None,
+                    'cpu_seconds': cpu_seconds(sample[1]) if sample else None})
             deadline = time.monotonic() + seconds + 600
             while not (fixture.root / 'ready.json').exists():
                 if fixture.process.poll() is not None or time.monotonic() > deadline:

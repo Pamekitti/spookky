@@ -12,6 +12,7 @@ import threading
 import time
 import uuid
 
+from check_agent_hooks import private_json
 from runtime_paths import tmux_path
 
 MARKER = "SPOOKKY_CLAUDE_OFFLINE_RESUME"
@@ -104,9 +105,8 @@ def check(executable, *, activity_helper=None):
             if activity_helper is not None:
                 binding = str(uuid.uuid4()).upper()
                 context = root / ("agent-terminal-" + binding + ".json")
-                context.write_text(json.dumps({"bindingID": binding, "secret": str(uuid.uuid4()),
-                    "root": str(root), "helper": str(activity_helper)}))
-                context.chmod(0o600)
+                private_json(context, {"bindingID": binding, "secret": str(uuid.uuid4()),
+                    "root": str(root), "helper": str(activity_helper)})
                 environment["SPOOKKY_ACTIVITY_CONTEXT"] = str(context)
                 terminal_prefix = [str(activity_helper), "--agent-run", "claude", "--executable", executable, "--"]
             socket = root / "tmux.sock"
