@@ -117,6 +117,8 @@ The existing timing collector supplies warm selection, recreated-surface attachm
 
 `--overnight` selects 28,800 seconds. `--smoke` selects two lifecycle cycles and a one-second diagnostic workload. Smoke results never count as performance acceptance. Reports retain checkpoints after interruption. The fixture terminates only its own app and private server.
 
+The continuity wrapper also samples app RSS and cumulative app CPU every 30 seconds and after the workload. These observations include startup and the initial lifecycle cycles. Use the native continuity checkpoints to separate warm-up from the sustained workload. Runtime and shell totals remain separate post-workload measurements; RSS includes shared pages and compression effects.
+
 ## Conversation workspace sample, 17 October 2026
 
 Local Release measurements on a 16 GiB Mac14,10 used separate conversation workspaces with clean shells. Each resource case had a five-second warm-up and 60 seconds of observation. It retained one visible terminal surface. Windows were visible and the app was inactive at both CPU boundaries. Provider discovery was replaced with an empty catalog. Existing user applications and sessions kept running.

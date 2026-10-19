@@ -9,6 +9,7 @@ import subprocess
 import time
 from pathlib import Path
 
+from benchmark_m0 import processes
 from benchmark_m1 import measure_settled, timing
 from benchmark_m3 import prepare
 from native_fixture import NATIVE_BINARY, TMUX, native_fixture
@@ -70,6 +71,14 @@ def main():
                              *([] if args.background else ['--workspace-benchmark-front']), '--workspace-benchmark-cycle-count', '2' if args.smoke else '110',
                              '--workspace-benchmark-output-delay', str(args.output_delay)], prefix='spookky-m1-m4-', binary=args.binary, workspace=True, prepare=prepare) as fixture:
             result['fixture_root'] = str(fixture.root); save()
+            result['app_memory_samples'] = []
+            result['memory_sample_boundary'] = 'App RSS and cumulative CPU observed every 30 seconds while waiting for continuity and once after completion. Runtime and shell totals are measured separately after the workload. RSS includes shared pages and can change with compression.'
+            observation_started = time.monotonic()
+            def sample_app_memory():
+                app = processes().get(fixture.process.pid)
+                result['app_memory_samples'].append({'elapsed_seconds': time.monotonic() - observation_started,
+                    'pid': fixture.process.pid, 'rss_mib': app[1] / 1024 if app else None,
+                    'cpu_seconds': app[2] if app else None})
             deadline = time.monotonic() + seconds + 600
             while not (fixture.root / 'ready.json').exists():
                 if fixture.process.poll() is not None or time.monotonic() > deadline:
@@ -94,9 +103,11 @@ def main():
                 for key, filename in [('cycles', 'continuity-cycles.json'), ('checkpoints', 'continuity-checkpoints.json')]:
                     source = fixture.root / filename
                     if source.exists(): result[key] = json.loads(source.read_text())
+                sample_app_memory()
                 save()
                 print(json.dumps({'cycles': len(result.get('cycles', [])), 'checkpoints': len(result.get('checkpoints', [])), 'elapsed': result.get('checkpoints', [{}])[-1].get('elapsedSeconds', 0)}), flush=True)
                 time.sleep(30)
+            sample_app_memory()
             result['cycles'] = cycle_summary(json.loads((fixture.root / 'continuity-cycles.json').read_text()), require_full_run=not args.smoke)
             result['checkpoints'] = json.loads((fixture.root / 'continuity-checkpoints.json').read_text())
             result['continuity'] = json.loads((fixture.root / 'continuity-result.json').read_text())
