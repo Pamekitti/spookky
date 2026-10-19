@@ -105,6 +105,8 @@ The start page uses one bottom composer with provider and folder chips. The prom
 
 Changing agents preserves the prompt draft. Opening a shell does not change the last agent choice. Shell launches never execute that text. Auth and permission prompts remain inside the provider CLI. Missing executables lead to guidance plus a working Terminal fallback.
 
+Cmd+V in the initial prompt accepts clipboard images and shows removable previews. Drafts retain up to eight images, each at most 20 MB and 25 megapixels. Images are saved privately beside workspace metadata so reopening a draft or retrying a launch can still use them. Codex receives native image arguments. Claude Code receives image file references in the initial prompt. Opening a shell keeps the image draft and passes no images to the shell.
+
 Prompt state must distinguish pending, delivered, and uncertain. Process launch success alone does not prove delivery. An uncertain outcome must not automatically resend. An explicit resume does not silently receive a pending new-session prompt.
 
 ## Terminal-first and parallel work
