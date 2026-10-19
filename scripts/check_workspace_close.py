@@ -28,7 +28,7 @@ def main():
             raise
         checks = json.loads((fixture.root / 'close-checks.json').read_text())
         focus_observation = json.loads((fixture.root / 'close-focus-observation.json').read_text())
-        required = {'blank_home_draft', 'shell_from_landing_preserves_draft', 'primary_terminal_focus', 'native_terminal_input', 'cmd_t_browser_without_cli', 'cmd_t_opens_start_page_without_cli', 'new_browser_focuses_support_content',
+        required = {'blank_home_draft', 'first_use_landing_composer_focused', 'cmd_n_landing_composer_focused', 'shell_from_landing_preserves_draft', 'primary_terminal_focus', 'native_terminal_input', 'cmd_t_browser_without_cli', 'cmd_t_opens_start_page_without_cli', 'new_browser_focuses_support_content',
                     'two_browser_targets_distinct', 'support_tab_shortcut_cycles_targets', 'support_host_retains_form_on_switch',
                     'full_width_and_collapse_preserve_form', 'panel_toggle_restores_selected_form', 'support_form_field_focused', 'support_close_keeps_primary_process',
                     'support_close_keeps_unsent_input', 'primary_close_retains_process_and_records', 'primary_cmd_w_closes_window_without_hiding_thread', 'landing_cmd_w_closes_window',

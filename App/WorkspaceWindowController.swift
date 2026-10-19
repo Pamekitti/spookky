@@ -2629,8 +2629,12 @@ import SpookkyGit
         showWindow()
         contentKey = ""; render(); observeRuntimeEvent() }
     private func showWindow() {
+        let wasVisible = window.isVisible
         if backgroundFixture { window.orderBack(nil) }
-        else { window.makeKeyAndOrderFront(nil) }
+        else {
+            window.makeKeyAndOrderFront(nil)
+            if !wasVisible { window.makeFirstResponder(nil) }
+        }
     }
     func recordBenchmarkFailure(root: URL) {
         guard diagnostics != nil, CommandLine.arguments.contains("--workspace-benchmark-continuity") else { return }
@@ -2791,6 +2795,7 @@ import SpookkyGit
             try await WorkspaceCloseFixture.run(window: window, state: { self.store.state }, runtime: launches.runtime,
                 view: { self.surfaces.view($0) }, command: { self.handleCommand($0) }, reopen: { self.reopen() },
                 openTerminal: { if let id = self.store.state.primaryTerminalID { self.openTerminal(from: id) } },
+                landingFocused: { self.store.state.primaryTerminalID.flatMap { self.composers[$0] }?.hasInputFocus == true },
                 openBrowser: { id in self.store.update { $0.updateSupport(id, target: .browser(url: "about:blank"), title: "Browser") }; self.focusSupportingContent() },
                 supportingView: { self.workspaceLayout.panel }, selectWorkspace: { id in self.store.update { $0.selectWorkspace(id) } },
                 openSupportingTerminal: { if let id = self.store.state.primaryTerminalID { self.openTerminal(from: id) } },
