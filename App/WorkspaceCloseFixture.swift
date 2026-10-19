@@ -56,6 +56,14 @@ import SpookkyRuntime
         guard let binding = state().tab(primaryID)?.binding, let terminal = view(primaryID) else { throw LaunchError.invalid("Shell unavailable") }
         let before = try await runtime.inspect(binding)
         try await wait("Shell prompt unavailable") { terminal.visibleText().trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix("%") }
+        let focusStarted = ContinuousClock.now
+        var focusDetails = ["initial_responder": window.firstResponder.map { String(describing: type(of: $0)) } ?? "nil",
+            "initial_terminal_focused": String(window.firstResponder === terminal), "initial_surface_attached": String(terminal.window === window)]
+        try PrivateFiles.write(focusDetails, to: root.appendingPathComponent("close-focus-observation.json"))
+        try await wait("Primary terminal focus did not settle") { window.firstResponder === terminal }
+        let focusWait = focusStarted.duration(to: .now).components
+        focusDetails["focus_wait_milliseconds"] = String(Double(focusWait.seconds) * 1000 + Double(focusWait.attoseconds) / 1e15)
+        try PrivateFiles.write(focusDetails, to: root.appendingPathComponent("close-focus-observation.json"))
         checks["primary_terminal_focus"] = window.firstResponder === terminal
         terminal.insertText("printf 'SPOOKKY_FOUNDATION_INPUT\\n'", replacementRange: NSRange(location: NSNotFound, length: 0))
         terminal.keyDown(with: try key("\r", code: 36, modifiers: []))

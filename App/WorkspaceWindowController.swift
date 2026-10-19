@@ -2257,6 +2257,7 @@ import SpookkyGit
     }
     @objc private func newWorkspace() {
         let hidden = !window.isVisible
+        window.makeFirstResponder(nil)
         cancelLaunchPreflight()
         store.update { $0.showLanding(homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path) }
         if hidden { reopen() }
@@ -2270,6 +2271,7 @@ import SpookkyGit
     }
     private func openTerminal(from id: UUID) {
         guard let tab = store.state.tab(id) else { return }
+        window.makeFirstResponder(nil)
         if let workspace = store.state.workspace(containing: id), workspace.isLanding, workspace.primaryTerminalID == id {
             var shellID: UUID!
             store.update {
@@ -2368,6 +2370,7 @@ import SpookkyGit
     }
     private func newProjectWorkspace(_ id: UUID) {
         guard store.state.projects.contains(where: { $0.id == id }) else { return }
+        window.makeFirstResponder(nil)
         cancelLaunchPreflight()
         store.update { $0.showLanding(projectID: id, homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path) }
         scheduleRepositoryRefresh()
