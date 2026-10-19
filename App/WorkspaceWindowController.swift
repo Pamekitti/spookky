@@ -164,7 +164,8 @@ import SpookkyGit
         let engine = try GhosttyEngine(root: root, clipboard: clipboard)
         launches = LaunchCoordinator(store: store, runtime: runtime,
             resolver: AgentActivityResolver(base: savedConversationResolver, root: root, helper: helper))
-        surfaces = TerminalSurfaceManager(engine: engine, runtime: runtime, executable: tmux, root: root)
+        surfaces = TerminalSurfaceManager(engine: engine, runtime: runtime, executable: tmux, root: root,
+            appearanceFile: CommandLine.arguments.contains("--workspace-benchmark-display") ? root.appendingPathComponent("live-appearance-config").path : nil)
         diagnostics = WorkspaceDiagnostics(root: root)
         super.init()
         store.update { $0.restoreAgentActivity() }
@@ -1866,6 +1867,9 @@ import SpookkyGit
             checks.merge(try await DisplayPolishFixture.check(window: window, root: root, sidebar: conversationSidebar,
                 apply: { preferences in self.services.changeDisplay { $0 = preferences } },
                 tabs: { Array(self.tabPairs.values) + self.workspaceLayout.tabItems },
+                headerActions: { [self.navigationBack, self.navigationForward, self.sidebarToggle, self.threadDetails, self.threadActions, self.tabOverflow] + self.workspaceLayout.headerActionViews },
+                surfaces: surfaces, terminal: store.state.tab(shellID), runtime: launches.runtime,
+                appearanceStatus: { self.services.terminalAppearanceMessage },
                 layout: { mode in self.store.update { $0.setSupportingLayout(mode) } },
                 setAppearance: { appearance in self.store.update { $0.appearance = appearance } }), uniquingKeysWith: { _, new in new })
         }

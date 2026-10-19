@@ -99,6 +99,15 @@ swift test --jobs 2 --filter ProviderContinuationTests
 
 [Session continuation](session-continuation.md) describes the native instructions panel, provider ownership limits, and the exact-ID integration boundary. Exercise provider transfers only with disposable sessions. Do not use an active user conversation as a fixture.
 
+For offline exact-ID ownership and native attach checks, run:
+
+```sh
+python3 scripts/check_provider_ownership.py --output .cache/codex-ownership.json
+python3 scripts/check_claude_ownership.py --executable /path/to/claude --output .cache/claude-ownership.json
+```
+
+Use the installed native Claude executable rather than a Spookky shell wrapper. The Claude fixture uses a loopback response stub, isolated configuration, a disposable folder and its own tmux socket. It retains native onboarding and trust. It never sends a request to an external model service or stops an unrelated owner. Explicit background startup tests native attach; the app's ordinary resume policy remains unchanged.
+
 ## Public website and releases
 
 PR CI always runs source/Python checks and the public audit. Native changes add one macOS 15 job with Swift tests, one Release build, and a bundle audit. Website changes add headless browser tests. Documentation changes skip both. Unknown paths and CI machinery changes select both areas. The source check and native check remain required; an intentionally skipped native job permits documentation PRs to merge.
@@ -211,7 +220,7 @@ The close fixture uses disposable metadata and a private runtime socket. It chec
 
 ## Display regression checks
 
-Run `python3 scripts/check_sidebar.py --display --output .cache/display-checks.json` against the Release build for the light/dark zoom and hit-target matrix. Use disposable state and serialize native GUI fixtures. The matrix includes Ghostty theme variants, recursive includes, invalid-config recovery and creation of a previously missing config directory. It does not replace physical display-transition or provider visual-parity checks.
+Run `python3 scripts/check_sidebar.py --display --output .cache/display-checks.json` against the Release build for the light/dark zoom and hit-target matrix. Use disposable state and serialize native GUI fixtures. The matrix includes actual fullscreen transitions, Ghostty theme variants, recursive includes, invalid-config recovery and creation of a previously missing config directory. Live appearance changes must preserve the same surface, process and unsent input. It does not replace physical display-transition or provider visual-parity checks.
 
 ## Private-runtime focus regression
 
