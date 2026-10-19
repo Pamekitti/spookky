@@ -1,4 +1,5 @@
 import AppKit
+import ImageIO
 import SpookkyCore
 import SpookkyGit
 import SpookkySyntax
@@ -300,6 +301,18 @@ final class PromptTextView: NSTextView {
     private let draftUndoManager: UndoManager = { let manager = UndoManager(); manager.levelsOfUndo = 50; return manager }()
     override var undoManager: UndoManager? { draftUndoManager }
     var onFocusChange: (() -> Void)?
+    var onPasteImage: ((Data) -> Void)?
+    var imagePasteboard: NSPasteboard = .general
+    override func paste(_ sender: Any?) {
+        guard isEditable else { return }
+        if let type = imagePasteboard.availableType(from: [.png, .tiff]), let data = imagePasteboard.data(forType: type) {
+            onPasteImage?(data)
+        } else { super.paste(sender) }
+    }
+    override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
+        if item.action == #selector(paste(_:)), imagePasteboard.availableType(from: [.png, .tiff]) != nil { return isEditable }
+        return super.validateUserInterfaceItem(item)
+    }
     override func becomeFirstResponder() -> Bool { let result = super.becomeFirstResponder(); onFocusChange?(); return result }
     override func resignFirstResponder() -> Bool { let result = super.resignFirstResponder(); onFocusChange?(); return result }
     override var string: String { didSet { needsDisplay = true } }
@@ -551,6 +564,12 @@ private final class ComposerDocumentView: NSView {
     private let card = ChromeStackView()
     private let controls = NSStackView()
     private let promptScroll = NSScrollView()
+    private let imageList = NSStackView()
+    private var images: [String] = []
+    private var imagePreviews: [String: NSImageView] = [:]
+    private var importingImage = false
+    private var locationReady = true
+    let imageDirectory: URL
     private var promptHeight: NSLayoutConstraint!
     private var launchWidth: NSLayoutConstraint!
     private let message = ChromeTextField(wrappingLabelWithString: "")
@@ -569,6 +588,8 @@ private final class ComposerDocumentView: NSView {
     private var currentTool: SessionTool?
     private var folderTitle = "Home"
     var onDraft: ((SessionTool?, String?) -> Void)?
+    var onImages: (([String]) -> Void)?
+    var onImageError: ((String) -> Void)?
     var onLaunch: (() -> Void)?
     var onTerminal: (() -> Void)?
     var onChooseFolder: (() -> Void)?
@@ -577,8 +598,8 @@ private final class ComposerDocumentView: NSView {
     var onLocate: (() -> Void)?
     var onFocus: (() -> Void)?
 
-    init(tabID: UUID) {
-        self.tabID = tabID
+    init(tabID: UUID, imageDirectory: URL) {
+        self.tabID = tabID; self.imageDirectory = imageDirectory
         super.init(frame: .zero)
         prompt.font = .systemFont(ofSize: SpookkyStyle.points(14))
         prompt.isRichText = false; prompt.allowsUndo = true; prompt.isAutomaticQuoteSubstitutionEnabled = false
@@ -587,6 +608,7 @@ private final class ComposerDocumentView: NSView {
         prompt.textContainerInset = NSSize(width: 12, height: 12)
         prompt.delegate = self; prompt.drawsBackground = false; prompt.textColor = SpookkyPalette.text
         prompt.onFocusChange = { [weak card] in card?.needsDisplay = true }
+        prompt.onPasteImage = { [weak self] data in self?.pasteImage(data) }
         prompt.setAccessibilityLabel("Optional prompt for new session")
         promptScroll.documentView = prompt; promptScroll.hasVerticalScroller = true
         promptScroll.borderType = .noBorder; promptScroll.drawsBackground = false
@@ -597,7 +619,7 @@ private final class ComposerDocumentView: NSView {
         picker.menuIndicator = true; folder.menuIndicator = true
         picker.handler = { [weak self] in self?.chooseTool() }
         folder.handler = { [weak self] in self?.showLocationPicker() }
-        launch.handler = { [weak self] in self?.onLaunch?() }
+        launch.handler = { [weak self] in guard let self, !importingImage else { return }; onLaunch?() }
         launch.emphasis = .primary
         launchWidth = launch.widthAnchor.constraint(equalToConstant: SpookkyStyle.controlHeight).displayScaled(alreadyScaled: true); launchWidth.isActive = true
         let spacer = NSView(); spacer.setContentHuggingPriority(.init(1), for: .horizontal)
@@ -614,7 +636,11 @@ private final class ComposerDocumentView: NSView {
         card.orientation = .vertical; card.alignment = .leading; card.spacing = SpookkyStyle.points(4)
         card.raised = true; card.cornerRadius = SpookkyStyle.composerRadius
         card.setAccessibilityLabel("New chat"); card.setAccessibilityRole(.group)
-        card.addArrangedSubview(promptScroll); card.addArrangedSubview(controls)
+        imageList.orientation = .vertical; imageList.alignment = .leading; imageList.spacing = SpookkyStyle.points(4)
+        imageList.edgeInsets = NSEdgeInsets(top: 0, left: SpookkyStyle.points(12), bottom: 0, right: SpookkyStyle.points(12))
+        imageList.isHidden = true
+        card.addArrangedSubview(promptScroll); card.addArrangedSubview(imageList); card.addArrangedSubview(controls)
+        imageList.widthAnchor.constraint(equalTo: card.widthAnchor).isActive = true
         promptScroll.widthAnchor.constraint(equalTo: card.widthAnchor).isActive = true
         controls.widthAnchor.constraint(equalTo: card.widthAnchor).isActive = true
         terminal.handler = { [weak self] in self?.onTerminal?() }
@@ -651,6 +677,90 @@ private final class ComposerDocumentView: NSView {
         configureLocationPicker()
     }
     required init?(coder: NSCoder) { fatalError("Use init") }
+
+    private func pasteImage(_ data: Data) {
+        guard prompt.isEditable, !importingImage else { NSSound.beep(); return }
+        guard images.count < 8, data.count <= 20 * 1024 * 1024 else {
+            onImageError?("Attach up to 8 images, each no larger than 20 MB."); return
+        }
+        importingImage = true; launch.isEnabled = false
+        let directory = imageDirectory
+        Task { [self] in
+            defer { importingImage = false; launch.isEnabled = prompt.isEditable && locationReady }
+            do {
+                let path = try await Task.detached {
+                    try Self.storeClipboardImage(data, directory: directory)
+                }.value
+                images.append(path); onImages?(images); renderImages()
+            } catch { onImageError?(error.localizedDescription) }
+        }
+    }
+
+    nonisolated private static func storeClipboardImage(_ data: Data, directory: URL) throws -> String {
+        try autoreleasepool {
+            guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+                  let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+                  let width = properties[kCGImagePropertyPixelWidth] as? Int,
+                  let height = properties[kCGImagePropertyPixelHeight] as? Int,
+                  width > 0, height > 0, width <= 25_000_000 / height,
+                  let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+                throw LaunchError.invalid("This image could not be pasted. Use an image under 20 MB and 25 megapixels.")
+            }
+            let png = CGImageSourceGetType(source) as String? == "public.png" ? data :
+                NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
+            guard let png, png.count <= 20 * 1024 * 1024 else {
+                throw LaunchError.invalid("This image could not be pasted. Use an image under 20 MB.")
+            }
+            try PrivateFiles.directory(directory)
+            let file = directory.appendingPathComponent(UUID().uuidString + ".png")
+            guard FileManager.default.createFile(atPath: file.path, contents: png, attributes: [.posixPermissions: 0o600]) else {
+                throw LaunchError.invalid("The pasted image could not be saved. Try again.")
+            }
+            return file.path
+        }
+    }
+
+    private func renderImages() {
+        let retained = Set(images)
+        imagePreviews = imagePreviews.filter { retained.contains($0.key) }
+        for view in imageList.arrangedSubviews { imageList.removeArrangedSubview(view); view.removeFromSuperview() }
+        for (index, path) in images.enumerated() {
+            let row = NSStackView()
+            let label = SpookkyStyle.label("Image " + String(index + 1))
+            label.font = .systemFont(ofSize: SpookkyStyle.points(12))
+            let icon = imagePreview(for: path)
+            let remove = ActionButton("", symbol: "xmark", help: "Remove image " + String(index + 1)) { [weak self] in
+                guard let self else { return }; images.removeAll { $0 == path }; onImages?(images); renderImages(); focus()
+            }
+            remove.isEnabled = prompt.isEditable
+            for view in [icon, label, remove] { row.addArrangedSubview(view) }
+            row.spacing = SpookkyStyle.points(6); row.alignment = .centerY
+            imageList.addArrangedSubview(row)
+        }
+        imageList.isHidden = images.isEmpty || currentTool == .shell
+    }
+
+    private func imagePreview(for path: String) -> NSImageView {
+        if let preview = imagePreviews[path] { return preview }
+        let preview = NSImageView(image: NSImage(systemSymbolName: "photo", accessibilityDescription: "Attached image")!)
+        preview.widthAnchor.constraint(equalToConstant: SpookkyStyle.points(40)).isActive = true
+        preview.heightAnchor.constraint(equalToConstant: SpookkyStyle.points(40)).isActive = true
+        preview.imageScaling = .scaleProportionallyUpOrDown
+        imagePreviews[path] = preview
+        Task { [weak preview] in
+            let thumbnail = await Task.detached {
+                guard let source = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
+                      let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                        kCGImageSourceCreateThumbnailFromImageAlways: true,
+                        kCGImageSourceThumbnailMaxPixelSize: 80,
+                        kCGImageSourceCreateThumbnailWithTransform: true
+                      ] as CFDictionary) else { return Data?.none }
+                return NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])
+            }.value
+            if let thumbnail { preview?.image = NSImage(data: thumbnail) }
+        }
+        return preview
+    }
 
     private func configureLocationPicker() {
         locationPopover.behavior = .transient
@@ -699,15 +809,20 @@ private final class ComposerDocumentView: NSView {
         currentTool = tab.draft.tool; projects = state.projects; selectedProjectID = workspace.projectID
         let project = projects.first { $0.id == workspace.projectID }
         let enabled = tab.isEditable
+        prompt.isEditable = enabled
+        if images != tab.draft.images { images = tab.draft.images; renderImages() }
+        imageList.isHidden = images.isEmpty || tab.draft.tool == .shell
+        for row in imageList.arrangedSubviews { (row as? NSStackView)?.arrangedSubviews.compactMap { $0 as? NSButton }.forEach { $0.isEnabled = enabled } }
         let needsLocate = tab.failure?.recovery == .locateFolder
         let canChooseLocation = enabled && workspace.anchor == nil
         locationOptions.update(snapshot: repositorySnapshot, workspace: workspace, project: project,
             operation: state.locations?.operations.first { $0.id == workspace.locationOperationID }, enabled: enabled)
-        prompt.isEditable = enabled; picker.isEnabled = enabled; folder.isEnabled = enabled || needsLocate
+        picker.isEnabled = enabled; folder.isEnabled = enabled || needsLocate
         promptScroll.isHidden = tab.draft.tool == .shell
         let needsBranch = workspace.anchor == nil && workspace.locationDraft?.mode == .worktree && workspace.locationDraft?.branchMode == .existing && workspace.locationDraft?.branch.isEmpty == true
-        launch.isEnabled = enabled && !needsBranch
-        let hasPrompt = !tab.draft.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        locationReady = !needsBranch
+        launch.isEnabled = enabled && !needsBranch && !importingImage
+        let hasPrompt = !tab.draft.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !tab.draft.images.isEmpty
         let launchTitle = tab.draft.tool == .shell ? "Open Terminal" : (hasPrompt ? "Start " : "Open ") + tab.draft.tool.displayName
         launch.image = NSImage(systemSymbolName: tab.draft.tool == .shell ? "terminal" : "arrow.up", accessibilityDescription: nil)
         launch.setAccessibilityLabel(launchTitle); launch.toolTip = launchTitle + " · ⌘Return"
@@ -817,6 +932,7 @@ private final class ComposerDocumentView: NSView {
     var hasInputFocus: Bool {
         !locationPopover.isShown && (window?.firstResponder === prompt || window?.firstResponder === launch || window?.firstResponder === picker)
     }
+    var isImportingImage: Bool { importingImage }
     override func viewWillMove(toWindow newWindow: NSWindow?) {
         if newWindow == nil { locationPopover.performClose(nil) }
         super.viewWillMove(toWindow: newWindow)
