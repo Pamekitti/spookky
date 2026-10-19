@@ -1,0 +1,38 @@
+scripts/test_check_agent_hooks.py
+  s_bb6f40919cf638::t_c4f39729022dab 1-26
+scripts/check_agent_hooks.py
+  s_8b632e4ace3371::t_13b85f7ab09a93 117,119-121,125,173
+  s_e930ef33ab12e2::t_ba0844efb4250d 111-115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "fe475673c9037ffb6009836d0f8b4538bea07c1b",
+  "prompts": {},
+  "sessions": {
+    "s_8b632e4ace3371": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a154ae-c841-79c0-a213-9bef0d62820b",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_bb6f40919cf638": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a154ae-c841-79c0-a213-9bef0d62820b",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_e930ef33ab12e2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a154c8-cb0d-7330-8ed0-d1ed0b9dcc24",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
