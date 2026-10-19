@@ -20,7 +20,7 @@ REPLY = "SPOOKKY_CLAUDE_SAVED_REPLY"
 
 def owned_background_ids(rows, session, checkout):
     return {row["id"] for row in rows if isinstance(row, dict) and row.get("kind") == "background"
-            and row.get("sessionId") == session and isinstance(row.get("cwd"), str)
+            and (session is None or row.get("sessionId") == session) and isinstance(row.get("cwd"), str)
             and os.path.realpath(row["cwd"]) == os.path.realpath(checkout)
             and isinstance(row.get("id"), str) and 0 < len(row["id"]) <= 256
             and row["id"].isascii() and row["id"][0].isalnum()
@@ -124,6 +124,7 @@ def check(executable):
                 output.check_returncode()
                 return output.stdout
 
+            background_baseline = None
             try:
                 result["provider"] = cli("--version").stdout.strip()
                 first = cli("--session-id", session, "--print", MARKER, timeout=30)
@@ -167,9 +168,10 @@ def check(executable):
                     time.sleep(0.05)
                 if not record("foreground_owner_released_before_explicit_background_start", released):
                     return result
+                background_baseline = owned_background_ids(registry(), None, checkout)
                 background = cli("--background", "--resume", session, timeout=20)
                 background.check_returncode()
-                identifiers = owned_background_ids(registry(), session, checkout)
+                identifiers = owned_background_ids(registry(), session, checkout) - background_baseline
                 record("explicit_background_start_preserves_exact_id", len(identifiers) == 1)
                 if len(identifiers) == 1:
                     identifier = next(iter(identifiers))
@@ -189,8 +191,9 @@ def check(executable):
                 return result
             finally:
                 try:
-                    for identifier in owned_background_ids(registry(), session, checkout):
-                        cli("stop", identifier).check_returncode()
+                    if background_baseline is not None:
+                        for identifier in owned_background_ids(registry(), None, checkout) - background_baseline:
+                            cli("stop", identifier).check_returncode()
                 except Exception as error:
                     result["checks"]["owned_cleanup_completed"] = False
                     result["observations"]["cleanup_failure"] = str(error)[:1_000]

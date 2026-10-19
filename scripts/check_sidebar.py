@@ -5,7 +5,6 @@ import hashlib
 import json
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 from native_fixture import NATIVE_BINARY, TMUX, native_fixture
 
@@ -23,13 +22,7 @@ def main():
         try:
             fixture.wait_ready(100, "Native sidebar check failed")
         except Exception:
-            evidence = Path(tempfile.mkdtemp(prefix=args.output.stem + "-failure-", dir=args.output.parent))
-            for name in ["app.log", "sidebar-checks.json", "sidebar-resources.json", "sidebar-interaction-diagnostics.json", "sidebar-dark.png", "sidebar-light.png", "display-hit-details.json"]:
-                source = fixture.root / name
-                if source.exists():
-                    shutil.copy2(source, evidence / name)
-            for source in fixture.root.glob("display-*.png"):
-                shutil.copy2(source, evidence / source.name)
+            evidence = fixture.preserve_evidence(args.output, ["app.log", "sidebar-checks.json", "sidebar-resources.json", "sidebar-interaction-diagnostics.json", "sidebar-dark.png", "sidebar-light.png", "display-hit-details.json", "display-*.png"])
             print("Sidebar failure evidence: " + str(evidence), flush=True)
             raise
         for source in fixture.root.glob("display-*.png"):

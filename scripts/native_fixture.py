@@ -28,6 +28,15 @@ class NativeFixture:
                 raise RuntimeError(failure_message + " " + (self.root / "app.log").read_text()[-1500:])
             time.sleep(poll_interval)
 
+    def preserve_evidence(self, output, patterns):
+        output = Path(output)
+        destination = Path(tempfile.mkdtemp(prefix=output.stem + "-failure-", dir=output.parent))
+        for pattern in patterns:
+            for source in self.root.glob(pattern):
+                if source.is_file():
+                    shutil.copy2(source, destination / source.name)
+        return destination
+
 
 @contextmanager
 def native_fixture(arguments, *, prefix, binary=NATIVE_BINARY, prepare=None, workspace=False):

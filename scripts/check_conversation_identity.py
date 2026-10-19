@@ -5,7 +5,6 @@ import hashlib
 import json
 from pathlib import Path
 import shutil
-import tempfile
 from native_fixture import NATIVE_BINARY, native_fixture
 
 
@@ -24,11 +23,7 @@ def main():
         try:
             fixture.wait_ready(60, "Native identity check failed")
         except Exception:
-            evidence = Path(tempfile.mkdtemp(prefix=args.output.stem + '-failure-', dir=args.output.parent))
-            for name in ['app.log', 'identity-checks.json', 'continuity-failure.json']:
-                source = fixture.root / name
-                if source.exists():
-                    shutil.copy2(source, evidence / name)
+            evidence = fixture.preserve_evidence(args.output, ['app.log', 'identity-checks.json', 'continuity-failure.json'])
             print('Identity failure evidence: ' + str(evidence), flush=True)
             raise
         checks = json.loads((fixture.root / "identity-checks.json").read_text())

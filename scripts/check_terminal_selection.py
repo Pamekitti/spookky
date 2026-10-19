@@ -4,8 +4,6 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-import shutil
-import tempfile
 from native_fixture import NATIVE_BINARY, native_fixture
 
 
@@ -22,11 +20,7 @@ def main():
         try:
             fixture.wait_ready(90, 'Native terminal selection failed')
         except Exception:
-            evidence = Path(tempfile.mkdtemp(prefix=output.stem + '-failure-', dir=output.parent))
-            for name in ['app.log', 'selection-checks.json', 'selection-timing.json']:
-                source = fixture.root / name
-                if source.exists():
-                    shutil.copy2(source, evidence / name)
+            evidence = fixture.preserve_evidence(output, ['app.log', 'selection-checks.json', 'selection-timing.json'])
             print('Selection failure evidence: ' + str(evidence), flush=True)
             raise
         checks = json.loads((fixture.root / 'selection-checks.json').read_text())
