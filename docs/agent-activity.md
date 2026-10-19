@@ -1,5 +1,7 @@
 # Agent activity
 
+Prepared native resumes receive the same optional activity context as fresh launches. The coordinator validates the original resume or attach arguments before integration, preserves the executable choice and operation ID, and does not resolve the provider again. Activity setup failure falls back to the native command. It never assigns a fresh conversation ID or resends a starting prompt.
+
 Spookky shows which terminal needs attention through provider lifecycle hooks. The terminal remains the place to read responses, answer questions, and approve tools.
 
 ## Status and attention

@@ -73,8 +73,9 @@ class ResponseStub(http.server.BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
 
-def check(executable):
+def check(executable, *, activity_helper=None):
     result = {"checks": {}, "observations": {},
+              "activity_integration": activity_helper is not None,
               "scope": "Owned loopback response, isolated Claude configuration, disposable checkout and private tmux. No external model request or user session."}
 
     def record(name, passed, **details):
@@ -99,6 +100,15 @@ def check(executable):
                                CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1", DISABLE_AUTOUPDATER="1",
                                NO_PROXY="127.0.0.1,localhost", no_proxy="127.0.0.1,localhost")
             session = str(uuid.uuid4())
+            terminal_prefix = [executable]
+            if activity_helper is not None:
+                binding = str(uuid.uuid4()).upper()
+                context = root / ("agent-terminal-" + binding + ".json")
+                context.write_text(json.dumps({"bindingID": binding, "secret": str(uuid.uuid4()),
+                    "root": str(root), "helper": str(activity_helper)}))
+                context.chmod(0o600)
+                environment["SPOOKKY_ACTIVITY_CONTEXT"] = str(context)
+                terminal_prefix = [str(activity_helper), "--agent-run", "claude", "--executable", executable, "--"]
             socket = root / "tmux.sock"
             tmux_config = root / "tmux.conf"
             tmux_config.write_text("set -g remain-on-exit on\n")
@@ -134,7 +144,7 @@ def check(executable):
                 if not all(result["checks"].values()):
                     return result
                 tmux("-f", str(tmux_config), "new-session", "-d", "-s", "resume", "-x", "150", "-y", "48", "-c", str(checkout),
-                     executable, "--resume", session).check_returncode()
+                     *terminal_prefix, "--resume", session).check_returncode()
                 accepted = set()
                 for _ in range(120):
                     text = capture("resume")
@@ -175,7 +185,7 @@ def check(executable):
                 record("explicit_background_start_preserves_exact_id", len(identifiers) == 1)
                 if len(identifiers) == 1:
                     identifier = next(iter(identifiers))
-                    tmux("new-session", "-d", "-s", "attach", "-x", "150", "-y", "48", "-c", str(checkout), executable, "attach", identifier).check_returncode()
+                    tmux("new-session", "-d", "-s", "attach", "-x", "150", "-y", "48", "-c", str(checkout), *terminal_prefix, "attach", identifier).check_returncode()
                     for _ in range(60):
                         if REPLY in capture("attach"):
                             break
@@ -207,10 +217,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--executable", default=shutil.which("claude"), help="Installed native Claude executable, outside any Spookky shell wrapper")
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--activity-helper", type=Path, help="Also exercise resume and attach through the bundled activity integration")
     arguments = parser.parse_args()
     if not arguments.executable:
         parser.error("An installed Claude executable is required")
-    report = check(os.path.realpath(arguments.executable))
+    if arguments.activity_helper is not None:
+        arguments.activity_helper = arguments.activity_helper.resolve()
+        if not os.access(arguments.activity_helper, os.X_OK):
+            parser.error("The activity helper must be an executable from a tested app bundle")
+    report = check(os.path.realpath(arguments.executable), activity_helper=arguments.activity_helper)
     report["pass"] = bool(report["checks"]) and all(report["checks"].values())
     arguments.output.parent.mkdir(parents=True, exist_ok=True)
     arguments.output.write_text(json.dumps(report, indent=2) + "\n")

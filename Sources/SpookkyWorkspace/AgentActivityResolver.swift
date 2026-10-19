@@ -36,6 +36,10 @@ public struct AgentActivityResolver: ExecutableResolver {
     }
     public func resolve(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec {
         let spec = try await base.resolve(tool, directory: directory, prompt: prompt)
+        return await prepare(spec)
+    }
+    public func prepare(_ spec: LaunchSpec) async -> LaunchSpec {
+        let root = root, helper = helper
         return await Task.detached { (try? AgentIntegration.prepare(spec, root: root, helper: helper)) ?? spec }.value
     }
 }

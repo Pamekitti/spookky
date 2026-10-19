@@ -108,6 +108,8 @@ python3 scripts/check_claude_ownership.py --executable /path/to/claude --output 
 
 Use the installed native Claude executable rather than a Spookky shell wrapper. The Claude fixture uses a loopback response stub, isolated configuration, a disposable folder and its own tmux socket. It retains native onboarding and trust. It never sends a request to an external model service or stops an unrelated owner. Explicit background startup tests native attach; the app's ordinary resume policy remains unchanged.
 
+Add `--activity-helper /path/to/Spookky.app/Contents/MacOS/spookky-launch` to exercise both native routes through the bundled monitoring integration. This retains the same saved ID and checks that neither resume nor attach sends another model turn.
+
 ## Public website and releases
 
 PR CI always runs source/Python checks and the public audit. Native changes add one macOS 15 job with Swift tests, one Release build, and a bundle audit. Website changes add headless browser tests. Documentation changes skip both. Unknown paths and CI machinery changes select both areas. The source check and native check remain required; an intentionally skipped native job permits documentation PRs to merge.
