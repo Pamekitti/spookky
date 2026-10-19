@@ -1,0 +1,43 @@
+Sources/SpookkyCore/ConversationSwitch.swift
+  s_97f0ea1c2186a9::t_a4595a848a8c79 50,56
+Sources/SpookkyCore/ConversationWorkspace.swift
+  s_97f0ea1c2186a9::t_9a0a43c5d54fd9 114
+Sources/SpookkyCore/HistoryCatalog.swift
+  s_97f0ea1c2186a9::t_8e35a81982f6b6 25
+Sources/SpookkyCore/WorkspaceState.swift
+  s_53d4e1c28831bf::t_e4189f93e038b8 22-30,394,402
+Sources/SpookkyWorkspace/PromptImages.swift
+  s_53d4e1c28831bf::t_81c7cde97b5970 1-31
+Sources/SpookkyWorkspace/AgentActivityResolver.swift
+  s_97f0ea1c2186a9::t_9da15be44c2042 13-17
+Sources/SpookkyWorkspace/LaunchCoordinator.swift
+  s_97f0ea1c2186a9::t_627520cc759d6d 6,12-15,48,57,65,96
+Tests/SpookkyRuntimeTests/PromptCaptureTests.swift
+  s_97f0ea1c2186a9::t_befa8f48720801 27,30-31,35,45-49
+Tests/SpookkyRuntimeTests/PromptImageTests.swift
+  s_97f0ea1c2186a9::t_5e39fe1d80d01f 1-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "24a2135b0b44db65c3651b9d8f9f58ea7cb1fc44",
+  "prompts": {},
+  "sessions": {
+    "s_53d4e1c28831bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_97f0ea1c2186a9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a154ad-348c-7b80-a8df-9ba4ced6ea03",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
