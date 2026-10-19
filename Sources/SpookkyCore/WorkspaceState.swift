@@ -451,9 +451,9 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
         for key in Array((threadPresentations ?? [:]).keys) where threadPresentations?[key]?.projectOverride == id {
             threadPresentations?[key]?.projectOverride = nil
         }
-        for w in workspaces.indices where workspaces[w].projectID == id {
-            workspaces[w].projectID = nil
-            if workspaces[w].isLanding {
+        for w in workspaces.indices {
+            if workspaces[w].projectID == id { workspaces[w].projectID = nil }
+            if workspaces[w].landingContext == id.uuidString {
                 workspaces[w].landingContext = nil; workspaces[w].viewClosed = false
                 if !workspaces[w].customTitle { workspaces[w].title = "Draft"; workspaces[w].automaticTitle = .friendly }
             }

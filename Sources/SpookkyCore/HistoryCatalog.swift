@@ -28,6 +28,13 @@ extension Workspace {
 }
 
 extension WorkspaceState {
+    @discardableResult public mutating func openProject(_ location: WorkspaceLocation, ifSelected workspaceID: UUID?, homeDirectory: String) -> UUID {
+        let projectID = registerProject(location)
+        guard selectedWorkspaceID == workspaceID else { return projectID }
+        showLanding(projectID: projectID, homeDirectory: homeDirectory)
+        return projectID
+    }
+
     @discardableResult public mutating func showLanding(projectID: UUID? = nil, homeDirectory: String) -> UUID {
         let context = projectID?.uuidString ?? "global"
         var retainedDraft: TerminalDraft?

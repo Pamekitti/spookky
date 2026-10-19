@@ -2269,11 +2269,9 @@ import SpookkyGit
         let startingWorkspaceID = store.state.selectedWorkspaceID
         form.onSuccess = { [weak self] location in
             guard let self else { return }
+            if store.state.selectedWorkspaceID == startingWorkspaceID { cancelLaunchPreflight() }
             store.update {
-                let projectID = $0.registerProject(location)
-                guard $0.selectedWorkspaceID == startingWorkspaceID else { return }
-                if let workspace = $0.selected, workspace.anchor == nil { $0.setLocation(location, projectID: projectID, workspaceID: workspace.id) }
-                else { $0.newWorkspace(location: location, projectID: projectID) }
+                $0.openProject(location, ifSelected: startingWorkspaceID, homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path)
             }
             self.scheduleRepositoryRefresh()
         }
@@ -2316,16 +2314,16 @@ import SpookkyGit
         panel.prompt = register ? "Add project" : "Open"; let workspaceID = store.state.selectedWorkspaceID
         panel.beginSheetModal(for: window) { [weak self] result in
             guard result == .OK, let url = panel.url, let self else { return }
+            if register, store.state.selectedWorkspaceID == workspaceID { cancelLaunchPreflight() }
             Task {
                 do {
                     let location = try await LocationDiscovery.discover(url)
                     self.store.update {
-                        let projectID = register ? $0.registerProject(location) : nil
-                        if let workspaceID {
+                        if register {
+                            $0.openProject(location, ifSelected: workspaceID, homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path)
+                        } else if let workspaceID, $0.selectedWorkspaceID == workspaceID {
                             if relocate { $0.relocateWorkspace(workspaceID, location: location) }
-                            else if register && $0.selectedWorkspaceID == workspaceID && $0.workspaces.first(where: { $0.id == workspaceID })?.anchor != nil {
-                                $0.newWorkspace(location: location, projectID: projectID)
-                            } else { $0.setLocation(location, projectID: projectID, workspaceID: workspaceID) }
+                            else { $0.setLocation(location, projectID: nil, workspaceID: workspaceID) }
                         }
                     }
                     await self.refreshSelectedRepository()
