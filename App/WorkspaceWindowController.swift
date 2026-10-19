@@ -1628,6 +1628,30 @@ import SpookkyGit
         if let renderTask { await renderTask.value }
         render(); window.contentView?.layoutSubtreeIfNeeded()
         checks["history_errors_do_not_use_global_footer"] = warning.isHidden
+        let beforeRegistration = store.state
+        var departingWorkspace = UUID()
+        store.update { departingWorkspace = $0.newWorkspace(directory: root.path) }
+        guard let departing = store.state.selected, let queuedTerminal = departing.primaryTerminalID else {
+            throw LaunchError.invalid("Project registration fixture draft is unavailable.")
+        }
+        guard window.makeFirstResponder(historySearch), historySearch.currentEditor() != nil else {
+            throw LaunchError.invalid("Project registration fixture search did not receive focus.")
+        }
+        launch(queuedTerminal, tool: .shell)
+        guard let queuedLaunch = initialLaunchTasks[queuedTerminal] else {
+            throw LaunchError.invalid("Project registration fixture launch was not queued.")
+        }
+        openDiscoveredProject(WorkspaceLocation(path: root.appendingPathComponent("registration-target").path), ifSelected: departingWorkspace)
+        await queuedLaunch.value
+        if let renderTask { await renderTask.value }
+        checks["project_registration_completion_cancels_unstarted_launch"] = store.state.tab(queuedTerminal)?.status == .draft &&
+            store.state.tab(queuedTerminal)?.launch == nil && store.state.tab(queuedTerminal)?.binding == nil
+        checks["project_registration_preserves_departing_folder"] = store.state.workspaces.first { $0.id == departingWorkspace }?.selectedLocation == departing.selectedLocation
+        checks["project_registration_focuses_composer"] = store.state.selected?.isLanding == true &&
+            store.state.primaryTerminalID.flatMap { composers[$0]?.hasInputFocus } == true
+        if store.state.tab(queuedTerminal)?.binding != nil { try await launches.terminate(queuedTerminal) }
+        store.update { $0 = beforeRegistration }
+        if let renderTask { await renderTask.value }
         try PrivateFiles.write(checks, to: root.appendingPathComponent("identity-checks.json"))
     }
     private func checkSidebar(root: URL) async throws {
@@ -2434,10 +2458,7 @@ import SpookkyGit
         let startingWorkspaceID = store.state.selectedWorkspaceID
         form.onSuccess = { [weak self] location in
             guard let self else { return }
-            if store.state.selectedWorkspaceID == startingWorkspaceID { cancelLaunchPreflight() }
-            store.update {
-                $0.openProject(location, ifSelected: startingWorkspaceID, homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path)
-            }
+            openDiscoveredProject(location, ifSelected: startingWorkspaceID)
             self.scheduleRepositoryRefresh()
         }
         form.onClose = { [weak self] in self?.projectCreation = nil; self?.focusSelectedContent() }
@@ -2472,6 +2493,13 @@ import SpookkyGit
         }.joined(separator: "\n\n")
         alert("Project operations", text.isEmpty ? "No project operations yet." : text)
     }
+    private func openDiscoveredProject(_ location: WorkspaceLocation, ifSelected workspaceID: UUID?) {
+        if store.state.selectedWorkspaceID == workspaceID {
+            cancelLaunchPreflight()
+            window.makeFirstResponder(nil)
+        }
+        store.update { $0.openProject(location, ifSelected: workspaceID, homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path) }
+    }
     private func chooseFolder(register: Bool, relocate: Bool = false) {
         guard window.attachedSheet == nil else { return }
         if !window.isVisible { reopen() }
@@ -2479,14 +2507,13 @@ import SpookkyGit
         panel.prompt = register ? "Add project" : "Open"; let workspaceID = store.state.selectedWorkspaceID
         panel.beginSheetModal(for: window) { [weak self] result in
             guard result == .OK, let url = panel.url, let self else { return }
-            if register, store.state.selectedWorkspaceID == workspaceID { cancelLaunchPreflight() }
             Task {
                 do {
                     let location = try await LocationDiscovery.discover(url)
-                    self.store.update {
-                        if register {
-                            $0.openProject(location, ifSelected: workspaceID, homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path)
-                        } else if let workspaceID, $0.selectedWorkspaceID == workspaceID {
+                    if register { self.openDiscoveredProject(location, ifSelected: workspaceID) }
+                    else {
+                        self.store.update {
+                            guard let workspaceID, $0.selectedWorkspaceID == workspaceID else { return }
                             if relocate { $0.relocateWorkspace(workspaceID, location: location) }
                             else { $0.setLocation(location, projectID: nil, workspaceID: workspaceID) }
                         }
