@@ -1,0 +1,39 @@
+App/WorkspaceWindowController.swift
+  s_53d4e1c28831bf::t_e537189b82feac 198,279-284,1850,1929-1960,2587,2623-2626
+Tests/SpookkyRuntimeTests/AgentActivityTests.swift
+  s_8b632e4ace3371::t_53e4d5eea4a442 2,4,198-225
+docs/agent-activity.md
+  s_bb6f40919cf638::t_b35b11d73177b6 65-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6478cee394ab6f0ee6e6de751dcefe4ddf4c6e66",
+  "prompts": {},
+  "sessions": {
+    "s_53d4e1c28831bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_8b632e4ace3371": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a154ae-c841-79c0-a213-9bef0d62820b",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_bb6f40919cf638": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a154ae-c841-79c0-a213-9bef0d62820b",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
