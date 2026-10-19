@@ -28,6 +28,7 @@ import SpookkyGit
     private var historyRefreshedAt: Date?
     private let savedConversationResolver: any ExecutableResolver
     private var continuingConversations = Set<ConversationID>()
+    private var pendingIdentities = Set<UUID>()
     private var conversationOpenTask: Task<Void, Never>?
     private var preflightConversation: ConversationID?
     private var continuationTokens: [ConversationID: UUID] = [:]
@@ -970,14 +971,10 @@ import SpookkyGit
             let contextPath = activityRoot.appendingPathComponent("agent-terminal-" + binding.id.uuidString + ".json").path
             let context = await Task.detached { try? AgentIntegration.read(AgentTerminalContext.self, path: contextPath) }.value
             guard context?.secret == receipt.secret else { continue }
-            let directories = await HistoryQuery.folderAliases(binding.directory)
-            let page = await sessionCatalog.page(query: HistoryQuery(directories: directories, limit: 100, exactDirectories: true), force: true)
-            guard !Task.isCancelled else { return }
-            let matches = page.conversations.filter {
-                $0.id.provider == .codex && $0.source == "cli" && receipt.candidates.contains($0.id.sessionID) && directories.contains($0.directory)
-            }
-            guard matches.count == 1, let metadata = matches.first,
-                  store.state.tab(primary.id)?.binding == binding else { continue }
+            guard pendingIdentities.insert(binding.id).inserted else { continue }
+            defer { pendingIdentities.remove(binding.id) }
+            guard let metadata = await ProviderIdentityResolver.codex(candidates: receipt.candidates, directory: binding.directory),
+                  !Task.isCancelled, store.state.tab(primary.id)?.binding == binding else { continue }
             store.update { state in
                 state.associateConversation(provider: .codex, sessionID: metadata.id.sessionID, title: metadata.title, workspaceID: workspace.id)
                 state.recordCatalogMetadata(metadata, workspaceID: workspace.id, projectID: workspace.projectID)
@@ -996,8 +993,8 @@ import SpookkyGit
             guard let self else { return }
             defer { if historyGeneration == token { historyRefreshTask = nil } }
             do {
-                if force { await sessionCatalog.invalidatePages() }
                 await reconcileProviderIdentities()
+                if force { await sessionCatalog.invalidatePages() }
                 if !query.isEmpty {
                     let limit = historyPageLimits["search"] ?? 10
                     let cached = try await historyCatalog.cached(allProjects: true, search: query, limit: limit, excluding: historyExclusions(for: nil, allProjects: true))
