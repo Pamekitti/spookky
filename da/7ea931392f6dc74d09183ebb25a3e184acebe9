@@ -1,0 +1,37 @@
+Sources/SpookkyCore/SidebarStatus.swift
+  s_cdf46ccee2ecc1::t_aa2f4974da89e7 1-93
+Sources/SpookkyCore/ThreadPresentation.swift
+  s_cdf46ccee2ecc1::t_674118ceace2af 10
+Sources/SpookkyCore/WorkspaceState.swift
+  s_1ff090e2823b59::t_dedab90c5fb93c 178-182
+Sources/SpookkyGit/GitExecutor.swift
+  s_cdf46ccee2ecc1::t_f85e0a81a2b599 87-95,133
+Sources/SpookkyGit/SidebarGitStatus.swift
+  s_cdf46ccee2ecc1::t_020b18bfb55ec3 1-138
+Tests/SpookkyRuntimeTests/SidebarStatusTests.swift
+  s_cdf46ccee2ecc1::t_7ca1a5973bf9c6 1-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "da7ea931392f6dc74d09183ebb25a3e184acebe9",
+  "prompts": {},
+  "sessions": {
+    "s_1ff090e2823b59": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a154c8-cb0d-7330-8ed0-d1ed0b9dcc24",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_cdf46ccee2ecc1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
