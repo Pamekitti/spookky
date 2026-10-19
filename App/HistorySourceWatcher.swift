@@ -6,12 +6,11 @@ import Darwin
     var onChange: (() -> Void)?
     private let watcher = WorkspaceFileWatcher()
     private var startup: Task<Void, Never>?
-    private var generation = UUID()
     private var pending: Task<Void, Never>?
     private var roots: [String] = []
 
     func start(roots: [String]) {
-        stop(); let token = generation
+        stop()
         startup = Task { [weak self] in
             let resolved = await Task.detached {
                 roots.map { path in
@@ -19,7 +18,7 @@ import Darwin
                     defer { free(resolved) }; return String(cString: resolved)
                 }
             }.value
-            guard let self, !Task.isCancelled, generation == token else { return }
+            guard let self, !Task.isCancelled else { return }
             self.roots = resolved
             watcher.onPaths = { [weak self] in self?.changed(paths: $0) }
             watcher.watch(resolved)
@@ -40,7 +39,7 @@ import Darwin
         }
     }
     func stop() {
-        generation = UUID(); startup?.cancel(); startup = nil
+        startup?.cancel(); startup = nil
         pending?.cancel(); pending = nil; roots = []
         watcher.stop()
     }

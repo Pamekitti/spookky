@@ -604,7 +604,7 @@ import SpookkyGit
         sidebarToggle.toolTip = (collapsed ? "Expand" : "Collapse") + " workspace sidebar · ⌘B"
         sidebarToggle.setAccessibilityLabel(sidebarToggle.toolTip!)
         sidebarToggle.setAccessibilityValue(collapsed ? "Collapsed" : "Expanded")
-        let compact = content.bounds.width - width < SpookkyStyle.points(640) + 5
+        let compact = content.bounds.width - width < workspaceLayout.minimumSplitWidth
         if workspaceLayout.compact != compact {
             workspaceLayout.compact = compact; workspaceLayout.needsLayout = true
             DispatchQueue.main.async { [weak self] in self?.renderSupportingContent() }

@@ -375,12 +375,13 @@ import SpookkySyntax
                     let discovered = try await Task.detached { try await LocationDiscovery.discover(URL(fileURLWithPath: root)) }.value
                     guard token == generation, id == workspaceID, !Task.isCancelled else { return }
                     identity = discovered.checkoutIdentity ?? ""
-                    if let id, let current = store.state.workspaces.first(where: { $0.id == id }),
-                       (current.anchor ?? current.selectedLocation).scopePath == root,
-                       ((current.anchor ?? current.selectedLocation).checkoutIdentity != discovered.checkoutIdentity ||
-                        (current.anchor ?? current.selectedLocation).commonRepository != discovered.commonRepository ||
-                        (current.anchor ?? current.selectedLocation).branch != discovered.branch) {
-                        store.update { $0.refreshRepositoryMetadata(discovered, workspaceID: id, scope: root) }
+                    if let id, let current = store.state.workspaces.first(where: { $0.id == id }) {
+                        let location = current.anchor ?? current.selectedLocation
+                        if location.scopePath == root,
+                           location.checkoutIdentity != discovered.checkoutIdentity ||
+                           location.commonRepository != discovered.commonRepository || location.branch != discovered.branch {
+                            store.update { $0.refreshRepositoryMetadata(discovered, workspaceID: id, scope: root) }
+                        }
                     }
                     comparison.isHidden = identity.isEmpty
                     reference.isHidden = comparison.isHidden || !view.againstBranch

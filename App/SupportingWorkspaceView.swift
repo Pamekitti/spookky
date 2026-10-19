@@ -47,9 +47,11 @@ import SpookkyCore
     var requestsSplit: Bool { state.layout == .split && !state.tabs.isEmpty }
     var effectiveFull: Bool { state.layout == .fullWidth || compact && requestsSplit }
     var isSplit: Bool { requestsSplit && !compact }
+    private var minimumPaneWidth: CGFloat { SpookkyStyle.points(320) }
+    var minimumSplitWidth: CGFloat { minimumPaneWidth * 2 + 5 }
     var primaryPaneWidth: CGFloat { primaryPaneWidth(in: bounds.width) }
     func primaryPaneWidth(in width: CGFloat) -> CGFloat {
-        isSplit ? max(SpookkyStyle.points(320), min(width - SpookkyStyle.points(320) - 5, width * state.fraction)) : width
+        isSplit ? max(minimumPaneWidth, min(width - minimumPaneWidth - 5, width * state.fraction)) : width
     }
     var showsSupportingContent: Bool {
         guard !state.tabs.isEmpty, state.layout != .collapsed else { return false }
@@ -128,7 +130,7 @@ import SpookkyCore
                 help: help, selected: selected && tab.id == state.selectedTabID)
             item.move(to: strip, at: index + (joinsPrimary ? 1 : 0))
         }
-        layoutButton.isEnabled = !state.tabs.isEmpty && !(compact && !isSplit)
+        layoutButton.isEnabled = !state.tabs.isEmpty && !compact
         layoutButton.title = isSplit ? "Full" : "Split"
         layoutButton.image = nil
         layoutButton.toolTip = compact ? "Widen the window or reduce zoom to show two readable panes" : isSplit ? "Show selected supporting tab at full width" : "Show conversation and supporting tab side by side"
