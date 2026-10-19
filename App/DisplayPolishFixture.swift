@@ -234,13 +234,8 @@ import SpookkyRuntime
         }
         }
         apply(DisplayPreferences())
-        window.toggleFullScreen(nil)
-        for _ in 0..<100 {
-            if window.styleMask.contains(.fullScreen) { break }
-            try await Task.sleep(for: .milliseconds(30))
-        }
-        guard window.styleMask.contains(.fullScreen) else { throw LaunchError.invalid("Fullscreen regression fixture did not enter fullscreen.") }
-        try await Task.sleep(for: .milliseconds(600))
+        try await transition(fullscreen: true, window: window, root: root)
+        checks["native_fullscreen_enter_completed"] = true
         for zoom in [1.0, 2.0] {
             var display = DisplayPreferences(); display.zoom = zoom; apply(display)
             for mode in [SupportingLayout.split, .fullWidth] {
@@ -249,13 +244,8 @@ import SpookkyRuntime
                 inspectHeader(key); inspectTabHits(key)
             }
         }
-        window.toggleFullScreen(nil)
-        for _ in 0..<100 {
-            if !window.styleMask.contains(.fullScreen) { break }
-            try await Task.sleep(for: .milliseconds(30))
-        }
-        guard !window.styleMask.contains(.fullScreen) else { throw LaunchError.invalid("Fullscreen regression fixture did not exit fullscreen.") }
-        try await Task.sleep(for: .milliseconds(600))
+        try await transition(fullscreen: false, window: window, root: root)
+        checks["native_fullscreen_exit_completed"] = true
         apply(DisplayPreferences()); window.contentView?.layoutSubtreeIfNeeded()
         if let close = window.standardWindowButton(.closeButton), let content = window.contentView {
             let frame = close.convert(close.bounds, to: content)
@@ -264,5 +254,26 @@ import SpookkyRuntime
         }
         try PrivateFiles.write(hitDetails, to: root.appendingPathComponent("display-hit-details.json"))
         return checks
+    }
+
+    @MainActor private final class TransitionState { var completed = false }
+
+    private static func transition(fullscreen: Bool, window: NSWindow, root: URL) async throws {
+        let state = TransitionState()
+        let notification = fullscreen ? NSWindow.didEnterFullScreenNotification : NSWindow.didExitFullScreenNotification
+        let observer = NotificationCenter.default.addObserver(forName: notification, object: window, queue: .main) { _ in
+            Task { @MainActor in state.completed = true }
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+        window.toggleFullScreen(nil)
+        for _ in 0..<500 {
+            if state.completed && window.styleMask.contains(.fullScreen) == fullscreen { return }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let details = ["requested_fullscreen": fullscreen, "completion_notification": state.completed,
+            "native_fullscreen": window.styleMask.contains(.fullScreen), "window_visible": window.isVisible,
+            "window_key": window.isKeyWindow, "app_active": NSApp.isActive]
+        try PrivateFiles.write(details, to: root.appendingPathComponent("fullscreen-transition-failure.json"))
+        throw LaunchError.invalid("Fullscreen regression fixture did not complete " + (fullscreen ? "entry." : "exit."))
     }
 }

@@ -1898,6 +1898,7 @@ import SpookkyGit
             "app_rss_mib": WorkspaceDiagnostics.residentMiB() ?? -1, "terminal_session_count": 1,
             "virtual_history_items": 5_000, "mounted_sidebar_cells": Double(conversationSidebar.visibleCellCount)]
         if CommandLine.arguments.contains("--workspace-benchmark-display") {
+            try PrivateFiles.write(checks, to: root.appendingPathComponent("sidebar-checks.json"))
             store.update { $0.openSupport(.changes, title: "Changes"); $0.openSupport(.file(path: root.appendingPathComponent("appearance-config").path), title: "Settings file") }
             checks.merge(try await DisplayPolishFixture.check(window: window, root: root, sidebar: conversationSidebar,
                 apply: { preferences in self.services.changeDisplay { $0 = preferences } },
