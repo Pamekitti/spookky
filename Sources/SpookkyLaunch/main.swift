@@ -5,10 +5,10 @@ import SpookkyRuntime
 
 nonisolated(unsafe) private var agentChildPID: pid_t = 0
 
-private func execute(_ executable: String, _ arguments: [String]) -> Never {
+private func execute(_ executable: String, _ arguments: [String], searchPath: Bool = false) -> Never {
     let strings = ([executable] + arguments).map { strdup($0) }
     var pointers = strings + [nil]
-    _ = pointers.withUnsafeMutableBufferPointer { execv(executable, $0.baseAddress!) }
+    _ = pointers.withUnsafeMutableBufferPointer { searchPath ? execvp(executable, $0.baseAddress!) : execv(executable, $0.baseAddress!) }
     strings.forEach { free($0) }
     fputs("Spookky could not execute the CLI.\n", stderr)
     exit(127)
@@ -86,6 +86,27 @@ private func runAgent(_ arguments: [String]) throws -> Never {
 }
 
 umask(0o077)
+if CommandLine.arguments.count == 5, CommandLine.arguments[1] == "--agent-identity" {
+    let path = CommandLine.arguments[2], payload = CommandLine.arguments[4]
+    if let context = try? AgentIntegration.read(AgentTerminalContext.self, path: path), context.path == path,
+       payload.utf8.count <= 1_048_576,
+       let row = try? JSONSerialization.jsonObject(with: Data(payload.utf8)) as? [String: Any],
+       row["type"] as? String == "agent-turn-complete", let id = row["thread-id"] as? String, UUID(uuidString: id) != nil {
+        let old = try? AgentIntegration.read(ProviderIdentityReceipt.self, path: context.identityPath)
+        let candidates = old?.bindingID == context.bindingID && old?.secret == context.secret ? old!.candidates : []
+        try? PrivateFiles.write(ProviderIdentityReceipt(context: context, candidates: candidates.filter { $0 != id } + [id]),
+                               to: URL(fileURLWithPath: context.identityPath))
+        try? PrivateFiles.write(UUID().uuidString, to: URL(fileURLWithPath: context.root + "/runtime-event"))
+    }
+    // Preserve the user's existing native notification command, including the original payload.
+    if let data = Data(base64Encoded: CommandLine.arguments[3]), data.count <= 1_048_576,
+       let command = try? JSONDecoder().decode([String].self, from: data), !command.isEmpty,
+       command.count <= 64, command[0] != CommandLine.arguments[0] {
+        execute(command[0], Array(command.dropFirst()) + [payload], searchPath: true)
+    }
+    exit(0)
+}
+
 if CommandLine.arguments == [CommandLine.arguments[0], "--agent-hook-current"] {
     if let contextPath = ProcessInfo.processInfo.environment["SPOOKKY_ACTIVITY_CONTEXT"],
        let owner = ProcessInfo.processInfo.environment["SPOOKKY_AGENT_OWNER"],

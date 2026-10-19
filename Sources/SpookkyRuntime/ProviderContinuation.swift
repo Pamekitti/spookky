@@ -41,7 +41,7 @@ public struct ProviderContinuationCapabilities: Equatable, Sendable {
         }
     }
 
-    fileprivate static func advertises(_ token: String, in help: String) -> Bool {
+    public static func advertises(_ token: String, in help: String) -> Bool {
         help.range(of: "(?<![A-Za-z0-9_-])" + NSRegularExpression.escapedPattern(for: token) + "(?![A-Za-z0-9_-])",
                    options: .regularExpression) != nil
     }

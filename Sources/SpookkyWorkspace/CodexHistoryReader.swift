@@ -2,10 +2,23 @@ import Darwin
 import Foundation
 import SpookkyCore
 
-// Only initialize and database-only thread/list are allowed on this short-lived connection.
+// Only initialize, config/read and database-only thread/list are used on this short-lived connection.
 // It never loads a thread, subscribes to a turn, or repairs provider metadata.
 struct CodexHistoryReader {
     static let sourceKinds = ["cli", "vscode", "appServer", "exec", "unknown"]
+    static func notificationCommand(executable: String, environment: [String: String], directory: String) throws -> [String] {
+        let rpc = try MetadataRPC(executable: executable, environment: environment)
+        defer { rpc.close() }
+        _ = try rpc.request("initialize", ["clientInfo": ["name": "spookky_identity", "version": "0.1.0"]])
+        try rpc.send(["method": "initialized", "params": [:]])
+        let result = try rpc.request("config/read", ["includeLayers": false, "cwd": directory])
+        guard let config = result["config"] as? [String: Any], config.keys.contains("notify") else { throw MetadataRPC.failure() }
+        if config["notify"] is NSNull { return [] }
+        guard let command = config["notify"] as? [String], command.count <= 64,
+              command.allSatisfy({ !$0.contains("\0") && $0.utf8.count <= 16_384 }) else { throw MetadataRPC.failure() }
+        return command
+    }
+
     static func page(executable: String, environment: [String: String], query: HistoryQuery,
                      cursor: String? = nil) throws -> HistoryPage {
         let rpc = try MetadataRPC(executable: executable, environment: environment)

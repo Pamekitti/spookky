@@ -10,6 +10,7 @@ public struct AgentTerminalContext: Codable, Sendable {
     public var socket: String { root + "/activity.sock" }
     public var bin: String { root + "/agent-bin" }
     public var path: String { root + "/agent-terminal-" + bindingID.uuidString + ".json" }
+    public var identityPath: String { root + "/agent-identity-" + bindingID.uuidString + ".json" }
     public var activePath: String { root + "/agent-active-" + bindingID.uuidString + ".json" }
     public init(bindingID: UUID, secret: UUID = UUID(), root: String, helper: String) {
         self.bindingID = bindingID; self.secret = secret; self.root = root; self.helper = helper
@@ -27,6 +28,17 @@ public struct AgentInvocation: Codable, Sendable {
     }
     public func event(_ kind: AgentEventKind) -> AgentEvent {
         AgentEvent(bindingID: context.bindingID, invocationID: id, secret: context.secret, provider: provider, kind: kind)
+    }
+}
+
+/// Exact provider IDs only. Notification text and prompts are never retained here.
+public struct ProviderIdentityReceipt: Codable, Sendable {
+    public let bindingID: UUID
+    public let secret: UUID
+    public let candidates: [String]
+    public init(context: AgentTerminalContext, candidates: [String]) {
+        bindingID = context.bindingID; secret = context.secret
+        self.candidates = Array(candidates.filter { UUID(uuidString: $0) != nil }.suffix(8))
     }
 }
 
