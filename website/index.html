@@ -4,10 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark light">
-  <title>Spookky · A native Mac workspace for terminals and coding agents</title>
-  <meta name="description" content="A native Mac workspace for terminals and coding agents. Keep parallel sessions, projects, worktrees, and diffs around Ghostty’s terminal core.">
+  <title>Spookky · A lightweight, native Mac workspace for coding agents</title>
+  <meta name="description" content="A lightweight, native Mac workspace for coding agents. Run agents in parallel with the CLI you already use. Keep conversations and code changes together.">
   <meta property="og:title" content="Spookky">
-  <meta property="og:description" content="Your terminals, with room for parallel work. Built for the Mac.">
+  <meta property="og:description" content="A lightweight, native Mac workspace for coding agents.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://pamekitti.github.io/spookky/">
   <meta property="og:image" content="https://pamekitti.github.io/spookky/assets/social.png">
@@ -19,30 +19,41 @@
 <body>
   <a class="skip" href="#main">Skip to content</a>
   <header class="navigation wrap">
-    <a class="wordmark" href="./" aria-label="Spookky home"><img src="assets/favicon.png" width="32" height="32" alt="">Spookky</a>
-    <nav aria-label="Main navigation"><a href="#workspace">The workspace</a><a href="https://github.com/Pamekitti/spookky">GitHub <span aria-hidden="true">↗</span></a><button id="theme" type="button" aria-label="Switch color theme">◐</button></nav>
+    <a class="wordmark" href="./" aria-label="Spookky home">
+      <img src="assets/mascot.png" width="56" height="56" alt="">
+      <span>Spookky</span>
+    </a>
+    <nav aria-label="Main navigation">
+      <a href="https://github.com/Pamekitti/spookky/blob/main/docs/development.md">Docs</a>
+    </nav>
   </header>
-  <main id="main">
-    <section class="hero wrap" aria-labelledby="headline">
-      <div class="hero-copy">
-        <p class="eyebrow"><span class="dot" aria-hidden="true"></span> Made for the Mac. Open source.</p>
-        <h1 id="headline">A native Mac workspace for terminals and <span>coding agents.</span></h1>
-        <p class="intro">A real terminal at the center. Projects, parallel sessions, worktrees, and diffs around it.</p>
-        <div class="actions"><a class="button primary" id="download" href="https://github.com/Pamekitti/spookky">Explore the source <span aria-hidden="true">↗</span></a><a class="text-link" href="#workspace">Take a look <span aria-hidden="true">↓</span></a></div>
-        <p class="release-detail" id="release-detail" aria-live="polite">Public Preview is being prepared. No installer is available yet.</p>
-        <a id="release-notes" class="release-notes" hidden>Release notes</a>
+  <main id="main" class="wrap">
+    <section class="intro" aria-labelledby="headline">
+      <h1 id="headline">A lightweight, native Mac workspace<br>for coding agents.</h1>
+      <p class="description">Run agents in parallel with the CLI you already use.<br class="desktop-break"> Keep conversations and code changes together.</p>
+      <div class="actions">
+        <a class="button" id="download" href="https://github.com/Pamekitti/spookky">View on GitHub <span aria-hidden="true">↗</span></a>
+        <a id="secondary-action" href="https://github.com/Pamekitti/spookky/blob/main/docs/development.md">Build from source</a>
       </div>
-      <div class="hero-art"><img src="assets/mascot.png" alt="Spookky’s friendly floating ghost" width="640" height="640" fetchpriority="high"><span class="orbit" aria-hidden="true">A little space for parallel work.</span></div>
+      <p class="release-detail" id="release-detail" aria-live="polite"><a href="https://github.com/Pamekitti/spookky/blob/main/docs/status.md">Development preview</a>. Apple Silicon. No public installer yet.</p>
+      <a id="release-notes" class="release-notes" hidden>Release notes</a>
     </section>
-    <section class="workspace wrap" id="workspace" aria-labelledby="workspace-title">
-      <div class="section-heading"><p class="eyebrow">The terminal stays the terminal</p><h2 id="workspace-title">Everything around it<br>gets a place.</h2><p>Keep the CLI you know, with its own shortcuts, history, authentication, and permissions.</p></div>
-      <figure class="app-shot"><picture><source media="(prefers-color-scheme: light)" srcset="assets/workspace-light.png"><img id="workspace-image" src="assets/workspace-dark.png" alt="Spookky’s native workspace with terminal tabs, project navigation, and changes beside a real shell" width="1440" height="900" loading="lazy"></picture><figcaption>Native app · Apple Silicon · Development build</figcaption></figure>
-      <div class="benefits"><article><span class="number">01 / START</span><h3>Just open a shell.</h3><p>No project, prompt, or app account required. Start at Home, then add structure when you need it.</p><div class="keys"><kbd>⌘ N</kbd><span>workspace</span><kbd>⌘ T</kbd><span>terminal</span></div></article><article><span class="number">02 / ORGANIZE</span><h3>Parallel, with a place.</h3><p>Keep sessions together in a workspace. Choose a Git worktree when you want a separate checkout.</p></article><article><span class="number">03 / INSPECT</span><h3>See what changed.</h3><p>Read files and inspect diffs beside your terminal. Keep committing, testing, and shipping through your own tools.</p></article></div>
-    </section>
-    <section class="install wrap" id="install" aria-labelledby="install-title"><div><p class="eyebrow">A familiar Mac welcome</p><h2 id="install-title">Download. Drag. Open.</h2><p>Signed, notarized installers are the release target. The first public download appears here after installation and update checks pass.</p></div><ol><li><span>1</span><div><h3>Download the DMG</h3><p>Your browser saves the installer, usually in Downloads.</p></div></li><li><span>2</span><div><h3>Drag into Applications</h3><p>Open the disk image and move Spookky to Applications.</p></div></li><li><span>3</span><div><h3>Open Spookky</h3><p>Start a shell. Signed releases offer update settings inside the app.</p></div></li></ol></section>
-    <section class="story wrap" aria-labelledby="story-title"><p class="eyebrow">Why this little ghost exists</p><h2 id="story-title">I love Ghostty.<br>I wanted a workspace around it.</h2><div class="story-copy"><p>Ghostty makes the terminal feel at home on the Mac. Working with coding agents added a few things I wanted nearby: projects, parallel sessions, worktrees, and a way to inspect changes.</p><p>So I started building Spookky. The terminal remains the center. Native controls, familiar shortcuts, and careful resource use guide the work around it.</p><a class="text-link" href="https://github.com/Pamekitti/spookky#why-i-built-spookky">Read the project story <span aria-hidden="true">↗</span></a></div></section>
-    <section class="preview-note wrap" aria-labelledby="preview-title"><h2 id="preview-title">Early, and honest about it.</h2><p>Spookky is in development. Extended session continuity, hands-on input and accessibility, supported macOS versions, and signed installation have remaining checks. Speed and reliable recovery are requirements, not finished claims.</p><a class="text-link" href="https://github.com/Pamekitti/spookky/blob/main/docs/status.md">Current status and release gates <span aria-hidden="true">↗</span></a></section>
+    <figure class="app-shot">
+      <a id="workspace-full" href="assets/workspace-dark.png" aria-label="View full-size Spookky screenshot">
+        <picture>
+          <source media="(prefers-color-scheme: light)" srcset="assets/workspace-light.png">
+          <img id="workspace-image" src="assets/workspace-dark.png" alt="Spookky’s native development build with Northstar conversations, a real Codex session, and its search empty-state diff" width="2880" height="1800" fetchpriority="high">
+        </picture>
+      </a>
+      <figcaption>Native development build <span aria-hidden="true">·</span> <a id="workspace-caption" href="assets/workspace-dark.png">View full size <span aria-hidden="true">↗</span></a></figcaption>
+    </figure>
   </main>
-  <footer class="wrap"><a class="wordmark" href="./">Spookky</a><p>Made for the Mac. Built on <a href="https://ghostty.org/">Ghostty</a>.</p><nav aria-label="Footer"><a href="https://github.com/Pamekitti/spookky/tree/main/docs">Docs</a><a href="https://github.com/Pamekitti/spookky/releases">Releases</a><a href="privacy.html">Privacy</a><a href="https://github.com/Pamekitti/spookky/security/policy">Security</a><a href="https://github.com/Pamekitti/spookky/blob/main/LICENSE">MIT license</a></nav><small>© 2026 Pamekitti</small></footer>
+  <footer class="wrap">
+    <p>Built on <a href="https://ghostty.org/">Ghostty</a>.</p>
+    <nav aria-label="Footer">
+      <a href="https://github.com/Pamekitti/spookky/blob/main/LICENSE">MIT license</a>
+      <a href="privacy.html">Privacy</a>
+    </nav>
+  </footer>
 </body>
 </html>
