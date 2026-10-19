@@ -1,0 +1,53 @@
+App/PromptImageFixture.swift
+  s_cdf46ccee2ecc1::t_5182381e3973b6 1-84
+App/WorkspaceViews.swift
+  s_72d3c2ec773986::t_8ba7c99fb1cc8a 2,304-315,567-572,591-592,601-602,611,622,639-643,681-764,812-815,820,823-825,935
+App/WorkspaceWindowController.swift
+  s_72d3c2ec773986::t_36d1c7133f9793 84,137,1925,1927-1928,2123,2130-2152,2154,2638-2650
+Spookky.xcodeproj/project.pbxproj
+  s_7b13cc942ee161::t_7ed706f12111f2 35-36,107,113
+scripts/check_prompt_images.py
+  s_cdf46ccee2ecc1::t_dda3952809f8b4 1-42
+docs/flows.md
+  s_97f0ea1c2186a9::t_04fbb7f39c8621 108-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "85b25a0e0cc86f2a40a7a815a412e339362b105f",
+  "prompts": {},
+  "sessions": {
+    "s_72d3c2ec773986": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a14987-431c-7973-a91e-bca18c5e418a",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_7b13cc942ee161": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a154ad-348c-7b80-a8df-9ba4ced6ea03",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_97f0ea1c2186a9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a154ad-348c-7b80-a8df-9ba4ced6ea03",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_cdf46ccee2ecc1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
