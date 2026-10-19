@@ -719,10 +719,9 @@ private final class ComposerPopoverBackground: NSView {
     private var discoveredModels: ProviderModels?
     private var catalogKey = ""
     private var modelTask: Task<Void, Never>?
-    private var modelGeneration = UUID()
     private var selection = AgentModelSelection()
     private var currentWorkspace: Workspace?
-    private var currentProject: Project?
+    private var currentProject: Project? { projects.first { $0.id == currentWorkspace?.projectID } }
     private let launch = ActionButton("", symbol: "arrow.up", action: {})
     private let card = ChromeStackView()
     private let controls = NSStackView()
@@ -743,14 +742,13 @@ private final class ComposerPopoverBackground: NSView {
     private let directory = SpookkyStyle.label( "")
     private let locate = ActionButton("Locate folder…", symbol: "folder", action: {})
     private var projects: [Project] = []
-    private var selectedProjectID: UUID?
     private var currentTool: SessionTool?
     private var folderTitle = "Home"
     var onDraft: ((SessionTool?, String?) -> Void)?
     var onImages: (([String]) -> Void)?
     var onModel: ((AgentModelSelection) -> Void)?
     var onNoProject: (() -> Void)?
-    var onImageError: ((String) -> Void)?
+    var onError: ((String) -> Void)?
     var onLaunch: (() -> Void)?
     var onTerminal: (() -> Void)?
     var onChooseFolder: (() -> Void)?
@@ -902,7 +900,7 @@ private final class ComposerPopoverBackground: NSView {
     private func importImage(_ read: @escaping @Sendable () throws -> Data) {
         guard prompt.isEditable, !importingImage else { NSSound.beep(); return }
         guard images.count < 8 else {
-            onImageError?("Attach up to 8 images, each no larger than 20 MB."); return
+            onError?("Attach up to 8 images, each no larger than 20 MB."); return
         }
         importingImage = true; launch.isEnabled = false
         let directory = imageDirectory
@@ -915,7 +913,7 @@ private final class ComposerPopoverBackground: NSView {
                     return try Self.storeClipboardImage(data, directory: directory)
                 }.value
                 images.append(path); onImages?(images); renderImages()
-            } catch { onImageError?(error.localizedDescription) }
+            } catch { onError?(error.localizedDescription) }
         }
     }
 
@@ -1019,12 +1017,12 @@ private final class ComposerPopoverBackground: NSView {
 
     func update(_ tab: WorkspaceTab, workspace: Workspace, state: WorkspaceState) {
         if prompt.string != tab.draft.prompt { prompt.string = tab.draft.prompt }
-        currentTool = tab.draft.tool; projects = state.projects; selectedProjectID = workspace.projectID
-        let project = projects.first { $0.id == workspace.projectID }
-        currentWorkspace = workspace; currentProject = project; selection = tab.draft.modelSelection
+        currentTool = tab.draft.tool; projects = state.projects
+        currentWorkspace = workspace; selection = tab.draft.modelSelection
+        let project = currentProject
         let nextCatalogKey = tab.draft.tool.rawValue + "|" + workspace.directory
         if catalogKey != nextCatalogKey {
-            catalogKey = nextCatalogKey; discoveredModels = nil; modelTask?.cancel(); modelGeneration = UUID(); choices.close()
+            catalogKey = nextCatalogKey; discoveredModels = nil; modelTask?.cancel(); choices.close()
         }
         let enabled = tab.isEditable
         prompt.isEditable = enabled
@@ -1042,7 +1040,6 @@ private final class ComposerPopoverBackground: NSView {
         promptScroll.isHidden = tab.draft.tool == .shell
         let needsBranch = workspace.anchor == nil && workspace.locationDraft?.mode == .worktree && workspace.locationDraft?.branchMode == .existing && workspace.locationDraft?.branch.isEmpty == true
         locationReady = !needsBranch
-        launch.isEnabled = enabled && !needsBranch && !importingImage
         let hasPrompt = !tab.draft.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !tab.draft.images.isEmpty
         let launchTitle = tab.draft.tool == .shell ? "Open Terminal" : (hasPrompt ? "Start " : "Open ") + tab.draft.tool.displayName
         launch.image = NSImage(systemSymbolName: tab.draft.tool == .shell ? "terminal" : "arrow.up", accessibilityDescription: nil)
@@ -1142,9 +1139,9 @@ private final class ComposerPopoverBackground: NSView {
     private func chooseProject() {
         if currentWorkspace?.anchor != nil { onLocate?(); return }
         locationPopover.performClose(nil)
-        var rows = [ComposerChoice("No project", detail: "Start in Home", symbol: "house", selected: selectedProjectID == nil) { [weak self] in self?.onNoProject?() }]
+        var rows = [ComposerChoice("No project", detail: "Start in Home", symbol: "house", selected: currentWorkspace?.projectID == nil) { [weak self] in self?.onNoProject?() }]
         rows += projects.sorted { ($0.lastUsed ?? .distantPast) > ($1.lastUsed ?? .distantPast) }.map { project in
-            ComposerChoice(project.name, detail: SpookkyStyle.abbreviatedPath(project.location.path), symbol: "folder", selected: project.id == selectedProjectID) { [weak self] in self?.onProject?(project.id) }
+            ComposerChoice(project.name, detail: SpookkyStyle.abbreviatedPath(project.location.path), symbol: "folder", selected: project.id == currentWorkspace?.projectID) { [weak self] in self?.onProject?(project.id) }
         }
         rows += [ComposerChoice("Use folder once…", symbol: "folder", alwaysVisible: true) { [weak self] in self?.onChooseFolder?() },
                  ComposerChoice("Add project…", symbol: "plus", alwaysVisible: true) { [weak self] in
@@ -1156,7 +1153,8 @@ private final class ComposerPopoverBackground: NSView {
         guard let workspace = currentWorkspace else { return }
         locationPopover.performClose(nil)
         let local = currentProject?.location ?? workspace.selectedLocation
-        let isNew = workspace.locationDraft?.mode == .worktree
+        let locationDraft = workspace.locationDraft
+        let isNew = locationDraft?.mode == .worktree
         var rows = [ComposerChoice("Local", detail: "Use the project's current files and branch.", symbol: "folder", selected: !isNew && local.path == workspace.selectedLocation.path) { [weak self] in
             self?.locationOptions.onCheckout?(local)
         }]
@@ -1169,8 +1167,8 @@ private final class ComposerPopoverBackground: NSView {
             rows.append(ComposerChoice("New worktree", detail: snapshot.head == nil ? "Requires a first commit." : "Start with a separate branch and files.",
                 symbol: "arrow.triangle.branch", selected: isNew, action: snapshot.head == nil ? nil : { [weak self] in
                     guard let self else { return }
-                    var draft = workspace.locationDraft ?? LocationDraft(); draft.mode = .worktree
-                    if workspace.locationDraft == nil { draft.source = currentProject?.preferredSource ?? "HEAD" }
+                    var draft = locationDraft ?? LocationDraft(); draft.mode = .worktree
+                    if locationDraft == nil { draft.source = currentProject?.preferredSource ?? "HEAD" }
                     locationOptions.onDraft?(draft)
                 }))
         } else { rows.append(ComposerChoice("Reading repository…")) }
@@ -1185,17 +1183,18 @@ private final class ComposerPopoverBackground: NSView {
                 let result = try await GitRepository().discover(URL(fileURLWithPath: path))
                 guard let self, currentWorkspace?.id == id, currentWorkspace?.projectID == project, prompt.isEditable else { return }
                 locationOptions.onCheckout?(result)
-            } catch { onImageError?("This checkout is unavailable. Choose another location.") }
+            } catch { onError?("This checkout is unavailable. Choose another location.") }
         }
     }
     private func chooseSource() {
         guard let workspace = currentWorkspace else { return }
-        if workspace.locationDraft?.branchMode == .existing { showLocationPicker(); return }
+        let locationDraft = workspace.locationDraft
+        if locationDraft?.branchMode == .existing { showLocationPicker(); return }
         var refs = [("Current HEAD", "HEAD")]
         refs += repositorySnapshot?.references.map { ($0.name, $0.qualifiedName) } ?? []
         var rows = refs.map { name, ref in
-            ComposerChoice(name, symbol: "arrow.triangle.branch", selected: (workspace.locationDraft?.source ?? "HEAD") == ref) { [weak self] in
-                var draft = workspace.locationDraft ?? LocationDraft()
+            ComposerChoice(name, symbol: "arrow.triangle.branch", selected: (locationDraft?.source ?? "HEAD") == ref) { [weak self] in
+                var draft = locationDraft ?? LocationDraft()
                 draft.mode = .worktree; draft.source = ref; draft.useCachedSource = false; draft.cachedCommit = nil
                 self?.locationOptions.onDraft?(draft)
             }
@@ -1208,10 +1207,9 @@ private final class ComposerPopoverBackground: NSView {
         locationPopover.performClose(nil)
         choices.show(from: model, title: tool.displayName + " model", search: "Search models…", rows: modelRows(loading: discoveredModels == nil))
         modelTask?.cancel()
-        let generation = UUID(); modelGeneration = generation
         modelTask = Task { [weak self, modelCatalog] in
             let result = await modelCatalog.models(for: tool, directory: directory, refresh: refresh)
-            guard !Task.isCancelled, let self, modelGeneration == generation,
+            guard !Task.isCancelled, let self,
                   currentTool == tool, currentWorkspace?.directory == directory else { return }
             discoveredModels = result; configureFooter()
             if choices.anchor === model { choices.update(modelRows()) }
@@ -1252,7 +1250,7 @@ private final class ComposerPopoverBackground: NSView {
         alert.window.initialFirstResponder = field
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         let next = AgentModelSelection(model: field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines))
-        guard next.isValid else { onImageError?("Enter a model name without control characters, up to 256 bytes."); return }
+        guard next.isValid else { onError?("Enter a model name without control characters, up to 256 bytes."); return }
         onModel?(next)
     }
     private func chooseTool() {
@@ -1271,7 +1269,7 @@ private final class ComposerPopoverBackground: NSView {
     }
     var isImportingImage: Bool { importingImage }
     override func viewWillMove(toWindow newWindow: NSWindow?) {
-        if newWindow == nil { locationPopover.performClose(nil); choices.close(); modelTask?.cancel(); modelGeneration = UUID() }
+        if newWindow == nil { locationPopover.performClose(nil); choices.close(); modelTask?.cancel() }
         super.viewWillMove(toWindow: newWindow)
     }
     override func layout() { super.layout(); configureFooter(); resizePrompt() }

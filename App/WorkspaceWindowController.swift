@@ -1926,7 +1926,7 @@ import SpookkyGit
             let composer = composers[tab.id] ?? LaunchComposerView(tabID: tab.id, imageDirectory: promptImageDirectory, modelCatalog: catalog); composers[tab.id] = composer
             composer.onDraft = { [weak self] tool, prompt in self?.store.update(debounced: prompt != nil) { $0.editDraft(tab.id, tool: tool, prompt: prompt) } }
             composer.onImages = { [weak self, id = tab.id] images in self?.editPromptImages(images, for: id) }
-            composer.onImageError = { [weak self] message in self?.alert("Could not update draft", message) }
+            composer.onError = { [weak self] message in self?.alert("Could not update draft", message) }
             composer.onModel = { [weak self] selection in self?.store.update { $0.editModelSelection(tab.id, selection: selection) } }
             composer.onNoProject = { [weak self] in
                 guard let self, let workspace = store.state.workspace(containing: tab.id) else { return }

@@ -30,7 +30,7 @@ struct ComposerFixtureModels: ProviderModelDiscovering {
         let png = bitmap.representation(using: .png, properties: [:])!
         let text = composer.prompt.string
         var errors: [String] = []
-        composer.onImageError = { errors.append($0) }
+        composer.onError = { errors.append($0) }
 
         func descendants(of view: NSView) -> [NSView] {
             view.subviews.flatMap { [$0] + descendants(of: $0) }
