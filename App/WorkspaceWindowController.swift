@@ -2438,8 +2438,8 @@ import SpookkyGit
                 if (live || hasBrowser) && !services.installingUpdate {
                     let alert = ChromeAlert(); alert.messageText = "Quit Spookky?"
                     alert.informativeText = (hasBrowser ? "Browser URLs and website storage are retained. Unsent browser forms may be lost. Cancel to finish them first.\n\n" : "") + "Choose whether your terminal sessions should keep running. Ending terminals may leave work running on a shared provider server or in the background. Use the provider’s own Stop or Interrupt control to stop that work first."
-                    alert.addButton(withTitle: "Keep running and quit"); alert.addButton(withTitle: "Cancel")
-                    alert.addButton(withTitle: "End terminals and quit").hasDestructiveAction = true
+                    alert.addButton(withTitle: live ? "Keep running and quit" : "Quit"); alert.addButton(withTitle: "Cancel")
+                    if live { alert.addButton(withTitle: "End terminals and quit").hasDestructiveAction = true }
                     let result = await present(alert)
                     if result == .alertSecondButtonReturn { NSApp.reply(toApplicationShouldTerminate: false); return }
                     if result == .alertThirdButtonReturn {
