@@ -235,6 +235,7 @@ import SpookkyRuntime
         }
         }
         apply(DisplayPreferences())
+        try PrivateFiles.write(checks, to: root.appendingPathComponent("display-checks.json"))
         try await activate()
         try await transition(fullscreen: true, window: window, root: root)
         checks["native_fullscreen_enter_completed"] = true
@@ -268,7 +269,9 @@ import SpookkyRuntime
             Task { @MainActor in state.completed = true }
         }
         defer { NotificationCenter.default.removeObserver(observer) }
-        window.toggleFullScreen(nil)
+        guard NSApp.sendAction(#selector(NSWindow.toggleFullScreen(_:)), to: window, from: nil) else {
+            throw LaunchError.invalid("Native fullscreen action is unavailable.")
+        }
         for _ in 0..<500 {
             if state.completed && window.styleMask.contains(.fullScreen) == fullscreen { return }
             try await Task.sleep(for: .milliseconds(20))

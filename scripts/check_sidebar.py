@@ -22,7 +22,7 @@ def main():
         try:
             fixture.wait_ready(100, "Native sidebar check failed")
         except Exception:
-            evidence = fixture.preserve_evidence(args.output, ["app.log", "sidebar-checks.json", "sidebar-resources.json", "sidebar-interaction-diagnostics.json", "sidebar-dark.png", "sidebar-light.png", "display-hit-details.json", "fullscreen-transition-failure.json", "display-*.png"])
+            evidence = fixture.preserve_evidence(args.output, ["app.log", "sidebar-checks.json", "sidebar-resources.json", "sidebar-interaction-diagnostics.json", "sidebar-dark.png", "sidebar-light.png", "display-checks.json", "display-hit-details.json", "fullscreen-transition-failure.json", "display-*.png"])
             print("Sidebar failure evidence: " + str(evidence), flush=True)
             raise
         for source in fixture.root.glob("display-*.png"):
