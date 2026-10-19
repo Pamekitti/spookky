@@ -1,0 +1,51 @@
+App/DisplayPolishFixture.swift
+  s_a134df51c405d8::t_91202120108068 11-34
+App/FileWorkspaceController.swift
+  s_a134df51c405d8::t_79db15f1c326c2 21-22,72-75,218,279,352-356,374-386
+App/FileWorkspaceLayout.swift
+  s_cdf46ccee2ecc1::t_dc3b224320400a 185-187,200-202
+App/SupportingStartPage.swift
+  s_53d4e1c28831bf::t_4ad9f4b99cdcdc 18-19,23,50-52,66-83
+App/SupportingWorkspaceView.swift
+  s_cdf46ccee2ecc1::t_17d473e2dd00a1 52,105,131,134
+App/WorkspaceFileWatcher.swift
+  s_a134df51c405d8::t_a93b3147dcc170 4-8,10,12,14-15,17-18,20-35,46-97
+App/WorkspaceWindowController.swift
+  s_53d4e1c28831bf::t_70171197e4f729 442,606,694,696,704-707,964-985,999,1102-1105,1971-1987,2435-2438,2440,2631-2639,3017-3020,3270-3279
+Sources/SpookkyFiles/MarkdownDocument.swift
+  s_cdf46ccee2ecc1::t_ee35eb47cac6cd 50
+docs/persistent-threads.md
+  s_cdf46ccee2ecc1::t_f87c47ab977ffc 41-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cf5788efea555c5496396a6b679679f4fe1ebc04",
+  "prompts": {},
+  "sessions": {
+    "s_53d4e1c28831bf": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_a134df51c405d8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a15002-192a-7801-bd35-ec7a2cfc53ca",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_cdf46ccee2ecc1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1499c-5400-7411-a60c-b36a52ff8063",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
