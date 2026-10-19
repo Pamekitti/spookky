@@ -47,13 +47,13 @@ extension WorkspaceState {
         let placeholder = workspaces[destination].primaryTerminal!
         var live = tab
         live.title = placeholder.title; live.customTitle = placeholder.customTitle; live.draft = placeholder.draft
-        if !live.draft.prompt.isEmpty { live.draft = TerminalDraft(tool: id.provider) }
+        if !live.draft.isEmpty { live.draft = TerminalDraft(tool: id.provider) }
         live.providerTitle = placeholder.providerTitle; live.projectAssociation = nil
         var activity = AgentActivity(invocationID: event.invocationID, provider: event.provider)
         activity.manualUnread = placeholder.activity?.unread ?? false
         guard activity.apply(event) else { return false }
         live.activity = activity
-        let preserveDraft = reusable != nil && !placeholder.draft.prompt.isEmpty
+        let preserveDraft = reusable != nil && !placeholder.draft.isEmpty
         if !preserveDraft { workspaces[destination].tabs.removeAll { $0.id == placeholder.id } }
         workspaces[destination].tabs.append(live)
         workspaces[destination].primaryTerminalID = live.id
