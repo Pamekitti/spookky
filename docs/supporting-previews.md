@@ -2,6 +2,8 @@
 
 Supporting browser tabs use native WebKit for browsing and local development previews. Cmd+T opens about:blank and focuses its address field. Cmd+L focuses the address when a browser has focus. Back, Forward, and Reload/Stop act on that tab's live page. The address accepts HTTP(S), localhost addresses, and about:blank. Other schemes offer an explicit external-open button. Script and inline-data addresses are rejected.
 
+Download links and file responses keep the current page and its live input. An explicit Open externally action hands the URL to the default browser. Spookky does not download files automatically or retain a background download manager.
+
 The supporting-panel menu opens local artifacts. Markdown and UTF-8 text appear as selectable, read-only native text. Markdown source remains literal, including HTML and script strings. Images and PDFs use NSImageView and PDFKit. Text and HTML are limited to 2 MiB. Text also uses the existing 20,000-line limit. Images and PDFs are limited to 20 MiB. Images above 40 million pixels are refused before decoding. Missing, oversized, and unsupported files show a notice and an external-open action.
 
 HTML artifacts run as self-contained documents in a nonpersistent WebKit store. Inline scripts, inline styles, and embedded data images/fonts/media are allowed. A prepended content security policy blocks network requests, external scripts, frames, objects, form submission, and local base URLs. A WebKit content blocker also denies HTTP(S), FTP, and file subresources. The document has no local-file base URL or native JavaScript bridge. Relative project assets are unavailable. The user can open the original file externally when those assets are required. HTML links require the explicit external-open action.
