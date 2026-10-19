@@ -1,0 +1,18 @@
+App/DisplayPolishFixture.swift
+  h_f4fe0839335638 237-238,247-248,258-278
+App/WorkspaceWindowController.swift
+  h_f4fe0839335638 1901
+scripts/check_sidebar.py
+  h_f4fe0839335638 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "703bc9e0579b8d17805c89df0a7d785b757fe2d5",
+  "prompts": {},
+  "humans": {
+    "h_f4fe0839335638": {
+      "author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
