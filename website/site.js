@@ -1,28 +1,16 @@
 "use strict";
-const root = document.documentElement;
-const themeButton = document.getElementById("theme");
-const systemTheme = () => matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-function applyTheme(theme) {
-  root.dataset.theme = theme;
-  if (themeButton) themeButton.setAttribute("aria-label", `Switch to ${theme === "dark" ? "light" : "dark"} theme`);
-  const image = document.getElementById("workspace-image");
-  if (image) {
-    image.src = `assets/workspace-${theme}.png`;
-    image.closest("picture").querySelector("source").srcset = image.src;
+
+const appearance = matchMedia("(prefers-color-scheme: light)");
+function updateScreenshotLinks() {
+  const source = `assets/workspace-${appearance.matches ? "light" : "dark"}.png`;
+  for (const id of ["workspace-full", "workspace-caption"]) {
+    const link = document.getElementById(id);
+    if (link) link.href = source;
   }
 }
-let savedTheme;
-try { savedTheme = localStorage.getItem("spookky-site-theme"); } catch {}
-applyTheme(["light", "dark"].includes(savedTheme) ? savedTheme : systemTheme());
-themeButton?.addEventListener("click", () => {
-  const theme = root.dataset.theme === "dark" ? "light" : "dark";
-  applyTheme(theme);
-  try { localStorage.setItem("spookky-site-theme", theme); } catch {}
-});
-matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
-  try { if (localStorage.getItem("spookky-site-theme")) return; } catch {}
-  applyTheme(systemTheme());
-});
+updateScreenshotLinks();
+appearance.addEventListener("change", updateScreenshotLinks);
+
 async function showRelease() {
   const download = document.getElementById("download");
   if (!download) return;
@@ -37,6 +25,9 @@ async function showRelease() {
     download.href = asset.href;
     download.textContent = release.channel === "preview" ? "Download Preview for Mac ↓" : "Download for Mac ↓";
     document.getElementById("release-detail").textContent = `${release.version} · Apple Silicon · macOS ${release.minimumOS}+ · ${(release.bytes / 1048576).toFixed(1)} MB`;
+    const secondary = document.getElementById("secondary-action");
+    secondary.href = "https://github.com/Pamekitti/spookky";
+    secondary.textContent = "GitHub";
     const link = document.getElementById("release-notes");
     link.hidden = false; link.href = notes.href;
   } catch { /* The source link remains useful if release metadata is unavailable. */ }

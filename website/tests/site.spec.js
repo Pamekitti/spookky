@@ -4,13 +4,16 @@ for (const width of [1440,390,320]) {
     await page.setViewportSize({width,height:1000});
     const failures=[];
     page.on("response", response => {if(response.status()>=400) failures.push(response.url());});
+    await page.emulateMedia({colorScheme:"dark"});
     await page.goto("./");
     await expect(page.getByRole("heading",{level:1})).toContainText("native Mac workspace");
     await page.locator("footer").scrollIntoViewIfNeeded();
     await expect.poll(()=>page.locator("img").evaluateAll(images=>images.every(image=>image.complete && image.naturalWidth>0))).toBe(true);
     expect(failures).toEqual([]);
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
-    await page.getByRole("button",{name:/Switch to/}).click();
+    await expect(page.locator("#workspace-full")).toHaveAttribute("href","assets/workspace-dark.png");
+    await page.emulateMedia({colorScheme:"light"});
+    await expect(page.locator("#workspace-full")).toHaveAttribute("href","assets/workspace-light.png");
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.getByRole("link",{name:"Privacy",exact:true}).click();
     await expect(page.getByRole("heading",{level:1})).toHaveText("Privacy");
@@ -19,7 +22,7 @@ for (const width of [1440,390,320]) {
 test("no installer is offered before a release",async({page})=>{
   await page.goto("./");
   await expect(page.locator("#download")).toHaveAttribute("href","https://github.com/Pamekitti/spookky");
-  await expect(page.locator("#release-detail")).toContainText("No installer");
+  await expect(page.locator("#release-detail")).toContainText("No public installer");
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link",{name:"Skip to content"})).toBeFocused();
 });
@@ -28,6 +31,8 @@ test("a published manifest supplies the download",async({page})=>{
   await page.goto("./");
   await expect(page.locator("#download")).toContainText("Download Preview for Mac");
   await expect(page.locator("#release-detail")).toContainText("1.0 MB");
+  await expect(page.locator("#secondary-action")).toHaveText("GitHub");
+  await expect(page.locator("#secondary-action")).toHaveAttribute("href","https://github.com/Pamekitti/spookky");
 });
 test("invalid release metadata retains the source link",async({page})=>{
   await page.route("**/release-manifest.json",route=>route.fulfill({json:{release:{version:"0.1.0",architecture:"arm64",assetURL:"https://invalid.example/download.dmg"}}}));
