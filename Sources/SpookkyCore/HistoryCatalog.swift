@@ -66,9 +66,14 @@ extension WorkspaceState {
     public mutating func promoteLanding(_ id: UUID) {
         guard let index = workspaces.firstIndex(where: { $0.id == id }), workspaces[index].isLanding else { return }
         workspaces[index].landingContext = nil
-        workspaces[index].automaticTitle = .friendly
+        guard !workspaces[index].customTitle else { return }
         let tool = workspaces[index].primaryTerminal?.draft.tool ?? .codex
-        workspaces[index].title = tool == .shell ? "Terminal" : tool.displayName + " session"
+        if let title = workspaces[index].primaryTerminal.flatMap({ WorkspaceNaming.promptTitle($0.draft.prompt) }) {
+            workspaces[index].title = title; workspaces[index].automaticTitle = .prompt
+        } else {
+            workspaces[index].title = tool == .shell ? "Terminal" : tool.displayName + " session"
+            workspaces[index].automaticTitle = .friendly
+        }
     }
 
     /// Returns the catalog rows so persistence can migrate both stores in one transaction.
