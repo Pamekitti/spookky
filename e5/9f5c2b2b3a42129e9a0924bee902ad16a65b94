@@ -1,0 +1,21 @@
+App/WorkspaceSidebarView.swift
+  s_e930ef33ab12e2::t_cf4107e41f7dcb 173-176,233-235,343,358-361
+App/WorkspaceWindowController.swift
+  s_e930ef33ab12e2::t_496db6b0511537 1662,1718-1719,1736-1738
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e59f5c2b2b3a42129e9a0924bee902ad16a65b94",
+  "prompts": {},
+  "sessions": {
+    "s_e930ef33ab12e2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a154c8-cb0d-7330-8ed0-d1ed0b9dcc24",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
