@@ -19,7 +19,15 @@ public enum WorkspaceTransition: Sendable {
 public struct TerminalDraft: Codable, Equatable, Sendable {
     public var tool: SessionTool
     public var prompt: String
-    public init(tool: SessionTool = .shell, prompt: String = "") { self.tool = tool; self.prompt = prompt }
+    private var imagePaths: [String]?
+    public var images: [String] {
+        get { imagePaths ?? [] }
+        set { imagePaths = newValue.isEmpty ? nil : newValue }
+    }
+    public var isEmpty: Bool { prompt.isEmpty && images.isEmpty }
+    public init(tool: SessionTool = .shell, prompt: String = "", images: [String] = []) {
+        self.tool = tool; self.prompt = prompt; self.images = images
+    }
 }
 
 public struct WorkspaceLocation: Codable, Identifiable, Equatable, Sendable {
@@ -383,7 +391,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     public mutating func setViewport(_ viewport: SessionViewport?, tabID: UUID) {
         updateTab(tabID) { $0.viewport = viewport }
     }
-    public mutating func editDraft(_ id: UUID, tool: SessionTool? = nil, prompt: String? = nil) {
+    public mutating func editDraft(_ id: UUID, tool: SessionTool? = nil, prompt: String? = nil, images: [String]? = nil) {
         guard tab(id)?.isEditable == true else { return }
         updateTab(id) {
             if let tool {
@@ -391,6 +399,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
                 if let metadata = $0.providerTitle, metadata.provider != tool { $0.providerTitle = nil }
             }
             if let prompt { $0.draft.prompt = prompt }
+            if let images { $0.draft.images = images }
             $0.launch = nil; $0.failure = nil; $0.status = .draft
         }
         if let tool {

@@ -3,11 +3,16 @@ import SpookkyCore
 import SpookkyRuntime
 
 public protocol ExecutableResolver: Sendable {
+    func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?, images: [String]) async throws -> LaunchSpec
     func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec
     func resolve(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec
 }
 
 extension ExecutableResolver {
+    public func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?, images: [String]) async throws -> LaunchSpec {
+        let spec = try await resolveFresh(tool, directory: directory, prompt: prompt)
+        return try await spec.attachingPromptImages(images)
+    }
     public func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec {
         try await resolve(tool, directory: directory, prompt: prompt)
     }
@@ -40,7 +45,7 @@ extension ExecutableResolver {
             else {
                 spec = try await resolver.resolveFresh(tool ?? tab.draft.tool,
                     directory: tab.startDirectory ?? workspace.directory,
-                    prompt: tab.draft.prompt.isEmpty ? nil : tab.draft.prompt)
+                    prompt: tab.draft.prompt.isEmpty ? nil : tab.draft.prompt, images: tab.draft.images)
             }
             try Task.checkCancellation()
             store.update {
@@ -49,7 +54,7 @@ extension ExecutableResolver {
                 if !resuming, let sessionID = spec.environment["SPOOKKY_PROVIDER_SESSION_ID"], UUID(uuidString: sessionID) != nil {
                     $0.associateConversation(provider: spec.tool, sessionID: sessionID, title: nil, workspaceID: workspace.id)
                 }
-                $0.apply(.intent(spec, resuming || tab.draft.prompt.isEmpty || spec.tool == .shell ? .none : .pending), to: id)
+                $0.apply(.intent(spec, resuming || tab.draft.isEmpty || spec.tool == .shell ? .none : .pending), to: id)
             }
             try await store.flush()
             starting = true
@@ -57,7 +62,7 @@ extension ExecutableResolver {
             let runtime = self.runtime
             let binding = try await Task { try await runtime.create(spec) }.value
             store.update { $0.apply(.observed(binding, dead: false, exitCode: nil,
-                prompt: resuming || tab.draft.prompt.isEmpty || spec.tool == .shell ? PromptDelivery.none : .suppliedToProcess), to: id) }
+                prompt: resuming || tab.draft.isEmpty || spec.tool == .shell ? PromptDelivery.none : .suppliedToProcess), to: id) }
             try await store.flush()
         } catch is CancellationError where !starting && store.state.tab(id)?.status == .preparing && store.state.tab(id)?.launch == tab.launch {
             store.update { $0.cancelPreparation(id, restoring: tab) }
@@ -88,7 +93,7 @@ extension ExecutableResolver {
               UUID(uuidString: conversation.id.sessionID) != nil, conversation.id.provider != .shell,
               let tab = store.state.tab(id), let workspace = store.state.workspace(containing: id),
               workspace.conversationID == nil || workspace.conversationID == conversation.id else { return }
-        let fresh = tab.isEditable && tab.binding == nil && tab.launch == nil && tab.draft.prompt.isEmpty
+        let fresh = tab.isEditable && tab.binding == nil && tab.launch == nil && tab.draft.isEmpty
         let ended = tab.status == .ended && tab.promptDelivery != .pending && tab.promptDelivery != .uncertain
         guard fresh || ended else { return }
         operations.insert(id); defer { operations.remove(id) }
