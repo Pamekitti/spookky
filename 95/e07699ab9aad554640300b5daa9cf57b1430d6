@@ -1,0 +1,39 @@
+App/SupportingWorkspaceView.swift
+  s_e4ebfd3393cdc4::t_ef34224788ebb4 18,80,134-135
+App/WorkspaceWindowController.swift
+  s_c6235babb99676::t_30cc1b485f31f0 1457,1459,1461,1481,1535-1542,1546-1561
+docs/interface.md
+  s_727ac5da301eeb::t_d1f49b51275c46 24-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "95e07699ab9aad554640300b5daa9cf57b1430d6",
+  "prompts": {},
+  "sessions": {
+    "s_727ac5da301eeb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a157c6-d40b-7fb3-84e8-9ce6730c2993",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_c6235babb99676": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a157b2-9f89-7be1-91ff-2d53ba9b14be",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_e4ebfd3393cdc4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a15793-dfc3-7320-b963-e626240ae4b0",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
