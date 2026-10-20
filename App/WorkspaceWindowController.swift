@@ -100,7 +100,7 @@ import SpookkyGit
     private let navigationForward = ActionButton("", symbol: "chevron.right", help: "Next thread", action: {})
     private let threadDetails = ActionButton("", symbol: "slider.horizontal.3", help: "Thread details", action: {})
     private let threadActions = ActionButton("", symbol: "ellipsis", help: "Thread actions", action: {})
-    private let threadChanges = ActionButton("", symbol: "plus.forwardslash.minus", help: "View changes", action: {})
+    private let threadChanges = ActionButton("", help: "View changes", action: {})
     private let supportingToggle = ActionButton("", symbol: "sidebar.right", help: "Show side panel", action: {})
 
     var renderTask: Task<Void, Never>?
@@ -558,6 +558,7 @@ import SpookkyGit
         navigationForward.handler = { [weak self] in self?.navigateThread(1) }
         threadDetails.handler = { [weak self] in self?.showThreadDetails() }
         threadChanges.handler = { [weak self] in self?.showChanges() }
+        threadChanges.image = SpookkyStyle.changesImage; threadChanges.imagePosition = .imageOnly
         threadChanges.alignsToBounds = true
         supportingToggle.alignsToBounds = true
         supportingToggle.handler = { [weak self] in self?.toggleSupportingPanel() }
@@ -678,7 +679,7 @@ import SpookkyGit
                 self?.store.update { $0.selectSupport(tab.id) }; self?.focusSupportingContent()
             }
             item.representedObject = tab.id
-            item.image = NSImage(systemSymbolName: SpookkyStyle.supportingSymbol(tab.target), accessibilityDescription: nil)
+            item.image = SpookkyStyle.supportingImage(tab.target)
             item.state = tab.id == workspace.support?.selectedTabID ? .on : .off; menu.addItem(item)
         }
         menu.addItem(.separator())
@@ -3849,7 +3850,8 @@ import SpookkyGit
         let title = SpookkyStyle.label(workspace.displayTitle); title.font = .boldSystemFont(ofSize: SpookkyStyle.points(13))
         let provider = SpookkyStyle.label(workspace.displayProvider.displayName)
         let folder = ChromeTextField(wrappingLabelWithString: workspace.directory); folder.isSelectable = true; folder.textColor = SpookkyPalette.secondary
-        let review = ActionButton("Changes", symbol: "arrow.triangle.branch") { [weak self] in self?.detailsPopover?.performClose(nil); self?.showChanges() }
+        let review = ActionButton("Changes") { [weak self] in self?.detailsPopover?.performClose(nil); self?.showChanges() }
+        review.image = SpookkyStyle.changesImage; review.imagePosition = .imageLeading
         var views: [NSView] = [title, provider, folder]
         if let activity = workspace.activityState { views.append(SpookkyStyle.label(activity.label)) }
         if workspace.displayProvider != .shell && workspace.primaryTerminal?.activity?.displayState == .unknown {

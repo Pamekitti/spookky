@@ -127,7 +127,7 @@ import SpookkyCore
                 items[tab.id] = item
             }
             item.update(title: tab.displayTitle,
-                image: NSImage(systemSymbolName: SpookkyStyle.supportingSymbol(tab.target), accessibilityDescription: nil),
+                image: SpookkyStyle.supportingImage(tab.target),
                 help: help, selected: selected && tab.id == state.selectedTabID)
             item.move(to: strip, at: index + (joinsPrimary ? 1 : 0))
         }

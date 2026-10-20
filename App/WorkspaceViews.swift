@@ -120,10 +120,28 @@ final class WorkspaceRootView: NSView {
         image?.accessibilityDescription = tool.displayName
         return image
     }
-    static func supportingSymbol(_ target: SupportingTarget) -> String {
+    static let changesImage: NSImage = {
+        let image = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { _ in
+            NSColor.black.setStroke()
+            let outline = NSBezierPath(roundedRect: NSRect(x: 3, y: 1.5, width: 10, height: 13), xRadius: 2, yRadius: 2)
+            outline.lineWidth = 1.25; outline.stroke()
+            let signs = NSBezierPath(); signs.lineWidth = 1.25; signs.lineCapStyle = .round
+            signs.move(to: NSPoint(x: 6, y: 10)); signs.line(to: NSPoint(x: 10, y: 10))
+            signs.move(to: NSPoint(x: 8, y: 8)); signs.line(to: NSPoint(x: 8, y: 12))
+            signs.move(to: NSPoint(x: 6, y: 5)); signs.line(to: NSPoint(x: 10, y: 5))
+            signs.stroke(); return true
+        }
+        image.isTemplate = true; image.accessibilityDescription = "Changes"
+        return image
+    }()
+    static func supportingImage(_ target: SupportingTarget) -> NSImage? {
+        if case .changes = target { return changesImage }
+        return NSImage(systemSymbolName: supportingSymbol(target), accessibilityDescription: nil)
+    }
+    private static func supportingSymbol(_ target: SupportingTarget) -> String {
         switch target {
         case .startPage: "globe"
-        case .changes: "arrow.triangle.branch"
+        case .changes: "doc.text"
         case .file: "doc.text"
         case .browser: "globe"
         case .artifact: "doc.richtext"

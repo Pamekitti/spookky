@@ -21,7 +21,7 @@ Full view joins the primary tab first and all supporting tabs on the same row. T
 
 The conversation title owns its actions menu and thread-details control. These controls move with the primary heading between Split and joined Full layouts. Supporting-panel controls stay on the right.
 
-The top-right Changes button opens and focuses the current workspace's Changes tab, reusing it when already open. Changes remains available through the menus and thread details.
+The top-right Changes button opens and focuses the current workspace's Changes tab, reusing it when already open. Its outlined document with stacked plus and minus signs is shared by Changes tabs, the New tab tool, menus and thread details.
 
 The layout control uses a divided-rectangle icon for Split view and a single rectangle for Full view. Both controls use 28-point utility targets with action tooltips and accessibility labels. Compact windows retain the disabled Split control and its explanation.
 
