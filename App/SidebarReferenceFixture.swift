@@ -134,6 +134,53 @@ import SpookkyRuntime
                 }
             }
         }
+        sidebar.closeHoverCard(); hover(nil); try await activate()
+        DisplayMetrics.preferences.zoom = 1
+        window.setContentSize(NSSize(width: 1120, height: 760))
+        let reveal = SidebarTitleField()
+        reveal.font = .systemFont(ofSize: 14); reveal.textColor = SidebarPalette.text
+        reveal.stringValue = "query_timeseries tool cancellation"
+        reveal.frame = NSRect(x: 450, y: 400, width: reveal.fittingSize.width - 30, height: 20)
+        content.addSubview(reveal); content.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+        try await externalCapture("title-rest")
+        reveal.revealing = true; window.displayIfNeeded()
+        try await Task.sleep(for: .milliseconds(200))
+        checks["title-starts-without-offset"] = abs(reveal.revealOffset) < 0.5
+        reveal.needsLayout = true; content.layoutSubtreeIfNeeded()
+        try await Task.sleep(for: .milliseconds(200))
+        checks["title-pauses-before-moving"] = abs(reveal.revealOffset) < 0.5
+        try await Task.sleep(for: .milliseconds(450))
+        checks["title-layout-does-not-restart-pause"] = reveal.revealOffset < -3
+        try await Task.sleep(for: .milliseconds(1000))
+        let endOffset = reveal.revealOffset
+        checks["title-reaches-end"] = endOffset < -25
+        try await Task.sleep(for: .milliseconds(1100))
+        checks["title-holds-beyond-former-repeat"] = abs(reveal.revealOffset - endOffset) < 0.5
+        reveal.needsLayout = true; content.layoutSubtreeIfNeeded()
+        try await Task.sleep(for: .milliseconds(200))
+        checks["title-layout-preserves-end"] = abs(reveal.revealOffset - endOffset) < 0.5
+        diagnostics["one-shot-title"] = "end=\(endOffset) held=\(reveal.revealOffset) bounds=\(reveal.bounds) active=\(reveal.animating)"
+        try await externalCapture("title-end")
+        reveal.revealing = false
+        checks["title-exit-resets"] = !reveal.animating && abs(reveal.revealOffset) < 0.5
+        reveal.revealing = true
+        try await Task.sleep(for: .milliseconds(200))
+        checks["title-reentry-pauses-at-start"] = reveal.animating && abs(reveal.revealOffset) < 0.5
+        try await Task.sleep(for: .milliseconds(450))
+        reveal.revealing = false
+        checks["title-exit-during-motion-resets"] = !reveal.animating && abs(reveal.revealOffset) < 0.5
+        reveal.revealing = true
+        reveal.frame.size.width += 100; reveal.updateReveal()
+        checks["title-resize-to-fit-stops"] = !reveal.animating && abs(reveal.revealOffset) < 0.5
+        reveal.frame.size.width -= 100; reveal.updateReveal()
+        reveal.stringValue = "Short title"
+        checks["title-reuse-with-fitting-text-stops"] = !reveal.animating && abs(reveal.revealOffset) < 0.5
+        reveal.stringValue = String(repeating: "Very long title ", count: 10_000)
+        checks["title-raster-budget-keeps-oversized-text-static"] = !reveal.animating
+        reveal.stringValue = "query_timeseries tool cancellation"
+        SidebarMotion.reducedOverride = true; reveal.updateReveal()
+        checks["title-reduce-motion-resets-offset"] = !reveal.animating && abs(reveal.revealOffset) < 0.5
+        SidebarMotion.reducedOverride = false; reveal.removeFromSuperview()
         SidebarMotion.reducedOverride = true; sidebar.displayChanged(); content.layoutSubtreeIfNeeded()
         checks["reduce-motion-stops-title"] = descendants(sidebar).compactMap { $0 as? SidebarTitleField }.allSatisfy { !$0.animating }
         checks["reduce-motion-stops-ring"] = descendants(sidebar).compactMap { $0 as? SidebarActivityIndicator }.allSatisfy { !$0.rotating }
