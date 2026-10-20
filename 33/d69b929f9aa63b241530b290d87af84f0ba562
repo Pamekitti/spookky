@@ -1,0 +1,77 @@
+App/PromptImageFixture.swift
+  s_7c3727d6a75c29::t_d6735f059c35fa 1-94
+App/WorkspaceViews.swift
+  s_7c3727d6a75c29::t_fc50379e36d58b 2,6-7,71-72,306-317,324,558-695,697-698,705-724,729-734,748-751,760-761,770,778,780-785,788-794,797-802,812-822,827-842,845-848,865,871-872,879-986,997,1002-1003,1020-1026,1028-1032,1037-1039,1042-1043,1055-1064,1067,1088-1089,1091-1112,1121,1124,1139-1165,1167-1186,1188-1223,1225-1236,1238-1254,1267-1268,1270,1272
+App/WorkspaceWindowController.swift
+  s_7c3727d6a75c29::t_cfd8b553028564 86,140,930,1545,2051-2052,2054-2061,2068-2072,2074,2237-2375,2378,2380-2382,2402,2409-2431,2433,2515,2517,2530-2532,2535-2537,2539,2546,2920-2936
+Sources/SpookkyCore/AgentModelSelection.swift
+  s_7c3727d6a75c29::t_8c5b62323e224b 1-19
+Sources/SpookkyCore/ConversationSwitch.swift
+  s_7c3727d6a75c29::t_9808fe51bbc25a 50,56
+Sources/SpookkyCore/ConversationWorkspace.swift
+  s_7c3727d6a75c29::t_de6f9aa464bf4e 114
+Sources/SpookkyCore/HistoryCatalog.swift
+  s_7c3727d6a75c29::t_2929fa2677284f 25,31-32,56-60
+Sources/SpookkyCore/WorkspaceState.swift
+  s_7c3727d6a75c29::t_83a6a5121e37f3 22-41,234-237,280,415,417,421,425,433-441,614-615
+Sources/SpookkyWorkspace/AgentActivityResolver.swift
+  s_7c3727d6a75c29::t_b0c2ec8ee0d86b 13-20
+Sources/SpookkyWorkspace/CLIResolver.swift
+  s_7c3727d6a75c29::t_3dac7f596741ff 58,64-72
+Sources/SpookkyWorkspace/CodexProjectClient.swift
+  s_7c3727d6a75c29::t_e95a86ebecb25b 122-123,128,131,188
+Sources/SpookkyWorkspace/LaunchCoordinator.swift
+  s_7c3727d6a75c29::t_2ac40cbba1bc50 6-7,13-19,52,61,69,100
+Sources/SpookkyWorkspace/ModelLaunchOptions.swift
+  s_7c3727d6a75c29::t_d3fa844bb08565 1-23
+Sources/SpookkyWorkspace/PromptImages.swift
+  s_7c3727d6a75c29::t_1c0020f1abc0f5 1-31
+Sources/SpookkyWorkspace/ProviderModelCatalog.swift
+  s_7c3727d6a75c29::t_b7d9b7e2f2af73 1-132
+Spookky.xcodeproj/project.pbxproj
+  s_7c3727d6a75c29::t_62c795ad2ac0e6 35-36,111,117
+Tests/SpookkyRuntimeTests/CLIResolverTests.swift
+  s_7c3727d6a75c29::t_d92829a92b5d96 49-60
+Tests/SpookkyRuntimeTests/CoordinatorTests.swift
+  s_7c3727d6a75c29::t_3bf0edc8caa6a1 81-97
+Tests/SpookkyRuntimeTests/ModelSelectionTests.swift
+  s_7c3727d6a75c29::t_61bccfa3f36c87 1-183
+Tests/SpookkyRuntimeTests/PromptCaptureTests.swift
+  s_7c3727d6a75c29::t_9f3a5bd3cd5e02 27,30-31,35,45-49
+Tests/SpookkyRuntimeTests/PromptImageTests.swift
+  s_7c3727d6a75c29::t_141fba8e616e3a 1-80
+docs/acceptance.md
+  s_7c3727d6a75c29::t_23ee6068781872 5-15
+docs/conversation-workspaces.md
+  s_7c3727d6a75c29::t_c1cf1ace2c6bce 9
+docs/development.md
+  s_7c3727d6a75c29::t_c5a8a560b5af27 23-31
+docs/flows.md
+  s_7c3727d6a75c29::t_f38a3006447a2c 11,16-17,24,26,34,109-110
+docs/interface.md
+  s_7c3727d6a75c29::t_a7c9f0881b7b0c 22,32,35-36,39,41,43,47,49-53,72
+docs/product.md
+  s_7c3727d6a75c29::t_3a2c60d271b7c2 67,81
+docs/status.md
+  s_7c3727d6a75c29::t_8675c3af943fb1 5-16
+scripts/check_new_session.py
+  s_7c3727d6a75c29::t_ab56c0ba60b236 1-55
+scripts/check_prompt_images.py
+  s_7c3727d6a75c29::t_a639b54db34360 1-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "33d69b929f9aa63b241530b290d87af84f0ba562",
+  "prompts": {},
+  "sessions": {
+    "s_7c3727d6a75c29": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1573a-f485-7ba0-b3fb-239057c2a944",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
