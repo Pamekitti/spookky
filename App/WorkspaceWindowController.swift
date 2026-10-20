@@ -133,6 +133,7 @@ import SpookkyGit
     private var agentPreferencesTask: Task<Void, Never>?
     private let backgroundFixture: Bool
     private var fixtureCloseRequests: [[String: String]] = []
+    private var fixtureQuitRequests: [[String: String]] = []
 
     init(root: URL, initialStore: WorkspaceStore? = nil,
          resolver: any ExecutableResolver = CLIResolver(), backgroundFixture: Bool = false,
@@ -2608,11 +2609,22 @@ import SpookkyGit
         await surfaces.captureViewports()
         try await store.flush()
     }
-    func prepareToQuit() -> NSApplication.TerminateReply {
+    private func recordBenchmarkQuit(_ phase: String, context: [String: String] = [:]) {
+        guard CommandLine.arguments.contains("--workspace-benchmark-continuity") else { return }
+        let event = context.merging(["phase": phase, "time": Date().ISO8601Format(),
+            "appActive": String(NSApp.isActive), "windowKey": String(window.isKeyWindow)], uniquingKeysWith: { _, new in new })
+        fixtureQuitRequests = Array((fixtureQuitRequests + [event]).suffix(16))
+        try? PrivateFiles.write(fixtureQuitRequests, to: activityRoot.appendingPathComponent("quit-requests.json"))
+    }
+    func prepareToQuit(context: [String: String] = [:]) -> NSApplication.TerminateReply {
+        recordBenchmarkQuit("requested", context: context)
         services.flushDisplayPreferences()
         cancelLaunchPreflight()
         guard !(store.state.locations?.operations.contains(where: { $0.status == .running }) ?? false),
-              !store.state.workspaces.flatMap(\.tabs).contains(where: { launches.isBusy($0.id) }) else { return .terminateCancel }
+              !store.state.workspaces.flatMap(\.tabs).contains(where: { launches.isBusy($0.id) }) else {
+            recordBenchmarkQuit("busy")
+            return .terminateCancel
+        }
         let live = store.state.workspaces.flatMap(\.tabs).contains {
             [.running, .preparing, .launching, .uncertain, .unavailable].contains($0.status) ||
                 ($0.status == .failed && $0.binding != nil)
@@ -2629,14 +2641,20 @@ import SpookkyGit
                     alert.addButton(withTitle: live ? "Keep running and quit" : "Quit"); alert.addButton(withTitle: "Cancel")
                     if live { alert.addButton(withTitle: "End terminals and quit").hasDestructiveAction = true }
                     let result = await present(alert)
+                    recordBenchmarkQuit("decision", context: ["response": String(result.rawValue)])
                     if result == .alertSecondButtonReturn { NSApp.reply(toApplicationShouldTerminate: false); return }
                     if result == .alertThirdButtonReturn {
                         for tab in store.state.workspaces.flatMap(\.tabs) { try await launches.terminate(tab.id) }
                     }
                 }
                 await surfaces.captureViewports()
-                try await store.flush(); surfaces.releaseAll(); NSApp.reply(toApplicationShouldTerminate: true)
-            } catch { alert("Could not quit safely", error.localizedDescription); NSApp.reply(toApplicationShouldTerminate: false) }
+                try await store.flush(); surfaces.releaseAll()
+                recordBenchmarkQuit("approved")
+                NSApp.reply(toApplicationShouldTerminate: true)
+            } catch {
+                recordBenchmarkQuit("failed", context: ["message": String(error.localizedDescription.prefix(512))])
+                alert("Could not quit safely", error.localizedDescription); NSApp.reply(toApplicationShouldTerminate: false)
+            }
         }
         return .terminateLater
     }

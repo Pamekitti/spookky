@@ -86,7 +86,7 @@ def main():
                     for key, filename in [('cycles', 'continuity-cycles.json'), ('checkpoints', 'continuity-checkpoints.json')]:
                         source = fixture.root / filename
                         if source.exists(): result[key] = json.loads(source.read_text())
-                    for key, filename in [('owner_actions', 'runtime-actions.json'), ('baseline_identities', 'baseline-identities.json'), ('draft_failure', 'draft-failure.json'), ('fixture_failure', 'continuity-failure.json')]:
+                    for key, filename in [('owner_actions', 'runtime-actions.json'), ('baseline_identities', 'baseline-identities.json'), ('draft_failure', 'draft-failure.json'), ('fixture_failure', 'continuity-failure.json'), ('quit_requests', 'quit-requests.json')]:
                         source = fixture.root / filename
                         if source.exists(): result[key] = json.loads(source.read_text())
                     if (fixture.root / 'socket').exists():
@@ -101,7 +101,7 @@ def main():
                                                     capture_output=True, text=True, timeout=5)
                             result['failed_fixture_screens'][pane] = screen.stdout[:4096]
                     raise RuntimeError('Continuity fixture failed: ' + (fixture.root / 'app.log').read_text()[-2000:])
-                for key, filename in [('cycles', 'continuity-cycles.json'), ('checkpoints', 'continuity-checkpoints.json')]:
+                for key, filename in [('cycles', 'continuity-cycles.json'), ('checkpoints', 'continuity-checkpoints.json'), ('quit_requests', 'quit-requests.json')]:
                     source = fixture.root / filename
                     if source.exists(): result[key] = json.loads(source.read_text())
                 sample_app_memory()
@@ -112,6 +112,8 @@ def main():
             result['cycles'] = cycle_summary(json.loads((fixture.root / 'continuity-cycles.json').read_text()), require_full_run=not args.smoke)
             result['checkpoints'] = json.loads((fixture.root / 'continuity-checkpoints.json').read_text())
             result['continuity'] = json.loads((fixture.root / 'continuity-result.json').read_text())
+            quit_requests = fixture.root / 'quit-requests.json'
+            result['quit_requests'] = json.loads(quit_requests.read_text()) if quit_requests.exists() else []
             result['output_startup'] = {**json.loads((fixture.root / 'output-ready.json').read_text()),
                                         'boundary': 'Initial native output attachment through first generated line in terminal state. Outside the timed continuity workload.'}
             result['post_workload_resources'] = measure_settled(fixture, 10, 60, foreground=not args.background) if not args.smoke else {'failure_count': 0, 'idle_cpu_percent_one_core': None}
@@ -121,6 +123,7 @@ def main():
         if not args.smoke:
             result['continuity_checks'] = {
                 'duration_completed': result['continuity']['elapsedSeconds'] >= seconds,
+                'no_application_quit_request': not result['quit_requests'],
                 'file_task_handles_bounded': all(row['fileTaskHandles'] <= 2 for row in result['checkpoints']),
                 'resize_task_handles_bounded': all(row['resizeTaskHandles'] <= 3 for row in result['checkpoints']),
                 'reconciliation_task_handles_bounded': all(row['reconciliationTaskHandles'] <= 1 for row in result['checkpoints']),

@@ -710,7 +710,18 @@ private struct HarnessSession {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        if let workspaceController { return workspaceController.prepareToQuit() }
+        if let workspaceController {
+            var context: [String: String] = [:]
+            if CommandLine.arguments.contains("--workspace-benchmark-continuity"),
+               let event = NSAppleEventManager.shared().currentAppleEvent {
+                context["eventClass"] = String(event.eventClass)
+                context["eventID"] = String(event.eventID)
+                if let process = event.attributeDescriptor(forKeyword: AEKeyword(keySenderPIDAttr)) {
+                    context["senderPID"] = String(process.int32Value)
+                }
+            }
+            return workspaceController.prepareToQuit(context: context)
+        }
         guard !busy else {
             status.stringValue = "Finish the current session operation before quitting."
             return .terminateCancel
