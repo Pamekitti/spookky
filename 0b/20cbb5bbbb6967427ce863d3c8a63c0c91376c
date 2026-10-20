@@ -1,0 +1,25 @@
+App/SidebarPresentation.swift
+  s_4020a47a1ad9fe::t_5b7003b4ad3926 67,70,87-109,113-114,117-118,120-127,129-133,136-145
+App/SidebarReferenceFixture.swift
+  s_4020a47a1ad9fe::t_2ff87dc57dce84 127-173
+docs/interface.md
+  s_4020a47a1ad9fe::t_8628bfc328991e 82
+docs/status.md
+  s_4020a47a1ad9fe::t_d5d360b9980283 21-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0b20cbb5bbbb6967427ce863d3c8a63c0c91376c",
+  "prompts": {},
+  "sessions": {
+    "s_4020a47a1ad9fe": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a15793-dfc3-7320-b963-e626240ae4b0",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
