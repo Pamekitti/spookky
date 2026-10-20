@@ -923,7 +923,7 @@ import SpookkyGit
             case "\r":
                 guard let id = store.state.selectedTab?.id, store.state.selectedTab?.isEditable == true,
                       composers[id]?.hasInputFocus == true else { return false }
-                launchSelected()
+                if !event.isARepeat { composers[id]?.submit() }
             default:
                 if let number = Int(key), (1...9).contains(number) { selectDisplayTab(number - 1) }
                 else { return false }
@@ -2379,6 +2379,10 @@ import SpookkyGit
                 store.update { $0.setLocation(WorkspaceLocation(path: FileManager.default.homeDirectoryForCurrentUser.path), projectID: nil, workspaceID: workspace.id) }
                 scheduleRepositoryRefresh()
             }
+            composer.onRecallModel = { [weak self] model in
+                guard let self, let tool = store.state.tab(tab.id)?.draft.tool else { return nil }
+                return store.state.rememberedModelSelection(for: tool, model: model)
+            }
             composer.onLaunch = { [weak self] in self?.launch(tab.id) }
             composer.onTerminal = { [weak self] in self?.openTerminal(from: tab.id) }
             composer.onChooseFolder = { [weak self] in self?.chooseFolder(register: false) }
@@ -2583,9 +2587,10 @@ import SpookkyGit
         var checks: [String: Bool] = [:]
         window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
         let projectRoot = root.appendingPathComponent("spookky"), worktreeRoot = root.appendingPathComponent("topic")
+        let detachedRoot = root.appendingPathComponent("release-checkout")
         try PrivateFiles.directory(projectRoot)
         for arguments in [["init", "-b", "main"], ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--allow-empty", "-m", "fixture"],
-                          ["worktree", "add", "-b", "topic", worktreeRoot.path]] {
+                          ["worktree", "add", "-b", "topic", worktreeRoot.path], ["worktree", "add", "--detach", detachedRoot.path]] {
             let result = try await ProcessRunner.asyncRun("/usr/bin/git", ["-C", projectRoot.path] + arguments)
             guard result.status == 0 else { throw LaunchError.invalid("Composer Git fixture failed") }
         }
@@ -2604,10 +2609,14 @@ import SpookkyGit
         checks["cmd_n_routes_to_new_chat"] = handleCommand(newChat)
         if let renderTask { await renderTask.value }
         await refreshSelectedRepository()
+        if let renderTask { await renderTask.value }
+        await Task.yield()
         guard let id = store.state.primaryTerminalID, let composer = composers[id] else { throw LaunchError.invalid("Composer did not render") }
         checks["cmd_n_inherits_project_local"] = store.state.selected?.projectID == project && store.state.selected?.directory == local.path
         checks["cmd_n_inherits_provider_and_model"] = store.state.tab(id)?.draft.tool == .claude && store.state.tab(id)?.draft.modelSelection.model == "opus"
         checks["new_session_does_not_copy_previous_prompt"] = store.state.tab(id)?.draft.isEmpty == true
+        var inputDebug = ["initial_prompt": store.state.tab(id)?.draft.prompt ?? "missing", "initial_editor": composer.prompt.string,
+                          "initial_images": String(store.state.tab(id)?.draft.images.count ?? -1)]
         func descendants(_ view: NSView) -> [NSView] { view.subviews.flatMap { [$0] + descendants($0) } }
         func button(_ title: String, in view: NSView) -> NSButton? {
             descendants(view).compactMap { $0 as? NSButton }.first { $0.title == title }
@@ -2639,45 +2648,145 @@ import SpookkyGit
             }
             control.performClick(nil)
         }
+        func closeModels() {
+            guard let button = popupButton("Refresh models"), let popup = button.window,
+                  let escape = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                    windowNumber: popup.windowNumber, context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53) else { return }
+            button.keyDown(with: escape)
+        }
+        func toggleNewWorktree(_ on: Bool) throws {
+            if !NSApp.windows.filter({ $0.isVisible }).compactMap(\.contentView).flatMap(descendants).contains(where: { $0 is NSSwitch }) {
+                descendants(composer).compactMap { $0 as? NSButton }.first { $0.accessibilityLabel() == "Choose checkout" }?.performClick(nil)
+            }
+            guard let control = NSApp.windows.filter({ $0.isVisible }).compactMap(\.contentView).flatMap(descendants).compactMap({ $0 as? NSSwitch }).first else { throw LaunchError.invalid("New worktree switch missing") }
+            control.state = on ? .on : .off
+            control.sendAction(control.action, to: control.target)
+        }
+        func enter(_ modifiers: NSEvent.ModifierFlags = [], repeatKey: Bool = false) throws -> NSEvent {
+            guard let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0,
+                windowNumber: window.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: repeatKey, keyCode: 36) else { throw LaunchError.invalid("Enter event missing") }
+            return event
+        }
+        let actualLaunch = composer.onLaunch
+        var submitted = 0
+        composer.onLaunch = { submitted += 1 }
+        composer.focus(); composer.prompt.keyDown(with: try enter())
+        checks["empty_enter_starts"] = submitted == 1
         composer.focus(); composer.prompt.insertText("Review this change", replacementRange: NSRange(location: NSNotFound, length: 0))
-        composer.prompt.insertNewline(nil)
+        composer.prompt.keyDown(with: try enter(.shift))
         composer.prompt.insertText("Keep the details", replacementRange: NSRange(location: NSNotFound, length: 0))
+        inputDebug["after_shift_enter"] = composer.prompt.string
+        inputDebug["draft_after_shift_enter"] = store.state.tab(id)?.draft.prompt
+        try PrivateFiles.write(inputDebug, to: root.appendingPathComponent("composer-input-debug.json"))
         checks["native_prompt_accepts_text_and_newline"] = store.state.tab(id)?.draft.prompt == "Review this change\nKeep the details"
+        composer.prompt.keyDown(with: try enter())
+        checks["enter_starts_without_newline"] = submitted == 2 && composer.prompt.string == "Review this change\nKeep the details"
+        _ = handleCommand(try enter(.command))
+        checks["cmd_enter_uses_same_start_action"] = submitted == 3
+        composer.prompt.keyDown(with: try enter(repeatKey: true)); _ = handleCommand(try enter(.command, repeatKey: true))
+        checks["held_enter_does_not_repeat_launch"] = submitted == 3
+        composer.prompt.setMarkedText("composition", selectedRange: NSRange(location: 11, length: 0), replacementRange: NSRange(location: NSNotFound, length: 0))
+        composer.prompt.keyDown(with: try enter())
+        checks["marked_text_enter_does_not_start"] = submitted == 3
+        composer.prompt.unmarkText()
+        composer.prompt.string = "Review this change\nKeep the details"
+        composer.prompt.didChangeText()
+        let send = descendants(composer).compactMap { $0 as? ActionButton }.first { $0.circular && $0.emphasis == .primary }
+        send?.isEnabled = false; composer.prompt.keyDown(with: try enter()); _ = handleCommand(try enter(.command))
+        checks["disabled_start_blocks_both_shortcuts"] = submitted == 3
+        send?.isEnabled = true; composer.onLaunch = actualLaunch
         try openModels(); let sonnet = try await waitPopup("Sonnet"); sonnet.performClick(nil)
         checks["claude_model_menu_updates_draft"] = store.state.tab(id)?.draft.modelSelection.model == "sonnet"
         store.update { $0.editDraft(id, tool: .codex) }
         if let renderTask { await renderTask.value }
         try openModels(); let sol = try await waitPopup("Sol fixture"); sol.performClick(nil)
-        try openModels(); let high = try await waitPopup("High"); high.performClick(nil)
+        let high = try await waitPopup("High"); high.performClick(nil)
         checks["codex_model_and_effort_update_draft"] = store.state.tab(id)?.draft.modelSelection == AgentModelSelection(model: "fixture-sol", effort: "high", displayName: "Sol fixture")
+        checks["model_and_effort_share_open_popover"] = popupButton("Sol fixture") != nil && popupButton("High") != nil
+        (try await waitPopup("Other fixture")).performClick(nil)
+        if let renderTask { await renderTask.value }
+        checks["different_model_uses_default_effort"] = store.state.tab(id)?.draft.modelSelection.effort == nil && popupButton("High") == nil
+        (try await waitPopup("Sol fixture")).performClick(nil)
+        if let renderTask { await renderTask.value }
+        checks["return_to_model_recalls_effort"] = store.state.tab(id)?.draft.modelSelection.effort == "high"
+        (try await waitPopup("Plain fixture")).performClick(nil)
+        if let renderTask { await renderTask.value }
+        checks["unsupported_effort_section_hidden"] = popupButton("Default effort") == nil
+        (try await waitPopup("Sol fixture")).performClick(nil)
+        if let renderTask { await renderTask.value }
+        if let popup = popupButton("Sol fixture")?.window,
+           let search = popup.contentView.map(descendants)?.compactMap({ $0 as? NSSearchField }).first {
+            search.stringValue = "Other"; search.delegate?.controlTextDidChange?(Notification(name: NSControl.textDidChangeNotification, object: search))
+            checks["model_search_keeps_effort_visible"] = popupButton("Sol fixture") == nil && popupButton("High") != nil
+            search.stringValue = ""; search.delegate?.controlTextDidChange?(Notification(name: NSControl.textDidChangeNotification, object: search))
+        }
+        closeModels()
+        await Task.yield()
         checks["model_choice_restores_composer_shortcuts"] = composer.hasInputFocus
         store.update { $0.editDraft(id, tool: .claude) }
         checks["switch_back_restores_provider_model"] = store.state.tab(id)?.draft.modelSelection.model == "sonnet"
         store.update { $0.editDraft(id, tool: .codex) }
         checks["switching_providers_keeps_prompt"] = composer.prompt.string == "Review this change\nKeep the details"
-        button("Local", in: composer)?.performClick(nil)
-        (try await waitPopup("New worktree")).performClick(nil)
-        checks["location_menu_selects_new_worktree"] = store.state.selected?.locationDraft?.mode == .worktree
+        try toggleNewWorktree(true)
+        if let renderTask { await renderTask.value }
+        checks["switch_selects_new_worktree"] = store.state.selected?.locationDraft?.mode == .worktree
         let from = descendants(composer).compactMap { $0 as? NSButton }.first { $0.title.hasPrefix("From ") }
         from?.performClick(nil); (try await waitPopup("main")).performClick(nil)
         checks["source_menu_selects_reference"] = store.state.selected?.locationDraft?.source == "refs/heads/main"
-        button("New worktree", in: composer)?.performClick(nil)
-        (try await waitPopup("Local")).performClick(nil)
+        let sourceBeforeToggle = store.state.selected?.locationDraft?.source
+        try toggleNewWorktree(false)
         checks["local_keeps_checkout_files_and_branch"] = store.state.selected?.directory == local.path && store.state.selected?.selectedLocation.branch == "main"
+        try toggleNewWorktree(true)
+        checks["switch_round_trip_keeps_reference"] = store.state.selected?.locationDraft?.source == sourceBeforeToggle
+        try toggleNewWorktree(false)
+        if let renderTask { await renderTask.value }
+        button("Local", in: composer)?.performClick(nil)
+        checks["checkout_picker_only_selects_existing_files"] = popupButton("New worktree") == nil && popupButton("Local") != nil
+        checks["detached_checkout_has_folder_identity"] = popupButton("release-checkout")?.accessibilityLabel()?.contains("Detached HEAD") == true
+        checks["checkout_detail_is_one_interactive_row"] = (popupButton("topic") as? ActionButton)?.detail?.contains("topic") == true
+        (try await waitPopup("topic")).performClick(nil)
+        for _ in 0..<100 where store.state.selected?.selectedLocation.checkoutIdentity != worktree.checkoutIdentity { try await Task.sleep(for: .milliseconds(10)) }
+        checks["checkout_picker_selects_existing_worktree"] = store.state.selected?.directory == worktree.path
+        try toggleNewWorktree(true); try toggleNewWorktree(false)
+        checks["switch_preserves_existing_checkout"] = store.state.selected?.directory == worktree.path
+        if let renderTask { await renderTask.value }
+        button("Existing worktree", in: composer)?.performClick(nil)
+        (try await waitPopup("Local")).performClick(nil)
+        for _ in 0..<100 where store.state.selected?.directory != local.path { try await Task.sleep(for: .milliseconds(10)) }
         button("spookky", in: composer)?.performClick(nil)
         (try await waitPopup("No project")).performClick(nil)
         checks["no_project_retains_prompt"] = store.state.selected?.projectID == nil && composer.prompt.string == "Review this change\nKeep the details"
         button("No project", in: composer)?.performClick(nil)
         (try await waitPopup("spookky")).performClick(nil)
         await refreshSelectedRepository()
-        for (theme, width, height) in [(WorkspaceAppearance.dark, 1120, 760), (.light, 680, 480)] {
+        let emptyRoot = root.appendingPathComponent("empty-repository")
+        try PrivateFiles.directory(emptyRoot)
+        let emptyInit = try await ProcessRunner.asyncRun("/usr/bin/git", ["-C", emptyRoot.path, "init", "-b", "main"])
+        guard emptyInit.status == 0 else { throw LaunchError.invalid("Empty repository fixture failed") }
+        let emptyLocation = try await locations.git.discover(emptyRoot)
+        var emptyProject = UUID()
+        store.update { emptyProject = $0.registerProject(emptyLocation) }
+        chooseProject(emptyProject); await refreshSelectedRepository()
+        if let renderTask { await renderTask.value }
+        button("Local", in: composer)?.performClick(nil)
+        checks["empty_repository_disables_worktree_switch"] = NSApp.windows.filter { $0.isVisible }.compactMap(\.contentView).flatMap(descendants).compactMap { $0 as? NSSwitch }.first?.isEnabled == false
+        (popupButton("Local") as? ActionButton)?.onCancel?()
+        chooseProject(project); await refreshSelectedRepository()
+        if let renderTask { await renderTask.value }
+        checks["project_switch_preserves_prompt"] = composer.prompt.string == "Review this change\nKeep the details"
+        for (theme, width, height) in [(WorkspaceAppearance.dark, 1120, 760), (.light, 1120, 760), (.dark, 680, 480), (.light, 680, 480), (.dark, 650, 450)] {
             store.update { $0.appearance = theme }
             window.setContentSize(NSSize(width: width, height: height)); window.contentView?.layoutSubtreeIfNeeded()
             try await Task.sleep(for: .milliseconds(100))
             let editor = composer.convert(composer.prompt.bounds, from: composer.prompt)
-            checks["composer_fits_\(width)"] = editor.minX >= 23 && editor.maxX <= composer.bounds.width - 23
+            checks["composer_fits_\(theme.rawValue)_\(width)"] = editor.minX >= 23 && editor.maxX <= composer.bounds.width - 23
+            let circularButtons = descendants(composer).compactMap { $0 as? ActionButton }.filter { $0.circular }
+            checks["composer_circles_\(theme.rawValue)_\(width)"] = circularButtons.count == 2 && circularButtons.allSatisfy { abs($0.bounds.width - 32) < 0.5 && abs($0.bounds.height - 32) < 0.5 }
+            checks["composer_has_no_keyboard_hint_\(theme.rawValue)_\(width)"] = !descendants(composer).compactMap { $0 as? NSTextField }.contains { $0.stringValue.contains("Enter to send") }
+            checks["composer_has_compact_context_\(theme.rawValue)_\(width)"] = !descendants(composer).contains { $0 is NSSwitch }
+            checks["composer_text_inset_\(theme.rawValue)_\(width)"] = composer.prompt.textContainerInset.width == 16 && composer.prompt.textContainer?.lineFragmentPadding == 0
             let heading = descendants(composer).compactMap { $0 as? NSTextField }.first { $0.stringValue == "What’s next in spookky?" }
-            checks["contextual_heading_\(width)"] = heading != nil
+            checks["contextual_heading_\(theme.rawValue)_\(width)"] = heading != nil
             if let view = window.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
                 view.cacheDisplay(in: view.bounds, to: bitmap)
                 let sidebar = view.convert(railScroll.bounds, from: railScroll)
@@ -2692,11 +2801,13 @@ import SpookkyGit
                         darkest = min(darkest, brightness); lightest = max(lightest, brightness)
                     }
                 }
-                checks["composer_keeps_sidebar_pixels_\(width)"] = lightest - darkest > 0.15
-                try bitmap.representation(using: .png, properties: [:])?.write(to: root.appendingPathComponent("composer-" + theme.rawValue + ".png"))
+                checks["composer_keeps_sidebar_pixels_\(theme.rawValue)_\(width)"] = lightest - darkest > 0.15
+                try bitmap.representation(using: .png, properties: [:])?.write(to: root.appendingPathComponent("composer-\(theme.rawValue)-\(width).png"))
             }
         }
         window.setContentSize(NSSize(width: 1120, height: 760))
+        window.contentView?.layoutSubtreeIfNeeded()
+        try await Task.sleep(for: .milliseconds(150))
         try openModels(); _ = try await waitPopup("Sol fixture")
         if let view = NSApp.windows.first(where: { $0 !== window && $0.isVisible && $0.contentView.map { button("Sol fixture", in: $0) != nil } == true })?.contentView,
            let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
@@ -2705,6 +2816,13 @@ import SpookkyGit
         }
         (try await waitPopup("Default model")).performClick(nil)
         checks["default_model_clears_overrides"] = store.state.tab(id)?.draft.modelSelection == AgentModelSelection()
+        (try await waitPopup("Sol fixture")).performClick(nil)
+        if let renderTask { await renderTask.value }
+        let selectionBeforeRefresh = store.state.tab(id)?.draft.modelSelection
+        (try await waitPopup("Refresh models")).performClick(nil)
+        _ = try await waitPopup("Model discovery unavailable")
+        checks["discovery_failure_preserves_model_choice"] = store.state.tab(id)?.draft.modelSelection == selectionBeforeRefresh
+        closeModels()
         let prompt = store.state.tab(id)!.draft.prompt
         guard let terminalButton = button("Open Terminal", in: composer) else { throw LaunchError.invalid("Terminal action missing") }
         terminalButton.performClick(nil)
@@ -2764,7 +2882,7 @@ import SpookkyGit
         } else { launch(id, tool: .shell) }
     }
     @objc private func launchSelected() {
-        guard let id = store.state.selectedTab?.id, composers[id]?.hasInputFocus == true else { return }; launch(id)
+        guard let id = store.state.selectedTab?.id else { return }; composers[id]?.submit()
     }
     private func editPromptImages(_ images: [String], for id: UUID) {
         let previous = store.state.tab(id)?.draft.images ?? []

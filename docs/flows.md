@@ -17,11 +17,11 @@ Open Spookky
                        +-- Context row: Home, project or one-off folder
                        |      +-- Local by default
                        |      +-- Existing/new worktree, when chosen
-                       +-- Start arrow / Cmd+Return -> real provider TUI
+                       +-- Start arrow / Enter / Cmd+Return -> real provider TUI
                        +-- Open Terminal -> plain shell, agent draft retained
 ```
 
-The centered composer is at most 620 points wide with 24-point outer padding. Provider and attachment controls sit left; model and effort sit at the bottom right. Project, location and branch sit below. Selecting a provider, model, folder or source does not launch an agent. An empty prompt is valid. Enter inserts a newline.
+The centered composer is at most 620 points wide with 24-point outer padding. Provider and attachment controls sit left; model and effort sit at the bottom right. A compact, muted project/location/branch row sits below. The location popover contains the New worktree switch and advanced options. Selecting a provider, model, folder or source does not launch an agent. An empty prompt is valid. Enter starts the selected CLI, Shift+Enter inserts a newline, and Cmd+Enter also starts. Marked-text composition owns Enter until it finishes. Launch uses the send button’s enabled action and ignores held-key repeats.
 
 First use selects Codex with Default model. New drafts copy the viewed primary provider and recorded model/effort. Unknown choices fall back to the last choice for that provider, then its default. Fresh project drafts use the registered Local checkout. Retained drafts take precedence and keep explicit choices, text and images. Once running, the provider's real TUI replaces the composer and owns subsequent input.
 
@@ -37,7 +37,8 @@ The global landing and each project landing retain separate drafts. Showing one 
 | Cmd+T | Open and select a New tab page. Keep the primary CLI and draft. |
 | Supporting + | Open New tab with address/search, Changes, Files, Terminal and Open artifact. |
 | Cmd+Enter in launch composer | Launch selected tool with optional initial prompt. |
-| Enter in initial prompt | Insert a newline. |
+| Enter in initial prompt | Launch selected tool, including with an empty prompt. |
+| Shift+Enter in initial prompt | Insert a newline. |
 | Cmd+W | Close the focused supporting tab. On Conversation or landing, close the window and retain the thread. |
 | Archive thread | Hide it from ordinary navigation. Keep provider history, processes, files and branch. |
 | Cmd+K | Focus the single history search field, including older uncached conversations. |
@@ -65,6 +66,8 @@ Registration selects that project's retained landing draft. It never moves the c
 Use folder once selects an anchor without project registration. Empty Git repositories support Local. Disable new-worktree creation until there is a commit, with an explanation. Do not run repository setup scripts during registration.
 
 ## Local and existing worktrees
+
+The New worktree switch changes draft mode without creating a checkout. Switching off retains the selected local or existing checkout; switching back on restores worktree settings. The checkout picker contains only existing locations. Each two-line item has one interactive row. Detached checkouts use their folder name followed by Detached HEAD.
 
 Local uses the selected directory with its existing branch, edits, and files. Show the path and branch. Existing checkout choices appear when relevant; do not make users choose among redundant controls.
 
@@ -104,7 +107,7 @@ Metadata upgrade replaces automatic New workspace and workspace-xxxxxxxx labels,
 
 The primary conversation supplies the row and primary header title unless an explicit local alias takes precedence. Supporting views retain content-type titles and icons. See [conversation names](conversation-titles.md).
 
-The start page uses one bottom composer with provider and folder chips. The prompt is optional. With no prompt the Start arrow opens the selected CLI. With text it supplies that initial instruction. Cmd+Return launches from the composer. Open Terminal below starts a shell and preserves the agent draft.
+The start page uses one bottom composer with provider and folder chips. The prompt is optional. With no prompt the Start arrow opens the selected CLI. With text it supplies that initial instruction. Enter or Cmd+Return launches from the composer. Shift+Return inserts a newline. Open Terminal below starts a shell and preserves the agent draft.
 
 Changing agents preserves the prompt draft. Opening a shell does not change the last agent choice. Shell launches never execute that text. Auth and permission prompts remain inside the provider CLI. Missing executables lead to guidance plus a working Terminal fallback.
 

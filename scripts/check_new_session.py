@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import time
 from benchmark_m0 import tree
 from native_fixture import NATIVE_BINARY, native_fixture
 
@@ -14,6 +15,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--binary", type=Path, default=NATIVE_BINARY)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--hold", type=int, default=0, help="Keep the owned fixture open for native visual inspection")
     args = parser.parse_args()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with native_fixture(["--workspace-benchmark-count", "0", "--workspace-benchmark-composer", "--workspace-benchmark-front"],
@@ -49,6 +51,11 @@ def main():
         print(json.dumps(report, indent=2))
         if not checks or not all(checks.values()):
             raise SystemExit("Native composer check failed")
+        if args.hold > 0:
+            print(json.dumps({"fixture_pid": fixture.process.pid, "fixture_root": str(fixture.root)}), flush=True)
+            deadline = time.monotonic() + args.hold
+            while time.monotonic() < deadline and not (fixture.root / "finish-inspection").exists():
+                time.sleep(0.2)
 
 
 if __name__ == "__main__":
