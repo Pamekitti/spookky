@@ -1,0 +1,35 @@
+App/SidebarReferenceFixture.swift
+  s_86333a9484d96c::t_0fb5cc01bb2c6c 24-25,29-31,99-107
+App/WorkspaceSidebarView.swift
+  s_86333a9484d96c::t_59dd0640cfb1fd 442-444
+App/WorkspaceWindowController.swift
+  s_86333a9484d96c::t_f82a743057ca7c 18-21,145,1193-1212,1656,3488,3490
+docs/interface.md
+  s_86333a9484d96c::t_f16ddb739d2cdf 92
+docs/native-design-reference.md
+  s_0940a2bda68c80::t_4e297913d0de52 10-11,50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c06069f74079f0c194711ba809195245c7be2f56",
+  "prompts": {},
+  "sessions": {
+    "s_0940a2bda68c80": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a15789-bc5e-7e50-bda6-ccccfcb78aee",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_86333a9484d96c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a15789-bc5e-7e50-bda6-ccccfcb78aee",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
