@@ -3335,17 +3335,20 @@ import SpookkyGit
         }
         if sidebarRevision != structure {
             sidebarRevision = structure; clear(rail)
-            let outerInset: CGFloat = 0
-            rail.edgeInsets = NSEdgeInsets(top: SpookkyStyle.points(8), left: outerInset, bottom: SpookkyStyle.points(12), right: outerInset)
+            rail.edgeInsets = NSEdgeInsets(top: SpookkyStyle.points(8), left: 0, bottom: SpookkyStyle.points(12), right: 0)
             let create = ActionButton("New chat", symbol: "plus", help: "New chat · ⌘N") { [weak self] in self?.newWorkspace() }
             create.contentTintColor = SidebarPalette.text
             create.alignment = .left
             create.heightAnchor.constraint(equalToConstant: 32).displayScaled().isActive = true
-            rail.addArrangedSubview(create)
-            rail.addArrangedSubview(historySearch); historySearch.heightAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true
+            let controls = NSStackView(views: [create, historySearch])
+            controls.orientation = .vertical; controls.alignment = .leading; controls.spacing = SpookkyStyle.points(4)
+            controls.edgeInsets = NSEdgeInsets(top: 0, left: SpookkyStyle.points(8), bottom: 0, right: SpookkyStyle.points(8))
+            for view in controls.arrangedSubviews { view.widthAnchor.constraint(equalTo: controls.widthAnchor, constant: -16).displayScaled().isActive = true }
+            rail.addArrangedSubview(controls)
+            historySearch.heightAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true
             rail.addArrangedSubview(conversationSidebar)
             conversationSidebar.setContentHuggingPriority(.defaultLow, for: .vertical)
-            for view in rail.arrangedSubviews { view.widthAnchor.constraint(equalTo: rail.widthAnchor, constant: -2 * outerInset).displayScaled(alreadyScaled: true).isActive = true }
+            for view in rail.arrangedSubviews { view.widthAnchor.constraint(equalTo: rail.widthAnchor).isActive = true }
             conversationSidebar.heightAnchor.constraint(greaterThanOrEqualToConstant: 0).displayScaled().isActive = true
             conversationSidebar.onActivate = { [weak self] in self?.activateSidebarItem($0) }
             conversationSidebar.onAddProject = { [weak self] in self?.addProjectMenu(anchor: $0) }
