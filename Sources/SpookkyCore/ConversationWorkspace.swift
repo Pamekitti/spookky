@@ -26,9 +26,11 @@ public struct SupportingPanelState: Codable, Equatable, Sendable {
     public var tabs: [SupportingTab] = []
     public var selectedTabID: UUID?
     public var layout: SupportingLayout = .collapsed
+    public var lastExpandedLayout: SupportingLayout?
     public var fraction: Double = 0.5
     public var fullWidthSelection: FullWidthSelection?
     public init() {}
+    public var expandedLayout: SupportingLayout { lastExpandedLayout == .fullWidth ? .fullWidth : .split }
     public var selected: SupportingTab? { tabs.first { $0.id == selectedTabID } }
     public var resolvedFullWidthSelection: FullWidthSelection {
         fullWidthSelection ?? selected.map { .support($0.id) } ?? .primary
@@ -182,7 +184,10 @@ extension WorkspaceState {
               workspaces[index].support?.tabs.contains(where: { $0.id == id }) == true else { return }
         workspaces[index].support?.selectedTabID = id
         workspaces[index].support?.fullWidthSelection = .support(id)
-        if workspaces[index].support?.layout == .collapsed { workspaces[index].support?.layout = .split }
+        if workspaces[index].support?.layout == .collapsed {
+            let layout = workspaces[index].support?.expandedLayout ?? .split
+            workspaces[index].support?.layout = layout
+        }
         if case .terminal(let terminalID) = workspaces[index].support?.selected?.target { workspaces[index].selectedTabID = terminalID }
     }
     public mutating func updateSupport(_ id: UUID, target: SupportingTarget, title: String? = nil, workspaceID: UUID? = nil) {
@@ -207,6 +212,7 @@ extension WorkspaceState {
             panel.selectedTabID = panel.tabs.isEmpty ? nil : panel.tabs[max(0, slot - 1)].id
         }
         if panel.tabs.isEmpty {
+            if panel.layout != .collapsed { panel.lastExpandedLayout = panel.layout }
             panel.layout = .collapsed; panel.fullWidthSelection = .primary
         } else if displayed == .support(id) {
             panel.fullWidthSelection = panel.selectedTabID.map { .support($0) } ?? .primary
@@ -222,6 +228,10 @@ extension WorkspaceState {
     public mutating func setSupportingLayout(_ layout: SupportingLayout, fraction: Double? = nil, workspaceID: UUID? = nil) {
         guard let index = workspaces.firstIndex(where: { $0.id == (workspaceID ?? selectedWorkspaceID) }) else { return }
         if workspaces[index].support == nil { workspaces[index].support = SupportingPanelState() }
+        if layout != .collapsed { workspaces[index].support?.lastExpandedLayout = layout }
+        else if let current = workspaces[index].support?.layout, current != .collapsed {
+            workspaces[index].support?.lastExpandedLayout = current
+        }
         if layout == .fullWidth, workspaces[index].support?.layout != .fullWidth {
             let workspaceID = workspaces[index].id
             if let selected = workspaces[index].support?.selectedTabID { selectSupport(selected, workspaceID: workspaceID) }

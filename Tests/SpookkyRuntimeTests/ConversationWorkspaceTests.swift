@@ -4,6 +4,47 @@ import GRDB
 import SpookkyPersistence
 
 final class ConversationWorkspaceTests: XCTestCase {
+    func testHiddenSupportingPanelRestoresLayoutSelectionAndRecords() throws {
+        for layout in [SupportingLayout.split, .fullWidth] {
+            var state = WorkspaceState()
+            state.newWorkspace(directory: "/tmp")
+            let changes = try XCTUnwrap(state.openSupport(.changes, title: "Changes"))
+            state.openSupport(.file(path: "file.txt"), title: "File")
+            state.selectSupport(changes)
+            state.setSupportingLayout(layout, fraction: 0.72)
+            let tabs = state.selected?.support?.tabs, records = state.selected?.tabs
+            state.setSupportingLayout(.collapsed)
+            state.setSupportingLayout(.collapsed)
+            XCTAssertEqual(state.selected?.support?.lastExpandedLayout, layout)
+            state = try JSONDecoder().decode(WorkspaceState.self, from: JSONEncoder().encode(state))
+            XCTAssertEqual(state.openSupport(.changes, title: "Changes"), changes)
+            XCTAssertEqual(state.selected?.support?.layout, layout)
+            XCTAssertEqual(state.selected?.support?.fraction, 0.72)
+            XCTAssertEqual(state.selected?.support?.selectedTabID, changes)
+            XCTAssertEqual(state.selected?.support?.tabs, tabs)
+            XCTAssertEqual(state.selected?.tabs, records)
+            try state.validate()
+        }
+    }
+    func testLegacyPanelDefaultsToSplitAndWorkspacesKeepIndependentLayouts() throws {
+        let legacy = try JSONDecoder().decode(SupportingPanelState.self, from: Data(#"{"tabs":[],"layout":"collapsed","fraction":0.5}"#.utf8))
+        XCTAssertNil(legacy.lastExpandedLayout)
+        XCTAssertEqual(legacy.expandedLayout, .split)
+        var state = WorkspaceState()
+        let first = state.newWorkspace(directory: "/tmp")
+        let firstChanges = try XCTUnwrap(state.openSupport(.changes, title: "Changes"))
+        state.setSupportingLayout(.fullWidth)
+        state.setSupportingLayout(.collapsed)
+        let second = state.newWorkspace(directory: "/tmp")
+        let secondChanges = try XCTUnwrap(state.openSupport(.changes, title: "Changes"))
+        state.setSupportingLayout(.split)
+        state.setSupportingLayout(.collapsed)
+        state.selectSupport(firstChanges, workspaceID: first)
+        XCTAssertEqual(state.workspaces.first(where: { $0.id == first })?.support?.layout, .fullWidth)
+        XCTAssertEqual(state.workspaces.first(where: { $0.id == second })?.support?.layout, .collapsed)
+        state.selectSupport(secondChanges, workspaceID: second)
+        XCTAssertEqual(state.selected?.support?.layout, .split)
+    }
     private func agent(_ state: inout WorkspaceState, _ id: UUID, tool: SessionTool, session: String? = nil,
                        status: TabStatus = .running) throws {
         state.editDraft(id, tool: tool, prompt: "literal draft 日本語\n$(do not run)")

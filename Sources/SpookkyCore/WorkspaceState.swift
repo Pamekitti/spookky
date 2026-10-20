@@ -349,7 +349,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
             var panel = workspaces[index].support ?? SupportingPanelState()
             panel.tabs.append(SupportingTab(id: tab.id, target: .terminal(tabID: tab.id), title: "Terminal"))
             panel.selectedTabID = tab.id; panel.fullWidthSelection = .support(tab.id)
-            panel.layout = panel.layout == .collapsed ? .split : panel.layout; workspaces[index].support = panel
+            panel.layout = panel.layout == .collapsed ? panel.expandedLayout : panel.layout; workspaces[index].support = panel
         }
         if workspaces[index].id == selectedWorkspaceID { selectTab(tab.id) }
         else { workspaces[index].selectedTabID = tab.id }

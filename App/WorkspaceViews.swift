@@ -120,10 +120,28 @@ final class WorkspaceRootView: NSView {
         image?.accessibilityDescription = tool.displayName
         return image
     }
-    static func supportingSymbol(_ target: SupportingTarget) -> String {
+    static let changesImage: NSImage = {
+        let image = NSImage(size: NSSize(width: 16, height: 16), flipped: false) { _ in
+            NSColor.black.setStroke()
+            let outline = NSBezierPath(roundedRect: NSRect(x: 3, y: 1.5, width: 10, height: 13), xRadius: 2, yRadius: 2)
+            outline.lineWidth = 1.25; outline.stroke()
+            let signs = NSBezierPath(); signs.lineWidth = 1.25; signs.lineCapStyle = .round
+            signs.move(to: NSPoint(x: 6, y: 10)); signs.line(to: NSPoint(x: 10, y: 10))
+            signs.move(to: NSPoint(x: 8, y: 8)); signs.line(to: NSPoint(x: 8, y: 12))
+            signs.move(to: NSPoint(x: 6, y: 5)); signs.line(to: NSPoint(x: 10, y: 5))
+            signs.stroke(); return true
+        }
+        image.isTemplate = true; image.accessibilityDescription = "Changes"
+        return image
+    }()
+    static func supportingImage(_ target: SupportingTarget) -> NSImage? {
+        if case .changes = target { return changesImage }
+        return NSImage(systemSymbolName: supportingSymbol(target), accessibilityDescription: nil)
+    }
+    private static func supportingSymbol(_ target: SupportingTarget) -> String {
         switch target {
         case .startPage: "globe"
-        case .changes: "arrow.triangle.branch"
+        case .changes: "doc.text"
         case .file: "doc.text"
         case .browser: "globe"
         case .artifact: "doc.richtext"
@@ -340,6 +358,7 @@ class ActionButton: NSButton {
     var contentInset: CGFloat = SpookkyStyle.controlInset
     var menuIndicator = false { didSet { invalidateIntrinsicContentSize() } }
     var compactUtility = false
+    var alignsToBounds = false
     var revealOnInteraction = false { didSet { updateInteractionVisibility() } }
     var interactionActive = false { didSet { updateInteractionVisibility() } }
     var onFocusChange: ((Bool) -> Void)?
@@ -374,8 +393,8 @@ class ActionButton: NSButton {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override var isOpaque: Bool { false }
     override var alignmentRectInsets: NSEdgeInsets {
-        // Custom symbol buttons have no native bezel outside their declared target.
-        compactUtility && title.isEmpty ? NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0) : super.alignmentRectInsets
+        // Custom targets can opt out of native symbol alignment outside their bounds.
+        alignsToBounds || compactUtility && title.isEmpty ? NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0) : super.alignmentRectInsets
     }
     override var intrinsicContentSize: NSSize {
         let text = (title as NSString).size(withAttributes: [.font: font ?? NSFont.systemFont(ofSize: SpookkyStyle.points(13))]).width
