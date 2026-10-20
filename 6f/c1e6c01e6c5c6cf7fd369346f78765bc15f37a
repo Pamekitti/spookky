@@ -1,0 +1,21 @@
+App/DisplayPolishFixture.swift
+  s_b1f4fb153dc161::t_e69232b186de5b 24
+App/WorkspaceWindowController.swift
+  s_b1f4fb153dc161::t_8586787da3c288 2237
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6fc1e6c01e6c5c6cf7fd369346f78765bc15f37a",
+  "prompts": {},
+  "sessions": {
+    "s_b1f4fb153dc161": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a157fc-5ece-75c3-b279-a35746084dc7",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
