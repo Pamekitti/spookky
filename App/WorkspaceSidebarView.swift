@@ -500,7 +500,8 @@ import SpookkyCore
         guard let item else { return }
         let p = SpookkyStyle.points
         let inset: CGFloat = collapsed ? 0 : p(12)
-        let leading: CGFloat = collapsed ? bounds.midX - p(8) : p(12)
+        let indent: CGFloat = !collapsed && item.nested ? p(16) : 0
+        let leading: CGFloat = collapsed ? bounds.midX - p(8) : p(12) + indent
         icon.frame = NSRect(x: leading, y: bounds.midY - p(8), width: p(16), height: p(16))
         let actionWidth: CGFloat = item.kind == .conversation ? (!accessory.isHidden ? p(56) : status.isHidden && pr.isHidden ? 0 : item.activity == .needsInput ? p(88) : p(28)) : accessory.isHidden ? 0 : p(28)
         let accessoryWidth = actionWidth + (worktree.isHidden ? 0 : p(28))
@@ -510,7 +511,7 @@ import SpookkyCore
         status.frame = NSRect(x: bounds.width - inset - statusWidth, y: bounds.midY - p(11.5), width: statusWidth, height: p(23))
         pr.frame = NSRect(x: bounds.width - inset - p(21), y: bounds.midY - p(7), width: p(14), height: p(14))
         worktree.frame = NSRect(x: bounds.width - inset - actionWidth - p(21), y: bounds.midY - p(7), width: p(14), height: p(14))
-        let x = p(item.kind == .section ? 12 : 35)
+        let x = p(item.kind == .section ? 12 : 35) + indent
         label.frame = NSRect(x: x, y: bounds.midY - p(10), width: max(0, bounds.width - inset - x - accessoryWidth - p(6)), height: p(20))
         label.updateReveal()
 
