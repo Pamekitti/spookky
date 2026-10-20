@@ -194,6 +194,11 @@ extension WorkspaceState {
         updateTab(primaryTerminalID) { $0.projectAssociation = result }
     }
     public mutating func acknowledgeAgent(_ id: UUID) { updateTab(id) { $0.activity?.acknowledge() } }
+    @discardableResult public mutating func acknowledgeAgent(_ id: UUID, receipt: AgentCompletionReceipt, viewportAtBottom: Bool?) -> Bool {
+        var acknowledged = false
+        updateTab(id) { tab in acknowledged = tab.activity?.acknowledge(receipt, visible: true, viewportAtBottom: viewportAtBottom) == true }
+        return acknowledged
+    }
     public mutating func markAgentUnread(_ id: UUID) { updateTab(id) { $0.activity?.manualUnread = true } }
     public mutating func resetAgent(_ id: UUID) { updateTab(id) { $0.activity?.reset() } }
     public mutating func suspendAgentMonitoring(_ provider: SessionTool) {

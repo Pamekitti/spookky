@@ -14,6 +14,14 @@ Installed Codex CLI 0.163.0 returned seven model choices in 1,136 ms. Claude Cod
 
 One native fixture ready-state sample measured 161.2 MiB app RSS and 22.9 MiB for its private runtime and shell, totaling 184.1 MiB. This excludes active model work and is not a sustained-memory or capacity result. Physical typing, IME, spoken VoiceOver, paid provider responses and installed-app replacement remain outside this verification.
 
+## Sidebar status and reference treatment, 20 October 2026
+
+The sidebar now uses outlined project folders, text-only conversation rows, neutral colors, direct pin/archive actions, scrolling overflow titles and a details hover card. Blue unread completion, Needs input and the working ring use the supplied dimensions. Verified worktree and GitHub PR indicators remain separate from activity. GitHub lookup is read-only, visible-row bounded and silent when unavailable.
+
+Unread acknowledgment requires a visible terminal in the active window and a confirmed bottom viewport. Completion identity and viewport revision are rechecked after asynchronous inspection. Scroll changes retry the current completion. Scrollback and unknown viewport state retain unread. Viewing never clears Needs input or failure.
+
+The isolated Release build passed 109 reference assertions and 1,848 native sidebar/display assertions. Five native restart checks and four surface-lifecycle race checks passed. Swift completed 297 XCTest cases with four skipped and zero failures; 22 Swift Testing cases passed. All 32 Python tests and 12 hook fixture cases passed. Real disposable Codex and Claude question, denial, approval, resumption and completion flows were observed. The bundle and development signature audits passed. [Screenshots, measurements and limits](evidence/sidebar-reference/README.md) distinguish native UI fixtures from real provider callbacks. Production replacement and release publishing were not part of this pass.
+
 ## Persistent threads and supporting tools, 18 October 2026
 
 Conversations now remain selectable threads. The primary heading has no close target. Cmd+W there closes the window while preserving selection and execution. Supporting tabs close independently. New chat focuses the retained composer; New tab offers address/search and supporting tools. Files uses a native searchable picker, Changes owns its review state, and Markdown artifacts have a read-only semantic preview. Project avatars and provider marks remain.
