@@ -27,12 +27,13 @@ import SpookkyRuntime
         let states: [AgentActivityState?] = [nil, .needsInput, .finished, nil, nil, .failed, .working, nil]
         for index in titles.indices {
             let provider: SessionTool = index.isMultiple(of: 2) ? .codex : .claude
-            var item = WorkspaceSidebarItem(id: "reference:\(index)", kind: .conversation, title: titles[index], image: SpookkyStyle.toolImage(provider), selected: index == 0, activity: states[index])
+            var item = WorkspaceSidebarItem(id: "reference:\(index)", kind: .conversation, title: titles[index], image: SpookkyStyle.toolImage(provider), selected: index == 0, nested: true, activity: states[index])
             item.provider = provider; item.projectName = "spookky"; item.updatedAt = Date().addingTimeInterval(-180)
             if [0, 2, 3].contains(index) { item.checkout = checkout }
             if [0, 3, 4].contains(index) { item.pullRequest = PullRequestStatus(association: association, state: index == 4 ? .draft : .merged) }
             items.append(item)
         }
+        items.append(WorkspaceSidebarItem(id: "more:fixture", kind: .more, title: "Show more", nested: true))
         func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
         func cell(_ id: String) -> NSView? { descendants(sidebar).first { $0.accessibilityIdentifier() == id } }
         func snapshot(_ name: String, _ view: NSView) throws {
@@ -92,7 +93,9 @@ import SpookkyRuntime
                     sidebar.update(items: items, collapsed: false); content.layoutSubtreeIfNeeded()
                     window.displayIfNeeded(); try await Task.sleep(for: .milliseconds(100))
                     let title = cell("reference:0")?.subviews.compactMap { $0 as? SidebarTitleField }.first
-                    checks["\(key)-title-alignment"] = title.map { abs($0.frame.minX - 35 * zoom) < 0.5 } == true
+                    checks["\(key)-title-alignment"] = title.map { abs($0.frame.minX - 51 * zoom) < 0.5 } == true
+                    checks["\(key)-project-title-alignment"] = cell("project:fixture")?.subviews.compactMap { $0 as? SidebarTitleField }.first.map { abs($0.frame.minX - 35 * zoom) < 0.5 } == true
+                    checks["\(key)-more-alignment"] = cell("more:fixture")?.subviews.compactMap { $0 as? SidebarTitleField }.first.map { abs($0.frame.minX - 51 * zoom) < 0.5 } == true
                     checks["\(key)-row-height"] = cell("reference:0").map { abs($0.bounds.height - 31 * zoom) < 0.5 } == true
                     checks["\(key)-status-pill"] = cell("reference:1")?.subviews.compactMap { $0 as? SidebarActivityIndicator }.contains { !$0.isHidden && abs($0.bounds.height - 23 * zoom) < 0.5 } == true
                     checks["\(key)-working-ring-rotates"] = cell("reference:6")?.subviews.compactMap { $0 as? SidebarActivityIndicator }.contains { !$0.isHidden && $0.rotating } == true
@@ -100,11 +103,11 @@ import SpookkyRuntime
                         let icon = cell("reference:\(index)")?.subviews.compactMap { $0 as? NSImageView }.first
                         checks["\(key)-provider-logo-\(index)"] = icon.map {
                             !$0.isHidden && $0.image?.accessibilityDescription == (index == 0 ? "Codex" : "Claude Code") &&
-                                abs($0.frame.minX - 12 * zoom) < 0.5 && abs($0.frame.width - 16 * zoom) < 0.5
+                                abs($0.frame.minX - 28 * zoom) < 0.5 && abs($0.frame.width - 16 * zoom) < 0.5
                         } == true
                     }
                     let avatar = cell("project:fixture")?.subviews.compactMap { $0 as? NSImageView }.first
-                    checks["\(key)-project-avatar"] = avatar.map { !$0.isHidden && $0.image === projectAvatar && $0.contentTintColor == nil } == true
+                    checks["\(key)-project-avatar"] = avatar.map { !$0.isHidden && $0.image === projectAvatar && $0.contentTintColor == nil && abs($0.frame.minX - 12 * zoom) < 0.5 } == true
                     checks["\(key)-accessories-fit"] = descendants(sidebar).compactMap { $0 as? ActionButton }.allSatisfy { $0.isHidden || $0.frame.minX >= 0 && $0.frame.maxX <= ($0.superview?.bounds.width ?? 0) }
                     try await activate()
                     hover("reference:0"); content.layoutSubtreeIfNeeded()
@@ -126,6 +129,10 @@ import SpookkyRuntime
                         (window.screen?.visibleFrame.insetBy(dx: -1, dy: -1).contains(panel.frame)) == true
                     } == true
                     checks["\(key)-hover-preserves-selection"] = sidebar.selectedItemIDs == ["reference:0"]
+                    checks["\(key)-hover-preserves-indent"] = title.map { abs($0.frame.minX - 51 * zoom) < 0.5 && $0.frame.width > 0 } == true
+                    checks["\(key)-hover-title-clears-actions"] = title.map { title in
+                        buttons().filter { $0.superview === title.superview }.allSatisfy { title.frame.maxX <= $0.frame.minX }
+                    } == true
                     checks["\(key)-appearance"] = window.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == (dark ? .darkAqua : .aqua)
                     checks["\(key)-overflow-title-animates"] = title?.animating == true
                     diagnostics[key] = "key=\(window.isKeyWindow) active=\(NSApp.isActive) frontmost=\(NSWorkspace.shared.frontmostApplication?.bundleIdentifier ?? "none") hover=\(sidebar.hoveredItemID ?? "none") buttons=\(buttons().count) focusRetries=\(focusRetries) content=\(content.frame) sidebar=\(sidebar.frame) visible=\(sidebar.visibleRect) attached=\(window.contentView === content) titleOffset=\(title?.revealOffset ?? 0)"
@@ -209,6 +216,17 @@ import SpookkyRuntime
         await Task.yield()
         checks["keyboard-focus-reveals-actions"] = buttons().count == 2
         diagnostics["keyboard-focus"] = "key=\(window.isKeyWindow) active=\(NSApp.isActive) focused=\(sidebar.focusedItemID ?? "none") keyboard=\(sidebar.keyboardFocusItemID ?? "none") responder=\(String(describing: window.firstResponder)) buttons=\(buttons().count)"
+        hover(nil); window.makeFirstResponder(content)
+        var ungrouped = items[1]; ungrouped.nested = false
+        let ungroupedMore = WorkspaceSidebarItem(id: "more:ungrouped", kind: .more, title: "Show more")
+        sidebar.update(items: [ungrouped, ungroupedMore], collapsed: false); content.layoutSubtreeIfNeeded()
+        checks["ungrouped-title-alignment"] = cell(ungrouped.id)?.subviews.compactMap { $0 as? SidebarTitleField }.first.map { abs($0.frame.minX - 35) < 0.5 } == true
+        checks["ungrouped-icon-alignment"] = cell(ungrouped.id)?.subviews.compactMap { $0 as? NSImageView }.first.map { abs($0.frame.minX - 12) < 0.5 } == true
+        checks["ungrouped-more-alignment"] = cell(ungroupedMore.id)?.subviews.compactMap { $0 as? SidebarTitleField }.first.map { abs($0.frame.minX - 35) < 0.5 } == true
+        sidebar.update(items: items, collapsed: true); content.layoutSubtreeIfNeeded()
+        checks["collapsed-nested-icon-centered"] = cell("reference:0").map { row in
+            row.subviews.compactMap { $0 as? NSImageView }.first.map { abs($0.frame.midX - row.bounds.midX) < 0.5 } == true
+        } == true
         let many = (0..<5000).map { WorkspaceSidebarItem(id: "recycled:\($0)", kind: .conversation, title: "Retained session \($0)") }
         sidebar.update(items: many, collapsed: false); content.layoutSubtreeIfNeeded()
         sidebar.focusItem("recycled:2500"); content.layoutSubtreeIfNeeded()
