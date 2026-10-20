@@ -1,0 +1,125 @@
+App/AppDelegate.swift
+  s_b1f4fb153dc161::t_9ce918b98970fd 713-724
+App/DisplayPolishFixture.swift
+  s_b1f4fb153dc161::t_363204afe44d3c 2,8,10-12,16-63,86-92,148-184,202,205,208-214,222,232-247,257-279
+App/HistorySidebarFixture.swift
+  s_b1f4fb153dc161::t_33dca10c1dcbd6 164-166,169-171
+App/SupportingBrowserView.swift
+  s_b1f4fb153dc161::t_22d0f2e661f8ee 106,108-109,115-116,122-129,139-141
+App/SupportingPreviewFixture.swift
+  s_b1f4fb153dc161::t_998a1667651b89 105-124,192-210
+App/SupportingWorkspaceView.swift
+  s_3e39b8a4931a64::t_f14281cee0a779 32-42,84,171-174
+App/TerminalSelectionFixture.swift
+  s_b1f4fb153dc161::t_7b1acc49ca3e1a 24-32,34
+App/TerminalSurfaceManager.swift
+  s_b1f4fb153dc161::t_a8fb6e4434b18e 65-66
+App/WorkspaceCloseFixture.swift
+  s_b1f4fb153dc161::t_2886e7386a1a84 9,50-51,61-68,168-169
+App/WorkspaceSidebarView.swift
+  s_3e39b8a4931a64::t_82f58dca1a7afb 54-55,95-97,135,161-170,201-204,316-318,430,456-459
+App/WorkspaceTabStrip.swift
+  s_3e39b8a4931a64::t_e5f260da633055 16,18-20,22,82
+App/WorkspaceViews.swift
+  s_b1f4fb153dc161::t_ea2913cfe1f3d0 573-596
+App/WorkspaceWindowController.swift
+  s_3e39b8a4931a64::t_cb7b869f7f433d 38-40,85,145,178-179,209,291-296,506,583,625-626,667-672,676-693,704-716,777,941-946,1017,1020,1783-1806,1810-1816,1818,1848,1910-1911,1928-1930,1964,1979-2004,2157-2179,2231,2234,2237-2239,2266-2297,2311,2326,2337,2404-2414,2480-2494,2511,2728,2744,2867,2933,2968-2974,2985-2988,2990,3083-3091,3095-3098,3115,3122-3128,3134,3141,3148,3150-3153,3181-3184,3338,4112-4136,4150-4151
+Sources/SpookkyCore/HistoryCatalog.swift
+  s_3e39b8a4931a64::t_f3e0bf08e2842a 31-37,75,77-82
+Sources/SpookkyCore/ProviderStartup.swift
+  s_b1f4fb153dc161::t_05b21179fb03ba 1-43
+Sources/SpookkyCore/WorkspaceState.swift
+  s_b1f4fb153dc161::t_5dbf7d8e68fa61 96,159,170,183,377,499-501
+Sources/SpookkyWorkspace/AgentActivityResolver.swift
+  s_b1f4fb153dc161::t_ae0dc53564d330 46-49
+Sources/SpookkyWorkspace/ClaudeHistoryReader.swift
+  s_b1f4fb153dc161::t_a7e46e2434e653 153,160-170
+Sources/SpookkyWorkspace/LaunchCoordinator.swift
+  s_3e39b8a4931a64::t_e0ed36572a7b3c 8,21,110
+Tests/SpookkyRuntimeTests/AgentActivityTests.swift
+  s_b1f4fb153dc161::t_c931186556bc24 2,4,198-225
+Tests/SpookkyRuntimeTests/ConversationTitleTests.swift
+  s_b1f4fb153dc161::t_9703f17bf93a64 180-193
+Tests/SpookkyRuntimeTests/CoordinatorTests.swift
+  s_b1f4fb153dc161::t_4c9fc869d83e37 359-405
+Tests/SpookkyRuntimeTests/HistoryQueryTests.swift
+  s_b1f4fb153dc161::t_91725d15983c00 76-100
+Tests/SpookkyRuntimeTests/ProjectDraftIsolationTests.swift
+  s_b1f4fb153dc161::t_0dde0395bc80ea 1-97
+Tests/SpookkyRuntimeTests/ProviderStartupTests.swift
+  s_b1f4fb153dc161::t_8508ba97418226 1-97
+docs/agent-activity.md
+  s_b1f4fb153dc161::t_19cd4c776530f3 3-4,77-78
+docs/development.md
+  s_b1f4fb153dc161::t_145caef6a7bc1b 111-121,201-202,236
+docs/evidence/audit-regressions/README.md
+  s_b1f4fb153dc161::t_895285146e2ea5 1-94
+docs/evidence/audit-regressions/checks.json
+  s_b1f4fb153dc161::t_a68321eb3ae654 1-2702
+docs/evidence/audit-regressions/continuity-runs.json
+  s_b1f4fb153dc161::t_1dd85dc1989039 1-24
+docs/evidence/audit-regressions/measurements.json
+  s_b1f4fb153dc161::t_4c7b32650e4a9c 1-1000
+docs/flows.md
+  s_b1f4fb153dc161::t_5948ebb9a06d0b 63-64
+docs/interface.md
+  s_b1f4fb153dc161::t_3f4b6795aa79df 132,191
+docs/performance.md
+  s_b1f4fb153dc161::t_bdb5e7b9d339ea 120-121
+docs/provider-ownership.md
+  s_b1f4fb153dc161::t_9cc20e02bcaabb 35,40
+docs/session-continuation.md
+  s_b1f4fb153dc161::t_a39575bc0ae886 21-28
+docs/session-history.md
+  s_b1f4fb153dc161::t_1f2d985c6c801e 43-46
+docs/supporting-previews.md
+  s_b1f4fb153dc161::t_5b2f822ac2c903 5-6
+scripts/benchmark_m1.py
+  s_b1f4fb153dc161::t_f90d2363c1475a 35,40,47,53,172,182,185,191,196,199-200
+scripts/benchmark_m4.py
+  s_b1f4fb153dc161::t_ef7c384a1a33b2 12,74-82,89,104,107,111,115-116,126
+scripts/check_agent_hooks.py
+  s_b1f4fb153dc161::t_d1c7b204069de8 111-115,117,119-121,125
+scripts/check_claude_ownership.py
+  s_b1f4fb153dc161::t_01e59d516d041b 1-255
+scripts/check_conversation_identity.py
+  s_b1f4fb153dc161::t_e212a45f22b5af 26
+scripts/check_sidebar.py
+  s_b1f4fb153dc161::t_6ea582d39fef14 25
+scripts/check_supporting_previews.py
+  s_b1f4fb153dc161::t_47b9afe9b70a48 79-87
+scripts/check_terminal_selection.py
+  s_b1f4fb153dc161::t_b0406840fd178e 15-16,20-25,36
+scripts/check_workspace_close.py
+  s_b1f4fb153dc161::t_93c8eebbca487e 19,26-27,30-31,48,51
+scripts/native_fixture.py
+  s_b1f4fb153dc161::t_b4100fa7da104f 31-39
+scripts/test_check_agent_hooks.py
+  s_b1f4fb153dc161::t_93c955e9c05ac6 1-26
+scripts/test_claude_ownership.py
+  s_b1f4fb153dc161::t_e5a38139be1541 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "71f5c8f8c9241c2773d8d82c8ea27eb6b82455ee",
+  "prompts": {},
+  "sessions": {
+    "s_3e39b8a4931a64": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a157fc-5ece-75c3-b279-a35746084dc7",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_b1f4fb153dc161": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a157fc-5ece-75c3-b279-a35746084dc7",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
