@@ -19,9 +19,13 @@ The primary conversation header and supporting tabs occupy one 40-point row. In 
 
 Full view joins the primary tab first and all supporting tabs on the same row. The selected content fills the area below. Clicking the primary keeps every supporting tab visible. Split view restores the primary TUI on the left and the last selected support on the right. It keeps the divider width, live views, drafts and processes.
 
+The conversation title owns its actions menu and thread-details control. These controls move with the primary heading between Split and joined Full layouts. Supporting-panel controls stay on the right.
+
 The top-right Changes button opens and focuses the current workspace's Changes tab, reusing it when already open. Changes remains available through the menus and thread details.
 
 The layout control uses a divided-rectangle icon for Split view and a single rectangle for Full view. Both controls use 28-point utility targets with action tooltips and accessibility labels. Compact windows retain the disabled Split control and its explanation.
+
+The rightmost sidebar icon shows or hides the supporting panel. Hiding removes its tab strip, add control, overflow and layout control, returns focus to the primary terminal or composer, and retains its tabs and processes. Changes and Show side panel stay available. Showing restores the selected support, previous Split or Full layout and divider fraction. An empty panel opens New tab. Older saved panels without a remembered layout reopen in Split view. The selected supporting tab always exposes its close button; other close buttons appear on hover or keyboard focus. Closing the last support collapses the panel.
 
 Supporting + opens the themed New tab page with address/search, Files, Changes, Terminal and Open artifact. New chat and Cmd+N select the current project's landing draft, otherwise the global draft. Project + selects its project draft. Closing a supporting tab selects its nearest left neighbor, otherwise its next neighbor, otherwise the primary. The primary conversation cannot close. Cmd+W on primary content closes the window and retains the thread and its processes.
 
@@ -166,7 +170,7 @@ HighlighterSwift supplies the language definitions. Spookky's bounded range adap
 | --- | --- |
 | Cmd+plus / Cmd+minus / Cmd+0 | Zoom the whole app in/out, or restore 100% |
 | Cmd+B | Toggle the project/workspace sidebar |
-| Cmd+L | Toggle Files/Changes |
+| Cmd+L | Focus the browser address, otherwise show or hide the supporting panel |
 | Cmd+N | Select the retained global landing draft |
 | Cmd+T | Open a New tab supporting page |
 | Cmd+W | Close the focused support; close the window on Conversation or landing |

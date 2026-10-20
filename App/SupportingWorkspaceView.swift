@@ -100,6 +100,7 @@ import SpookkyCore
         if let editor = responder as? NSTextView, editor.isFieldEditor, let control = editor.delegate as? NSView {
             return control.isDescendant(of: panel)
         }
+        if let primaryItem, responder.isDescendant(of: primaryItem) { return false }
         return responder === panel || responder.isDescendant(of: panel) || responder.isDescendant(of: headerView)
     }
     func update(_ state: SupportingPanelState) {
