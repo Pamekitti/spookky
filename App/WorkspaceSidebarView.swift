@@ -439,9 +439,9 @@ import SpookkyCore
             icon.image = NSImage(systemSymbolName: item.collapsed ? "chevron.right" : "chevron.down", accessibilityDescription: nil)
         } else if collapsed && item.kind == .more {
             icon.image = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: nil)
-        } else { icon.image = item.kind == .project ? NSImage(systemSymbolName: "folder", accessibilityDescription: nil) : item.image }
-        icon.contentTintColor = SidebarPalette.secondary
-        label.isHidden = collapsed; icon.isHidden = item.kind == .section || item.kind == .conversation || item.kind == .more && !collapsed
+        } else { icon.image = item.image }
+        icon.contentTintColor = icon.image?.isTemplate == true ? SidebarPalette.secondary : nil
+        label.isHidden = collapsed; icon.isHidden = item.kind == .section || item.kind == .more && !collapsed
         label.revealing = interactionActive && item.kind == .conversation
         status.activity = item.activity
         status.isHidden = item.activity == nil || item.activity == .unknown || item.activity == .idle || item.activity == .interrupted || interactionActive

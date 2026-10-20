@@ -7,8 +7,8 @@ Spookky's native controls follow the geometry and interaction rules below. The l
 | Component | Geometry | Behavior |
 | --- | --- | --- |
 | Sidebar | 264-point default column; selection insets are 3 points left and 8 right | Retains saved widths and uses a neutral palette confined to the sidebar |
-| Project row | 28 points, outlined folder, label at 35 points, separate 28-point add action | Click toggles expansion; folder becomes a chevron on hover/focus; add appears on hover/focus |
-| Conversation row | 31 points, regular 14-point title at 35 points, two trailing accessory targets | No leading provider mark; hover/focus reveals Pin and Archive; overflowing titles scroll within their clip |
+| Project row | 28 points, owner avatar with folder fallback, label at 35 points, separate 28-point add action | Click toggles expansion; avatar or folder becomes a chevron on hover/focus; add appears on hover/focus |
+| Conversation row | 31 points, regular 14-point title at 35 points, two trailing accessory targets | Leading provider mark; hover/focus reveals Pin and Archive; overflowing titles scroll within their clip |
 | Tab | 40-point strip, muted inactive title, one selection/hover fill, 24-by-24-point close target | Shared bounded tabs use rounded inset fills; supporting close appears on hover/focus and primary never closes |
 | Composer | 800-point maximum width, 80-point minimum prompt, 13-point card radius | Always available on landing; optional prompt; supporting Terminal retains the agent draft |
 | Files / Changes | Native file picker and a dedicated Changes view, 28-point list rows | Individual file tabs remain separate from change-review context |
@@ -47,6 +47,6 @@ The range adapter and its upstream dependency notices are recorded in [dependenc
 
 ## Component finish pass
 
-The native interface includes an expanding composer, labeled worktree fields, full-height tabs, inline rename, outlined project folders, lifecycle indicators and compact preview overflow. Sidebar rendering does not request avatar downloads. Native file categories replace generic document icons. Code retains its native selection and fixed gutters, with 18-point rows and explicit comparison captions.
+The native interface includes an expanding composer, labeled worktree fields, full-height tabs, inline rename, project owner avatars, provider icons, lifecycle indicators and compact preview overflow. Project avatars use the existing bounded asynchronous cache. Native file categories replace generic document icons. Code retains its native selection and fixed gutters, with 18-point rows and explicit comparison captions.
 
 Verification boundaries are recorded in [current status](status.md).
