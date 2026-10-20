@@ -20,6 +20,15 @@ python3 scripts/dev.py run
 
 Test the changed interaction in that checkout's development app. Run relevant checks once, then repeat only after relevant changes or failures. CI checks the Release build.
 
+For new-session changes, build Release and run these targeted native fixtures sequentially:
+
+```sh
+python3 scripts/check_new_session.py --output .cache/composer/checks.json
+python3 scripts/check_prompt_images.py --output .cache/composer/images.json
+```
+
+The first fixture exercises project/model inheritance, native model menus, multiline input and one disposable shell. The second checks native clipboard images and retained previews. Both use private state. Catalog values are fixtures and no paid model request is sent.
+
 Documentation changes need the repository checker. Python script changes add `python3 -m unittest discover -s scripts -p 'test_*.py'`. Website changes use `npm test --prefix website` after website setup. Browser tests are headless and belong to website changes, not ordinary native development.
 
 The complete commands remain available for setup and explicit verification:

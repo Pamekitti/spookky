@@ -83,6 +83,7 @@ import SpookkyGit
     private let sidebarDivider = FileDivider()
     private var railWidth: NSLayoutConstraint!
     private var composers: [UUID: LaunchComposerView] = [:]
+    private let promptImageDirectory: URL
     private var contentKey = ""
     private var navigation: [UUID] = []
     private var navigationIndex = -1
@@ -136,6 +137,7 @@ import SpookkyGit
          resolver: any ExecutableResolver = CLIResolver(), backgroundFixture: Bool = false,
          catalog: (any SessionCatalogReading)? = nil) throws {
         let paths = AppPaths(bundleID: Bundle.main.bundleIdentifier, home: FileManager.default.homeDirectoryForCurrentUser, userID: getuid())
+        promptImageDirectory = paths.data.appendingPathComponent("PromptImages")
         self.backgroundFixture = backgroundFixture
         let fixture = backgroundFixture || CommandLine.arguments.contains { $0.hasPrefix("--workspace-benchmark") }
         let historyFixture = CommandLine.arguments.contains("--workspace-benchmark-history")
@@ -925,7 +927,7 @@ import SpookkyGit
         let key = state.visibleTabIDs.map { id in id.uuidString + (state.tab(id)?.status.rawValue ?? "") + String(describing: state.tab(id)?.binding?.id) }.joined() + String(describing: state.selectedWorkspaceID) + String(describing: state.selected?.support?.selectedTabID) + String(describing: state.selected?.support?.layout) + String(describing: state.selected?.support?.fullWidthSelection)
         for id in state.visibleTabIDs {
             if let tab = state.tab(id), let w = state.workspace(containing: id) {
-                composers[id]?.repositorySnapshot = w.projectID.flatMap { repositorySnapshots[$0] }
+                composers[id]?.repositorySnapshot = repositorySnapshots[w.projectID ?? w.id]
                 composers[id]?.update(tab, workspace: w, state: state)
             }
         }
@@ -1540,7 +1542,7 @@ import SpookkyGit
             window.setContentSize(NSSize(width: width, height: height))
             window.contentView?.layoutSubtreeIfNeeded()
             let editor = composer.convert(composer.prompt.bounds, from: composer.prompt)
-            checks["startup_composer_bottom_\(width)"] = editor.midY < composer.bounds.midY && editor.minX >= 24 && editor.maxX <= composer.bounds.width - 24
+            checks["startup_composer_centered_\(width)"] = abs(editor.midX - composer.bounds.midX) < 2 && editor.minX >= 24 && editor.maxX <= composer.bounds.width - 24
             checks["startup_screenshot_\(width)"] = try capture("identity-startup-" + theme.rawValue + "-" + String(width))
         }
         checks["startup_keeps_initial_draft"] = composer.prompt.string == "Retain this starting instruction"
@@ -2046,17 +2048,30 @@ import SpookkyGit
             stack.spacing = SpookkyStyle.points(12); stack.edgeInsets = NSEdgeInsets(top: SpookkyStyle.points(24), left: SpookkyStyle.points(24), bottom: SpookkyStyle.points(24), right: SpookkyStyle.points(24))
             install(stack, in: container)
         } else if tab.isEditable || tab.status == .preparing || tab.status == .launching {
-            let composer = composers[tab.id] ?? LaunchComposerView(tabID: tab.id); composers[tab.id] = composer
+            let catalog: any ProviderModelDiscovering = CommandLine.arguments.contains("--workspace-benchmark-composer") ? ComposerFixtureModels() : ProviderModelCatalog.shared
+            let composer = composers[tab.id] ?? LaunchComposerView(tabID: tab.id, imageDirectory: promptImageDirectory, modelCatalog: catalog); composers[tab.id] = composer
             composer.onDraft = { [weak self] tool, prompt in self?.store.update(debounced: prompt != nil) { $0.editDraft(tab.id, tool: tool, prompt: prompt) } }
+            composer.onImages = { [weak self, id = tab.id] images in self?.editPromptImages(images, for: id) }
+            composer.onError = { [weak self] message in self?.alert("Could not update draft", message) }
+            composer.onModel = { [weak self] selection in self?.store.update { $0.editModelSelection(tab.id, selection: selection) } }
+            composer.onNoProject = { [weak self] in
+                guard let self, let workspace = store.state.workspace(containing: tab.id) else { return }
+                store.update { $0.setLocation(WorkspaceLocation(path: FileManager.default.homeDirectoryForCurrentUser.path), projectID: nil, workspaceID: workspace.id) }
+                scheduleRepositoryRefresh()
+            }
             composer.onLaunch = { [weak self] in self?.launch(tab.id) }
             composer.onTerminal = { [weak self] in self?.openTerminal(from: tab.id) }
             composer.onChooseFolder = { [weak self] in self?.chooseFolder(register: false) }
             composer.onAddProject = { [weak self] anchor in self?.addProjectMenu(anchor: anchor) }
             composer.onLocate = { [weak self] in self?.chooseFolder(register: false, relocate: true) }
             composer.onProject = { [weak self] id in self?.chooseProject(id) }
-            composer.onFocus = { [weak self] in self?.selectTab(tab.id) }
+            composer.onFocus = { [weak self] in
+                guard let self else { return }
+                let selection = store.state.selected?.support?.fullWidthSelection
+                if store.state.selectedTab?.id != tab.id || (selection != nil && selection != .primary) { selectTab(tab.id) }
+            }
             if let w = store.state.workspace(containing: tab.id) {
-                composer.repositorySnapshot = w.projectID.flatMap { repositorySnapshots[$0] }
+                composer.repositorySnapshot = repositorySnapshots[w.projectID ?? w.id]
                 composer.locationOptions.onDraft = { [weak self] draft in
                     guard let self, let current = store.state.workspace(containing: tab.id) else { return }
                     store.update(debounced: true) { state in
@@ -2219,10 +2234,152 @@ import SpookkyGit
         surfaces.release(id)
         store.update { $0.apply(.failure(.failed, TabFailure(.attachment, "Terminal view disconnected. Your session is still running."), clearIntent: false), to: id) }
     }
+    private func runComposerFixture(root: URL) async throws {
+        var checks: [String: Bool] = [:]
+        window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+        let projectRoot = root.appendingPathComponent("spookky"), worktreeRoot = root.appendingPathComponent("topic")
+        try PrivateFiles.directory(projectRoot)
+        for arguments in [["init", "-b", "main"], ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--allow-empty", "-m", "fixture"],
+                          ["worktree", "add", "-b", "topic", worktreeRoot.path]] {
+            let result = try await ProcessRunner.asyncRun("/usr/bin/git", ["-C", projectRoot.path] + arguments)
+            guard result.status == 0 else { throw LaunchError.invalid("Composer Git fixture failed") }
+        }
+        let local = try await locations.git.discover(projectRoot), worktree = try await locations.git.discover(worktreeRoot)
+        var project = UUID()
+        store.update {
+            project = $0.registerProject(local)
+            $0.newWorkspace(location: worktree, projectID: project)
+            $0.editDraft($0.primaryTerminalID!, tool: .claude, prompt: "Previous session")
+            $0.editModelSelection($0.primaryTerminalID!, selection: AgentModelSelection(model: "opus", effort: "high"))
+        }
+        guard let newChat = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0,
+            windowNumber: window.windowNumber, context: nil, characters: "n", charactersIgnoringModifiers: "n", isARepeat: false, keyCode: 45) else {
+            throw LaunchError.invalid("New chat shortcut event unavailable")
+        }
+        checks["cmd_n_routes_to_new_chat"] = handleCommand(newChat)
+        if let renderTask { await renderTask.value }
+        await refreshSelectedRepository()
+        guard let id = store.state.primaryTerminalID, let composer = composers[id] else { throw LaunchError.invalid("Composer did not render") }
+        checks["cmd_n_inherits_project_local"] = store.state.selected?.projectID == project && store.state.selected?.directory == local.path
+        checks["cmd_n_inherits_provider_and_model"] = store.state.tab(id)?.draft.tool == .claude && store.state.tab(id)?.draft.modelSelection.model == "opus"
+        checks["new_session_does_not_copy_previous_prompt"] = store.state.tab(id)?.draft.isEmpty == true
+        func descendants(_ view: NSView) -> [NSView] { view.subviews.flatMap { [$0] + descendants($0) } }
+        func button(_ title: String, in view: NSView) -> NSButton? {
+            descendants(view).compactMap { $0 as? NSButton }.first { $0.title == title }
+        }
+        func popupButton(_ title: String) -> NSButton? {
+            NSApp.windows.filter { $0 !== window && $0.isVisible }.compactMap(\.contentView)
+                .flatMap(descendants).compactMap { $0 as? NSButton }.first { $0.title == title }
+        }
+        func waitPopup(_ title: String) async throws -> NSButton {
+            for _ in 0..<200 {
+                if let item = popupButton(title) { return item }
+                try await Task.sleep(for: .milliseconds(10))
+            }
+            try PrivateFiles.write(NSApp.windows.map { popup in
+                ["title": popup.title, "visible": String(popup.isVisible),
+                 "buttons": popup.contentView.map { descendants($0).compactMap { ($0 as? NSButton)?.title }.joined(separator: " | ") } ?? "none"]
+            }, to: root.appendingPathComponent("composer-popup-debug.json"))
+            for (index, popup) in NSApp.windows.enumerated() {
+                if let view = popup.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                    view.cacheDisplay(in: view.bounds, to: bitmap)
+                    try bitmap.representation(using: .png, properties: [:])?.write(to: root.appendingPathComponent("composer-popup-\(index).png"))
+                }
+            }
+            throw LaunchError.invalid("Composer menu item missing: " + title)
+        }
+        func openModels() throws {
+            guard let control = descendants(composer).compactMap({ $0 as? NSButton }).first(where: { $0.accessibilityLabel()?.hasPrefix("Choose ") == true && $0.accessibilityLabel()?.contains(" model · ") == true }) else {
+                throw LaunchError.invalid("Model picker is unavailable")
+            }
+            control.performClick(nil)
+        }
+        composer.focus(); composer.prompt.insertText("Review this change", replacementRange: NSRange(location: NSNotFound, length: 0))
+        composer.prompt.insertNewline(nil)
+        composer.prompt.insertText("Keep the details", replacementRange: NSRange(location: NSNotFound, length: 0))
+        checks["native_prompt_accepts_text_and_newline"] = store.state.tab(id)?.draft.prompt == "Review this change\nKeep the details"
+        try openModels(); let sonnet = try await waitPopup("Sonnet"); sonnet.performClick(nil)
+        checks["claude_model_menu_updates_draft"] = store.state.tab(id)?.draft.modelSelection.model == "sonnet"
+        store.update { $0.editDraft(id, tool: .codex) }
+        if let renderTask { await renderTask.value }
+        try openModels(); let sol = try await waitPopup("Sol fixture"); sol.performClick(nil)
+        try openModels(); let high = try await waitPopup("High"); high.performClick(nil)
+        checks["codex_model_and_effort_update_draft"] = store.state.tab(id)?.draft.modelSelection == AgentModelSelection(model: "fixture-sol", effort: "high", displayName: "Sol fixture")
+        checks["model_choice_restores_composer_shortcuts"] = composer.hasInputFocus
+        store.update { $0.editDraft(id, tool: .claude) }
+        checks["switch_back_restores_provider_model"] = store.state.tab(id)?.draft.modelSelection.model == "sonnet"
+        store.update { $0.editDraft(id, tool: .codex) }
+        checks["switching_providers_keeps_prompt"] = composer.prompt.string == "Review this change\nKeep the details"
+        button("Local", in: composer)?.performClick(nil)
+        (try await waitPopup("New worktree")).performClick(nil)
+        checks["location_menu_selects_new_worktree"] = store.state.selected?.locationDraft?.mode == .worktree
+        let from = descendants(composer).compactMap { $0 as? NSButton }.first { $0.title.hasPrefix("From ") }
+        from?.performClick(nil); (try await waitPopup("main")).performClick(nil)
+        checks["source_menu_selects_reference"] = store.state.selected?.locationDraft?.source == "refs/heads/main"
+        button("New worktree", in: composer)?.performClick(nil)
+        (try await waitPopup("Local")).performClick(nil)
+        checks["local_keeps_checkout_files_and_branch"] = store.state.selected?.directory == local.path && store.state.selected?.selectedLocation.branch == "main"
+        button("spookky", in: composer)?.performClick(nil)
+        (try await waitPopup("No project")).performClick(nil)
+        checks["no_project_retains_prompt"] = store.state.selected?.projectID == nil && composer.prompt.string == "Review this change\nKeep the details"
+        button("No project", in: composer)?.performClick(nil)
+        (try await waitPopup("spookky")).performClick(nil)
+        await refreshSelectedRepository()
+        for (theme, width, height) in [(WorkspaceAppearance.dark, 1120, 760), (.light, 680, 480)] {
+            store.update { $0.appearance = theme }
+            window.setContentSize(NSSize(width: width, height: height)); window.contentView?.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(100))
+            let editor = composer.convert(composer.prompt.bounds, from: composer.prompt)
+            checks["composer_fits_\(width)"] = editor.minX >= 23 && editor.maxX <= composer.bounds.width - 23
+            let heading = descendants(composer).compactMap { $0 as? NSTextField }.first { $0.stringValue == "What’s next in spookky?" }
+            checks["contextual_heading_\(width)"] = heading != nil
+            if let view = window.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                view.cacheDisplay(in: view.bounds, to: bitmap)
+                try bitmap.representation(using: .png, properties: [:])?.write(to: root.appendingPathComponent("composer-" + theme.rawValue + ".png"))
+            }
+        }
+        window.setContentSize(NSSize(width: 1120, height: 760))
+        try openModels(); _ = try await waitPopup("Sol fixture")
+        if let view = NSApp.windows.first(where: { $0 !== window && $0.isVisible && $0.contentView.map { button("Sol fixture", in: $0) != nil } == true })?.contentView,
+           let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            try bitmap.representation(using: .png, properties: [:])?.write(to: root.appendingPathComponent("composer-model-menu.png"))
+        }
+        (try await waitPopup("Default model")).performClick(nil)
+        checks["default_model_clears_overrides"] = store.state.tab(id)?.draft.modelSelection == AgentModelSelection()
+        let prompt = store.state.tab(id)!.draft.prompt
+        guard let terminalButton = button("Open Terminal", in: composer) else { throw LaunchError.invalid("Terminal action missing") }
+        terminalButton.performClick(nil)
+        var terminalID: UUID?
+        for _ in 0..<300 {
+            if let selected = store.state.primaryTerminalID, selected != id, surfaces.view(selected) != nil { terminalID = selected; break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        guard let terminalID, let surface = surfaces.view(terminalID), let binding = store.state.tab(terminalID)?.binding else { throw LaunchError.invalid("Disposable terminal did not start") }
+        let pid = try await launches.runtime.inspect(binding)?.processID
+        surface.insertText("printf 'COMPOSER_%s\\n' 'READY'", replacementRange: NSRange(location: NSNotFound, length: 0))
+        if let enter = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+            windowNumber: window.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36) { surface.keyDown(with: enter) }
+        for _ in 0..<200 where !surface.visibleText().contains("COMPOSER_READY") { try await Task.sleep(for: .milliseconds(20)) }
+        checks["real_shell_input_and_output"] = surface.visibleText().contains("COMPOSER_READY")
+        newWorkspace(); if let renderTask { await renderTask.value }
+        checks["terminal_keeps_agent_draft"] = store.state.primaryTerminalID == id && store.state.tab(id)?.draft.prompt == prompt
+        checks["returning_keeps_shell_process"] = try await launches.runtime.inspect(binding)?.processID == pid && pid != nil
+        let sessions = try await launches.runtime.list()
+        checks["menus_and_new_chat_launch_no_agents"] = sessions.count == 1 && sessions.allSatisfy { $0.tool == .shell }
+        try await store.flush()
+        try PrivateFiles.write(checks, to: root.appendingPathComponent("composer-checks.json"))
+        try PrivateFiles.write(["app_rss_mib": WorkspaceDiagnostics.residentMiB() ?? 0, "runtime_sessions": Double(sessions.count)], to: root.appendingPathComponent("composer-resources.json"))
+        guard checks.values.allSatisfy({ $0 }) else { throw LaunchError.invalid("Composer checks failed: " + checks.filter { !$0.value }.keys.sorted().joined(separator: ", ")) }
+    }
+
     @objc private func newWorkspace() {
         let hidden = !window.isVisible
+        let context = store.state.selected
         cancelLaunchPreflight()
-        store.update { $0.showLanding(homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path) }
+        store.update { $0.showLanding(projectID: context?.projectID,
+            homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path, inheriting: context?.primaryTerminal?.draft) }
+        scheduleRepositoryRefresh()
         if hidden { reopen() }
         if let id = store.state.primaryTerminalID { composers[id]?.focus() }
     }
@@ -2242,15 +2399,38 @@ import SpookkyGit
             }
             launch(shellID, tool: .shell); return
         }
-        if !tab.draft.prompt.isEmpty || !tab.isEditable || store.state.workspace(containing: id)?.primaryTerminalID == id && tab.binding != nil {
+        if !tab.draft.isEmpty || !tab.isEditable || store.state.workspace(containing: id)?.primaryTerminalID == id && tab.binding != nil {
             store.update { $0.newTab() }; if let id = store.state.selectedTab?.id { launch(id, tool: .shell) }
         } else { launch(id, tool: .shell) }
     }
     @objc private func launchSelected() {
         guard let id = store.state.selectedTab?.id, composers[id]?.hasInputFocus == true else { return }; launch(id)
     }
+    private func editPromptImages(_ images: [String], for id: UUID) {
+        let previous = store.state.tab(id)?.draft.images ?? []
+        store.update { $0.editDraft(id, images: images) }
+        let candidates = Set(previous + images).subtracting(store.state.tab(id)?.draft.images ?? [])
+        guard !candidates.isEmpty else { return }
+        let tabs = store.state.workspaces.flatMap(\.tabs)
+        let retained = Set(tabs.flatMap { $0.draft.images })
+        let arguments = tabs.flatMap { $0.launch?.arguments ?? [] }
+        let unused = candidates.filter { path in
+            !retained.contains(path) && !arguments.contains(where: { $0.contains(path) })
+        }
+        guard !unused.isEmpty else { return }
+        let directory = promptImageDirectory
+        Task.detached {
+            for path in unused {
+                let file = URL(fileURLWithPath: path)
+                guard file.deletingLastPathComponent().path == directory.path, file.pathExtension == "png",
+                      UUID(uuidString: file.deletingPathExtension().lastPathComponent) != nil else { continue }
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
+    }
+
     private func launch(_ id: UUID, tool: SessionTool? = nil) {
-        guard initialLaunchTasks[id] == nil, let tab = store.state.tab(id),
+        guard initialLaunchTasks[id] == nil, composers[id]?.isImportingImage != true, let tab = store.state.tab(id),
               let workspace = store.state.workspace(containing: id), !launches.isBusy(id),
               tab.isEditable || (tab.status == .failed && tab.launch != nil) else { return }
         if (tool ?? tab.draft.tool) != .shell, workspace.primaryTerminalID != id {
@@ -2332,8 +2512,9 @@ import SpookkyGit
     }
     private func newProjectWorkspace(_ id: UUID) {
         guard store.state.projects.contains(where: { $0.id == id }) else { return }
+        let draft = store.state.selected?.primaryTerminal?.draft
         cancelLaunchPreflight()
-        store.update { $0.showLanding(projectID: id, homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path) }
+        store.update { $0.showLanding(projectID: id, homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path, inheriting: draft) }
         scheduleRepositoryRefresh()
     }
     private func chooseProject(_ id: UUID) {
@@ -2346,21 +2527,23 @@ import SpookkyGit
         repositoryRefreshTask = Task { await refreshSelectedRepository() }
     }
     private func refreshSelectedRepository() async {
-        guard let workspace = store.state.selected, let projectID = workspace.projectID, workspace.selectedLocation.isGit else { return }
-        let generation = UUID(); repositoryGenerations[projectID] = generation
+        guard let workspace = store.state.selected, workspace.selectedLocation.isGit else { return }
+        let key = workspace.projectID ?? workspace.id
+        let generation = UUID(); repositoryGenerations[key] = generation
         do {
             let snapshot = try await locations.git.snapshot(workspace.selectedLocation)
-            guard repositoryGenerations[projectID] == generation else { return }
-            repositorySnapshots[projectID] = snapshot
+            guard repositoryGenerations[key] == generation, store.state.selectedWorkspaceID == workspace.id,
+                  store.state.selected?.selectedLocation.path == workspace.selectedLocation.path else { return }
+            repositorySnapshots[key] = snapshot
             store.update { state in
-                state.refreshProject(projectID, location: snapshot.location)
+                if let projectID = workspace.projectID { state.refreshProject(projectID, location: snapshot.location) }
                 for checkout in snapshot.checkouts where checkout.available {
                     state.recordCheckout(WorkspaceLocation(path: checkout.path, checkoutIdentity: checkout.identity,
                         branch: checkout.branch, commonRepository: snapshot.location.commonRepository))
                 }
                 if let current = state.workspaces.first(where: { $0.id == workspace.id }), current.anchor == nil, current.locationDraft == nil {
                     var draft = LocationDraft()
-                    draft.source = state.projects.first { $0.id == projectID }?.preferredSource ?? snapshot.defaultSource
+                    draft.source = state.projects.first { $0.id == workspace.projectID }?.preferredSource ?? snapshot.defaultSource
                     state.editLocation(draft, workspaceID: workspace.id)
                 }
             }
@@ -2733,6 +2916,23 @@ import SpookkyGit
         if CommandLine.arguments.contains("--workspace-benchmark-sidebar") {
             guard count == 0 else { throw LaunchError.invalid("Sidebar fixtures start without running sessions.") }
             try await checkSidebar(root: root)
+        }
+        if CommandLine.arguments.contains("--workspace-benchmark-prompt-images") {
+            guard count == 0 else { throw LaunchError.invalid("Prompt image checks require no running sessions.") }
+            store.update {
+                _ = $0.showLanding(homeDirectory: root.path)
+                $0.editDraft($0.primaryTerminalID!, tool: .codex, prompt: "Explain this screenshot")
+            }
+            if let renderTask { await renderTask.value }
+            guard let id = store.state.primaryTerminalID, let composer = composers[id] else {
+                throw LaunchError.invalid("Prompt image composer is unavailable.")
+            }
+            try await PromptImageFixture.run(composer: composer, window: window, root: root,
+                draft: { self.store.state.tab(id)!.draft }, changeTool: { tool in self.store.update { $0.editDraft(id, tool: tool) } })
+        }
+        if CommandLine.arguments.contains("--workspace-benchmark-composer") {
+            guard count == 0 else { throw LaunchError.invalid("Composer checks require no running sessions.") }
+            try await runComposerFixture(root: root)
         }
         if CommandLine.arguments.contains("--workspace-benchmark-sidebar-reference") {
             guard count == 0 else { throw LaunchError.invalid("Sidebar reference fixtures start without running sessions.") }

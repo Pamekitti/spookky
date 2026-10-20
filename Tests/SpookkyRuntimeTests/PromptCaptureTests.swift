@@ -24,13 +24,15 @@ private struct CaptureResolver: ExecutableResolver {
         let socket = await runtime.socket
         defer { _ = try? ProcessRunner.run(PackagedRuntime.tmux(), ["-S", socket, "kill-server"]); try? FileManager.default.removeItem(at: root) }
         for tool in [SessionTool.codex, .claude] {
-            for prompt in ["", "café's 日本語\n$(touch MUST_NOT_EXIST) --option"] {
+            for (prompt, withImage) in [("", false), ("café's 日本語\n$(touch MUST_NOT_EXIST) --option", false), ("", true)] {
                 let folder = root.appendingPathComponent(UUID().uuidString)
                 try PrivateFiles.directory(folder)
+                let image = folder.appendingPathComponent("pasted image.png")
+                if withImage { try Data([1]).write(to: image) }
                 let store = WorkspaceStore()
                 store.update { $0.newWorkspace(directory: folder.path) }
                 let id = try XCTUnwrap(store.state.selectedTab?.id)
-                store.update { $0.editDraft(id, tool: tool, prompt: prompt) }
+                store.update { $0.editDraft(id, tool: tool, prompt: prompt, images: withImage ? [image.path] : []) }
                 let coordinator = LaunchCoordinator(store: store, runtime: runtime, resolver: CaptureResolver(executable: executable.path))
                 await coordinator.launch(id)
                 let binding = try XCTUnwrap(store.state.tab(id)?.binding)
@@ -40,7 +42,11 @@ private struct CaptureResolver: ExecutableResolver {
                     try await Task.sleep(for: .milliseconds(10))
                 }
                 let bytes = try Data(contentsOf: received)
-                let expected = prompt.isEmpty ? Data([0]) : Data(("--\0" + prompt + "\0").utf8)
+                let expected: Data
+                if withImage {
+                    expected = Data((tool == .codex ? "--image\0" + image.path + "\0" : "--\0Attached images:\n" + image.path + "\0").utf8)
+                    XCTAssertEqual(store.state.tab(id)?.promptDelivery, .suppliedToProcess)
+                } else { expected = prompt.isEmpty ? Data([0]) : Data(("--\0" + prompt + "\0").utf8) }
                 XCTAssertEqual(bytes, expected)
                 XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appendingPathComponent("MUST_NOT_EXIST").path))
                 let before = try await runtime.inspect(binding)

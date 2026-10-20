@@ -46,6 +46,18 @@ private actor LookupRuntime: SessionRuntime {
 }
 
 final class CLIResolverTests: XCTestCase {
+    func testAppRuntimeWrappersNeverShadowInstalledProviders() async throws {
+        let fixture = try CLIFixture(); defer { fixture.remove() }
+        for tool in [SessionTool.codex, .claude] {
+            let script = "#!/bin/sh\nexec '/Applications/Spookky.app/Contents/MacOS/spookky-launch' '--agent-run' '" + tool.rawValue + "' '--' \"$@\"\n"
+            let regular = try fixture.executable("agent-bin/" + tool.rawValue, text: script)
+            let escaped = try fixture.executable("old-agent-bin/" + tool.rawValue, text: script.replacingOccurrences(of: "\n", with: "\\n").replacingOccurrences(of: "\"", with: "\\\""))
+            let actual = try fixture.executable("installed/" + tool.rawValue)
+            let path = [regular, escaped, actual].map { $0.deletingLastPathComponent().path }.joined(separator: ":")
+            let result = try await fixture.resolver(path: path).resolve(tool, directory: fixture.home.path, prompt: nil)
+            XCTAssertEqual(result.executable, actual.path)
+        }
+    }
     func testInheritedExecutableWinsWithoutRunningStartupFiles() async throws {
         let fixture = try CLIFixture(); defer { fixture.remove() }
         let executable = try fixture.executable("selected/bin/codex")

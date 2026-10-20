@@ -111,7 +111,7 @@ extension WorkspaceState {
                 !candidate.customTitle && candidate.anchor == nil && candidate.locationOperationID == nil &&
                 candidate.locationOwnerWorkspaceID == nil && candidate.support?.tabs.isEmpty != false &&
                 candidate.tabs.allSatisfy { $0.isEditable && $0.binding == nil && $0.launch == nil &&
-                    $0.draft.prompt.isEmpty && !$0.customTitle }
+                    $0.draft.isEmpty && !$0.customTitle }
         }.map(\.id))
         workspaces.removeAll { placeholders.contains($0.id) }
         if let selectedWorkspaceID, placeholders.contains(selectedWorkspaceID) { self.selectedWorkspaceID = workspaceID }

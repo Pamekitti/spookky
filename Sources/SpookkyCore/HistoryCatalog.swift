@@ -22,13 +22,14 @@ extension Workspace {
         catalogMetadata != nil && viewClosed == true && !customTitle && anchor == nil && tabs.count == 1 &&
             locationOperationID == nil && locationOwnerWorkspaceID == nil &&
             support?.tabs.isEmpty != false && tabs.allSatisfy {
-                $0.binding == nil && $0.launch == nil && $0.draft.prompt.isEmpty && !$0.customTitle
+                $0.binding == nil && $0.launch == nil && $0.draft.isEmpty && !$0.customTitle
             }
     }
 }
 
 extension WorkspaceState {
-    @discardableResult public mutating func showLanding(projectID: UUID? = nil, homeDirectory: String) -> UUID {
+    @discardableResult public mutating func showLanding(projectID: UUID? = nil, homeDirectory: String,
+                                                       inheriting source: TerminalDraft? = nil) -> UUID {
         let context = projectID?.uuidString ?? "global"
         var retainedDraft: TerminalDraft?
         var retainedLocation: WorkspaceLocation?
@@ -52,6 +53,11 @@ extension WorkspaceState {
             workspaces[index].landingContext = context
             workspaces[index].title = "New chat"; workspaces[index].automaticTitle = nil
             if let retainedDraft { workspaces[index].tabs[0].draft = retainedDraft }
+            else if let source, source.tool != .shell {
+                workspaces[index].tabs[0].draft.tool = source.tool
+                let selection = source.recordedModelSelection(for: source.tool) ?? lastModelSelection(for: source.tool)
+                workspaces[index].tabs[0].draft.selectModel(selection, for: source.tool)
+            }
         }
         return id
     }
