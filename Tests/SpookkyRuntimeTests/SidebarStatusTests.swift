@@ -105,6 +105,7 @@ final class SidebarStatusTests: XCTestCase {
         XCTAssertNil(TerminalViewportPosition.atBottom(total: 0, offset: 0, length: 0))
         XCTAssertNil(TerminalViewportPosition.atBottom(total: 20, offset: 0, length: 21))
         XCTAssertNil(TerminalViewportPosition.atBottom(total: 20, offset: 21, length: 10))
+        XCTAssertNil(TerminalViewportPosition.atBottom(total: 200, offset: 180, length: 30))
         XCTAssertEqual(TerminalViewportPosition.atBottom(total: 200, offset: 150, length: 30), false)
         XCTAssertEqual(TerminalViewportPosition.atBottom(total: 200, offset: 170, length: 30), true)
         XCTAssertEqual(TerminalViewportPosition.atBottom(total: .max, offset: .max - 30, length: 30), true)

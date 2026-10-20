@@ -21,26 +21,26 @@ The supplied images define appearance. Direct inspection of the reference app wa
 
 ## Check results
 
-- The native reference matrix passed 109 assertions. The sidebar/display regression passed 1,845 assertions. Five native restart checks passed.
+- The native reference matrix passed 109 assertions. The sidebar/display regression passed 1,848 assertions. Five native restart checks and four surface-lifecycle race checks passed.
 - Swift completed 297 XCTest cases with four skipped and zero failures. Another 22 Swift Testing cases passed.
 - All 32 Python tests and 12 packaged-helper hook cases passed.
 - The Release build, bundle runtime/resource audit and strict development signature verification passed.
 
-The verified native binary has SHA-256 `8ee450e9dcb73f17b257f4cb05882c9640642d35f00ed686460b2d8b45f16efe`.
+The verified native binary has SHA-256 `cfb9a855427659eeb5b3fe55124c3208a60f80ddbc5cd546dd0dd836c5166894`.
 
 ## Resource observations
 
 | Observation | Idle | Hover |
 | --- | --- | --- |
-| App CPU, percent of one core | 0.13 | 0.07 |
-| Active observation, seconds | 5.21 | 5.20 |
+| App CPU, percent of one core | 0.30 | 0.27 |
+| Active observation, seconds | 5.24 | 5.20 |
 | Mounted rows | 9 | 9 |
 | Animated titles | 0 | 1 |
 | Pending hover-delay tasks | 0 | 0 |
 
 Both phases included a visible working ring. The 5,000-row case retained 11 native row views. CPU covers only the app process. It excludes WindowServer, GPU and provider costs. The short samples do not establish a performance difference between idle and hover.
 
-The terminal fixture observed one private pane, four runtime/shell processes and no app-owned Git or `gh` subprocess at readiness. The app used 172.9 MiB resident memory; runtime and shells used 17.2 MiB. Their summed resident memory was 190.1 MiB. Shared pages prevent interpreting this sum as unique physical memory. No real provider processes were present in that sample. Sidebar refresh uses one 60-second timer while active. Title and ring movement use Core Animation rather than per-frame timers. Lookup tests observed a peak of two concurrent requests and a cache no larger than 128 entries.
+The terminal fixture observed one private pane, four runtime/shell processes and no app-owned Git or `gh` subprocess at readiness. The app used 147.6 MiB resident memory; runtime and shells used 15.9 MiB. Their summed resident memory was 163.5 MiB. Shared pages prevent interpreting this sum as unique physical memory. No real provider processes were present in that sample. Sidebar refresh uses one 60-second timer while active. Title and ring movement use Core Animation rather than per-frame timers. Lookup tests observed a peak of two concurrent requests and a cache no larger than 128 entries.
 
 ## Status and unread behavior
 
@@ -49,6 +49,8 @@ The read-only GitHub service uses the installed `gh` executable and existing aut
 Focused tests cover activity precedence, branch reuse, stale completion receipts, unknown viewport state, backward-compatible metadata, request deduplication, cancellation, a 128-entry cache and a two-request concurrency bound. Disposable Git repositories verify main-checkout and linked-worktree detection. An opt-in installed-CLI check read the verified merged status of public PR #16.
 
 The native terminal fixture confirmed unread completion in scrollback, acknowledgment after returning to the bottom, background completion and visible split panes. Viewing a terminal retained Needs input and failure. It also confirmed real shell input, unsent input, stable process identity, pin/archive identity and focus behavior. A separate native restart retained the same unseen completion and three original shell processes. Lost tracking became Unknown. Core tests cover a newer completion arriving during acknowledgment.
+
+Pre-publication review found a race between asynchronous viewport inspection and terminal scrolling. Viewport revisions now invalidate a result after scroll input, scrollbar changes or view replacement. Input settling keeps the viewport unknown. A changed viewport retries the same completion receipt. Native regressions hold real tmux query results while moving away from and back to the bottom. They confirm retained unread and automatic acknowledgment after returning. The fixture now awaits rendering and establishes terminal focus before these cases.
 
 ## Real provider flows
 
@@ -67,4 +69,4 @@ Run the commands in [development](../../development.md#sidebar-attention-checks)
 
 AppKit bitmap captures of the layer-backed main window were blank on this host. Those files are excluded from evidence. The published crops come from native window screenshots through the computer-use driver. Hover-card bitmap captures are supplemental.
 
-These checks do not establish provider-internal scroll position, physical pointer or trackpad behavior, spoken VoiceOver, notification delivery, overnight continuity or older macOS compatibility. Completion means the provider ended a turn. It does not assert task success. Production replacement, publishing and pushing are outside this pass.
+These checks do not establish provider-internal scroll position, physical pointer or trackpad behavior, spoken VoiceOver, notification delivery, overnight continuity or older macOS compatibility. Completion means the provider ended a turn. It does not assert task success. Production replacement and release publishing are outside this pass.

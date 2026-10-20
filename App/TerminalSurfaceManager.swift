@@ -86,11 +86,13 @@ import SpookkyRuntime
         return try await owner.viewport(binding)
     }
     func viewportAtBottom(_ id: UUID) async throws -> Bool? {
-        guard runtime is any SessionViewportRuntime, bindings[id] != nil else { return nil }
+        guard runtime is any SessionViewportRuntime, let binding = bindings[id], viewportInteractionTasks[id] == nil else { return nil }
         guard let view = views[id], let bottom = view.terminalViewportAtBottom else { return nil }
         guard bottom else { return false }
+        let revision = view.viewportRevision
         let viewport = try await observedViewport(id)
-        guard views[id] === view, view.terminalViewportAtBottom == true else { return nil }
+        guard bindings[id] == binding, views[id] === view, view.viewportRevision == revision,
+              viewportInteractionTasks[id] == nil, view.terminalViewportAtBottom == true else { return nil }
         return viewport == nil || viewport?.scrollOffset == 0
     }
     func scrollFixtureHistory(_ id: UUID, offset: Int? = 25) async throws {
@@ -130,13 +132,15 @@ import SpookkyRuntime
             if let mouseOwner = runtime as? any SessionMouseRuntime {
                 view.applicationCapturesMouse = { try await mouseOwner.applicationCapturesMouse(binding) }
             }
-            view.onViewportInteraction = { [weak self] in
-                guard let self else { return }
+            view.onViewportInteraction = { [weak self, weak view] in
+                guard let self, let view, views[tabID] === view else { return }
+                view.noteViewportChange()
                 resizeAnchors[tabID] = nil; resizeTasks[tabID]?.cancel()
                 viewportInteractionTasks[tabID]?.cancel()
-                viewportInteractionTasks[tabID] = Task { [weak self] in
+                viewportInteractionTasks[tabID] = Task { [weak self, weak view] in
                     try? await Task.sleep(for: .milliseconds(100))
-                    guard !Task.isCancelled, let self else { return }
+                    guard !Task.isCancelled, let self, let view, self.views[tabID] === view else { return }
+                    view.noteViewportChange()
                     self.viewportInteractionTasks[tabID] = nil; self.onViewportChanged?(tabID)
                 }
             }

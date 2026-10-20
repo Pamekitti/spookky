@@ -151,7 +151,7 @@ import SpookkyGit
         let actionLog = CommandLine.arguments.contains("--workspace-benchmark-continuity") ? root.appendingPathComponent("runtime-actions.json") : nil
         let baseRuntime = try TmuxRuntime(executable: tmux, helper: helper, root: root, eventFile: runtimeEvents.eventFile, actionLog: actionLog)
         let runtime: any SessionViewportRuntime
-        if CommandLine.arguments.contains("--workspace-benchmark-races"), CommandLine.arguments.contains("--workspace-benchmark-count"),
+        if (CommandLine.arguments.contains("--workspace-benchmark-races") || CommandLine.arguments.contains("--workspace-benchmark-sidebar")), CommandLine.arguments.contains("--workspace-benchmark-count"),
            root.path.hasPrefix("/tmp/spookky-m1-"), ProcessInfo.processInfo.environment["SPOOKKY_M1_DATA"] != nil {
             runtime = WorkspaceViewportFixtureRuntime(baseRuntime)
         } else { runtime = baseRuntime }
@@ -303,12 +303,14 @@ import SpookkyGit
             guard agentTargetVisible(id), let activity = store.state.tab(id)?.activity else { continue }
             guard (activity.completionID != nil && activity.completionID != activity.seenCompletionID) || (clearManual && activity.manualUnread) else { continue }
             let receipt = AgentCompletionReceipt(activity)
+            let observedView = surfaces.view(id), viewportRevision = observedView?.viewportRevision
             acknowledgmentTasks[id] = Task { [weak self] in
                 guard let self else { return }
                 defer {
                     acknowledgmentTasks[id] = nil
                     if let latest = store.state.tab(id)?.activity, latest.unread,
-                       latest.completionID != receipt.completionID || latest.invocationID != receipt.invocationID {
+                       latest.completionID != receipt.completionID || latest.invocationID != receipt.invocationID ||
+                       surfaces.view(id) !== observedView || observedView?.viewportRevision != viewportRevision {
                         refreshAgentAttention(clearManual: clearManual)
                     }
                 }
@@ -1598,6 +1600,7 @@ import SpookkyGit
             $0.renameWorkspace(workspaceID, name)
             $0.editDraft($0.selectedTab!.id, tool: .codex, prompt: "Keep this unsent draft")
         }
+        if let renderTask { await renderTask.value }
         let original = store.state.selected!
         let projectKey = "project:" + projectID.uuidString, workspaceKey = sidebarItemIDForFixture(workspaceID)
         var checks: [String: Bool] = [:]
@@ -1645,6 +1648,8 @@ import SpookkyGit
         (window.firstResponder as? NSView)?.keyDown(with: try key(36, "\r"))
         checks["project_keyboard_collapses_rows"] = sidebarCellForFixture(workspaceKey) == nil && store.state.projects.first { $0.id == projectID }?.isCollapsed == true
         checks["collapse_preserves_workspace_and_draft"] = store.state.workspaces.first { $0.id == workspaceID } == original
+        interactionDetails["original_workspace"] = String(data: try JSONEncoder().encode(original), encoding: .utf8)
+        interactionDetails["collapsed_workspace"] = String(data: try JSONEncoder().encode(store.state.workspaces.first { $0.id == workspaceID }), encoding: .utf8)
         checks["collapse_preserves_project_keyboard_focus"] = conversationSidebar.focusedItemID == projectKey && (window.firstResponder as? NSView)?.isDescendant(of: conversationSidebar) == true
         (window.firstResponder as? NSView)?.keyDown(with: try key(36, "\r"))
         checks["expand_restores_rows"] = sidebarCellForFixture(workspaceKey) != nil
@@ -1661,6 +1666,7 @@ import SpookkyGit
             await Task.yield()
             checks["project_mouse_click_toggles_without_selection_or_keyboard_fill"] = store.state.projects.first { $0.id == projectID }?.isCollapsed == true &&
                 table.selectedRow == -1 && conversationSidebar.keyboardFocusItemID == nil && store.state.selectedWorkspaceID == workspaceID
+            interactionDetails["project_click_state"] = "collapsed=\(store.state.projects.first { $0.id == projectID }?.isCollapsed == true) selectedRow=\(table.selectedRow) keyboard=\(conversationSidebar.keyboardFocusItemID ?? "none") workspace=\(store.state.selectedWorkspaceID == workspaceID)"
             conversationSidebar.focusItem(projectKey)
             (window.firstResponder as? NSView)?.keyDown(with: try key(36, "\r"))
             checks["keyboard_navigation_restores_neutral_focus_after_mouse_click"] = conversationSidebar.keyboardFocusItemID == projectKey && sidebarCellForFixture(workspaceKey) != nil
@@ -1826,6 +1832,60 @@ import SpookkyGit
         store.update { $0.recordAgentEvent(activityEvent(.failed)) }
         refreshAgentAttention(); try await Task.sleep(for: .milliseconds(100))
         checks["viewing_real_terminal_keeps_failure"] = store.state.tab(shellID)?.activity?.displayState == .failed
+        guard let viewportOwner = launches.runtime as? WorkspaceViewportFixtureRuntime else {
+            throw LaunchError.invalid("Sidebar viewport race fixture is unavailable.")
+        }
+        store.update { $0.resetAgent(shellID) }
+        for task in Array(acknowledgmentTasks.values) { await task.value }
+        window.makeKeyAndOrderFront(nil); window.makeFirstResponder(surface); NSApp.activate(ignoringOtherApps: true)
+        for _ in 0..<100 {
+            if agentTargetVisible(shellID), try await surfaces.viewportAtBottom(shellID) == true { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        interactionDetails["acknowledgment_race_setup"] = "visible=\(agentTargetVisible(shellID)) revision=\(surface.viewportRevision) bottom=\(String(describing: try await surfaces.viewportAtBottom(shellID))) pending=\(acknowledgmentTasks[shellID] != nil)"
+        try PrivateFiles.write(interactionDetails, to: root.appendingPathComponent("sidebar-interaction-diagnostics.json"))
+        await viewportOwner.holdViewport(after: 1)
+        store.update { $0.recordAgentEvent(activityEvent(.working)); $0.recordAgentEvent(activityEvent(.finished)) }
+        refreshAgentAttention()
+        for _ in 0..<100 {
+            if await viewportOwner.isHeld { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        guard await viewportOwner.isHeld else { throw LaunchError.invalid("Sidebar acknowledgment did not reach its delayed bottom query.") }
+        let bottomAcknowledgment = acknowledgmentTasks[shellID]
+        surface.onViewportInteraction?()
+        checks["pending_scroll_keeps_viewport_unknown"] = try await surfaces.viewportAtBottom(shellID) == nil
+        try await surfaces.scrollFixtureHistory(shellID, offset: 25)
+        try await Task.sleep(for: .milliseconds(150))
+        await viewportOwner.resume()
+        await bottomAcknowledgment?.value
+        for task in Array(acknowledgmentTasks.values) { await task.value }
+        checks["scroll_during_bottom_query_retains_unread"] = store.state.tab(shellID)?.activity?.unread == true
+        await viewportOwner.holdViewport(after: 1)
+        refreshAgentAttention()
+        for _ in 0..<100 {
+            if await viewportOwner.isHeld { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        guard await viewportOwner.isHeld else { throw LaunchError.invalid("Sidebar acknowledgment did not reach its delayed scrollback query.") }
+        let scrollbackAcknowledgment = acknowledgmentTasks[shellID]
+        surface.onViewportInteraction?()
+        try await surfaces.scrollFixtureHistory(shellID, offset: 0)
+        try await Task.sleep(for: .milliseconds(150))
+        await viewportOwner.resume()
+        await scrollbackAcknowledgment?.value
+        for _ in 0..<100 {
+            if store.state.tab(shellID)?.activity?.unread == false { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        checks["return_to_bottom_during_query_retries_acknowledgment"] = store.state.tab(shellID)?.activity?.unread == false
+        interactionDetails["acknowledgment_race_result"] = "visible=\(agentTargetVisible(shellID)) revision=\(surface.viewportRevision) bottom=\(String(describing: try await surfaces.viewportAtBottom(shellID))) pending=\(acknowledgmentTasks[shellID] != nil)"
+        try PrivateFiles.write(interactionDetails, to: root.appendingPathComponent("sidebar-interaction-diagnostics.json"))
+        surface.keyDown(with: cancelCopyMode)
+        for _ in 0..<100 {
+            if try await surfaces.observedViewport(shellID) == nil { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
         store.update { $0.resetAgent(shellID) }
         surface.insertText("SPOOKKY_SIDEBAR_UNSENT", replacementRange: NSRange(location: NSNotFound, length: 0))
         func unsentInputVisible() -> Bool { surface.visibleText().replacingOccurrences(of: "\n", with: "").contains("SPOOKKY_SIDEBAR_UNSENT") }

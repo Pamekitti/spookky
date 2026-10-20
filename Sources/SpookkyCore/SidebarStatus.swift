@@ -94,8 +94,8 @@ public struct AgentCompletionReceipt: Equatable, Sendable {
 
 public enum TerminalViewportPosition {
     public static func atBottom(total: UInt64, offset: UInt64, length: UInt64) -> Bool? {
-        guard length > 0, length <= total, offset <= total else { return nil }
-        return offset >= total - length
+        guard length > 0, length <= total, offset <= total - length else { return nil }
+        return offset == total - length
     }
 }
 
