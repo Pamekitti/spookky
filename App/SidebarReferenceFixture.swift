@@ -21,12 +21,14 @@ import SpookkyRuntime
         let repository = GitHubRepositoryID(owner: "example", name: "workspace")
         let association = ThreadPullRequest(repository: repository, number: 42, branch: "feature/sidebar", headCommit: String(repeating: "a", count: 40))
         let checkout = SidebarCheckoutInfo(repository: repository, branch: association.branch, headCommit: association.headCommit, linkedWorktree: true)
-        var items = [WorkspaceSidebarItem(id: "project:fixture", kind: .project, title: "spookky")]
+        let projectAvatar = SpookkyStyle.monogram("spookky")
+        var items = [WorkspaceSidebarItem(id: "project:fixture", kind: .project, title: "spookky", image: projectAvatar)]
         let titles = ["Adopt the reference sidebar and preserve terminal input", "Improve workspace", "Find why suggested prompts disappear", "Copilot integration", "Draft interface work", "Recover interrupted activity", "Build native interface", "Session history"]
         let states: [AgentActivityState?] = [nil, .needsInput, .finished, nil, nil, .failed, .working, nil]
         for index in titles.indices {
-            var item = WorkspaceSidebarItem(id: "reference:\(index)", kind: .conversation, title: titles[index], selected: index == 0, activity: states[index])
-            item.provider = .codex; item.projectName = "spookky"; item.updatedAt = Date().addingTimeInterval(-180)
+            let provider: SessionTool = index.isMultiple(of: 2) ? .codex : .claude
+            var item = WorkspaceSidebarItem(id: "reference:\(index)", kind: .conversation, title: titles[index], image: SpookkyStyle.toolImage(provider), selected: index == 0, activity: states[index])
+            item.provider = provider; item.projectName = "spookky"; item.updatedAt = Date().addingTimeInterval(-180)
             if [0, 2, 3].contains(index) { item.checkout = checkout }
             if [0, 3, 4].contains(index) { item.pullRequest = PullRequestStatus(association: association, state: index == 4 ? .draft : .merged) }
             items.append(item)
@@ -94,7 +96,15 @@ import SpookkyRuntime
                     checks["\(key)-row-height"] = cell("reference:0").map { abs($0.bounds.height - 31 * zoom) < 0.5 } == true
                     checks["\(key)-status-pill"] = cell("reference:1")?.subviews.compactMap { $0 as? SidebarActivityIndicator }.contains { !$0.isHidden && abs($0.bounds.height - 23 * zoom) < 0.5 } == true
                     checks["\(key)-working-ring-rotates"] = cell("reference:6")?.subviews.compactMap { $0 as? SidebarActivityIndicator }.contains { !$0.isHidden && $0.rotating } == true
-                    checks["\(key)-no-provider-logo"] = cell("reference:0")?.subviews.compactMap { $0 as? NSImageView }.filter { !$0.isHidden && $0.image?.accessibilityDescription == "Codex" }.isEmpty == true
+                    for index in [0, 1] {
+                        let icon = cell("reference:\(index)")?.subviews.compactMap { $0 as? NSImageView }.first
+                        checks["\(key)-provider-logo-\(index)"] = icon.map {
+                            !$0.isHidden && $0.image?.accessibilityDescription == (index == 0 ? "Codex" : "Claude Code") &&
+                                abs($0.frame.minX - 12 * zoom) < 0.5 && abs($0.frame.width - 16 * zoom) < 0.5
+                        } == true
+                    }
+                    let avatar = cell("project:fixture")?.subviews.compactMap { $0 as? NSImageView }.first
+                    checks["\(key)-project-avatar"] = avatar.map { !$0.isHidden && $0.image === projectAvatar && $0.contentTintColor == nil } == true
                     checks["\(key)-accessories-fit"] = descendants(sidebar).compactMap { $0 as? ActionButton }.allSatisfy { $0.isHidden || $0.frame.minX >= 0 && $0.frame.maxX <= ($0.superview?.bounds.width ?? 0) }
                     try await activate()
                     hover("reference:0"); content.layoutSubtreeIfNeeded()
