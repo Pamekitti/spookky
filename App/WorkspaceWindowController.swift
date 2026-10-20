@@ -15,6 +15,10 @@ import SpookkyGit
     private var repositorySnapshots: [UUID: RepositorySnapshot] = [:]
     private var repositoryGenerations: [UUID: UUID] = [:]
     private var projectCreation: ProjectCreationController?
+    private let avatarCache: GitHubAvatarCache
+    private var avatarTasks: [UUID: Task<Void, Never>] = [:]
+    private var projectOwners: [String: String] = [:]
+    private var projectImages: [UUID: NSImage] = [:]
     private let sessionCatalog: any SessionCatalogReading
     private let associationResolver = ProjectAssociationResolver()
     var historyRefreshTask: Task<Void, Never>?
@@ -140,6 +144,7 @@ import SpookkyGit
          catalog: (any SessionCatalogReading)? = nil) throws {
         let paths = AppPaths(bundleID: Bundle.main.bundleIdentifier, home: FileManager.default.homeDirectoryForCurrentUser, userID: getuid())
         promptImageDirectory = paths.data.appendingPathComponent("PromptImages")
+        avatarCache = GitHubAvatarCache(directory: paths.data.appendingPathComponent("AvatarCache"))
         self.backgroundFixture = backgroundFixture
         let fixture = backgroundFixture || CommandLine.arguments.contains { $0.hasPrefix("--workspace-benchmark") }
         let historyFixture = CommandLine.arguments.contains("--workspace-benchmark-history")
@@ -1220,6 +1225,26 @@ import SpookkyGit
         store.update { workspaceID = $0.openCatalogRecord(record) }
         openConversationWorkspace(workspaceID)
     }
+    private func installProjectAvatar(_ project: Project) {
+        guard project.location.isGit, avatarTasks[project.id] == nil else { return }
+        avatarTasks[project.id] = Task { [weak self] in
+            guard let self else { return }
+            let path = project.location.scopePath
+            let owner: String
+            if let known = projectOwners[path] { owner = known }
+            else {
+                owner = (try? await GitRepository().githubOwner(project.location)) ?? ""
+                guard !Task.isCancelled else { return }; projectOwners[path] = owner
+            }
+            guard !owner.isEmpty, !Task.isCancelled else { return }
+            if let data = await avatarCache.cached(owner), let image = NSImage(data: data) {
+                projectImages[project.id] = image; chromeRevision = ""; render()
+            }
+            guard let data = await avatarCache.image(owner), !Task.isCancelled,
+                  store.state.projects.contains(where: { $0.id == project.id }), let image = NSImage(data: data) else { return }
+            projectImages[project.id] = image; chromeRevision = ""; render()
+        }
+    }
     private func sidebarItemIDForFixture(_ id: UUID) -> String {
         if let conversation = store.state.workspaces.first(where: { $0.id == id })?.conversationID {
             return "conversation:" + conversation.provider.rawValue + ":" + conversation.sessionID
@@ -1753,7 +1778,7 @@ import SpookkyGit
         let conversationTitle = cell.subviews.compactMap { $0 as? NSTextField }.first
         let projectTitle = sidebarCellForFixture(projectKey)?.subviews.compactMap { $0 as? NSTextField }.first
         checks["project_content_has_internal_padding"] = projectIcon.map { abs($0.convert($0.bounds, to: conversationSidebar).minX - 12) < 0.5 } == true
-        checks["conversation_and_project_titles_align_without_provider_icon"] = conversationIcon?.isHidden == true &&
+        checks["conversation_and_project_titles_align_with_provider_icon"] = conversationIcon?.isHidden == false && conversationIcon?.image != nil &&
             conversationTitle.map { abs($0.frame.minX - 35) < 0.5 } == true && projectTitle.map { abs($0.frame.minX - 35) < 0.5 } == true
         railScroll.contentView.scroll(to: NSPoint(x: 120, y: 0)); railScroll.reflectScrolledClipView(railScroll.contentView)
         checks["fixed_sidebar_controls_cannot_scroll_sideways"] = railScroll.contentView.bounds.minX == 0 && railScroll.horizontalScrollElasticity == .none
@@ -3585,8 +3610,9 @@ import SpookkyGit
             localSection("Pinned", key: "pinned", filter: { $0.pinnedAt != nil && $0.archivedAt == nil })
             items.append(WorkspaceSidebarItem(id: "section:projects", kind: .section, title: "Projects"))
             for project in state.projects {
+                installProjectAvatar(project)
                 items.append(WorkspaceSidebarItem(id: "project:" + project.id.uuidString, kind: .project, title: project.name,
-                    image: NSImage(systemSymbolName: "folder", accessibilityDescription: nil), help: project.name + "\n" + project.location.path,
+                    image: projectImages[project.id] ?? NSImage(systemSymbolName: "folder", accessibilityDescription: nil), help: project.name + "\n" + project.location.path,
                     collapsed: project.isCollapsed == true))
                 if project.isCollapsed != true { append(historyRecords[project.id.uuidString] ?? [], projectID: project.id, key: project.id.uuidString) }
             }

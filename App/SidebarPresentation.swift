@@ -64,16 +64,15 @@ import SpookkyCore
 
 @MainActor final class SidebarTitleField: NSTextField {
     var revealing = false { didSet { if oldValue != revealing { updateReveal() } } }
-    private let clip = CALayer(), textLayer = CATextLayer(), fade = CAGradientLayer()
+    private let clip = CALayer(), textLayer = CALayer(), fade = CAGradientLayer()
     private var animationKey = ""
     private(set) var animating = false
-    var revealOffset: CGFloat { textLayer.presentation()?.transform.m41 ?? 0 }
+    var revealOffset: CGFloat { animating ? textLayer.presentation()?.transform.m41 ?? textLayer.transform.m41 : 0 }
     init() {
         super.init(frame: .zero)
         isEditable = false; isSelectable = false; isBordered = false; drawsBackground = false
         lineBreakMode = .byTruncatingTail; maximumNumberOfLines = 1
         wantsLayer = true; clip.masksToBounds = true; clip.addSublayer(textLayer); layer?.addSublayer(clip)
-        textLayer.alignmentMode = .left; textLayer.truncationMode = .none
         fade.startPoint = CGPoint(x: 0, y: 0.5); fade.endPoint = CGPoint(x: 1, y: 0.5)
         setAccessibilityElement(false)
     }
@@ -85,35 +84,65 @@ import SpookkyCore
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); animationKey = ""; updateReveal() }
     override func draw(_ dirtyRect: NSRect) { if !animating { super.draw(dirtyRect) } }
     func stopReveal() {
-        textLayer.removeAllAnimations(); clip.isHidden = true; animating = false; animationKey = ""; needsDisplay = true
+        CATransaction.begin(); CATransaction.setDisableActions(true)
+        textLayer.removeAllAnimations(); textLayer.transform = CATransform3DIdentity; textLayer.contents = nil
+        fade.removeAllAnimations(); clip.isHidden = true
+        CATransaction.commit()
+        animating = false; animationKey = ""; needsDisplay = true
+    }
+    private func textImage(size: NSSize, scale: CGFloat) -> CGImage? {
+        let pixelsWide = ceil(size.width * scale), pixelsHigh = ceil(size.height * scale)
+        guard pixelsWide > 0, pixelsHigh > 0, pixelsWide <= 16_384, pixelsHigh <= 16_384,
+              pixelsWide * pixelsHigh <= 4_194_304,
+              let textCell = cell?.copy() as? NSTextFieldCell,
+              let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(pixelsWide),
+                pixelsHigh: Int(pixelsHigh), bitsPerSample: 8, samplesPerPixel: 4,
+                hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+              let context = NSGraphicsContext(bitmapImageRep: bitmap) else { return nil }
+        textCell.lineBreakMode = .byClipping
+        context.cgContext.scaleBy(x: scale, y: scale)
+        if isFlipped { context.cgContext.translateBy(x: 0, y: size.height); context.cgContext.scaleBy(x: 1, y: -1) }
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: context.cgContext, flipped: isFlipped)
+        effectiveAppearance.performAsCurrentDrawingAppearance { textCell.draw(withFrame: NSRect(origin: .zero, size: size), in: self) }
+        NSGraphicsContext.restoreGraphicsState()
+        return bitmap.cgImage
     }
     func updateReveal() {
         let font = font ?? .systemFont(ofSize: SpookkyStyle.points(14))
-        var color = textColor ?? SidebarPalette.text
-        effectiveAppearance.performAsCurrentDrawingAppearance { color = color.usingColorSpace(.deviceRGB) ?? color }
-        let value = NSAttributedString(string: stringValue, attributes: [.font: font, .foregroundColor: color])
-        let size = value.size(), width = max(0, bounds.width - 2)
-        let overflow = max(0, size.width - width)
-        let active = revealing && !SidebarMotion.reduced && overflow > 1 && window?.isKeyWindow == true &&
+        let overflow = max(0, ceil(cell?.cellSize.width ?? 0) - bounds.width)
+        let active = revealing && !SidebarMotion.reduced && overflow > 1 && bounds.height > 0 && window?.isKeyWindow == true &&
             window?.occlusionState.contains(.visible) == true && !isHiddenOrHasHiddenAncestor && !visibleRect.isEmpty
         guard active else { if animating { stopReveal() }; return }
-        let key = stringValue + "|\(width)|\(font.pointSize)|\(color)"
+        let scale = window?.backingScaleFactor ?? 2
+        let key = stringValue + "|\(bounds.size)|\(font)|\(String(describing: textColor))|\(scale)"
         guard key != animationKey else { return }
-        stopReveal(); animationKey = key; animating = true
+        stopReveal()
+        let size = NSSize(width: bounds.width + overflow, height: bounds.height)
+        guard let image = textImage(size: size, scale: scale) else { return }
+        animationKey = key; animating = true
+        let travel = Double(overflow / SpookkyStyle.points(30)), duration = 0.5 + travel
+        let edgeTime = min(travel / 2, Double(SpookkyStyle.points(8) / SpookkyStyle.points(30)))
+        let opaque = NSColor.black.cgColor, clear = NSColor.clear.cgColor
+        let start = [opaque, opaque, opaque, clear], moving = [clear, opaque, opaque, clear], end = [clear, opaque, opaque, opaque]
         CATransaction.begin(); CATransaction.setDisableActions(true)
-        clip.isHidden = false; clip.frame = NSRect(x: 1, y: (bounds.height - size.height) / 2, width: width, height: size.height)
-        textLayer.string = value; textLayer.contentsScale = window?.backingScaleFactor ?? 2
-        textLayer.frame = NSRect(origin: .zero, size: size)
-        fade.frame = clip.bounds; fade.colors = [NSColor.clear.cgColor, NSColor.black.cgColor, NSColor.black.cgColor, NSColor.clear.cgColor]
-        let fraction = min(0.2, SpookkyStyle.points(8) / max(1, width))
+        clip.frame = bounds; clip.isHidden = false
+        textLayer.frame = NSRect(origin: .zero, size: size); textLayer.contentsScale = scale; textLayer.contents = image
+        textLayer.transform = CATransform3DMakeTranslation(-overflow, 0, 0)
+        fade.frame = clip.bounds; fade.colors = end
+        let fraction = min(0.2, SpookkyStyle.points(8) / max(1, bounds.width))
         fade.locations = [0, NSNumber(value: fraction), NSNumber(value: 1 - fraction), 1]; clip.mask = fade
-        CATransaction.commit()
-        let travel = Double(overflow / SpookkyStyle.points(30)), duration = 0.5 + travel + 0.8
         let animation = CAKeyframeAnimation(keyPath: "transform.translation.x")
-        animation.values = [0, 0, -overflow, -overflow]
-        animation.keyTimes = [0, NSNumber(value: 0.5 / duration), NSNumber(value: (0.5 + travel) / duration), 1]
-        animation.duration = duration; animation.repeatCount = .infinity; animation.calculationMode = .linear
-        textLayer.add(animation, forKey: "sidebar-title"); needsDisplay = true
+        animation.values = [0, 0, -overflow]
+        animation.keyTimes = [0, NSNumber(value: 0.5 / duration), 1]
+        animation.duration = duration; animation.calculationMode = .linear
+        textLayer.add(animation, forKey: "sidebar-title")
+        let mask = CAKeyframeAnimation(keyPath: "colors")
+        mask.values = [start, start, moving, moving, end]
+        mask.keyTimes = [0, NSNumber(value: 0.5 / duration), NSNumber(value: (0.5 + edgeTime) / duration), NSNumber(value: (duration - edgeTime) / duration), 1]
+        mask.duration = duration; mask.calculationMode = .linear
+        fade.add(mask, forKey: "sidebar-title-fade")
+        CATransaction.commit(); needsDisplay = true
     }
 }
 

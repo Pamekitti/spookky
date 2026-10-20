@@ -21,12 +21,14 @@ import SpookkyRuntime
         let repository = GitHubRepositoryID(owner: "example", name: "workspace")
         let association = ThreadPullRequest(repository: repository, number: 42, branch: "feature/sidebar", headCommit: String(repeating: "a", count: 40))
         let checkout = SidebarCheckoutInfo(repository: repository, branch: association.branch, headCommit: association.headCommit, linkedWorktree: true)
-        var items = [WorkspaceSidebarItem(id: "project:fixture", kind: .project, title: "spookky")]
+        let projectAvatar = SpookkyStyle.monogram("spookky")
+        var items = [WorkspaceSidebarItem(id: "project:fixture", kind: .project, title: "spookky", image: projectAvatar)]
         let titles = ["Adopt the reference sidebar and preserve terminal input", "Improve workspace", "Find why suggested prompts disappear", "Copilot integration", "Draft interface work", "Recover interrupted activity", "Build native interface", "Session history"]
         let states: [AgentActivityState?] = [nil, .needsInput, .finished, nil, nil, .failed, .working, nil]
         for index in titles.indices {
-            var item = WorkspaceSidebarItem(id: "reference:\(index)", kind: .conversation, title: titles[index], selected: index == 0, activity: states[index])
-            item.provider = .codex; item.projectName = "spookky"; item.updatedAt = Date().addingTimeInterval(-180)
+            let provider: SessionTool = index.isMultiple(of: 2) ? .codex : .claude
+            var item = WorkspaceSidebarItem(id: "reference:\(index)", kind: .conversation, title: titles[index], image: SpookkyStyle.toolImage(provider), selected: index == 0, activity: states[index])
+            item.provider = provider; item.projectName = "spookky"; item.updatedAt = Date().addingTimeInterval(-180)
             if [0, 2, 3].contains(index) { item.checkout = checkout }
             if [0, 3, 4].contains(index) { item.pullRequest = PullRequestStatus(association: association, state: index == 4 ? .draft : .merged) }
             items.append(item)
@@ -94,7 +96,15 @@ import SpookkyRuntime
                     checks["\(key)-row-height"] = cell("reference:0").map { abs($0.bounds.height - 31 * zoom) < 0.5 } == true
                     checks["\(key)-status-pill"] = cell("reference:1")?.subviews.compactMap { $0 as? SidebarActivityIndicator }.contains { !$0.isHidden && abs($0.bounds.height - 23 * zoom) < 0.5 } == true
                     checks["\(key)-working-ring-rotates"] = cell("reference:6")?.subviews.compactMap { $0 as? SidebarActivityIndicator }.contains { !$0.isHidden && $0.rotating } == true
-                    checks["\(key)-no-provider-logo"] = cell("reference:0")?.subviews.compactMap { $0 as? NSImageView }.filter { !$0.isHidden && $0.image?.accessibilityDescription == "Codex" }.isEmpty == true
+                    for index in [0, 1] {
+                        let icon = cell("reference:\(index)")?.subviews.compactMap { $0 as? NSImageView }.first
+                        checks["\(key)-provider-logo-\(index)"] = icon.map {
+                            !$0.isHidden && $0.image?.accessibilityDescription == (index == 0 ? "Codex" : "Claude Code") &&
+                                abs($0.frame.minX - 12 * zoom) < 0.5 && abs($0.frame.width - 16 * zoom) < 0.5
+                        } == true
+                    }
+                    let avatar = cell("project:fixture")?.subviews.compactMap { $0 as? NSImageView }.first
+                    checks["\(key)-project-avatar"] = avatar.map { !$0.isHidden && $0.image === projectAvatar && $0.contentTintColor == nil } == true
                     checks["\(key)-accessories-fit"] = descendants(sidebar).compactMap { $0 as? ActionButton }.allSatisfy { $0.isHidden || $0.frame.minX >= 0 && $0.frame.maxX <= ($0.superview?.bounds.width ?? 0) }
                     try await activate()
                     hover("reference:0"); content.layoutSubtreeIfNeeded()
@@ -124,6 +134,53 @@ import SpookkyRuntime
                 }
             }
         }
+        sidebar.closeHoverCard(); hover(nil); try await activate()
+        DisplayMetrics.preferences.zoom = 1
+        window.setContentSize(NSSize(width: 1120, height: 760))
+        let reveal = SidebarTitleField()
+        reveal.font = .systemFont(ofSize: 14); reveal.textColor = SidebarPalette.text
+        reveal.stringValue = "query_timeseries tool cancellation"
+        reveal.frame = NSRect(x: 450, y: 400, width: reveal.fittingSize.width - 30, height: 20)
+        content.addSubview(reveal); content.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+        try await externalCapture("title-rest")
+        reveal.revealing = true; window.displayIfNeeded()
+        try await Task.sleep(for: .milliseconds(200))
+        checks["title-starts-without-offset"] = abs(reveal.revealOffset) < 0.5
+        reveal.needsLayout = true; content.layoutSubtreeIfNeeded()
+        try await Task.sleep(for: .milliseconds(200))
+        checks["title-pauses-before-moving"] = abs(reveal.revealOffset) < 0.5
+        try await Task.sleep(for: .milliseconds(450))
+        checks["title-layout-does-not-restart-pause"] = reveal.revealOffset < -3
+        try await Task.sleep(for: .milliseconds(1000))
+        let endOffset = reveal.revealOffset
+        checks["title-reaches-end"] = endOffset < -25
+        try await Task.sleep(for: .milliseconds(1100))
+        checks["title-holds-beyond-former-repeat"] = abs(reveal.revealOffset - endOffset) < 0.5
+        reveal.needsLayout = true; content.layoutSubtreeIfNeeded()
+        try await Task.sleep(for: .milliseconds(200))
+        checks["title-layout-preserves-end"] = abs(reveal.revealOffset - endOffset) < 0.5
+        diagnostics["one-shot-title"] = "end=\(endOffset) held=\(reveal.revealOffset) bounds=\(reveal.bounds) active=\(reveal.animating)"
+        try await externalCapture("title-end")
+        reveal.revealing = false
+        checks["title-exit-resets"] = !reveal.animating && abs(reveal.revealOffset) < 0.5
+        reveal.revealing = true
+        try await Task.sleep(for: .milliseconds(200))
+        checks["title-reentry-pauses-at-start"] = reveal.animating && abs(reveal.revealOffset) < 0.5
+        try await Task.sleep(for: .milliseconds(450))
+        reveal.revealing = false
+        checks["title-exit-during-motion-resets"] = !reveal.animating && abs(reveal.revealOffset) < 0.5
+        reveal.revealing = true
+        reveal.frame.size.width += 100; reveal.updateReveal()
+        checks["title-resize-to-fit-stops"] = !reveal.animating && abs(reveal.revealOffset) < 0.5
+        reveal.frame.size.width -= 100; reveal.updateReveal()
+        reveal.stringValue = "Short title"
+        checks["title-reuse-with-fitting-text-stops"] = !reveal.animating && abs(reveal.revealOffset) < 0.5
+        reveal.stringValue = String(repeating: "Very long title ", count: 10_000)
+        checks["title-raster-budget-keeps-oversized-text-static"] = !reveal.animating
+        reveal.stringValue = "query_timeseries tool cancellation"
+        SidebarMotion.reducedOverride = true; reveal.updateReveal()
+        checks["title-reduce-motion-resets-offset"] = !reveal.animating && abs(reveal.revealOffset) < 0.5
+        SidebarMotion.reducedOverride = false; reveal.removeFromSuperview()
         SidebarMotion.reducedOverride = true; sidebar.displayChanged(); content.layoutSubtreeIfNeeded()
         checks["reduce-motion-stops-title"] = descendants(sidebar).compactMap { $0 as? SidebarTitleField }.allSatisfy { !$0.animating }
         checks["reduce-motion-stops-ring"] = descendants(sidebar).compactMap { $0 as? SidebarActivityIndicator }.allSatisfy { !$0.rotating }
