@@ -321,6 +321,18 @@ final class PromptTextView: NSTextView {
     private let draftUndoManager: UndoManager = { let manager = UndoManager(); manager.levelsOfUndo = 50; return manager }()
     override var undoManager: UndoManager? { draftUndoManager }
     var onFocusChange: (() -> Void)?
+    var onSubmit: (() -> Void)?
+    override func keyDown(with event: NSEvent) {
+        let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
+        if [36, 76].contains(event.keyCode), !hasMarkedText(), let onSubmit {
+            if modifiers.isEmpty || modifiers == .command {
+                if !event.isARepeat { onSubmit() }
+                return
+            }
+            if modifiers == .shift { insertNewlineIgnoringFieldEditor(nil); return }
+        }
+        super.keyDown(with: event)
+    }
     var onPasteImage: ((Data) -> Void)?
     var imagePasteboard: NSPasteboard = .general
     override func paste(_ sender: Any?) {
@@ -340,7 +352,7 @@ final class PromptTextView: NSTextView {
         super.draw(dirtyRect)
         if string.isEmpty {
             NSAttributedString(string: "What would you like to work on?", attributes: [.font: font ?? NSFont.systemFont(ofSize: SpookkyStyle.points(14)), .foregroundColor: SpookkyPalette.secondary])
-                .draw(at: NSPoint(x: textContainerInset.width + 5, y: textContainerInset.height))
+                .draw(at: NSPoint(x: textContainerInset.width + (textContainer?.lineFragmentPadding ?? 0), y: textContainerInset.height))
         }
     }
     override func didChangeText() { super.didChangeText(); needsDisplay = true }
@@ -351,10 +363,13 @@ class ActionButton: NSButton {
     var emphasis: Emphasis = .quiet { didSet { needsDisplay = true } }
     var selected = false { didSet { if selected != oldValue { needsDisplay = true } } }
     var drawsInteractionFill = true
+    var circular = false
+    var detail: String?
     var handler: (() -> Void)?
     var onDoubleClick: (() -> Void)?
     var onContextMenu: (() -> NSMenu?)?
     var onNavigate: ((UInt16) -> Void)?
+    var onCancel: (() -> Void)?
     var contentInset: CGFloat = SpookkyStyle.controlInset
     var menuIndicator = false { didSet { invalidateIntrinsicContentSize() } }
     var compactUtility = false
@@ -394,7 +409,7 @@ class ActionButton: NSButton {
     override var isOpaque: Bool { false }
     override var alignmentRectInsets: NSEdgeInsets {
         // Custom targets can opt out of native symbol alignment outside their bounds.
-        alignsToBounds || compactUtility && title.isEmpty ? NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0) : super.alignmentRectInsets
+        alignsToBounds || (compactUtility || circular) && title.isEmpty ? NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0) : super.alignmentRectInsets
     }
     override var intrinsicContentSize: NSSize {
         let text = (title as NSString).size(withAttributes: [.font: font ?? NSFont.systemFont(ofSize: SpookkyStyle.points(13))]).width
@@ -424,8 +439,8 @@ class ActionButton: NSButton {
     override func draw(_ dirtyRect: NSRect) {
         let pressed = cell?.isHighlighted == true
         let compact = compactUtility && title.isEmpty
-        let fillBounds = compact ? NSRect(x: bounds.midX - SpookkyStyle.points(10), y: bounds.midY - SpookkyStyle.points(10), width: SpookkyStyle.points(20), height: SpookkyStyle.points(20)) : bounds.insetBy(dx: 1, dy: 1)
-        let shape = NSBezierPath(roundedRect: fillBounds, xRadius: compact ? 5 : SpookkyStyle.cornerRadius, yRadius: compact ? 5 : SpookkyStyle.cornerRadius)
+        let fillBounds = circular ? bounds : compact ? NSRect(x: bounds.midX - SpookkyStyle.points(10), y: bounds.midY - SpookkyStyle.points(10), width: SpookkyStyle.points(20), height: SpookkyStyle.points(20)) : bounds.insetBy(dx: 1, dy: 1)
+        let shape = circular ? NSBezierPath(ovalIn: fillBounds) : NSBezierPath(roundedRect: fillBounds, xRadius: compact ? 5 : SpookkyStyle.cornerRadius, yRadius: compact ? 5 : SpookkyStyle.cornerRadius)
         let fill: NSColor = switch emphasis {
         case .primary: SpookkyPalette.text
         case .secondary: SpookkyPalette.raised
@@ -495,13 +510,19 @@ class ActionButton: NSButton {
         let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byTruncatingTail; paragraph.alignment = alignment
         let label = NSAttributedString(string: title, attributes: [.font: font ?? NSFont.systemFont(ofSize: SpookkyStyle.points(13)), .foregroundColor: tint, .paragraphStyle: paragraph])
         let h = label.size().height
-        label.draw(in: NSRect(x: content.minX, y: bounds.midY - h / 2, width: content.width, height: h))
+        let detailOffset = SpookkyStyle.points(8) * (isFlipped ? -1 : 1)
+        label.draw(in: NSRect(x: content.minX, y: bounds.midY - h / 2 + (detail == nil ? 0 : detailOffset), width: content.width, height: h))
+        if let detail {
+            let text = NSAttributedString(string: detail, attributes: [.font: NSFont.systemFont(ofSize: SpookkyStyle.points(11)), .foregroundColor: SpookkyPalette.secondary, .paragraphStyle: paragraph])
+            text.draw(in: NSRect(x: content.minX, y: bounds.midY - detailOffset - text.size().height / 2, width: content.width, height: text.size().height))
+        }
     }
     @objc private func invoke() { handler?() }
     override var acceptsFirstResponder: Bool { true }
     override func keyDown(with event: NSEvent) {
         keyboardFocused = true; updateInteractionVisibility(); onFocusChange?(true)
-        if event.keyCode == 109, event.modifierFlags.contains(.shift), let menu = onContextMenu?() {
+        if event.keyCode == 53, let onCancel { onCancel() }
+        else if event.keyCode == 109, event.modifierFlags.contains(.shift), let menu = onContextMenu?() {
             menu.popUp(positioning: nil, at: NSPoint(x: 0, y: bounds.height), in: self)
             if window?.attachedSheet == nil { window?.makeFirstResponder(self) }
         } else if [123, 124, 125, 126].contains(event.keyCode), let onNavigate {
@@ -599,6 +620,8 @@ private final class ComposerDocumentView: NSView {
 }
 
 private final class ComposerPopoverBackground: NSView {
+    var onCancel: (() -> Void)?
+    override func cancelOperation(_ sender: Any?) { onCancel?() }
     override var isOpaque: Bool { true }
     override func draw(_ dirtyRect: NSRect) { SpookkyPalette.raised.setFill(); bounds.fill() }
 }
@@ -625,11 +648,12 @@ private final class ComposerPopoverBackground: NSView {
     let symbol: String?
     let selected: Bool
     let alwaysVisible: Bool
+    let closesPopover: Bool
     let action: (() -> Void)?
     init(_ title: String, detail: String? = nil, symbol: String? = nil, selected: Bool = false,
-         alwaysVisible: Bool = false, action: (() -> Void)? = nil) {
+         alwaysVisible: Bool = false, closesPopover: Bool = true, action: (() -> Void)? = nil) {
         self.title = title; self.detail = detail; self.symbol = symbol; self.selected = selected
-        self.alwaysVisible = alwaysVisible; self.action = action
+        self.alwaysVisible = alwaysVisible; self.closesPopover = closesPopover; self.action = action
     }
 }
 
@@ -639,6 +663,8 @@ private final class ComposerPopoverBackground: NSView {
     private let search = NSSearchField()
     private let rows = NSStackView()
     private let scroll = NSScrollView()
+    let accessory = NSStackView()
+    var onDismiss: (() -> Void)?
     private var values: [ComposerChoice] = []
     private var buttons: [ActionButton] = []
     private(set) weak var anchor: NSView?
@@ -648,6 +674,7 @@ private final class ComposerPopoverBackground: NSView {
         super.init()
         popover.behavior = .transient; popover.animates = false; popover.delegate = self
         controller.view = ComposerPopoverBackground(frame: NSRect(x: 0, y: 0, width: 320, height: 260))
+        (controller.view as? ComposerPopoverBackground)?.onCancel = { [weak self] in self?.close() }
         popover.contentViewController = controller
         search.delegate = self; search.sendsSearchStringImmediately = true
         SpookkyStyle.configure(search)
@@ -656,7 +683,9 @@ private final class ComposerPopoverBackground: NSView {
         scroll.documentView = document; document.translatesAutoresizingMaskIntoConstraints = false
         rows.orientation = .vertical; rows.alignment = .leading; rows.spacing = SpookkyStyle.points(2)
         rows.translatesAutoresizingMaskIntoConstraints = false; document.addSubview(rows)
-        let stack = NSStackView(views: [search, scroll])
+        accessory.orientation = .vertical; accessory.alignment = .leading; accessory.spacing = SpookkyStyle.points(4)
+        accessory.isHidden = true
+        let stack = NSStackView(views: [search, scroll, accessory])
         stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = SpookkyStyle.points(6)
         stack.translatesAutoresizingMaskIntoConstraints = false; controller.view.addSubview(stack)
         NSLayoutConstraint.activate([
@@ -665,6 +694,7 @@ private final class ComposerPopoverBackground: NSView {
             stack.topAnchor.constraint(equalTo: controller.view.topAnchor, constant: 8).displayScaled(),
             stack.bottomAnchor.constraint(equalTo: controller.view.bottomAnchor, constant: -8).displayScaled(),
             search.widthAnchor.constraint(equalTo: stack.widthAnchor), scroll.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            accessory.widthAnchor.constraint(equalTo: stack.widthAnchor),
             document.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
             rows.leadingAnchor.constraint(equalTo: document.leadingAnchor), rows.trailingAnchor.constraint(equalTo: document.trailingAnchor),
             rows.topAnchor.constraint(equalTo: document.topAnchor), rows.bottomAnchor.constraint(equalTo: document.bottomAnchor)
@@ -682,23 +712,30 @@ private final class ComposerPopoverBackground: NSView {
         let previous = anchor
         if popover.isShown { popover.performClose(nil) }
         anchor = nil
-        previous?.window?.makeFirstResponder(previous)
+        if onDismiss == nil { previous?.window?.makeFirstResponder(previous) }
     }
     func update(_ values: [ComposerChoice]) { self.values = values; render() }
     private func render() {
         let focused = (controller.view.window?.firstResponder as? NSButton)?.title
+        let scrollOrigin = scroll.contentView.bounds.origin
         for view in rows.arrangedSubviews { rows.removeArrangedSubview(view); view.removeFromSuperview() }
         buttons = []
         let query = search.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         let matches = values.filter { $0.alwaysVisible || query.isEmpty || ($0.title + " " + ($0.detail ?? "")).localizedCaseInsensitiveContains(query) }
         var height: CGFloat = 0
         for value in matches {
-            let button = ActionButton(value.title, symbol: value.selected ? "checkmark" : value.symbol, action: {})
+            let button = ActionButton(value.title, symbol: value.selected ? "checkmark" : value.symbol,
+                                      height: SpookkyStyle.points(value.detail == nil ? 32 : 52), action: {})
+            button.detail = value.detail
             button.isEnabled = value.action != nil; button.selected = value.selected
             button.lineBreakMode = .byTruncatingMiddle; button.alignment = .left
             button.setAccessibilityLabel(value.title + (value.detail.map { " · " + $0 } ?? ""))
             button.toolTip = value.title + (value.detail.map { "\n" + $0 } ?? "")
-            button.handler = { [weak self] in self?.close(); value.action?() }
+            button.handler = { [weak self] in
+                if value.closesPopover { self?.close() }
+                value.action?()
+            }
+            button.onCancel = { [weak self] in self?.close() }
             button.onNavigate = { [weak self, weak button] key in
                 guard let self, let button, let index = buttons.firstIndex(of: button) else { return }
                 let next = max(0, min(buttons.count - 1, index + (key == 126 ? -1 : 1)))
@@ -708,22 +745,17 @@ private final class ComposerPopoverBackground: NSView {
             row.spacing = 0; rows.addArrangedSubview(row)
             row.widthAnchor.constraint(equalTo: rows.widthAnchor).isActive = true
             button.widthAnchor.constraint(equalTo: row.widthAnchor).isActive = true
-            if let detail = value.detail {
-                let label = NSTextField(wrappingLabelWithString: detail)
-                label.font = .systemFont(ofSize: SpookkyStyle.points(11)); label.textColor = SpookkyPalette.secondary
-                label.maximumNumberOfLines = 2; row.addArrangedSubview(label)
-                label.widthAnchor.constraint(equalTo: row.widthAnchor, constant: -16).displayScaled().isActive = true
-                height += SpookkyStyle.points(32)
-            }
             if value.action != nil { buttons.append(button) }
-            height += SpookkyStyle.points(32)
+            height += SpookkyStyle.points(value.detail == nil ? 32 : 52)
         }
         if matches.isEmpty {
             let empty = SpookkyStyle.label("No matches"); rows.addArrangedSubview(empty); height = SpookkyStyle.points(32)
         }
         let available = anchor?.window?.contentView?.bounds.size ?? NSSize(width: 400, height: 600)
         popover.contentSize = NSSize(width: min(SpookkyStyle.points(340), max(240, available.width - 48)),
-            height: min(max(140, available.height - 80), SpookkyStyle.points(410), max(100, height + SpookkyStyle.points(52))))
+            height: min(max(140, available.height - 80), SpookkyStyle.points(450), max(100, height + SpookkyStyle.points(52) + (accessory.isHidden ? 0 : accessory.fittingSize.height + SpookkyStyle.points(6)))))
+        controller.view.layoutSubtreeIfNeeded()
+        scroll.contentView.scroll(to: NSPoint(x: 0, y: min(scrollOrigin.y, max(0, scroll.documentView!.bounds.height - scroll.contentSize.height))))
         if let focused, let button = buttons.first(where: { $0.title == focused }) { controller.view.window?.makeFirstResponder(button) }
     }
     func controlTextDidChange(_ notification: Notification) { render() }
@@ -733,7 +765,10 @@ private final class ComposerPopoverBackground: NSView {
         if command == #selector(NSResponder.insertNewline(_:)), let first = buttons.first { first.performClick(nil); return true }
         return false
     }
-    func popoverDidClose(_ notification: Notification) { if let anchor { anchor.window?.makeFirstResponder(anchor) } }
+    func popoverDidClose(_ notification: Notification) {
+        if let onDismiss { onDismiss() }
+        else if let anchor { anchor.window?.makeFirstResponder(anchor) }
+    }
 }
 
 @MainActor final class LaunchComposerView: NSView, NSTextViewDelegate {
@@ -748,7 +783,12 @@ private final class ComposerPopoverBackground: NSView {
     private let location = ActionButton("Local", symbol: "folder", help: "Choose checkout", action: {})
     private let source = ActionButton("", symbol: "point.3.connected.trianglepath.dotted", help: "Starting branch", action: {})
     private let model = ActionButton("Default model", help: "Choose model", action: {})
-    private let attach = ActionButton("", symbol: "plus", help: "Attach images", action: {})
+    private let attach = ActionButton("", symbol: "plus", help: "Attach images", height: SpookkyStyle.points(32), action: {})
+    private let newWorktree = NSSwitch()
+    private let worktreeLabel = SpookkyStyle.label("New worktree")
+    private let worktreeHelp = SpookkyStyle.label("")
+    private let worktreeToggle = NSStackView()
+    private let options = ActionButton("Options…", help: "Worktree options", action: {})
     private let heading = ChromeTextField(wrappingLabelWithString: "What would you like to work on?")
     private let welcome = NSStackView()
     private let context = ResponsiveStackView()
@@ -758,6 +798,8 @@ private final class ComposerPopoverBackground: NSView {
     private var footerHeight: NSLayoutConstraint!
     private var rightWidth: NSLayoutConstraint!
     private let choices = ComposerChoicePopover()
+    private let modelChoices = ComposerChoicePopover()
+    private var effortKey = ""
     private let modelCatalog: any ProviderModelDiscovering
     private var discoveredModels: ProviderModels?
     private var catalogKey = ""
@@ -765,7 +807,7 @@ private final class ComposerPopoverBackground: NSView {
     private var selection = AgentModelSelection()
     private var currentWorkspace: Workspace?
     private var currentProject: Project? { projects.first { $0.id == currentWorkspace?.projectID } }
-    private let launch = ActionButton("", symbol: "arrow.up", action: {})
+    private let launch = ActionButton("", symbol: "arrow.up", height: SpookkyStyle.points(32), action: {})
     private let card = ChromeStackView()
     private let controls = NSStackView()
     private let promptScroll = NSScrollView()
@@ -790,6 +832,7 @@ private final class ComposerPopoverBackground: NSView {
     var onDraft: ((SessionTool?, String?) -> Void)?
     var onImages: (([String]) -> Void)?
     var onModel: ((AgentModelSelection) -> Void)?
+    var onRecallModel: ((String) -> AgentModelSelection?)?
     var onNoProject: (() -> Void)?
     var onError: ((String) -> Void)?
     var onLaunch: (() -> Void)?
@@ -807,16 +850,19 @@ private final class ComposerPopoverBackground: NSView {
         prompt.isRichText = false; prompt.allowsUndo = true; prompt.isAutomaticQuoteSubstitutionEnabled = false
         prompt.isAutomaticDashSubstitutionEnabled = false
         DisplayMetrics.registerRoot(self)
-        prompt.textContainerInset = NSSize(width: 12, height: 12)
+        prompt.textContainerInset = NSSize(width: 16, height: 16)
+        prompt.textContainer?.lineFragmentPadding = 0
         prompt.delegate = self; prompt.drawsBackground = false; prompt.textColor = SpookkyPalette.text
-        prompt.onFocusChange = { [weak card] in card?.needsDisplay = true }
+        prompt.onFocusChange = { [weak self] in
+            guard let self else { return }; card.needsDisplay = true
+        }
         prompt.onPasteImage = { [weak self] data in self?.pasteImage(data) }
         prompt.setAccessibilityLabel("Optional prompt for new session")
         promptScroll.documentView = prompt; promptScroll.hasVerticalScroller = true
         promptScroll.borderType = .noBorder; promptScroll.drawsBackground = false
         prompt.isVerticallyResizable = true; prompt.isHorizontallyResizable = false
         prompt.autoresizingMask = [.width]; prompt.textContainer?.widthTracksTextView = true
-        promptHeight = promptScroll.heightAnchor.constraint(equalToConstant: 80).displayScaled(); promptHeight.isActive = true
+        promptHeight = promptScroll.heightAnchor.constraint(equalToConstant: 64).displayScaled(); promptHeight.isActive = true
         promptScroll.autohidesScrollers = true
         picker.menuIndicator = true; folder.menuIndicator = true; location.menuIndicator = true; model.menuIndicator = true
         picker.handler = { [weak self] in self?.chooseTool() }
@@ -825,9 +871,20 @@ private final class ComposerPopoverBackground: NSView {
         source.handler = { [weak self] in self?.chooseSource() }
         model.handler = { [weak self] in self?.chooseModel() }
         attach.handler = { [weak self] in self?.chooseImages() }
-        launch.handler = { [weak self] in guard let self, !importingImage else { return }; onLaunch?() }
+        launch.handler = { [weak self] in
+            guard let self, launch.isEnabled else { return }; onLaunch?()
+        }
+        prompt.onSubmit = { [weak self] in self?.submit() }
+        modelChoices.onDismiss = { [weak self] in
+            DispatchQueue.main.async { [weak self] in
+                guard let self, window?.isKeyWindow == true,
+                      !choices.isShown, !locationPopover.isShown, !modelChoices.isShown else { return }; focus()
+            }
+        }
         launch.emphasis = .primary
-        launchWidth = launch.widthAnchor.constraint(equalToConstant: SpookkyStyle.controlHeight).displayScaled(alreadyScaled: true); launchWidth.isActive = true
+        launch.circular = true; attach.circular = true
+        launchWidth = launch.widthAnchor.constraint(equalToConstant: 32).displayScaled(); launchWidth.isActive = true
+        attach.widthAnchor.constraint(equalToConstant: 32).displayScaled().isActive = true
         footerSpacer.setContentHuggingPriority(.init(1), for: .horizontal)
         leftControls.addArrangedSubview(attach); leftControls.addArrangedSubview(picker)
         modelSpacer.setContentHuggingPriority(.init(1), for: .horizontal); modelSpacer.isHidden = true
@@ -836,8 +893,8 @@ private final class ComposerPopoverBackground: NSView {
         rightControls.alignment = .centerY; leftControls.alignment = .centerY
         for view in [leftControls, footerSpacer, rightControls] { controls.addArrangedSubview(view) }
         controls.spacing = SpookkyStyle.points(4); controls.alignment = .centerY
-        controls.edgeInsets = NSEdgeInsets(top: 0, left: SpookkyStyle.points(12), bottom: SpookkyStyle.points(8), right: SpookkyStyle.points(12))
-        footerHeight = controls.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).displayScaled(alreadyScaled: true)
+        controls.edgeInsets = NSEdgeInsets(top: 0, left: SpookkyStyle.points(12), bottom: SpookkyStyle.points(12), right: SpookkyStyle.points(12))
+        footerHeight = controls.heightAnchor.constraint(equalToConstant: 44).displayScaled()
         footerHeight.isActive = true
         rightWidth = rightControls.widthAnchor.constraint(equalTo: controls.widthAnchor, constant: -16).displayScaled()
         model.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
@@ -873,8 +930,20 @@ private final class ComposerPopoverBackground: NSView {
         terminalRow.addArrangedSubview(terminalLeading); terminalRow.addArrangedSubview(terminal); terminalRow.addArrangedSubview(terminalTrailing)
         terminalLeading.widthAnchor.constraint(equalTo: terminalTrailing.widthAnchor).isActive = true
         terminalRow.spacing = SpookkyStyle.points(8)
+        newWorktree.target = self; newWorktree.action = #selector(toggleWorktree)
+        newWorktree.setAccessibilityLabel("New worktree")
+        SpookkyStyle.suppressFocusRing(newWorktree)
+        worktreeLabel.font = .systemFont(ofSize: SpookkyStyle.points(12))
+        worktreeLabel.textColor = SpookkyPalette.secondary
+        worktreeToggle.spacing = SpookkyStyle.points(6); worktreeToggle.alignment = .centerY
+        worktreeToggle.addArrangedSubview(worktreeLabel); worktreeToggle.addArrangedSubview(newWorktree)
+        let toggleSpacer = NSView(); toggleSpacer.setContentHuggingPriority(.init(1), for: .horizontal)
+        worktreeToggle.insertArrangedSubview(toggleSpacer, at: 1)
         context.spacing = SpookkyStyle.points(4); context.breakpoint = SpookkyStyle.points(300)
         for view in [folder, location, source] { context.addArrangedSubview(view) }
+        folder.contentTintColor = SpookkyPalette.secondary; location.contentTintColor = SpookkyPalette.secondary
+        options.handler = { [weak self] in self?.showLocationPicker() }
+        worktreeHelp.font = .systemFont(ofSize: SpookkyStyle.points(11)); worktreeHelp.textColor = SpookkyPalette.secondary
         for button in [folder, location, source] { button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal) }
         heading.font = .systemFont(ofSize: SpookkyStyle.points(28), weight: .regular)
         heading.textColor = SpookkyPalette.text; heading.alignment = .center
@@ -916,6 +985,7 @@ private final class ComposerPopoverBackground: NSView {
             message.widthAnchor.constraint(equalTo: stack.widthAnchor)
         ])
         configureLocationPicker()
+        locationOptions.compactComposer = true
     }
     required init?(coder: NSCoder) { fatalError("Use init") }
 
@@ -1065,7 +1135,7 @@ private final class ComposerPopoverBackground: NSView {
         let project = currentProject
         let nextCatalogKey = tab.draft.tool.rawValue + "|" + workspace.directory
         if catalogKey != nextCatalogKey {
-            catalogKey = nextCatalogKey; discoveredModels = nil; modelTask?.cancel(); choices.close()
+            catalogKey = nextCatalogKey; discoveredModels = nil; modelTask?.cancel(); choices.close(); modelChoices.close()
         }
         let enabled = tab.isEditable
         prompt.isEditable = enabled
@@ -1086,7 +1156,7 @@ private final class ComposerPopoverBackground: NSView {
         let hasPrompt = !tab.draft.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !tab.draft.images.isEmpty
         let launchTitle = tab.draft.tool == .shell ? "Open Terminal" : (hasPrompt ? "Start " : "Open ") + tab.draft.tool.displayName
         launch.image = NSImage(systemSymbolName: tab.draft.tool == .shell ? "terminal" : "arrow.up", accessibilityDescription: nil)
-        launch.setAccessibilityLabel(launchTitle); launch.toolTip = launchTitle + " · ⌘Return"
+        launch.setAccessibilityLabel(launchTitle); launch.toolTip = launchTitle + " · Return or ⌘Return"
         picker.image = SpookkyStyle.toolImage(tab.draft.tool)
         picker.setAccessibilityLabel("Choose provider · " + tab.draft.tool.displayName)
         picker.toolTip = "Choose provider · " + tab.draft.tool.displayName
@@ -1101,8 +1171,15 @@ private final class ComposerPopoverBackground: NSView {
         let isExisting = project != nil && workspace.selectedLocation.checkoutIdentity != project?.location.checkoutIdentity
         location.title = isNew ? "New worktree" : isExisting ? "Existing worktree" : "Local"
         location.isHidden = !git; source.isHidden = !git; location.isEnabled = canChooseLocation
+        worktreeToggle.isHidden = !git
+        newWorktree.state = isNew ? .on : .off
+        newWorktree.isEnabled = canChooseLocation && repositorySnapshot?.head != nil
+        worktreeHelp.stringValue = !git ? "" : repositorySnapshot == nil ? "Reading repository…" : repositorySnapshot?.head == nil ? "Worktrees require a first commit." : ""
+        worktreeHelp.isHidden = worktreeHelp.stringValue.isEmpty
+        newWorktree.toolTip = worktreeHelp.isHidden ? "Start in a separate branch and files" : worktreeHelp.stringValue
+        options.isHidden = !isNew; options.isEnabled = canChooseLocation
         let draft = workspace.locationDraft ?? LocationDraft()
-        source.title = isNew ? (draft.branchMode == .existing ? (draft.branch.isEmpty ? "Choose branch" : draft.branch) : "From " + draft.source) :
+        source.title = isNew ? (draft.branchMode == .existing ? (draft.branch.isEmpty ? "Choose branch" : draft.branch) : "From " + draft.source.replacingOccurrences(of: "refs/heads/", with: "").replacingOccurrences(of: "refs/remotes/", with: "")) :
             (workspace.anchor?.branch ?? workspace.selectedLocation.branch ?? "Detached HEAD")
         source.toolTip = source.title; source.menuIndicator = isNew; source.isEnabled = canChooseLocation && isNew
         folder.toolTip = folderTitle + "\n" + path
@@ -1124,6 +1201,8 @@ private final class ComposerPopoverBackground: NSView {
         message.setAccessibilityLabel(message.stringValue)
         message.textColor = tab.failure != nil || needsBranch || [.failed, .uncertain, .unavailable].contains(tab.status) ? SpookkyPalette.warning : SpookkyPalette.secondary
         configureFooter(); resizePrompt(); card.needsDisplay = true
+        if modelChoices.isShown { updateModelChoices() }
+        if choices.isShown && choices.anchor === location { choices.update(checkoutRows()) }
         if locationPopover.isShown { resizeLocationPicker() }
     }
 
@@ -1152,16 +1231,16 @@ private final class ComposerPopoverBackground: NSView {
             modelSpacer.isHidden = !compact
             rightWidth.isActive = compact
         }
-        footerHeight.constant = SpookkyStyle.points(compact ? 76 : 40)
+        footerHeight.constant = SpookkyStyle.points(compact ? 80 : 44)
         let launchTitle = tool == .shell && card.bounds.width >= SpookkyStyle.points(380) ? "Open Terminal" : ""
         if launch.title != launchTitle { launch.title = launchTitle }
-        let width = launchTitle.isEmpty ? SpookkyStyle.controlHeight : launch.intrinsicContentSize.width
+        launch.circular = launchTitle.isEmpty
+        let width = launchTitle.isEmpty ? SpookkyStyle.points(32) : launch.intrinsicContentSize.width
         if abs(launchWidth.constant - width) > 0.5 { launchWidth.constant = width }
-        let inset = SpookkyStyle.points(compact ? 8 : 12)
-        if controls.edgeInsets.left != inset { controls.edgeInsets = NSEdgeInsets(top: 0, left: inset, bottom: SpookkyStyle.points(8), right: inset) }
+        prompt.textContainerInset = NSSize(width: SpookkyStyle.points(16), height: SpookkyStyle.points(16))
     }
     private func showLocationPicker() {
-        choices.close()
+        choices.close(); modelChoices.close()
         if locationPopover.isShown { locationPopover.performClose(nil); return }
         resizeLocationPicker()
         locationPopover.show(relativeTo: location.bounds, of: location, preferredEdge: .maxY)
@@ -1180,6 +1259,8 @@ private final class ComposerPopoverBackground: NSView {
         if abs(locationPopover.contentSize.height - height) > 0.5 { locationPopover.contentSize = NSSize(width: width, height: height) }
     }
     private func chooseProject() {
+        clearCheckoutAccessory()
+        modelChoices.close()
         if currentWorkspace?.anchor != nil { onLocate?(); return }
         locationPopover.performClose(nil)
         var rows = [ComposerChoice("No project", detail: "Start in Home", symbol: "house", selected: currentWorkspace?.projectID == nil) { [weak self] in self?.onNoProject?() }]
@@ -1192,9 +1273,23 @@ private final class ComposerPopoverBackground: NSView {
                  }]
         choices.show(from: folder, title: "Choose project", search: "Search projects…", rows: rows)
     }
+    private func clearCheckoutAccessory() {
+        for view in choices.accessory.arrangedSubviews { choices.accessory.removeArrangedSubview(view); view.removeFromSuperview() }
+        choices.accessory.isHidden = true
+    }
     private func chooseLocation() {
-        guard let workspace = currentWorkspace else { return }
-        locationPopover.performClose(nil)
+        modelChoices.close(); locationPopover.performClose(nil)
+        clearCheckoutAccessory()
+        let footer = choices.accessory
+        footer.isHidden = false
+        let separator = NSBox(); separator.boxType = .separator
+        for view in [separator, worktreeToggle, worktreeHelp, options] { footer.addArrangedSubview(view) }
+        separator.widthAnchor.constraint(equalTo: footer.widthAnchor).isActive = true
+        worktreeToggle.widthAnchor.constraint(equalTo: footer.widthAnchor).isActive = true
+        choices.show(from: location, title: "Choose location", search: "Search checkouts…", rows: checkoutRows())
+    }
+    private func checkoutRows() -> [ComposerChoice] {
+        guard let workspace = currentWorkspace else { return [] }
         let local = currentProject?.location ?? workspace.selectedLocation
         let locationDraft = workspace.locationDraft
         let isNew = locationDraft?.mode == .worktree
@@ -1203,20 +1298,13 @@ private final class ComposerPopoverBackground: NSView {
         }]
         if let snapshot = repositorySnapshot {
             rows += snapshot.checkouts.filter { $0.path != local.scopePath }.map { checkout in
-                ComposerChoice(checkout.branch ?? "Detached HEAD", detail: "Existing worktree · " + URL(fileURLWithPath: checkout.path).lastPathComponent,
+                ComposerChoice(checkout.branch ?? URL(fileURLWithPath: checkout.path).lastPathComponent,
+                               detail: checkout.branch == nil ? "Detached HEAD · " + SpookkyStyle.abbreviatedPath(checkout.path) : SpookkyStyle.abbreviatedPath(checkout.path),
                                symbol: "folder", selected: !isNew && checkout.identity == workspace.selectedLocation.checkoutIdentity,
                                action: checkout.available ? { [weak self] in self?.selectCheckout(checkout.path) } : nil)
             }
-            rows.append(ComposerChoice("New worktree", detail: snapshot.head == nil ? "Requires a first commit." : "Start with a separate branch and files.",
-                symbol: "arrow.triangle.branch", selected: isNew, action: snapshot.head == nil ? nil : { [weak self] in
-                    guard let self else { return }
-                    var draft = locationDraft ?? LocationDraft(); draft.mode = .worktree
-                    if locationDraft == nil { draft.source = currentProject?.preferredSource ?? "HEAD" }
-                    locationOptions.onDraft?(draft)
-                }))
         } else { rows.append(ComposerChoice("Reading repository…")) }
-        rows.append(ComposerChoice("Worktree options…", symbol: "slider.horizontal.3", alwaysVisible: true) { [weak self] in self?.showLocationPicker() })
-        choices.show(from: location, title: "Choose location", search: "Search checkouts…", rows: rows)
+        return rows
     }
     private func selectCheckout(_ path: String) {
         guard let id = currentWorkspace?.id else { return }
@@ -1230,6 +1318,8 @@ private final class ComposerPopoverBackground: NSView {
         }
     }
     private func chooseSource() {
+        clearCheckoutAccessory()
+        modelChoices.close()
         guard let workspace = currentWorkspace else { return }
         let locationDraft = workspace.locationDraft
         if locationDraft?.branchMode == .existing { showLocationPicker(); return }
@@ -1247,43 +1337,83 @@ private final class ComposerPopoverBackground: NSView {
     }
     private func chooseModel(refresh: Bool = false) {
         guard let tool = currentTool, tool != .shell, let directory = currentWorkspace?.directory else { return }
-        locationPopover.performClose(nil)
-        choices.show(from: model, title: tool.displayName + " model", search: "Search models…", rows: modelRows(loading: discoveredModels == nil))
+        locationPopover.performClose(nil); choices.close()
+        updateEffortChoices()
+        if !modelChoices.isShown {
+            modelChoices.show(from: model, title: tool.displayName + " model and effort", search: "Search models…", rows: modelRows(loading: discoveredModels == nil))
+        }
         modelTask?.cancel()
         modelTask = Task { [weak self, modelCatalog] in
             let result = await modelCatalog.models(for: tool, directory: directory, refresh: refresh)
             guard !Task.isCancelled, let self,
                   currentTool == tool, currentWorkspace?.directory == directory else { return }
             discoveredModels = result; configureFooter()
-            if choices.anchor === model { choices.update(modelRows()) }
+            if modelChoices.isShown { updateModelChoices() }
         }
     }
     private func modelRows(loading: Bool = false) -> [ComposerChoice] {
-        var rows = [ComposerChoice("Default model", detail: "Use your CLI configuration", selected: selection.model == nil, alwaysVisible: true) { [weak self] in self?.onModel?(AgentModelSelection()) }]
+        var rows = [ComposerChoice("Default model", detail: "Use your CLI configuration", selected: selection.model == nil, alwaysVisible: true, closesPopover: false) { [weak self] in self?.onModel?(AgentModelSelection()) }]
         for value in discoveredModels?.models ?? [] {
             let allowed = images.isEmpty || value.acceptsImages
             rows.append(ComposerChoice(value.name, detail: allowed ? nil : "Does not accept images", selected: selection.model == value.id,
-                action: allowed ? { [weak self] in self?.onModel?(AgentModelSelection(model: value.id, displayName: value.name)) } : nil))
+                closesPopover: false, action: allowed ? { [weak self] in self?.selectModel(value) } : nil))
         }
         rows.append(ComposerChoice("Custom model…", alwaysVisible: true) { [weak self] in self?.customModel() })
-        let efforts = currentTool == .codex ? discoveredModels?.models.first { $0.id == selection.model }?.efforts ?? [] : discoveredModels?.efforts ?? []
-        if !efforts.isEmpty {
-            rows.append(ComposerChoice("Reasoning effort"))
-            rows.append(ComposerChoice("Default effort", selected: selection.effort == nil) { [weak self] in
-                guard let self else { return }; var next = selection; next.effort = nil; onModel?(next)
-            })
-            rows += efforts.map { value in
-                ComposerChoice(value.capitalized, selected: selection.effort == value) { [weak self] in
-                    guard let self else { return }; var next = selection; next.effort = value; onModel?(next)
-                }
-            }
-        }
         if loading { rows.append(ComposerChoice("Loading models…", alwaysVisible: true)) }
         if let issue = discoveredModels?.issue { rows.append(ComposerChoice("Model discovery unavailable", detail: issue, alwaysVisible: true)) }
-        rows.append(ComposerChoice("Refresh models", symbol: "arrow.clockwise", alwaysVisible: true) { [weak self] in self?.chooseModel(refresh: true) })
+        rows.append(ComposerChoice("Refresh models", symbol: "arrow.clockwise", alwaysVisible: true, closesPopover: false) { [weak self] in self?.chooseModel(refresh: true) })
         return rows
     }
+    private func selectModel(_ value: ProviderModel) {
+        let efforts = currentTool == .codex ? value.efforts : discoveredModels?.efforts ?? []
+        let recalled = selection.model == value.id ? selection : onRecallModel?(value.id)
+        let effort = recalled?.effort.flatMap { efforts.contains($0) ? $0 : nil }
+        onModel?(AgentModelSelection(model: value.id, effort: effort, displayName: value.name))
+    }
+    private func updateModelChoices() {
+        updateEffortChoices(); modelChoices.update(modelRows())
+    }
+    private func updateEffortChoices() {
+        let efforts = currentTool == .codex ? discoveredModels?.models.first { $0.id == selection.model }?.efforts ?? [] : discoveredModels?.efforts ?? []
+        let key = (currentTool?.rawValue ?? "") + "|" + (selection.model ?? "") + "|" + (selection.effort ?? "") + "|" + efforts.joined(separator: ",")
+        guard key != effortKey else { return }; effortKey = key
+        let footer = modelChoices.accessory
+        let focusedTitle = (footer.window?.firstResponder as? NSButton)?.title
+        for view in footer.arrangedSubviews { footer.removeArrangedSubview(view); view.removeFromSuperview() }
+        footer.isHidden = efforts.isEmpty
+        guard !efforts.isEmpty else { return }
+        let separator = NSBox(); separator.boxType = .separator
+        footer.addArrangedSubview(separator); separator.widthAnchor.constraint(equalTo: footer.widthAnchor).isActive = true
+        let label = SpookkyStyle.label("Reasoning effort")
+        label.font = .systemFont(ofSize: SpookkyStyle.points(11)); label.textColor = SpookkyPalette.secondary
+        footer.addArrangedSubview(label)
+        let values: [String?] = [nil] + efforts.map(Optional.some)
+        for offset in stride(from: 0, to: values.count, by: 3) {
+            let row = NSStackView(); row.spacing = SpookkyStyle.points(4); row.distribution = .fillEqually
+            for value in values[offset..<min(offset + 3, values.count)] {
+                let button = ActionButton(value?.capitalized ?? "Default effort", action: {})
+                button.selected = value == selection.effort
+                button.setAccessibilityValue(button.selected ? "Selected" : "Not selected")
+                button.handler = { [weak self] in
+                    guard let self else { return }; var next = selection; next.effort = value; onModel?(next)
+                }
+                button.onCancel = { [weak self] in self?.modelChoices.close() }
+                row.addArrangedSubview(button)
+                if button.title == focusedTitle { DispatchQueue.main.async { [weak button] in button?.window?.makeFirstResponder(button) } }
+            }
+            footer.addArrangedSubview(row); row.widthAnchor.constraint(equalTo: footer.widthAnchor).isActive = true
+        }
+    }
+    @objc private func toggleWorktree() {
+        guard newWorktree.isEnabled, let workspace = currentWorkspace else { return }
+        modelChoices.close()
+        var draft = workspace.locationDraft ?? LocationDraft()
+        draft.mode = newWorktree.state == .on ? .worktree : .local
+        if workspace.locationDraft == nil { draft.source = currentProject?.preferredSource ?? repositorySnapshot?.defaultSource ?? "HEAD" }
+        locationOptions.onDraft?(draft)
+    }
     private func customModel() {
+        defer { chooseModel() }
         let field = NSTextField(string: selection.model ?? "")
         field.placeholderString = "Model name or ID"; field.setAccessibilityLabel("Model name or ID")
         field.frame = NSRect(x: 0, y: 0, width: 300, height: 28)
@@ -1292,11 +1422,14 @@ private final class ComposerPopoverBackground: NSView {
         alert.accessoryView = field; alert.addButton(withTitle: "Use model"); alert.addButton(withTitle: "Cancel")
         alert.window.initialFirstResponder = field
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let next = AgentModelSelection(model: field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines))
+        var next = AgentModelSelection(model: field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines))
         guard next.isValid else { onError?("Enter a model name without control characters, up to 256 bytes."); return }
+        if let id = next.model, currentTool == .claude, let recalled = onRecallModel?(id),
+           let effort = recalled.effort, discoveredModels?.efforts.contains(effort) == true { next.effort = effort }
         onModel?(next)
     }
     private func chooseTool() {
+        choices.close(); modelChoices.close(); locationPopover.performClose(nil)
         let menu = NSMenu()
         for tool in [SessionTool.codex, .claude] {
             let item = ClosureMenuItem(tool == .claude ? "Claude" : tool.displayName) { [weak self] in self?.onDraft?(tool, nil); self?.focus() }
@@ -1307,12 +1440,16 @@ private final class ComposerPopoverBackground: NSView {
     }
     func focus() { window?.makeFirstResponder(currentTool == .shell ? launch : prompt) }
     var hasInputFocus: Bool {
-        !locationPopover.isShown && !choices.isShown &&
-            ([prompt, launch, picker, model, attach, folder, location, source] as [NSView]).contains { window?.firstResponder === $0 }
+        !locationPopover.isShown && !choices.isShown && !modelChoices.isShown &&
+            ([prompt, launch, picker, model, attach, folder, location, source, newWorktree, options] as [NSView]).contains { window?.firstResponder === $0 }
+    }
+    func submit() {
+        guard hasInputFocus, !prompt.hasMarkedText(), launch.isEnabled else { return }
+        launch.performClick(nil)
     }
     var isImportingImage: Bool { importingImage }
     override func viewWillMove(toWindow newWindow: NSWindow?) {
-        if newWindow == nil { locationPopover.performClose(nil); choices.close(); modelTask?.cancel() }
+        if newWindow == nil { locationPopover.performClose(nil); choices.close(); modelChoices.close(); modelTask?.cancel() }
         super.viewWillMove(toWindow: newWindow)
     }
     override func layout() { super.layout(); configureFooter(); resizePrompt() }
@@ -1320,7 +1457,7 @@ private final class ComposerPopoverBackground: NSView {
         guard let manager = prompt.layoutManager, let container = prompt.textContainer, promptScroll.contentSize.width > 0 else { return }
         manager.ensureLayout(for: container)
         let content = manager.usedRect(for: container).height + prompt.textContainerInset.height * 2
-        let height = max(SpookkyStyle.points(80), min(content, SpookkyStyle.points(300), max(SpookkyStyle.points(80), bounds.height / 2)))
+        let height = max(SpookkyStyle.points(64), min(content, SpookkyStyle.points(300), max(SpookkyStyle.points(64), bounds.height / 2)))
         if abs(promptHeight.constant - height) > 0.5 { promptHeight.constant = height }
     }
     func textDidChange(_ notification: Notification) { resizePrompt(); onDraft?(nil, prompt.string) }

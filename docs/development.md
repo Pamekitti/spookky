@@ -27,7 +27,7 @@ python3 scripts/check_new_session.py --output .cache/composer/checks.json
 python3 scripts/check_prompt_images.py --output .cache/composer/images.json
 ```
 
-The first fixture exercises project/model inheritance, native model menus, multiline input and one disposable shell. The second checks native clipboard images and retained previews. Both use private state. Catalog values are fixtures and no paid model request is sent.
+The first fixture exercises project/model inheritance, the persistent model/effort popover, Enter/Shift+Enter, the worktree switch, checkout selection and one disposable shell. Add `--hold 180` for native visual inspection after its assertions pass. The printed fixture root accepts a `finish-inspection` file to release the hold early. The second checks native clipboard images and retained previews. Both use private state. Catalog values are fixtures and no paid model request is sent.
 
 Documentation changes need the repository checker. Python script changes add `python3 -m unittest discover -s scripts -p 'test_*.py'`. Website changes use `npm test --prefix website` after website setup. Browser tests are headless and belong to website changes, not ordinary native development.
 

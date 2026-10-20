@@ -26,6 +26,7 @@ import SpookkyWorkspace
     private var key = ""
     var onDraft: ((LocationDraft) -> Void)?
     var onCheckout: ((WorkspaceLocation) -> Void)?
+    var compactComposer = false
     override init(frame: NSRect) {
         super.init(frame: frame)
         orientation = .vertical; alignment = .leading; spacing = 8
@@ -79,6 +80,7 @@ import SpookkyWorkspace
         if let index = snapshot?.checkouts.firstIndex(where: { $0.identity == workspace.selectedLocation.checkoutIdentity }) { checkout.selectItem(at: index) }
         checkoutGroup.isHidden = draft.mode != .local || (snapshot?.checkouts.count ?? 0) <= 1
         let worktree = draft.mode == .worktree
+        top.isHidden = compactComposer
         sourceGroup.isHidden = !worktree || draft.branchMode == .existing
         branchRow.isHidden = !worktree; destinationGroup.isHidden = !worktree
         branchMode.selectItem(at: [.automatic, .custom, .existing].firstIndex(of: draft.branchMode)!)
