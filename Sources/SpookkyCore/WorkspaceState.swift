@@ -235,6 +235,11 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
     public var lastTool: SessionTool = .shell
     public var lastAgentTool: SessionTool?
     private var lastModelChoices: [String: AgentModelSelection]?
+    private var modelChoiceHistory: [String: [AgentModelSelection]]?
+    public func rememberedModelSelection(for tool: SessionTool, model: String) -> AgentModelSelection? {
+        modelChoiceHistory?[tool.rawValue]?.first { $0.model == model }
+            ?? lastModelChoices?[tool.rawValue].flatMap { $0.model == model ? $0 : nil }
+    }
     public func lastModelSelection(for tool: SessionTool) -> AgentModelSelection {
         lastModelChoices?[tool.rawValue] ?? AgentModelSelection()
     }
@@ -442,6 +447,13 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
         }
         if lastModelChoices == nil { lastModelChoices = [:] }
         lastModelChoices?[tab.draft.tool.rawValue] = selection
+        if selection.model != nil {
+            if modelChoiceHistory == nil { modelChoiceHistory = [:] }
+            var history = modelChoiceHistory?[tab.draft.tool.rawValue] ?? []
+            history.removeAll { $0.model == selection.model }
+            history.insert(selection, at: 0)
+            modelChoiceHistory?[tab.draft.tool.rawValue] = Array(history.prefix(32))
+        }
     }
     public mutating func setLocation(_ location: WorkspaceLocation, projectID: UUID?, workspaceID: UUID) {
         guard let index = workspaces.firstIndex(where: { $0.id == workspaceID }),
@@ -616,6 +628,10 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
         for operation in locations?.operations ?? [] { try operation.request.validate() }
         guard [1, 2, 3, 4, 5, 6, 7, 8].contains(version), lastAgentTool != .shell,
               lastModelChoices?.values.allSatisfy(\.isValid) != false,
+              modelChoiceHistory?.allSatisfy({ provider, choices in
+                  [SessionTool.codex.rawValue, SessionTool.claude.rawValue].contains(provider) && choices.count <= 32 &&
+                  choices.allSatisfy { $0.isValid && $0.model != nil } && Set(choices.compactMap(\.model)).count == choices.count
+              }) != false,
               tabs.allSatisfy({ $0.draft.hasValidModelChoices }),
               Set(locations?.operations.map(\.id) ?? []).count == (locations?.operations.count ?? 0),
               Set(locations?.checkouts.map(\.id) ?? []).count == (locations?.checkouts.count ?? 0),
