@@ -8,7 +8,7 @@ Project registration now preserves independent drafts. Provider recovery retains
 | --- | --- |
 | ![Colliding controls at 650 points and 200 percent zoom](before-narrow-200.png) | ![Readable selected tab and compact overflow at the same dimensions](after-narrow-200.png) |
 
-Both captures use disposable fixture data. At 650 points and 200 percent zoom, the requested sidebar width is temporarily clamped to leave 320 points for content. The selected supporting tab remains readable. Less frequent actions move into overflow. AppKit content captures can omit native window controls. These images establish layout, not terminal visual parity.
+Both captures use disposable fixture data. The after image was captured on `67aa7fe`; the final `8b52a31` native matrix verifies the same header layout. At 650 points and 200 percent zoom, the requested sidebar width is temporarily clamped to leave 320 points for content. The selected supporting tab remains readable. Less frequent actions move into overflow. AppKit content captures can omit native window controls. These images establish layout, not terminal visual parity.
 
 ## Finding coverage
 
@@ -52,24 +52,24 @@ First failures remain in private local evidence. Fullscreen fixtures now wait fo
 
 ## Measurements and continuity
 
-[Matched measurements](measurements.json) used frozen baseline and candidate binaries. These results are from preceding application source `5c4f716`; the final `8b52a31` executable will receive a separate matched run. Resource cases ran serially in AB and BA order with five seconds of warm-up and 60 seconds of collection. Existing user agents and the real provider test sessions remained running. The foreground pairs also retained the fresh-runtime Claude session. Host load was uncontrolled.
+[Matched measurements](measurements.json) used frozen baseline and candidate binaries. These results are from final application source `8b52a31`. Previous matched runs remain in private evidence and Git history. Resource cases ran serially in AB and BA order with five seconds of warm-up and 60 seconds of collection. Existing user agents and the real provider test sessions remained running. The foreground pairs also retained the fresh-runtime Claude session. Host load was uncontrolled.
 
 | Measurement | Samples per build | Baseline | Candidate |
 | --- | ---: | ---: | ---: |
-| Empty readiness, median / p95 | 30 | 291.3 / 321.9 ms | 293.2 / 312.5 ms |
-| Warm conversation selection, p95 | 35 | 26.0 ms | 24.4 ms |
-| Recreated terminal selection, p95 | 105 | 60.3 ms | 60.2 ms |
-| Five-shell foreground app RSS, two medians | 2 x 60 seconds | 102.8 / 128.9 MiB | 116.7 / 104.0 MiB |
-| App plus owned runtime/shell RSS, same cases | 2 x 60 seconds | 112.6 / 140.6 MiB | 131.4 / 113.7 MiB |
-| Foreground idle CPU, percent of one core | 2 x 60 seconds | 0.48 / 0.46% | 0.48 / 0.48% |
+| Empty readiness, median / p95 | 30 | 378.2 / 394.6 ms | 382.7 / 417.1 ms |
+| Warm conversation selection, p95 | 35 | 29.6 ms | 30.7 ms |
+| Recreated terminal selection, p95 | 105 | 67.2 ms | 68.2 ms |
+| Five-shell foreground app RSS, two medians | 2 x 60 seconds | 103.0 / 109.8 MiB | 106.5 / 103.3 MiB |
+| App plus owned runtime/shell RSS, same cases | 2 x 60 seconds | 112.5 / 120.5 MiB | 116.0 / 112.8 MiB |
+| Foreground idle CPU, percent of one core | 2 x 60 seconds | 0.45 / 0.45% | 0.45 / 0.43% |
 
-Both foreground pairs stayed visible and active at their CPU boundaries. Both process sets stayed stable. RSS differences changed direction across the two pairs. Separate vmmap physical-footprint observations were 89.1M / 88.7M for baseline and 128.3M / 88.7M for candidate. RSS includes shared pages and compression effects. These observations do not establish a causal memory change or performance improvement.
+Both foreground pairs stayed visible and active at their CPU boundaries. Both process sets stayed stable. RSS differences changed direction across the two pairs. Separate vmmap physical-footprint observations were 87.6M / 127.8M for baseline and 88.8M / 88.5M for candidate. RSS includes shared pages and compression effects. These observations do not establish a causal memory change or performance improvement.
 
 The separate 1/5/10-conversation matrix also completed two runs per build and count with stable process sets. Those windows were occluded and inactive at the boundaries. Their low CPU values are near collector resolution and do not replace foreground idle evidence. The JSON retains each case and its visibility boundary.
 
 Empty readiness excludes provider discovery, the first rendered frame and CLI readiness. Selection ends at native attachment, layout and focus. It excludes first bytes and physical display latency. Both builds passed wrapped resize and crash restoration with unchanged process identities and viewport markers.
 
-Source `5c4f716` completed all 20 matched cases, including four foreground observations. Its continuity attempt was interrupted after 12 minutes 51 seconds to repair startup acknowledgment during a native conversation switch. All 110 setup cycles passed their 13 resource checks. The preceding `67aa7fe` attempt was interrupted after 40 minutes 35 seconds to repair project-opening completion. Neither attempt is an eight-hour pass. The corrected executable will receive a new complete run.
+Source `5c4f716` completed all 20 matched cases, including four foreground observations. Its continuity attempt was interrupted after 12 minutes 51 seconds to repair startup acknowledgment during a native conversation switch. All 110 setup cycles passed their 13 resource checks. The preceding `67aa7fe` attempt was interrupted after 40 minutes 35 seconds to repair project-opening completion. Neither attempt is an eight-hour pass. The corrected `8b52a31` executable passed all 20 matched cases. Its eight-hour attempt failed after 960 successful checkpoints, the last at 4 hours 10 minutes 50 seconds. All 110 setup cycles passed their 13 resource checks. The maximum checkpoint gap was 17 seconds. The owner log recorded explicit termination calls for eight baseline shells. Two baseline shells and the output producer were still alive before fixture cleanup. The macOS log confirms an incoming Quit AppleEvent just before those calls; its sender is unconfirmed. All thirteen protected or diagnostic process identities were preserved. [Continuity attempt evidence](continuity-runs.json) retains this failure. No eight-hour pass exists.
 
 ## Remaining limits
 

@@ -1,0 +1,24 @@
+{
+  "runs": [
+    {
+      "application_source_commit": "8b52a312073f8d34d56630cdc5403d6fbbdc519c",
+      "binary_sha256": "2b421b1a5da3c23c078f3cc696d653216c18ba9506784ffaf28e262d19331861",
+      "state": "failed",
+      "requested_seconds": 28800,
+      "last_successful_checkpoint_seconds": 15050,
+      "successful_checkpoints": 960,
+      "largest_checkpoint_gap_seconds": 17,
+      "setup_cycles": 110,
+      "setup_resource_checks_passed": 13,
+      "failure": "Unsent fixture input was lost; the selected terminal had no surface.",
+      "baseline_shells_terminated_by_explicit_owner_calls": 8,
+      "baseline_shells_still_alive_before_cleanup": 2,
+      "output_producer_still_alive_before_cleanup": true,
+      "protected_or_diagnostic_process_identities_preserved": 13,
+      "quit_event_observation": "The macOS AppKit log records an incoming Quit AppleEvent at 08:45:44 Bangkok, followed by explicit termination calls at 08:45:47. The event sender was not captured.",
+      "source_of_quit_request": "unconfirmed",
+      "first_failure_preserved": true,
+      "boundary": "Ten synthetic baseline shells and one output producer. Other user/provider processes were retained. No model work or physical keyboard input."
+    }
+  ]
+}
