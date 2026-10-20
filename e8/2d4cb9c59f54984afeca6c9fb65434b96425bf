@@ -1,0 +1,124 @@
+App/DisplayPolishFixture.swift
+  h_f4fe0839335638 19-21,26,221-222
+App/GhosttyEngine.swift
+  h_f4fe0839335638 46-49
+App/PromptImageFixture.swift
+  h_f4fe0839335638 1-94
+App/SidebarActivityIndicator.swift
+  h_f4fe0839335638 2,7-8,11-12,25-35,40-47,51-53,58-62
+App/SidebarPresentation.swift
+  h_f4fe0839335638 1-249
+App/SidebarReferenceFixture.swift
+  h_f4fe0839335638 1-248
+App/SupportingStartPage.swift
+  h_f4fe0839335638 7-14,41-42,55-56
+App/SupportingWorkspaceView.swift
+  h_f4fe0839335638 18,37,87,110,137,142-143
+App/TerminalHostView.swift
+  h_f4fe0839335638 15-26
+App/TerminalSurfaceManager.swift
+  h_f4fe0839335638 62-63,88-97,135-145,147,184
+App/WorkspaceSidebarView.swift
+  h_f4fe0839335638 15-21,38-39,49-53,61-62,99-103,106-107,115,119,121,129,134,158,180,221,235,237-243,245-250,256-257,270,273-309,338,397,409-410,412,422,425-427,434,440-453,463-464,470,472,477,481,483-494,502-503,505-515
+App/WorkspaceTabStrip.swift
+  h_f4fe0839335638 8,13,16-17,19,22,25,29,41-45,66,79,82-85,141-142
+App/WorkspaceViews.swift
+  h_f4fe0839335638 2,6-7,68,71-72,123-141,144,324-335,342,361,396-397,601-738,740-741,748-767,772-777,791-794,803-804,813,821,823-828,831-837,840-845,855-865,870-885,888-891,908,914-915,922-1029,1040,1045-1046,1063-1069,1071-1075,1080-1082,1085-1086,1098-1107,1110,1131-1132,1134-1155,1164,1167,1182-1242,1245-1258,1260-1266,1268-1297,1310-1311,1313,1315,1347
+App/WorkspaceWindowController.swift
+  h_f4fe0839335638 21,51-56,85,95,112-113,142,152,169,252,321-342,495-496,561,572,577-581,589,598,609,616-622,627,668,672-673,677-678,682-686,689,699-702,714,731,739-759,762,872,1018,1032-1034,1042,1518-1552,1557-1577,1586,1588,1590,1610-1613,1665,1667-1672,1676-1692,1734-1743,1750,1837,1858,1861-1865,1868,1886-1887,1904,1967,1970,1974,1979,1983,2044-2119,2121-2157,2163-2164,2204-2210,2246,2371-2372,2374-2381,2388-2392,2394,2582-2733,2736,2739-2741,2762,2769-2791,2793,2875,2878,2891-2893,2896-2898,2900,2907,3308-3331,3714,3716,3719-3724,3727,3736-3749,3855-3868,3871-3958,4069-4071,4108-4109
+Sources/SpookkyCore/AgentModelSelection.swift
+  h_f4fe0839335638 1-19
+Sources/SpookkyCore/ConversationSwitch.swift
+  h_f4fe0839335638 50,56
+Sources/SpookkyCore/ConversationWorkspace.swift
+  h_f4fe0839335638 29,33,116,187-190,215,231-234
+Sources/SpookkyCore/DisplayPreferences.swift
+  h_f4fe0839335638 6,13,20
+Sources/SpookkyCore/HistoryCatalog.swift
+  h_f4fe0839335638 25,38-39,63-67
+Sources/SpookkyCore/SidebarStatus.swift
+  h_f4fe0839335638 1-107
+Sources/SpookkyCore/ThreadPresentation.swift
+  h_f4fe0839335638 10
+Sources/SpookkyCore/WorkspaceState.swift
+  h_f4fe0839335638 22-41,200-204,237-240,283,355,419,421,425,429,437-445,618-619
+Sources/SpookkyGit/GitExecutor.swift
+  h_f4fe0839335638 87-95,133
+Sources/SpookkyGit/SidebarGitStatus.swift
+  h_f4fe0839335638 1-141
+Sources/SpookkyWorkspace/AgentActivityResolver.swift
+  h_f4fe0839335638 13-20
+Sources/SpookkyWorkspace/CLIResolver.swift
+  h_f4fe0839335638 58,64-72
+Sources/SpookkyWorkspace/CodexProjectClient.swift
+  h_f4fe0839335638 122-123,128,131,188
+Sources/SpookkyWorkspace/LaunchCoordinator.swift
+  h_f4fe0839335638 6-7,14-20,54,63,71,102
+Sources/SpookkyWorkspace/ModelLaunchOptions.swift
+  h_f4fe0839335638 1-23
+Sources/SpookkyWorkspace/PromptImages.swift
+  h_f4fe0839335638 1-31
+Sources/SpookkyWorkspace/ProviderModelCatalog.swift
+  h_f4fe0839335638 1-132
+Spookky.xcodeproj/project.pbxproj
+  h_f4fe0839335638 35-36,43-46,111,117
+Tests/SpookkyRuntimeTests/CLIResolverTests.swift
+  h_f4fe0839335638 49-60
+Tests/SpookkyRuntimeTests/ConversationWorkspaceTests.swift
+  h_f4fe0839335638 7-47
+Tests/SpookkyRuntimeTests/CoordinatorTests.swift
+  h_f4fe0839335638 81-97
+Tests/SpookkyRuntimeTests/ModelSelectionTests.swift
+  h_f4fe0839335638 1-183
+Tests/SpookkyRuntimeTests/PromptCaptureTests.swift
+  h_f4fe0839335638 27,30-31,35,45-49
+Tests/SpookkyRuntimeTests/PromptImageTests.swift
+  h_f4fe0839335638 1-80
+Tests/SpookkyRuntimeTests/SidebarStatusTests.swift
+  h_f4fe0839335638 1-183
+docs/acceptance.md
+  h_f4fe0839335638 5-15
+docs/agent-activity.md
+  h_f4fe0839335638 21,35,37-47
+docs/conversation-workspaces.md
+  h_f4fe0839335638 9
+docs/development.md
+  h_f4fe0839335638 23-31,238-255
+docs/evidence/audit-regressions/README.md
+  h_f4fe0839335638 74-85,100
+docs/evidence/audit-regressions/integration-checks.json
+  h_f4fe0839335638 1-77
+docs/evidence/sidebar-reference/README.md
+  h_f4fe0839335638 1-72
+docs/flows.md
+  h_f4fe0839335638 11,16-17,24,26,34,111-112
+docs/interface.md
+  h_f4fe0839335638 22-30,40,43-44,47,49,51,55-59,61,72,77,80,90,94,100,173,203
+docs/native-design-reference.md
+  h_f4fe0839335638 9-11,24-29,50
+docs/product.md
+  h_f4fe0839335638 67,81
+docs/status.md
+  h_f4fe0839335638 5-34
+scripts/check_new_session.py
+  h_f4fe0839335638 1-55
+scripts/check_prompt_images.py
+  h_f4fe0839335638 1-42
+scripts/check_sidebar.py
+  h_f4fe0839335638 47-56
+scripts/check_sidebar_reference.py
+  h_f4fe0839335638 1-58
+scripts/check_sidebar_restart.py
+  h_f4fe0839335638 1-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e82d4cb9c59f54984afeca6c9fb65434b96425bf",
+  "prompts": {},
+  "humans": {
+    "h_f4fe0839335638": {
+      "author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
