@@ -73,6 +73,31 @@ for line in sys.stdin:
         XCTAssertEqual(HistoryQuery(limit: 1000).limit, 100)
     }
 
+    func testClaudeNativeAITitleAndCustomTitlePrecedenceWithoutReadingMessages() throws {
+        let root = try temporary(); defer { try? FileManager.default.removeItem(at: root) }
+        let url = root.appendingPathComponent(id(1) + ".jsonl")
+        var rows: [[String: Any]] = [
+            ["sessionId": id(1), "cwd": root.path, "type": "summary", "summary": "Old summary"],
+            ["sessionId": id(1), "type": "ai-title", "aiTitle": "Native task title"],
+            ["sessionId": id(2), "type": "custom-title", "customTitle": "Wrong conversation"]
+        ]
+        func read() throws -> ConversationMetadata? {
+            let data = try rows.map { try JSONSerialization.data(withJSONObject: $0) + Data([10]) }.reduce(Data(), +)
+            try data.write(to: url)
+            return try ClaudeHistoryReader.metadata(url: url, size: data.count, modified: Date())
+        }
+        XCTAssertEqual(try read()?.title, "Native task title")
+        rows += [
+            ["sessionId": id(1), "type": "custom-title", "customTitle": "User native title"],
+            ["sessionId": id(1), "type": "ai-title", "aiTitle": "Later generated title"],
+            ["sessionId": id(1), "type": "summary", "summary": "Later summary"],
+            ["sessionId": id(1), "type": "custom-title", "customTitle": "  "]
+        ]
+        XCTAssertEqual(try read()?.title, "User native title")
+        rows.append(["sessionId": id(1), "type": "custom-title", "customTitle": "User renamed again"])
+        XCTAssertEqual(try read()?.title, "User renamed again")
+    }
+
     func testCodexFirstPageReadsOnlyRequestedMetadataAndPreservesNativeCursor() throws {
         let root = try temporary(); defer { try? FileManager.default.removeItem(at: root) }
         let fixture = try codex(root: root, rows: (1...600).map { row($0, directory: root.path) })

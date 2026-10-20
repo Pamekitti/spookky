@@ -150,15 +150,24 @@ struct ClaudeHistoryReader: Sendable {
             if let newline = tail.firstIndex(of: 10) { chunks.append(Data(tail.suffix(from: tail.index(after: newline)))) }
         }
         let id = url.deletingPathExtension().lastPathComponent
-        var cwd: String?, title: String?
+        var cwd: String?, title: String?, titlePriority = 0
         for chunk in chunks {
             for line in chunk.split(separator: 10) {
                 guard let row = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
                       row["sessionId"] as? String == id else { continue }
                 if row["isSidechain"] as? Bool == true { return nil }
                 if cwd == nil, let value = row["cwd"] as? String, value.hasPrefix("/"), !value.contains("\0") { cwd = value }
-                if row["type"] as? String == "custom-title", let value = row["customTitle"] as? String { title = value }
-                if row["type"] as? String == "summary", title == nil { title = row["summary"] as? String }
+                let field: String, priority: Int
+                switch row["type"] as? String {
+                case "custom-title": field = "customTitle"; priority = 3
+                case "ai-title": field = "aiTitle"; priority = 2
+                case "summary": field = "summary"; priority = 1
+                default: continue
+                }
+                if priority >= titlePriority, let value = row[field] as? String,
+                   !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    title = value; titlePriority = priority
+                }
             }
         }
         guard let cwd else { return nil }

@@ -161,9 +161,14 @@ os.execv('/bin/cat',['cat'])
         checks["collapse_cancels_pending_expansion_without_restoring_large_page"] = historyFixtureRecords(projectID.uuidString).count == 5 &&
             historyFixtureRecords(otherProjectID.uuidString).count == 15 && store.state.selectedWorkspaceID == selected
 
+        let oldestID = ConversationID(provider: .codex, sessionID: "00000000-0000-4000-8000-000000000000")
+        let oldestBeforeSearch = try await persistence.conversation(oldestID)
+        checks["oldest_search_result_was_not_cached"] = oldestBeforeSearch == nil
         try await search("Needle oldest")
         guard let original = historyFixtureRecords("search").first else { throw LaunchError.invalid("History fixture could not find uncached older metadata.") }
-        checks["search_finds_oldest_outside_loaded_pages"] = historyFixtureRecords("search").count == 1 && original.metadata.title == "Needle oldest conversation" && conversationSidebar.itemCount == 1
+        let oldestAfterSearch = try await persistence.conversation(oldestID)
+        checks["search_finds_oldest_outside_loaded_pages"] = historyFixtureRecords("search").count == 1 && original.id == oldestID && original.metadata.title == "Needle oldest conversation" && conversationSidebar.itemCount == 1
+        checks["search_caches_only_requested_older_metadata"] = oldestAfterSearch?.id == oldestID
         let beforeOpen = try await launches.runtime.list()
         let beforeReceipts = try receipts()
         checks["startup_more_and_search_launch_zero_agents"] = beforeOpen.isEmpty && beforeReceipts.isEmpty && store.state.workspaces.count == originalWorkspaceCount

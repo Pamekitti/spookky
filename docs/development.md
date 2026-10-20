@@ -108,6 +108,17 @@ swift test --jobs 2 --filter ProviderContinuationTests
 
 [Session continuation](session-continuation.md) describes the native instructions panel, provider ownership limits, and the exact-ID integration boundary. Exercise provider transfers only with disposable sessions. Do not use an active user conversation as a fixture.
 
+For offline exact-ID ownership and native attach checks, run:
+
+```sh
+python3 scripts/check_provider_ownership.py --output .cache/codex-ownership.json
+python3 scripts/check_claude_ownership.py --executable /path/to/claude --output .cache/claude-ownership.json
+```
+
+Use the installed native Claude executable rather than a Spookky shell wrapper. The Claude fixture uses a loopback response stub, isolated configuration, a disposable folder and its own tmux socket. It retains native onboarding and trust. It never sends a request to an external model service or stops an unrelated owner. Explicit background startup tests native attach; the app's ordinary resume policy remains unchanged.
+
+Add `--activity-helper /path/to/Spookky.app/Contents/MacOS/spookky-launch` to exercise both native routes through the bundled monitoring integration. This retains the same saved ID and verifies that both routes accept unsent input without another model turn. Control commands receive empty standard input so a wrapper's input cannot become a provider prompt.
+
 ## Public website and releases
 
 PR CI always runs source/Python checks and the public audit. Native changes add one macOS 15 job with Swift tests, one Release build, and a bundle audit. Website changes add headless browser tests. Documentation changes skip both. Unknown paths and CI machinery changes select both areas. The source check and native check remain required; an intentionally skipped native job permits documentation PRs to merge.
@@ -187,6 +198,8 @@ python3 scripts/benchmark_m4.py --output .cache/continuity.json
 python3 scripts/benchmark_m4.py --overnight --output .cache/overnight.json
 ```
 
+`benchmark_m1.py --binary /absolute/path/to/Spookky.app/Contents/MacOS/Spookky` measures a frozen build. Use the same runner, workload and observation duration for both builds.
+
 The default M4 fixture runs ten warm-ups, 100 measured lifecycle cycles, a 30-minute workload, and a 60-second idle observation. The overnight mode is eight hours. Run measurements separately with no builds in progress. Neither mode prevents or initiates sleep. Add `--background` to keep the automated fixture behind user windows without keyboard focus or mouse input. This mode measures programmatic native attachment and excludes physical typing.
 
 `benchmark_agents_m0.py` uses a separately prepared `/tmp/spookky-m0-agent-fixture` folder trusted through normal provider flows. It opens provider interfaces without model prompts. See [performance](performance.md) for resource boundaries and [recovery](m4-recovery.md) for hands-on sleep/reboot checks.
@@ -220,7 +233,7 @@ The close fixture uses disposable metadata and a private runtime socket. It chec
 
 ## Display regression checks
 
-Run `python3 scripts/check_sidebar.py --display --output .cache/display-checks.json` against the Release build for the light/dark zoom and hit-target matrix. Use disposable state and serialize native GUI fixtures. The matrix includes Ghostty theme variants, recursive includes, invalid-config recovery and creation of a previously missing config directory. It does not replace physical display-transition or provider visual-parity checks.
+Run `python3 scripts/check_sidebar.py --display --output .cache/display-checks.json` against the Release build for the light/dark zoom and hit-target matrix. Use disposable state and serialize native GUI fixtures. The matrix includes actual fullscreen transitions, Ghostty theme variants, recursive includes, invalid-config recovery and creation of a previously missing config directory. Live appearance changes must preserve the same surface, process and unsent input. It does not replace physical display-transition or provider visual-parity checks.
 
 ## Sidebar attention checks
 

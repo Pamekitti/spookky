@@ -102,6 +102,26 @@ import SpookkyRuntime
         checks["browser_form_and_focus_survive_zoom"] = try await js(first, "document.querySelector('input').value") == initial && browser(ids[0]) === first
         checks["actual_size_command_from_browser"] = command(try key("0", code: 29)) && abs(first.webView.pageZoom - 1) < 0.001
 
+        for suffix in ["download.html", "download.bin"] {
+            let endpoint = fixtureURL.replacingOccurrences(of: "index.html", with: suffix)
+            _ = try await js(first, "location.href = " + String(data: try JSONEncoder().encode(endpoint), encoding: .utf8)! + "; 'ok'")
+            do {
+                try await wait("Download recovery action missing") {
+                    first.subviews.contains { ($0 as? NSTextField)?.stringValue.contains("download this file") == true } &&
+                        first.subviews.contains { ($0 as? ActionButton)?.toolTip == "Open " + endpoint } && !first.webView.isLoading
+                }
+            } catch {
+                let fields = first.subviews.map { view in
+                    if let field = view as? NSTextField { return field.stringValue }
+                    if let button = view as? ActionButton { return button.title + ":" + (button.toolTip ?? "") + ":hidden=" + String(button.isHidden) }
+                    return String(describing: type(of: view))
+                }
+                throw LaunchError.invalid("Download recovery failed for \(endpoint). URL: \(String(describing: first.webView.url)), loading: \(first.webView.isLoading), fields: \(fields)")
+            }
+            checks["download_" + suffix + "_preserves_live_form"] = try await js(first, "document.querySelector('input').value") == initial && first.webView.url?.absoluteString == fixtureURL
+            checks["download_" + suffix + "_offers_explicit_external_action"] = first.subviews.contains { ($0 as? ActionButton)?.title == "Open externally" && !$0.isHidden }
+        }
+
         window.makeFirstResponder(first.webView)
         checks["cmd_l_focuses_address"] = command(try key("l", code: 37)) && first.address.currentEditor() != nil && state().selected?.support?.layout == .split
         first.navigate(fixtureURL.replacingOccurrences(of: "index.html", with: "second.html"))
@@ -169,6 +189,25 @@ import SpookkyRuntime
                 }
             }
             checks["local_" + type + "_rendered"] = true
+            if type == "image" || type == "pdf" {
+                let picture = descendants(view).compactMap { $0 as? NSImageView }.first
+                let document = descendants(view).compactMap { $0 as? PDFView }.first
+                let originalImage = picture?.image, originalDocument = document?.document, originalPage = document?.currentPage
+                let originalScale = document?.scaleFactor ?? 0
+                for _ in 0..<5 { _ = command(try key("+", code: 24)) }
+                window.contentView?.layoutSubtreeIfNeeded()
+                await Task.yield()
+                if let picture, let image = picture.image, let scroll = picture.enclosingScrollView {
+                    let fit = min(scroll.contentSize.width / image.size.width, scroll.contentSize.height / image.size.height)
+                    checks["image_zoom_renders_native_dimensions"] = picture.image === originalImage && abs(picture.frame.width - image.size.width * fit * 2) < 1
+                }
+                if let document {
+                    checks["pdf_zoom_preserves_document_and_page"] = document.document === originalDocument && document.currentPage === originalPage &&
+                        originalScale > 0 && abs(document.scaleFactor - originalScale * 2) < 0.01
+                }
+                _ = command(try key("0", code: 29))
+                checks[type + "_zoom_preserves_artifact_view"] = host.view(for: tab, workspace: workspace, update: { _, _ in }) === view && abs(DisplayMetrics.preferences.zoom - 1) < 0.001
+            }
             if type == "html" {
                 htmlTabID = tab.id; htmlView = descendants(view).compactMap { $0 as? WKWebView }.first
                 _ = try await htmlView?.evaluateJavaScript("document.querySelector('button').click(); document.querySelector('input').value='artifact unsent'")

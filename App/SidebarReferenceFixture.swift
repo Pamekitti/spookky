@@ -156,13 +156,15 @@ import SpookkyRuntime
         checks["title-reaches-end"] = endOffset < -25
         try await Task.sleep(for: .milliseconds(1100))
         checks["title-holds-beyond-former-repeat"] = abs(reveal.revealOffset - endOffset) < 0.5
+        try await activate()
         reveal.needsLayout = true; content.layoutSubtreeIfNeeded()
         try await Task.sleep(for: .milliseconds(200))
         checks["title-layout-preserves-end"] = abs(reveal.revealOffset - endOffset) < 0.5
-        diagnostics["one-shot-title"] = "end=\(endOffset) held=\(reveal.revealOffset) bounds=\(reveal.bounds) active=\(reveal.animating)"
+        diagnostics["one-shot-title"] = "end=\(endOffset) held=\(reveal.revealOffset) bounds=\(reveal.bounds) active=\(reveal.animating) key=\(window.isKeyWindow) visible=\(window.occlusionState.contains(.visible)) rect=\(reveal.visibleRect)"
         try await externalCapture("title-end")
         reveal.revealing = false
         checks["title-exit-resets"] = !reveal.animating && abs(reveal.revealOffset) < 0.5
+        try await activate()
         reveal.revealing = true
         try await Task.sleep(for: .milliseconds(200))
         checks["title-reentry-pauses-at-start"] = reveal.animating && abs(reveal.revealOffset) < 0.5

@@ -40,6 +40,10 @@ Codex uses provider cursors and available folder/title filters. Unsupported opti
 
 Claude indexes file metadata for at most 20,000 top-level session files within four seconds. A page inspects at most 256 files within two seconds. Changed files read at most 32 KiB from each end; unchanged size/mtime records reuse metadata. This is a local Code format adapter, not Claude Desktop or cloud history support. No full transcript store is added.
 
+Claude title records use native custom titles before AI titles and summaries. Explicit Spookky aliases remain authoritative. A fresh starting prompt supplies a bounded fallback title until native metadata arrives. Title refresh never changes the conversation ID or original folder.
+
+Some Codex launches cannot report an exact saved identity before their first native completion. Their existing terminal remains usable. Spookky links history only after exact native identity evidence and never merges conversations by title or directory alone.
+
 Project grouping resolves requested directories off the UI thread. Its cooperative 10-second deadline preserves resolved display metadata and reports partial association. Resume uses the provider's saved original folder. Native list views are virtualized; retained UI rows do not grow with the full catalog.
 
 ## Verification

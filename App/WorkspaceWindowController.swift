@@ -35,6 +35,9 @@ import SpookkyGit
     private var continuationTokens: [ConversationID: UUID] = [:]
     private var historySearchTask: Task<Void, Never>?
     private var initialLaunchTasks: [UUID: Task<Void, Never>] = [:]
+    private var startupDeadlineTask: Task<Void, Never>?
+    private var startupDeadline: Date?
+    private var startupNotices: [UUID: ProviderStartupNoticeView] = [:]
     private var continuationErrors: [ConversationID: String] = [:]
     private lazy var historyCatalog = ConversationHistoryCatalog(reader: sessionCatalog, persistence: store.historyPersistence)
     private var historyRecords: [String: [ConversationCatalogRecord]] = [:]
@@ -79,6 +82,8 @@ import SpookkyGit
     private var supportHeaderLeading: NSLayoutConstraint!
     private var workspaceBottom: NSLayoutConstraint!
     private var overflowWidth: NSLayoutConstraint!
+    private var changesWidth: NSLayoutConstraint!
+    private var compactHeader = false
     private var updatingHeader = false
     private let cancelLocation = ActionButton("Cancel operation", action: {})
     private let warning = SpookkyStyle.label( "")
@@ -138,6 +143,7 @@ import SpookkyGit
     private var agentPreferencesTask: Task<Void, Never>?
     private let backgroundFixture: Bool
     private var fixtureCloseRequests: [[String: String]] = []
+    private var fixtureQuitRequests: [[String: String]] = []
 
     init(root: URL, initialStore: WorkspaceStore? = nil,
          resolver: any ExecutableResolver = CLIResolver(), backgroundFixture: Bool = false,
@@ -170,7 +176,8 @@ import SpookkyGit
         let engine = try GhosttyEngine(root: root, clipboard: clipboard)
         launches = LaunchCoordinator(store: store, runtime: runtime,
             resolver: AgentActivityResolver(base: savedConversationResolver, root: root, helper: helper))
-        surfaces = TerminalSurfaceManager(engine: engine, runtime: runtime, executable: tmux, root: root)
+        surfaces = TerminalSurfaceManager(engine: engine, runtime: runtime, executable: tmux, root: root,
+            appearanceFile: CommandLine.arguments.contains("--workspace-benchmark-display") ? root.appendingPathComponent("live-appearance-config").path : nil)
         diagnostics = WorkspaceDiagnostics(root: root)
         super.init()
         store.update { $0.restoreAgentActivity() }
@@ -200,9 +207,7 @@ import SpookkyGit
         services.activityPreferencesDidChange = { [weak self] preferences in self?.saveAgentPreferences(preferences) }
         services.testAgentNotification = { [weak self] in await self?.agentNotifications.test() ?? "Notifications are unavailable." }
         saveAgentPreferences(services.agentPreferences)
-        activityReceiver = try? AgentActivityReceiver(root: root) { [weak self] event in
-            Task { @MainActor [weak self] in self?.receiveAgentEvent(event) }
-        }
+        startActivityMonitoring()
         agentNotifications.onFocus = { [weak self] id in
             guard let self, let workspace = store.state.workspace(containing: id) else { return }
             window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
@@ -283,6 +288,12 @@ import SpookkyGit
             forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
                 Task { @MainActor in self?.observeRuntimeEvent() }
             }
+    }
+    private func startActivityMonitoring() {
+        guard activityReceiver == nil else { return }
+        activityReceiver = try? AgentActivityReceiver(root: activityRoot) { [weak self] event in
+            Task { @MainActor [weak self] in self?.receiveAgentEvent(event) }
+        }
     }
     private func saveAgentPreferences(_ preferences: AgentNotificationPreferences) {
         let destination = activityRoot.appendingPathComponent("agent-preferences.json")
@@ -493,6 +504,7 @@ import SpookkyGit
         if let wakeObserver { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
         if let displayOptionsObserver { NSWorkspace.shared.notificationCenter.removeObserver(displayOptionsObserver) }
         observationTask?.cancel(); continuationTask?.cancel()
+        startupDeadlineTask?.cancel()
     }
     private func buildWindow() {
         window = WorkspaceNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 760),
@@ -569,7 +581,7 @@ import SpookkyGit
         supportingToggle.handler = { [weak self] in self?.toggleSupportingPanel() }
         threadActions.handler = { [weak self] in
             guard let self, let id = store.state.selectedWorkspaceID else { return }
-            workspaceContextMenu(id).popUp(positioning: nil, at: NSPoint(x: 0, y: threadActions.bounds.minY), in: threadActions)
+            headerActionsMenu(id).popUp(positioning: nil, at: NSPoint(x: 0, y: threadActions.bounds.minY), in: threadActions)
         }
         sidebarDivider.setAccessibilityLabel("Resize workspace sidebar")
         sidebarDivider.onMove = { [weak self] x in self?.services.changeDisplay { $0.sidebarWidth = Double(x) / $0.zoom } }
@@ -583,6 +595,7 @@ import SpookkyGit
         supportHeaderLeading = workspaceLayout.headerView.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: SpookkyStyle.sidebarWidth + 220)
         workspaceBottom = workspaceBody.bottomAnchor.constraint(equalTo: content.bottomAnchor)
         overflowWidth = tabOverflow.widthAnchor.constraint(equalToConstant: 0).displayScaled()
+        changesWidth = threadChanges.widthAnchor.constraint(equalToConstant: 28).displayScaled()
         NSLayoutConstraint.activate([
             header.leadingAnchor.constraint(equalTo: content.leadingAnchor), header.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             header.topAnchor.constraint(equalTo: content.topAnchor), header.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).displayScaled(alreadyScaled: true),
@@ -604,14 +617,15 @@ import SpookkyGit
             threadChanges.trailingAnchor.constraint(equalTo: supportingToggle.leadingAnchor, constant: -4).displayScaled(),
             tabOverflow.trailingAnchor.constraint(equalTo: threadChanges.leadingAnchor, constant: -4).displayScaled(), overflowWidth,
             supportingToggle.widthAnchor.constraint(equalToConstant: 28).displayScaled(), supportingToggle.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
-            threadChanges.widthAnchor.constraint(equalToConstant: 28).displayScaled(), threadChanges.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
+            changesWidth, threadChanges.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
             threadChanges.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor),
             supportingToggle.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor),
             navigationBack.widthAnchor.constraint(equalToConstant: 28).displayScaled(), navigationBack.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
             navigationForward.widthAnchor.constraint(equalToConstant: 28).displayScaled(), navigationForward.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
             navigationBack.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor), navigationForward.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor),
             navigationForward.leadingAnchor.constraint(equalTo: navigationBack.trailingAnchor),
-            tabOverflow.topAnchor.constraint(equalTo: content.topAnchor, constant: 6).displayScaled(), tabOverflow.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
+            tabOverflow.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor),
+            tabOverflow.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
             workspaceBody.leadingAnchor.constraint(equalTo: railScroll.trailingAnchor), workspaceBody.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             workspaceBody.topAnchor.constraint(equalTo: tabScroll.bottomAnchor), workspaceBottom,
             warning.leadingAnchor.constraint(equalTo: workspaceBody.leadingAnchor, constant: 12).displayScaled(),
@@ -652,19 +666,35 @@ import SpookkyGit
             item.selected = !joined || workspace.support?.resolvedFullWidthSelection == .primary
         }
         let expanded = supportingPanelExpanded
-        let utilityWidth = [threadChanges, supportingToggle].reduce(CGFloat.zero) { $0 + $1.intrinsicContentSize.width }
+        compactHeader = content.bounds.width - tabStart < SpookkyStyle.points(240)
+        workspaceLayout.compactHeader = compactHeader
+        threadDetails.isHidden = compactHeader
+        threadChanges.isHidden = compactHeader
+        changesWidth.constant = compactHeader ? 0 : SpookkyStyle.points(28)
+        threadActions.isEnabled = compactHeader ? store.state.selected != nil : store.state.selected?.isLanding == false
+        threadActions.toolTip = compactHeader ? "Tabs and thread actions" : "Thread actions"
+        threadActions.setAccessibilityLabel(threadActions.toolTip!)
+        let utilityWidth = [threadChanges, supportingToggle].filter { !$0.isHidden }.reduce(CGFloat.zero) { $0 + $1.intrinsicContentSize.width }
         let headerEnd = content.bounds.width - utilityWidth - SpookkyStyle.points(24)
-        let available = max(0, headerEnd - tabStart)
         let splitStart = width + workspaceLayout.primaryPaneWidth(in: max(0, content.bounds.width - width)) + 5
-        let mainWidth = workspaceLayout.joinsPrimary ? 0 : expanded && workspaceLayout.isSplit ? max(0, splitStart - tabStart - 5) : min(tabs.fittingSize.width, available)
-        let supportStart = workspaceLayout.joinsPrimary ? tabStart : expanded && workspaceLayout.isSplit ? splitStart : tabStart + mainWidth
-        let supportWidth = max(0, headerEnd - supportStart)
-        let overflowing = expanded && ((!workspaceLayout.joinsPrimary && tabs.fittingSize.width > mainWidth) || workspaceLayout.headerFittingWidth > supportWidth)
-        tabOverflow.isHidden = !overflowing
-        if overflowWidth.constant != (overflowing ? SpookkyStyle.points(28) : 0) { overflowWidth.constant = overflowing ? SpookkyStyle.points(28) : 0 }
-        if !workspaceLayout.joinsPrimary { for item in tabPairs.values { item.availableWidth = mainWidth } }
-        if tabsWidth.constant != mainWidth { tabsWidth.constant = mainWidth }
-        if supportHeaderLeading.constant != supportStart { supportHeaderLeading.constant = supportStart }
+        let preferredMainWidth = tabs.arrangedSubviews.compactMap { ($0 as? WorkspaceTabView)?.preferredWidth }.reduce(0, +) + tabs.edgeInsets.left + tabs.edgeInsets.right
+        func widths(overflow: CGFloat) -> (main: CGFloat, supportStart: CGFloat, support: CGFloat) {
+            let available = max(0, headerEnd - tabStart - overflow)
+            let main = workspaceLayout.joinsPrimary ? 0 : expanded && workspaceLayout.isSplit ? min(available, max(0, splitStart - tabStart - 5)) :
+                min(preferredMainWidth, max(0, available - (expanded ? workspaceLayout.headerControlsWidth : 0)))
+            let start = workspaceLayout.joinsPrimary ? tabStart : expanded && workspaceLayout.isSplit ? splitStart : tabStart + main
+            return (main, start, max(0, headerEnd - overflow - start))
+        }
+        let initial = widths(overflow: 0)
+        let overflowing = expanded && ((!workspaceLayout.joinsPrimary && preferredMainWidth > initial.main) || workspaceLayout.headerFittingWidth > initial.support)
+        tabOverflow.isHidden = compactHeader || !overflowing
+        let overflow = !compactHeader && overflowing
+        let overflowButtonWidth = overflow ? SpookkyStyle.points(28) : 0
+        if overflowWidth.constant != overflowButtonWidth { overflowWidth.constant = overflowButtonWidth }
+        let resolved = widths(overflow: overflow ? SpookkyStyle.points(32) : 0)
+        if !workspaceLayout.joinsPrimary { for item in tabPairs.values { item.availableWidth = resolved.main } }
+        if tabsWidth.constant != resolved.main { tabsWidth.constant = resolved.main }
+        if supportHeaderLeading.constant != resolved.supportStart { supportHeaderLeading.constant = resolved.supportStart }
         tabScroll.isHidden = store.state.selected == nil || workspaceLayout.joinsPrimary
         workspaceLayout.headerView.isHidden = store.state.selected == nil || !expanded
         supportingToggle.toolTip = expanded ? "Hide side panel" : "Show side panel"
@@ -674,6 +704,20 @@ import SpookkyGit
     private func showTabOverflow() {
         guard let workspace = store.state.selected else { return }
         tabOverflowMenu(workspace).popUp(positioning: nil, at: NSPoint(x: 0, y: tabOverflow.bounds.height), in: tabOverflow)
+    }
+    private func headerActionsMenu(_ id: UUID) -> NSMenu {
+        let actions = store.state.workspaces.first(where: { $0.id == id })?.isLanding == true ? NSMenu() : workspaceContextMenu(id)
+        guard compactHeader, let workspace = store.state.selected, workspace.id == id else { return actions }
+        let menu = tabOverflowMenu(workspace)
+        menu.addItem(.separator())
+        menu.addItem(ClosureMenuItem("New tab") { [weak self] in self?.newTab() })
+        menu.addItem(ClosureMenuItem("View changes") { [weak self] in self?.showChanges() })
+        menu.addItem(ClosureMenuItem("Thread details") { [weak self] in self?.showThreadDetails() })
+        let layout = ClosureMenuItem(workspaceLayout.layoutActionTitle) { [weak self] in self?.workspaceLayout.toggleLayout() }
+        layout.isEnabled = workspaceLayout.canToggleLayout; menu.addItem(layout)
+        if !actions.items.isEmpty { menu.addItem(.separator()) }
+        for item in actions.items { actions.removeItem(item); menu.addItem(item) }
+        return menu
     }
     private func tabOverflowMenu(_ workspace: Workspace) -> NSMenu {
         let menu = NSMenu()
@@ -735,7 +779,7 @@ import SpookkyGit
             focusSupportingContent()
         }
         picker.onDismiss = { [weak self] in self?.filePicker = nil }
-        picker.show(relativeTo: threadDetails)
+        picker.show(relativeTo: compactHeader ? threadActions : threadDetails)
     }
     private func renderSupportingContent() {
         let workspace = store.state.selected
@@ -899,6 +943,12 @@ import SpookkyGit
     private func clear(_ stack: NSStackView) {
         for view in stack.arrangedSubviews { stack.removeArrangedSubview(view); view.removeFromSuperview() }
     }
+    private var retainsInputFocusOutsideTerminals: Bool {
+        if window.attachedSheet != nil || filePicker?.popover.isShown == true { return true }
+        guard let view = window.firstResponder as? NSView, view.window === window,
+              view !== window.contentView else { return false }
+        return !view.isDescendant(of: body) && !view.isDescendant(of: supportingTerminal)
+    }
     func render() {
         let state = store.state
         let activeLocation = state.locations?.operations.first { $0.status == .running }
@@ -969,9 +1019,10 @@ import SpookkyGit
                 composers[id]?.update(tab, workspace: w, state: state)
             }
         }
+        updateStartupFeedback()
         guard key != contentKey else { return }
         contentKey = key; renderTask?.cancel(); surfaces.invalidate()
-        if !workspaceLayout.hasFocus { window.makeFirstResponder(nil) }
+        if !workspaceLayout.hasFocus && !retainsInputFocusOutsideTerminals { window.makeFirstResponder(nil) }
         let started = ProcessInfo.processInfo.systemUptime
         renderTask = Task { [weak self] in await self?.renderContent(started: started) }
     }
@@ -1467,10 +1518,12 @@ import SpookkyGit
         func toolbarGeometryIsValid() -> Bool {
             guard let heading = tabPairs[primary] else { return false }
             return threadActions.superview === heading && threadDetails.superview === heading &&
-                heading.titleButton.frame.maxX <= threadActions.frame.minX + 0.5 && threadActions.frame.maxX < threadDetails.frame.minX &&
-                threadDetails.frame.maxX <= heading.bounds.width + 0.5 && threadChanges.frame.maxX < supportingToggle.frame.minX &&
+                heading.titleButton.frame.maxX <= threadActions.frame.minX + 0.5 &&
+                threadActions.frame.maxX <= heading.bounds.width + 0.5 &&
+                (threadDetails.isHidden || threadActions.frame.maxX < threadDetails.frame.minX && threadDetails.frame.maxX <= heading.bounds.width + 0.5) &&
+                (threadChanges.isHidden || threadChanges.frame.maxX < supportingToggle.frame.minX) &&
                 workspaceLayout.headerView.frame.maxX <= tabOverflow.frame.minX + 0.5 &&
-                workspaceLayout.layoutButton.frame.maxX <= workspaceLayout.headerView.bounds.width + 0.5
+                (workspaceLayout.layoutButton.isHidden || workspaceLayout.layoutButton.frame.maxX <= workspaceLayout.headerView.bounds.width + 0.5)
         }
         threadChanges.performClick(nil)
         if let renderTask { await renderTask.value }
@@ -1612,7 +1665,7 @@ import SpookkyGit
                     (SpookkyStyle.points(48)...$0.maximumNaturalWidth).contains($0.bounds.width)
                 }
                 checks["toolbar_controls_do_not_overlap_\(theme.rawValue)_\(width)"] = toolbarGeometryIsValid()
-                checks["toolbar_controls_keep_utility_size_\(theme.rawValue)_\(width)"] = [threadChanges, supportingToggle, threadActions, threadDetails, workspaceLayout.layoutButton].allSatisfy {
+                checks["toolbar_controls_keep_utility_size_\(theme.rawValue)_\(width)"] = [threadChanges, supportingToggle, threadActions, threadDetails, workspaceLayout.layoutButton].filter { !$0.isHidden }.allSatisfy {
                     abs($0.bounds.width - SpookkyStyle.points(28)) < 1 && abs($0.bounds.height - SpookkyStyle.points(28)) < 1
                 }
                 checks["compact_layout_keeps_explanation_\(theme.rawValue)_\(width)"] = !workspaceLayout.compact ||
@@ -1629,8 +1682,10 @@ import SpookkyGit
                 window.contentView?.layoutSubtreeIfNeeded()
                 let label = "\(Int(zoom * 100))_\(width)"
                 checks["toolbar_zoom_geometry_" + label] = toolbarGeometryIsValid() &&
-                    abs(workspaceLayout.layoutButton.bounds.width - SpookkyStyle.points(28)) < 1 &&
-                    workspaceLayout.layoutButton.frame.minX >= 0
+                    (workspaceLayout.layoutButton.isHidden ||
+                        abs(workspaceLayout.layoutButton.bounds.width - SpookkyStyle.points(28)) < 1 && workspaceLayout.layoutButton.frame.minX >= 0)
+                checks["compact_header_keeps_changes_and_panel_actions_" + label] = !compactHeader ||
+                    (threadChanges.isHidden && !supportingToggle.isHidden && headerActionsMenu(workspaceID).items.contains { $0.title == "View changes" })
                 checks["toolbar_zoom_compact_state_" + label] = workspaceLayout.layoutButton.isEnabled == (!workspaceLayout.compact && store.state.selected?.support?.tabs.isEmpty == false)
             }
         }
@@ -1734,15 +1789,42 @@ import SpookkyGit
         if let renderTask { await renderTask.value }
         render(); window.contentView?.layoutSubtreeIfNeeded()
         checks["history_errors_do_not_use_global_footer"] = warning.isHidden
+        let beforeRegistration = store.state
+        var departingWorkspace = UUID()
+        store.update { departingWorkspace = $0.newWorkspace(directory: root.path) }
+        guard let departing = store.state.selected, let queuedTerminal = departing.primaryTerminalID else {
+            throw LaunchError.invalid("Project registration fixture draft is unavailable.")
+        }
+        guard window.makeFirstResponder(historySearch), historySearch.currentEditor() != nil else {
+            throw LaunchError.invalid("Project registration fixture search did not receive focus.")
+        }
+        launch(queuedTerminal, tool: .shell)
+        guard let queuedLaunch = initialLaunchTasks[queuedTerminal] else {
+            throw LaunchError.invalid("Project registration fixture launch was not queued.")
+        }
+        openDiscoveredProject(WorkspaceLocation(path: root.appendingPathComponent("registration-target").path), ifSelected: departingWorkspace)
+        await queuedLaunch.value
+        if let renderTask { await renderTask.value }
+        checks["project_registration_completion_cancels_unstarted_launch"] = store.state.tab(queuedTerminal)?.status == .draft &&
+            store.state.tab(queuedTerminal)?.launch == nil && store.state.tab(queuedTerminal)?.binding == nil
+        checks["project_registration_preserves_departing_folder"] = store.state.workspaces.first { $0.id == departingWorkspace }?.selectedLocation == departing.selectedLocation
+        checks["project_registration_focuses_composer"] = store.state.selected?.isLanding == true &&
+            store.state.primaryTerminalID.flatMap { composers[$0]?.hasInputFocus } == true
+        if store.state.tab(queuedTerminal)?.binding != nil { try await launches.terminate(queuedTerminal) }
+        store.update { $0 = beforeRegistration }
+        if let renderTask { await renderTask.value }
         try PrivateFiles.write(checks, to: root.appendingPathComponent("identity-checks.json"))
     }
     private func checkSidebar(root: URL) async throws {
-        window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
-        for _ in 0..<250 {
-            if NSApp.isActive && window.isKeyWindow { break }
-            try await Task.sleep(for: .milliseconds(20))
+        func activate() async throws {
+            window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+            for _ in 0..<250 {
+                if NSApp.isActive && window.isKeyWindow { return }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            throw LaunchError.invalid("Native fixture window did not activate.")
         }
-        guard NSApp.isActive && window.isKeyWindow else { throw LaunchError.invalid("Sidebar fixture did not activate.") }
+        try await activate()
         let location = WorkspaceLocation(path: root.path)
         var projectID = UUID(), workspaceID = UUID()
         let name = "Investigate workspace navigation and preserve terminal drafts"
@@ -1772,6 +1854,7 @@ import SpookkyGit
             try PrivateFiles.write(hits, to: root.appendingPathComponent("header-hit-grid.json"))
         }
         let tabClose = pair.closeButton
+        checks["section_accessibility_press_is_inert"] = sidebarCellForFixture("section:projects")?.accessibilityPerformPress() == false
         checks["single_line_conversation_row"] = cell.subviews.compactMap { $0 as? NSTextField }.count == 1 && abs(cell.bounds.height - 31) < 0.5
         let projectIcon = sidebarCellForFixture(projectKey)?.subviews.compactMap { $0 as? NSImageView }.first
         let conversationIcon = cell.subviews.compactMap { $0 as? NSImageView }.first
@@ -1833,7 +1916,8 @@ import SpookkyGit
         if let refresh = historyRefreshTask { refresh.cancel(); await refresh.value }
         let originalActivate = conversationSidebar.onActivate
         var activations = 0
-        conversationSidebar.onActivate = { _ in activations += 1 }
+        var lastActivatedID: String?
+        conversationSidebar.onActivate = { activations += 1; lastActivatedID = $0 }
         let virtual = (0..<5_000).map { WorkspaceSidebarItem(id: "fixture:" + String($0), kind: .conversation, title: name + " " + String($0), image: SpookkyStyle.toolImage(.codex)) }
         conversationSidebar.update(items: [virtual[0], virtual[0]], collapsed: false)
         checks["duplicate_history_ids_do_not_duplicate_rows"] = conversationSidebar.itemCount == 1
@@ -1850,6 +1934,9 @@ import SpookkyGit
         conversationSidebar.update(items: updated, collapsed: false); window.contentView?.layoutSubtreeIfNeeded()
         let afterY = sidebarCellForFixture(focusedID).map { $0.convert($0.bounds, to: window.contentView).minY }
         checks["refresh_preserves_scroll_anchor_and_focus"] = conversationSidebar.focusedItemID == focusedID && beforeY != nil && afterY != nil && abs(beforeY! - afterY!) < 1
+        let priorActivations = activations
+        checks["accessibility_press_opens_exact_row_after_refresh"] = sidebarCellForFixture(focusedID)?.accessibilityPerformPress() == true &&
+            activations == priorActivations + 1 && lastActivatedID == focusedID
         if let scroller = conversationSidebar.subviews.first as? NSScrollView, let table = scroller.documentView as? NSTableView {
             let origin = scroller.contentView.bounds.origin
             for x in [CGFloat(120), -120] {
@@ -1883,11 +1970,7 @@ import SpookkyGit
             checks["hover_title_stays_single_line_and_clipped"] = title?.maximumNumberOfLines == 1 && title?.layer?.animationKeys()?.isEmpty != false
             window.orderOut(nil); await Task.yield()
             checks["inactive_window_hides_all_row_accessories"] = actions(conversationSidebar).allSatisfy(\.isHidden)
-            window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
-            for _ in 0..<250 {
-                if NSApp.isActive && window.isKeyWindow { break }
-                try await Task.sleep(for: .milliseconds(20))
-            }
+            try await activate()
             checks["reactivation_reveals_only_hovered_row_accessory"] = window.isKeyWindow && actions(conversationSidebar).filter { !$0.isHidden }.count == 2
             scroller.contentView.scroll(to: NSPoint(x: 0, y: scroller.contentView.bounds.minY + 96))
             scroller.reflectScrolledClipView(scroller.contentView); await Task.yield()
@@ -1902,6 +1985,32 @@ import SpookkyGit
             await Task.yield()
             checks["revealed_row_accessory_accepts_keyboard_focus"] = accessory != nil && window.firstResponder === accessory && accessory?.isHidden == false
         }
+        guard let menuAnchor = sidebarCellForFixture(focusedID) else { throw LaunchError.invalid("Menu refresh fixture anchor is unavailable.") }
+        let refreshMenu = NSMenu(); refreshMenu.addItem(ClosureMenuItem("Retained history action") {})
+        var menuOpened = false, menuEnded = false, refreshedDuringMenu = false
+        let began = NotificationCenter.default.addObserver(forName: NSMenu.didBeginTrackingNotification, object: refreshMenu, queue: .main) { _ in
+            MainActor.assumeIsolated { menuOpened = true }
+        }
+        let ended = NotificationCenter.default.addObserver(forName: NSMenu.didEndTrackingNotification, object: refreshMenu, queue: .main) { _ in
+            MainActor.assumeIsolated { menuEnded = true }
+        }
+        let menuRefresh = Timer(timeInterval: 0.2, repeats: false) { [self] _ in
+            MainActor.assumeIsolated {
+                conversationSidebar.update(items: Array(updated.prefix(20)), collapsed: false)
+                conversationSidebar.update(items: Array(updated.prefix(25)), collapsed: false)
+                refreshedDuringMenu = true
+                checks["history_refresh_retains_open_menu_anchor"] = conversationSidebar.itemCount == updated.count && sidebarCellForFixture(focusedID) === menuAnchor
+                checks["history_refresh_keeps_native_menu_tracking"] = menuOpened && !menuEnded
+                refreshMenu.cancelTracking()
+            }
+        }
+        RunLoop.main.add(menuRefresh, forMode: .common)
+        refreshMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: menuAnchor.bounds.maxY), in: menuAnchor)
+        menuRefresh.invalidate(); NotificationCenter.default.removeObserver(began); NotificationCenter.default.removeObserver(ended)
+        await Task.yield()
+        try await activate()
+        checks["native_menu_refresh_fixture_exercised"] = menuOpened && refreshedDuringMenu
+        checks["menu_close_applies_latest_history_snapshot"] = conversationSidebar.itemCount == 25
         checks["history_navigation_starts_no_agents"] = store.state.workspaces.flatMap(\.tabs).compactMap(\.binding) == bindings
         conversationSidebar.onActivate = originalActivate
         renderChrome(); conversationSidebar.focusItem(workspaceKey)
@@ -2054,6 +2163,29 @@ import SpookkyGit
         checks["collapse_preserves_terminal_input"] = unsentInputVisible()
         interactionDetails["input_after_collapse"] = String(surface.visibleText().suffix(300))
         checks["agent_draft_survives_shell_and_collapse"] = store.state.tab(original.selectedTabID)?.draft == original.tabs[0].draft
+        checks.merge(try await checkActivityRecovery(root: root, terminal: shellID), uniquingKeysWith: { _, new in new })
+        try await activate()
+        chooseSupportingFile()
+        guard let picker = filePicker, let pickerWindow = picker.view.window,
+              let pickerResponder = pickerWindow.firstResponder else { throw LaunchError.invalid("Focus fixture file picker did not open.") }
+        checks["focus_fixture_file_picker_is_key"] = picker.popover.isShown && pickerWindow.isKeyWindow
+        contentKey = ""; render()
+        if let renderTask { await renderTask.value }
+        checks["terminal_reattach_preserves_file_picker_focus"] = picker.popover.isShown && pickerWindow.isKeyWindow && pickerWindow.firstResponder === pickerResponder
+        picker.popover.performClose(nil)
+        try await activate()
+        window.makeFirstResponder(historySearch)
+        guard let searchResponder = historySearch.currentEditor() else { throw LaunchError.invalid("Focus fixture sidebar search did not begin editing.") }
+        contentKey = ""; render()
+        if let renderTask { await renderTask.value }
+        checks["terminal_reattach_preserves_sidebar_search_focus"] = window.firstResponder === searchResponder && historySearch.currentEditor() === searchResponder
+        window.makeFirstResponder(surface)
+        contentKey = ""; render()
+        window.makeFirstResponder(historySearch)
+        guard let laterResponder = historySearch.currentEditor() else { throw LaunchError.invalid("Late focus fixture sidebar search did not begin editing.") }
+        if let renderTask { await renderTask.value }
+        checks["late_terminal_attachment_preserves_new_search_focus"] = window.firstResponder === laterResponder && historySearch.currentEditor() === laterResponder
+        window.makeFirstResponder(surface)
         func nativeControls(_ view: NSView) -> [NSControl] { (view as? NSControl).map { [$0] } ?? view.subviews.flatMap(nativeControls) }
         let controls = nativeControls(window.contentView!).filter { control in
             if let field = control as? NSTextField { return field.isEditable || field.isSelectable }
@@ -2105,10 +2237,15 @@ import SpookkyGit
             "app_rss_mib": WorkspaceDiagnostics.residentMiB() ?? -1, "terminal_session_count": 1,
             "virtual_history_items": 5_000, "mounted_sidebar_cells": Double(conversationSidebar.visibleCellCount)]
         if CommandLine.arguments.contains("--workspace-benchmark-display") {
+            try PrivateFiles.write(checks, to: root.appendingPathComponent("sidebar-checks.json"))
             store.update { $0.openSupport(.changes, title: "Changes"); $0.openSupport(.file(path: root.appendingPathComponent("appearance-config").path), title: "Settings file") }
             checks.merge(try await DisplayPolishFixture.check(window: window, root: root, sidebar: conversationSidebar,
+                activate: activate,
                 apply: { preferences in self.services.changeDisplay { $0 = preferences } },
                 tabs: { Array(self.tabPairs.values) + self.workspaceLayout.tabItems },
+                headerActions: { [self.navigationBack, self.navigationForward, self.sidebarToggle, self.threadDetails, self.threadActions, self.tabOverflow, self.threadChanges, self.supportingToggle] + self.workspaceLayout.headerActionViews },
+                surfaces: surfaces, terminal: store.state.tab(shellID), runtime: launches.runtime,
+                appearanceStatus: { self.services.terminalAppearanceMessage },
                 layout: { mode in self.store.update { $0.setSupportingLayout(mode) } },
                 setAppearance: { appearance in self.store.update { $0.appearance = appearance } }), uniquingKeysWith: { _, new in new })
         }
@@ -2135,6 +2272,38 @@ import SpookkyGit
         try await store.flush(); try PrivateFiles.write(checks, to: root.appendingPathComponent("sidebar-checks.json"))
         guard checks.values.allSatisfy({ $0 }) else { throw LaunchError.invalid("Sidebar fixture failed: " + checks.filter { !$0.value }.keys.sorted().joined(separator: ", ")) }
     }
+    private func checkActivityRecovery(root: URL, terminal: UUID) async throws -> [String: Bool] {
+        guard let binding = store.state.tab(terminal)?.binding, let surface = surfaces.view(terminal) else {
+            throw LaunchError.invalid("Activity recovery fixture terminal is unavailable.")
+        }
+        let before = try await launches.runtime.inspect(binding), input = surface.visibleText()
+        activityReceiver = nil
+        var otherOwner: AgentActivityReceiver? = try AgentActivityReceiver(root: root) { _ in }
+        withExtendedLifetime(otherOwner) { reopen() }
+        var checks = ["activity_retry_preserves_active_owner": activityReceiver == nil]
+        otherOwner = nil
+        setFocus(true)
+        checks["activation_retries_unavailable_activity_receiver"] = activityReceiver != nil
+        activityReceiver = nil; reopen()
+        checks["window_reopen_retries_unavailable_activity_receiver"] = activityReceiver != nil
+        let context = try AgentIntegration.read(AgentTerminalContext.self,
+            path: root.appendingPathComponent("agent-terminal-" + binding.id.uuidString + ".json").path)
+        let invocation = AgentInvocation(context: context, provider: .claude)
+        try PrivateFiles.write(invocation, to: URL(fileURLWithPath: context.activePath))
+        AgentActivitySocket.send(invocation.event(.working), socket: context.socket)
+        for _ in 0..<100 {
+            if store.state.tab(terminal)?.activity?.invocationID == invocation.id { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        checks["recovered_receiver_applies_provider_socket_event"] = store.state.tab(terminal)?.activity?.state == .working &&
+            store.state.tab(terminal)?.activity?.invocationID == invocation.id
+        if let renderTask { await renderTask.value }
+        let after = try await launches.runtime.inspect(binding)
+        checks["activity_recovery_preserves_process_surface_and_input"] = before?.processID != nil &&
+            before?.processID == after?.processID && surfaces.view(terminal) === surface && surface.visibleText() == input
+        store.update { $0.resetAgent(terminal) }
+        return checks
+    }
     private func renderContent(started: Double) async {
         guard window.isVisible else { return }
         let ids = store.state.visibleTabIDs, records = ids.compactMap { store.state.tab($0) }
@@ -2148,7 +2317,7 @@ import SpookkyGit
             }
             let prepared = try await surfaces.prepare(terminals, sizes: sizes)
             guard !Task.isCancelled, let prepared, ids == store.state.visibleTabIDs else { return }
-            body.subviews.forEach { $0.removeFromSuperview() }; paneHeaders.removeAll(); paneTitles.removeAll(); agentHeaderLabels.removeAll()
+            body.subviews.forEach { $0.removeFromSuperview() }; paneHeaders.removeAll(); paneTitles.removeAll(); agentHeaderLabels.removeAll(); startupNotices.removeAll()
             guard !records.isEmpty else {
                 if store.state.selected == nil {
                     store.update { $0.showLanding(homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path) }
@@ -2163,7 +2332,7 @@ import SpookkyGit
             if case .terminal(let id) = store.state.selected?.support?.selected?.target,
                let terminal = records.first(where: { $0.id == id }) { install(pane(terminal, surface: prepared[id]), in: supportingTerminal) }
             let active = store.state.selectedTab?.id
-            if !workspaceLayout.hasFocus {
+            if !workspaceLayout.hasFocus && !retainsInputFocusOutsideTerminals {
                 if let active, let surface = prepared[active] { window.makeFirstResponder(surface) }
                 else if let active { composers[active]?.focus() }
             }
@@ -2174,6 +2343,7 @@ import SpookkyGit
             let retained = Set(store.state.workspaces.flatMap(\.tabs).map(\.id))
             composers = composers.filter { retained.contains($0.key) }
             refreshAgentAttention()
+            updateStartupFeedback()
         } catch {
             guard !Task.isCancelled, ids == store.state.visibleTabIDs else { return }
             for tab in records where tab.binding != nil {
@@ -2240,7 +2410,17 @@ import SpookkyGit
             install(composer, in: container)
         } else {
             if tab.status == .running, let surface {
-                install(surface, in: container)
+                if tab.pendingStartup != nil, store.state.primaryTerminalID == tab.id {
+                    let notice = ProviderStartupNoticeView(focus: { [weak self] in self?.focusSelectedContent() },
+                        details: { [weak self] in self?.showThreadDetails() })
+                    startupNotices[tab.id] = notice
+                    let stack = NSStackView(views: [notice, surface]); stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = 0
+                    notice.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+                    surface.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+                    surface.setContentHuggingPriority(.defaultLow, for: .vertical)
+                    surface.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
+                    install(stack, in: container)
+                } else { install(surface, in: container) }
                 return container
             }
             let directory = store.state.workspace(containing: tab.id)?.directory ?? ""
@@ -2306,6 +2486,21 @@ import SpookkyGit
         }
         return container
     }
+    private func updateStartupFeedback() {
+        let now = Date()
+        for (id, notice) in startupNotices { notice.update(message: store.state.tab(id)?.startupMessage(at: now)) }
+        let deadline = window.isVisible ? store.state.visibleTabIDs.compactMap { store.state.tab($0)?.pendingStartup?.noticeDate }.filter { $0 > now }.min() : nil
+        guard deadline != startupDeadline else { return }
+        startupDeadlineTask?.cancel(); startupDeadlineTask = nil; startupDeadline = deadline
+        guard let deadline else { return }
+        startupDeadlineTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(max(0, deadline.timeIntervalSinceNow))) }
+            catch { return }
+            guard let self else { return }
+            startupDeadline = nil; startupDeadlineTask = nil
+            updateStartupFeedback()
+        }
+    }
     private func install(_ view: NSView, in parent: NSView) {
         view.translatesAutoresizingMaskIntoConstraints = false; parent.addSubview(view)
         NSLayoutConstraint.activate([view.leadingAnchor.constraint(equalTo: parent.leadingAnchor), view.trailingAnchor.constraint(equalTo: parent.trailingAnchor),
@@ -2322,7 +2517,7 @@ import SpookkyGit
         if store.state.selectedWorkspaceID != id { cancelLaunchPreflight() }
         renameEditor?.cancel(); renameEditor = nil
         if store.state.selectedWorkspaceID == id { focusSelectedContent() }
-        else { store.update { $0.selectWorkspace(id) } }
+        else { window.makeFirstResponder(nil); store.update { $0.selectWorkspace(id) } }
         scheduleRepositoryRefresh()
         refreshAgentAttention(clearManual: true)
     }
@@ -2539,6 +2734,7 @@ import SpookkyGit
     @objc private func newWorkspace() {
         let hidden = !window.isVisible
         let context = store.state.selected
+        window.makeFirstResponder(nil)
         cancelLaunchPreflight()
         store.update { $0.showLanding(projectID: context?.projectID,
             homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path, inheriting: context?.primaryTerminal?.draft) }
@@ -2554,6 +2750,7 @@ import SpookkyGit
     }
     private func openTerminal(from id: UUID) {
         guard let tab = store.state.tab(id) else { return }
+        window.makeFirstResponder(nil)
         if let workspace = store.state.workspace(containing: id), workspace.isLanding, workspace.primaryTerminalID == id {
             var shellID: UUID!
             store.update {
@@ -2676,6 +2873,7 @@ import SpookkyGit
     private func newProjectWorkspace(_ id: UUID) {
         guard store.state.projects.contains(where: { $0.id == id }) else { return }
         let draft = store.state.selected?.primaryTerminal?.draft
+        window.makeFirstResponder(nil)
         cancelLaunchPreflight()
         store.update { $0.showLanding(projectID: id, homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path, inheriting: draft) }
         scheduleRepositoryRefresh()
@@ -2741,12 +2939,7 @@ import SpookkyGit
         let startingWorkspaceID = store.state.selectedWorkspaceID
         form.onSuccess = { [weak self] location in
             guard let self else { return }
-            store.update {
-                let projectID = $0.registerProject(location)
-                guard $0.selectedWorkspaceID == startingWorkspaceID else { return }
-                if let workspace = $0.selected, workspace.anchor == nil { $0.setLocation(location, projectID: projectID, workspaceID: workspace.id) }
-                else { $0.newWorkspace(location: location, projectID: projectID) }
-            }
+            openDiscoveredProject(location, ifSelected: startingWorkspaceID)
             self.scheduleRepositoryRefresh()
         }
         form.onClose = { [weak self] in self?.projectCreation = nil; self?.focusSelectedContent() }
@@ -2781,6 +2974,13 @@ import SpookkyGit
         }.joined(separator: "\n\n")
         alert("Project operations", text.isEmpty ? "No project operations yet." : text)
     }
+    private func openDiscoveredProject(_ location: WorkspaceLocation, ifSelected workspaceID: UUID?) {
+        if store.state.selectedWorkspaceID == workspaceID {
+            cancelLaunchPreflight()
+            window.makeFirstResponder(nil)
+        }
+        store.update { $0.openProject(location, ifSelected: workspaceID, homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path) }
+    }
     private func chooseFolder(register: Bool, relocate: Bool = false) {
         guard window.attachedSheet == nil else { return }
         if !window.isVisible { reopen() }
@@ -2791,13 +2991,12 @@ import SpookkyGit
             Task {
                 do {
                     let location = try await LocationDiscovery.discover(url)
-                    self.store.update {
-                        let projectID = register ? $0.registerProject(location) : nil
-                        if let workspaceID {
+                    if register { self.openDiscoveredProject(location, ifSelected: workspaceID) }
+                    else {
+                        self.store.update {
+                            guard let workspaceID, $0.selectedWorkspaceID == workspaceID else { return }
                             if relocate { $0.relocateWorkspace(workspaceID, location: location) }
-                            else if register && $0.selectedWorkspaceID == workspaceID && $0.workspaces.first(where: { $0.id == workspaceID })?.anchor != nil {
-                                $0.newWorkspace(location: location, projectID: projectID)
-                            } else { $0.setLocation(location, projectID: projectID, workspaceID: workspaceID) }
+                            else { $0.setLocation(location, projectID: nil, workspaceID: workspaceID) }
                         }
                     }
                     await self.refreshSelectedRepository()
@@ -2890,11 +3089,22 @@ import SpookkyGit
         await surfaces.captureViewports()
         try await store.flush()
     }
-    func prepareToQuit() -> NSApplication.TerminateReply {
+    private func recordBenchmarkQuit(_ phase: String, context: [String: String] = [:]) {
+        guard CommandLine.arguments.contains("--workspace-benchmark-continuity") else { return }
+        let event = context.merging(["phase": phase, "time": Date().ISO8601Format(),
+            "appActive": String(NSApp.isActive), "windowKey": String(window.isKeyWindow)], uniquingKeysWith: { _, new in new })
+        fixtureQuitRequests = Array((fixtureQuitRequests + [event]).suffix(16))
+        try? PrivateFiles.write(fixtureQuitRequests, to: activityRoot.appendingPathComponent("quit-requests.json"))
+    }
+    func prepareToQuit(context: [String: String] = [:]) -> NSApplication.TerminateReply {
+        recordBenchmarkQuit("requested", context: context)
         services.flushDisplayPreferences()
         cancelLaunchPreflight()
         guard !(store.state.locations?.operations.contains(where: { $0.status == .running }) ?? false),
-              !store.state.workspaces.flatMap(\.tabs).contains(where: { launches.isBusy($0.id) }) else { return .terminateCancel }
+              !store.state.workspaces.flatMap(\.tabs).contains(where: { launches.isBusy($0.id) }) else {
+            recordBenchmarkQuit("busy")
+            return .terminateCancel
+        }
         let live = store.state.workspaces.flatMap(\.tabs).contains {
             [.running, .preparing, .launching, .uncertain, .unavailable].contains($0.status) ||
                 ($0.status == .failed && $0.binding != nil)
@@ -2911,33 +3121,45 @@ import SpookkyGit
                     alert.addButton(withTitle: live ? "Keep running and quit" : "Quit"); alert.addButton(withTitle: "Cancel")
                     if live { alert.addButton(withTitle: "End terminals and quit").hasDestructiveAction = true }
                     let result = await present(alert)
+                    recordBenchmarkQuit("decision", context: ["response": String(result.rawValue)])
                     if result == .alertSecondButtonReturn { NSApp.reply(toApplicationShouldTerminate: false); return }
                     if result == .alertThirdButtonReturn {
                         for tab in store.state.workspaces.flatMap(\.tabs) { try await launches.terminate(tab.id) }
                     }
                 }
                 await surfaces.captureViewports()
-                try await store.flush(); surfaces.releaseAll(); NSApp.reply(toApplicationShouldTerminate: true)
-            } catch { alert("Could not quit safely", error.localizedDescription); NSApp.reply(toApplicationShouldTerminate: false) }
+                try await store.flush(); surfaces.releaseAll()
+                recordBenchmarkQuit("approved")
+                NSApp.reply(toApplicationShouldTerminate: true)
+            } catch {
+                recordBenchmarkQuit("failed", context: ["message": String(error.localizedDescription.prefix(512))])
+                alert("Could not quit safely", error.localizedDescription); NSApp.reply(toApplicationShouldTerminate: false)
+            }
         }
         return .terminateLater
     }
     func windowWillClose(_ notification: Notification) {
         cancelLaunchPreflight()
+        startupDeadlineTask?.cancel(); startupDeadlineTask = nil; startupDeadline = nil
         continuationTask?.cancel()
         files.suspend()
         renderTask?.cancel(); surfaces.invalidate(); contentKey = ""
         Task { await surfaces.captureViewports(); if !window.isVisible { surfaces.releaseAll() }; try? await store.flush() }
     }
     func reopen() {
+        startActivityMonitoring()
         if store.state.selected == nil {
             store.update { $0.showLanding(homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path) }
         }
         showWindow()
         contentKey = ""; render(); observeRuntimeEvent() }
     private func showWindow() {
+        let wasVisible = window.isVisible
         if backgroundFixture { window.orderBack(nil) }
-        else { window.makeKeyAndOrderFront(nil) }
+        else {
+            window.makeKeyAndOrderFront(nil)
+            if !wasVisible { window.makeFirstResponder(nil) }
+        }
     }
     func recordBenchmarkFailure(root: URL) {
         guard diagnostics != nil, CommandLine.arguments.contains("--workspace-benchmark-continuity") else { return }
@@ -2965,7 +3187,10 @@ import SpookkyGit
             })
         try? PrivateFiles.write(snapshot, to: root.appendingPathComponent("continuity-failure.json"))
     }
-    func setFocus(_ focused: Bool) { surfaces.setFocus(focused); if focused { observeRuntimeEvent() } }
+    func setFocus(_ focused: Bool) {
+        surfaces.setFocus(focused)
+        if focused { startActivityMonitoring(); observeRuntimeEvent() }
+    }
     func benchmark(count: Int, root: URL, timing: Bool) async throws {
         let fileFixture = CommandLine.arguments.contains("--workspace-benchmark-files")
         let conversationFixture = CommandLine.arguments.contains("--workspace-benchmark-conversations")
@@ -3119,6 +3344,7 @@ import SpookkyGit
             try await WorkspaceCloseFixture.run(window: window, state: { self.store.state }, runtime: launches.runtime,
                 view: { self.surfaces.view($0) }, command: { self.handleCommand($0) }, reopen: { self.reopen() },
                 openTerminal: { if let id = self.store.state.primaryTerminalID { self.openTerminal(from: id) } },
+                landingFocused: { self.store.state.primaryTerminalID.flatMap { self.composers[$0] }?.hasInputFocus == true },
                 openBrowser: { id in self.store.update { $0.updateSupport(id, target: .browser(url: "about:blank"), title: "Browser") }; self.focusSupportingContent() },
                 supportingView: { self.workspaceLayout.panel }, selectWorkspace: { id in self.store.update { $0.selectWorkspace(id) } },
                 openSupportingTerminal: { if let id = self.store.state.primaryTerminalID { self.openTerminal(from: id) } },
@@ -3892,6 +4118,31 @@ import SpookkyGit
             views.append(ActionButton("Reconnect terminal", symbol: "arrow.clockwise") { [weak self] in
                 self?.reconnect(primary.id); self?.detailsPopover?.performClose(nil)
             })
+            if workspace.displayProvider != .shell, workspace.conversationID == nil {
+                let identity = ChromeTextField(wrappingLabelWithString: "The provider has not reported this conversation’s saved ID yet. Keep using this terminal; its saved history will link when the provider reports it.")
+                identity.font = .systemFont(ofSize: SpookkyStyle.points(11)); identity.textColor = SpookkyPalette.secondary
+                views.append(identity)
+            }
+            if let startup = primary.startup {
+                let text = startup.interactionObserved ? "Native provider activity was observed. This does not prove task success." :
+                    "The terminal process is connected. Provider startup and starting-prompt acceptance are not confirmed. Check macOS file-access prompts if the CLI waits while reading other folders. Spookky will not replay input or restart it automatically."
+                let status = ChromeTextField(wrappingLabelWithString: text)
+                status.font = .systemFont(ofSize: SpookkyStyle.points(11)); status.textColor = SpookkyPalette.secondary
+                views.append(status)
+                if !primary.draft.prompt.isEmpty {
+                    views.append(ActionButton("Copy starting prompt", symbol: "doc.on.doc") {
+                        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(primary.draft.prompt, forType: .string)
+                    })
+                }
+                views.append(ActionButton("Focus terminal", symbol: "terminal") { [weak self] in
+                    self?.detailsPopover?.performClose(nil); self?.focusSelectedContent()
+                })
+                if primary.pendingStartup != nil {
+                    views.append(ActionButton("Dismiss startup notice") { [weak self] in
+                        self?.store.update { $0.dismissStartupNotice(primary.id) }; self?.detailsPopover?.performClose(nil)
+                    })
+                }
+            }
         }
         views.append(review)
         if let branch = (workspace.anchor ?? workspace.selectedLocation).branch { views.append(SpookkyStyle.label("Branch: " + branch)) }
@@ -3905,7 +4156,8 @@ import SpookkyGit
         stack.edgeInsets = NSEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
         stack.widthAnchor.constraint(equalToConstant: 320).displayScaled().isActive = true
         controller.view = stack; popover.contentViewController = controller; popover.behavior = .transient
-        popover.show(relativeTo: threadDetails.bounds, of: threadDetails, preferredEdge: .minY)
+        let anchor = compactHeader ? threadActions : threadDetails
+        popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .minY)
     }
 
 }

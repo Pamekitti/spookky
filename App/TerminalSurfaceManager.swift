@@ -62,8 +62,8 @@ import SpookkyRuntime
     var onViewportChanged: ((UUID) -> Void)?
     private var viewportInteractionTasks: [UUID: Task<Void, Never>] = [:]
 
-    init(engine: GhosttyEngine, runtime: any SessionRuntime, executable: String, root: URL) {
-        appearanceFollower = GhosttyAppearanceFollower(cache: root.appendingPathComponent("terminal-appearance.json"))
+    init(engine: GhosttyEngine, runtime: any SessionRuntime, executable: String, root: URL, appearanceFile: String? = nil) {
+        appearanceFollower = GhosttyAppearanceFollower(file: appearanceFile, cache: root.appendingPathComponent("terminal-appearance.json"))
         self.engine = engine; self.runtime = runtime; self.executable = executable; self.root = root
     }
     func invalidate() { generation += 1 }

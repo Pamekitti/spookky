@@ -32,11 +32,12 @@ Assessment permits an attempt. A terminal starting does not establish successful
 ```sh
 swift test --jobs 2 --filter 'ProviderOwnershipTests|ProviderContinuationTests|CoordinatorTests'
 python3 scripts/check_provider_ownership.py --output .cache/ownership-check.json
+python3 scripts/check_claude_ownership.py --executable /path/to/claude --output .cache/claude-ownership.json
 ```
 
 On 18 October 2026, the installed Codex CLI 0.163.0 passed nine offline checks. Independent writers were refused, unrelated conversations remained usable, owner exit permitted resume, and a native TUI joined the same saved conversation through an owned server. The fixture waits for persisted user input and indexed metadata before its single resume attempt. It records the first response and performs zero resume retries.
 
-An isolated Claude Code 2.1.302 fixture passed seven checks. Provider-created history resumed in a foreground TUI. Its exact UUID appeared in interactive ownership metadata. After that fixture released its terminal, explicit background startup retained the UUID and native registry-ID attach rendered the saved reply. Resume and attach sent no additional model turn. One initial response came from an owned loopback stub, with no external model service or user credentials. Normal onboarding and folder trust were retained.
+On 19 October 2026, the reproducible Claude Code 2.1.303 fixture passed ten checks. Provider-created history resumed in a foreground TUI. Its exact UUID appeared in interactive ownership metadata. After that fixture released its terminal, explicit background startup retained the UUID and native registry-ID attach rendered the saved reply. Both routes accepted unsent input and sent no additional model turn. One initial response came from an owned loopback stub, with no external model service or user credentials. Normal onboarding and folder trust were retained. Cleanup targets only the fixture's exact session and folder. The report retains the first failure without retrying resume.
 
 Unit tests cover unknown versions with supported interfaces, missing capabilities, failed ownership reporting, multiple interactive owners, ambiguous background IDs and unchanged prepared arguments. These checks do not prove every provider release, a Desktop round trip or remote pairing.
 

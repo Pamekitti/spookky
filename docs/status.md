@@ -2,6 +2,14 @@
 
 Spookky is an early native macOS development preview. The terminal, workspace, project/worktree, file/diff, and metadata layers are implemented. Daily-use and distribution acceptance remain incomplete.
 
+## Native PR integration, 20 October 2026
+
+The integrated native changes retain independent project drafts, exact-ID provider continuations, supporting-editor focus, provider icons, project avatars and one-shot title reveal. Changes opens directly from the toolbar. The side-panel control retains its tabs, selection, layout and processes when hidden. Compact headers keep the selected title readable and expose less frequent actions through the conversation menu.
+
+The affected native suites passed 2,839 assertions. Swift completed 329 XCTest cases with six skips and zero failures, plus 22 Swift Testing cases. All 36 Python cases completed with two skips. Offline Codex and Claude ownership checks passed nine and ten checks respectively. [Integration evidence](evidence/audit-regressions/README.md#integration-verification-20-october-2026) records binary boundaries and remaining limits.
+
+This is source merge verification. Installed replacement, eight-hour continuity, physical typing/IME and spoken VoiceOver remain separate acceptance work. The earlier results below describe their own revisions.
+
 ## Contextual new-session composer, 19 October 2026
 
 The centered composer has a project-aware heading, attachment/provider controls on the left, and model/effort selection at the bottom right. Project, checkout and starting-reference pickers sit below. Fresh drafts inherit the viewed primary provider and recorded model, and default to the project's registered Local checkout. Retained drafts keep their explicit choices, text and images.

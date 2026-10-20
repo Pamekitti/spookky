@@ -51,6 +51,8 @@ import SpookkyCore
     private var hoverCloseTask: Task<Void, Never>?
     private var hoverCardItemID: String?
     private var lastClipBounds: NSRect?
+    private var trackingMenus = Set<ObjectIdentifier>()
+    private var pendingUpdate: (items: [WorkspaceSidebarItem], collapsed: Bool)?
     private(set) var hoveredItemID: String?
     private(set) var focusedItemID: String?
     var keyboardFocusItemID: String? { hasKeyboardFocus && keyboardNavigation ? focusedItemID : nil }
@@ -90,6 +92,9 @@ import SpookkyCore
         scroll.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(geometryChanged),
             name: NSView.boundsDidChangeNotification, object: scroll.contentView)
+        for name in [NSMenu.didBeginTrackingNotification, NSMenu.didEndTrackingNotification] {
+            NotificationCenter.default.addObserver(self, selector: #selector(menuTrackingChanged), name: name, object: nil)
+        }
         addSubview(scroll)
         hoverCard.onExit = { [weak self] in self?.closeHoverCard() }
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(motionChanged), name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
@@ -127,6 +132,7 @@ import SpookkyCore
     }
     func update(items: [WorkspaceSidebarItem], collapsed: Bool) {
         if collapsed { closeHoverCard() }
+        guard trackingMenus.isEmpty else { pendingUpdate = (items, collapsed); return }
         let restoreKeyboardFocus = hasKeyboardFocus
         let origin = scroll.contentView.bounds.origin
         let firstRow = table.row(at: NSPoint(x: 0, y: origin.y))
@@ -150,6 +156,16 @@ import SpookkyCore
         if restoreKeyboardFocus { window?.makeFirstResponder(table) }
         reconcileHover(); refreshVisibleRows()
         notifyVisibleItems()
+    }
+
+    @objc private func menuTrackingChanged(_ notification: Notification) {
+        guard let menu = notification.object as? NSMenu else { return }
+        if notification.name == NSMenu.didBeginTrackingNotification { trackingMenus.insert(ObjectIdentifier(menu)) }
+        else { trackingMenus.remove(ObjectIdentifier(menu)) }
+        if trackingMenus.isEmpty, let pendingUpdate {
+            self.pendingUpdate = nil
+            update(items: pendingUpdate.items, collapsed: pendingUpdate.collapsed)
+        }
     }
 
     func focusItem(_ id: String? = nil) {
@@ -182,6 +198,10 @@ import SpookkyCore
         let item = items[row]
         let focused = keyboardFocusItemID == item.id
         cell.configure(item, collapsed: collapsed, interactionActive: hoveredItemID == item.id || focused)
+        cell.onPress = { [weak self] in
+            guard let self, let current = indexByID[item.id] else { return }
+            press(row: current)
+        }
         cell.onAccessory = { [weak self] anchor in
             guard let self, let current = indexByID[item.id] else { return }
             focus(row: current, scrollIntoView: false)
@@ -293,8 +313,10 @@ import SpookkyCore
         DispatchQueue.main.async { [weak self] in self?.refreshVisibleRows() }
     }
     @objc private func clickedRow() {
+        press(row: table.clickedRow)
+    }
+    private func press(row: Int) {
         keyboardNavigation = false
-        let row = table.clickedRow
         guard items.indices.contains(row), items[row].kind != .section else { return }
         focus(row: row, scrollIntoView: false); activate(row: row)
     }
@@ -405,6 +427,7 @@ import SpookkyCore
     private let pr = NSImageView()
     private var item: WorkspaceSidebarItem?
     private var collapsed = false
+    var onPress: (() -> Void)?
     var onAccessory: ((NSView) -> Void)?
     var onFocus: ((Bool) -> Void)?
     var onNavigate: ((UInt16) -> Void)?
@@ -430,6 +453,10 @@ import SpookkyCore
         [icon, label, status, accessory, pin, worktree, pr].forEach { addSubview($0) }
     }
     required init?(coder: NSCoder) { fatalError("Use init") }
+    override func accessibilityPerformPress() -> Bool {
+        guard let item, item.kind != .section, let onPress else { return false }
+        onPress(); return true
+    }
     func configure(_ item: WorkspaceSidebarItem, collapsed: Bool, interactionActive: Bool) {
         self.item = item; self.collapsed = collapsed
         label.stringValue = item.title

@@ -21,9 +21,9 @@ Full view joins the primary tab first and all supporting tabs on the same row. T
 
 The conversation title owns its actions menu and thread-details control. These controls move with the primary heading between Split and joined Full layouts. Supporting-panel controls stay on the right.
 
-The top-right Changes button opens and focuses the current workspace's Changes tab, reusing it when already open. Its outlined document with stacked plus and minus signs is shared by Changes tabs, the New tab tool, menus and thread details.
+The top-right Changes button opens and focuses the current workspace's Changes tab, reusing it when already open. Compact headers move Changes into the conversation actions menu to retain a readable selected title. Show/Hide side panel stays visible. Its outlined document with stacked plus and minus signs is shared by Changes tabs, the New tab tool, menus and thread details.
 
-The layout control uses a divided-rectangle icon for Split view and a single rectangle for Full view. Both controls use 28-point utility targets with action tooltips and accessibility labels. Compact windows retain the disabled Split control and its explanation.
+The layout control uses a divided-rectangle icon for Split view and a single rectangle for Full view. Both controls use 28-point utility targets with action tooltips and accessibility labels. Narrow content retains the disabled Split control and its explanation. Compact headers move the layout action into the conversation actions menu.
 
 The rightmost sidebar icon shows or hides the supporting panel. Hiding removes its tab strip, add control, overflow and layout control, returns focus to the primary terminal or composer, and retains its tabs and processes. Changes and Show side panel stay available. Showing restores the selected support, previous Split or Full layout and divider fraction. An empty panel opens New tab. Older saved panels without a remembered layout reopen in Split view. The selected supporting tab always exposes its close button; other close buttons appear on hover or keyboard focus. Closing the last support collapses the panel.
 
@@ -129,7 +129,7 @@ Diff additions/removals use muted green/red backgrounds plus explicit signs and 
 ## Direct controls
 
 - Clicking a project expands or collapses its conversation rows without changing selection or processes. Collapse resets that project's history page to five entries. Project + selects its retained draft. Conversation contextual actions pin, archive or assign the thread to a project. The primary conversation has no close action. Closing an inactive supporting tab never steals selection.
-- Secondary rename/remove/delete actions live in contextual menus, opened by right-click or Shift+F10. Context menus anchor to the entry and stay inside the window.
+- Secondary rename/remove/delete actions live in contextual menus, opened by right-click or Shift+F10. Context menus anchor to the entry and stay inside the window. Background history refresh preserves an open menu and its row context.
 - Project menus open from the exact add or picker control that invoked them. Keep the trigger visible when there is room below it.
 - Use provider marks on conversation rows and primary headers. Supporting tabs use content-type glyphs. Native asset choices require their own provenance check; do not invent provider branding.
 - A long tab strip scrolls the active tab into view after layout and icons settle. Project identities use the GitHub owner avatar from their origin remote when available, with text monograms as a fallback. The avatar changes to a disclosure chevron on hover or keyboard focus. Avatar downloads are asynchronous and cached; no account is required. Terminal keeps its terminal glyph. Codex uses the OpenAI mark and Claude Code uses the Claude mark, with [pinned vector attribution](../THIRD_PARTY.md). Each row and primary header use their primary provider mark. Supporting tabs use content-type icons. Exceptional lifecycle states use static indicators. A running process is not labeled as agent activity or task success.
@@ -188,7 +188,7 @@ Each composer owns up to 50 Undo levels. Undo and Redo operate only on native te
 
 Menus close on Escape and restore focus. Arrow keys navigate contextual actions. Dialogs keep keyboard focus inside while open. Visible action labels and accessibility names must agree.
 
-Inputs retain focus while typing; do not rebuild the entire interface per keystroke. Validation retains values and places the error near the relevant action. Loading states identify the current step and allow cancellation when safe.
+Inputs retain focus while typing; do not rebuild the entire interface per keystroke. Asynchronous terminal attachment preserves file-picker, sidebar and supporting input focus. Explicit conversation selection still focuses its content. Validation retains values and places the error near the relevant action. Loading states identify the current step and allow cancellation when safe.
 
 Keep primary launch actions visible. Reveal sidebar utilities on hover and keyboard focus. Keep compact controls distinguishable in both themes. Native VoiceOver behavior needs real testing; the HTML checks do not establish native accessibility.
 

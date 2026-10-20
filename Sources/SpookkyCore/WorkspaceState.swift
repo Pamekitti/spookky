@@ -93,6 +93,7 @@ public struct WorkspaceTab: Codable, Identifiable, Equatable, Sendable {
     public var activity: AgentActivity?
     public var projectAssociation: ProviderProjectAssociation?
     public var providerTitle: ProviderConversationTitle?
+    public var startup: ProviderStartup?
     public init(id: UUID = UUID(), tool: SessionTool = .shell) { self.id = id; draft = TerminalDraft(tool: tool) }
     public var isEditable: Bool { status == .draft || (status == .failed && failure?.phase == .validation) }
 }
@@ -155,7 +156,7 @@ public struct Workspace: Codable, Identifiable, Equatable, Sendable {
 extension WorkspaceState {
     @discardableResult public mutating func recordAgentEvent(_ event: AgentEvent, followTerminal: Bool = false) -> UUID? {
         guard event.isValid,
-              let tab = workspaces.flatMap(\.tabs).first(where: { $0.binding?.id == event.bindingID || $0.launch?.operationID == event.bindingID }),
+              var tab = workspaces.flatMap(\.tabs).first(where: { $0.binding?.id == event.bindingID || $0.launch?.operationID == event.bindingID }),
               ![TabStatus.draft, .preparing].contains(tab.status) else { return nil }
         if tab.status == .ended && ![AgentEventKind.finished, .failed, .interrupted, .detached].contains(event.kind) { return nil }
         var activity = tab.activity ?? AgentActivity(invocationID: event.invocationID, provider: event.provider)
@@ -166,6 +167,7 @@ extension WorkspaceState {
             activity.manualUnread = unread
         }
         guard activity.apply(event) else { return nil }
+        tab.startup?.observe(event)
         if tab.status == .ended { activity.disconnect() }
         if version >= 6, event.childID == nil, let sessionID = activity.sessionID, !sessionID.isEmpty,
            let owner = workspace(containing: tab.id), owner.primaryTerminalID == tab.id,
@@ -178,6 +180,7 @@ extension WorkspaceState {
         }
         updateTab(tab.id) {
             $0.activity = activity
+            $0.startup = tab.startup
             if let metadata = $0.providerTitle, !$0.matchesConversation(metadata.id) { $0.providerTitle = nil }
         }
         if version >= 6, event.childID == nil, let sessionID = activity.sessionID, !sessionID.isEmpty,
@@ -371,6 +374,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
                   tab.launch == nil || tab.launch == spec else { return }
             updateTab(id) {
                 $0.launch = spec; $0.status = .launching; $0.promptDelivery = prompt
+                $0.startup = spec.tool == .shell ? nil : ProviderStartup(operationID: spec.operationID, expectsPrompt: prompt != .none)
                 if let metadata = $0.providerTitle, metadata.provider != spec.tool { $0.providerTitle = nil }
                 if spec.tool != .shell && $0.activity == nil { $0.activity = AgentActivity(invocationID: spec.operationID, provider: spec.tool) }
             }
@@ -492,9 +496,9 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
         for key in Array((threadPresentations ?? [:]).keys) where threadPresentations?[key]?.projectOverride == id {
             threadPresentations?[key]?.projectOverride = nil
         }
-        for w in workspaces.indices where workspaces[w].projectID == id {
-            workspaces[w].projectID = nil
-            if workspaces[w].isLanding {
+        for w in workspaces.indices {
+            if workspaces[w].projectID == id { workspaces[w].projectID = nil }
+            if workspaces[w].landingContext == id.uuidString {
                 workspaces[w].landingContext = nil; workspaces[w].viewClosed = false
                 if !workspaces[w].customTitle { workspaces[w].title = "Draft"; workspaces[w].automaticTitle = .friendly }
             }

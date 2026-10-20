@@ -5,6 +5,7 @@ import SpookkyRuntime
 public protocol ExecutableResolver: Sendable {
     func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?, images: [String], model: AgentModelSelection) async throws -> LaunchSpec
     func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?, images: [String]) async throws -> LaunchSpec
+    func prepare(_ spec: LaunchSpec) async -> LaunchSpec
     func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec
     func resolve(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec
 }
@@ -17,6 +18,7 @@ extension ExecutableResolver {
         let spec = try await resolveFresh(tool, directory: directory, prompt: prompt)
         return try await spec.attachingPromptImages(images)
     }
+    public func prepare(_ spec: LaunchSpec) async -> LaunchSpec { spec }
     public func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec {
         try await resolve(tool, directory: directory, prompt: prompt)
     }
@@ -105,7 +107,7 @@ extension ExecutableResolver {
             let spec: LaunchSpec
             if let prepared {
                 try validatePreparedResume(prepared, conversation: conversation)
-                spec = prepared
+                spec = await resolver.prepare(prepared)
             } else {
                 let base = try await resolver.resolve(conversation.id.provider, directory: conversation.directory, prompt: nil)
                 let arguments = try ProviderContinuationCapabilities.resumeArguments(provider: conversation.id.provider,

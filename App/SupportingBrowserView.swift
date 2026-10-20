@@ -103,19 +103,29 @@ import SpookkyFiles
         reload.setAccessibilityLabel(webView.isLoading && !stopRequested ? "Stop loading" : "Reload page")
         if externalURL == nil { status.stringValue = failureMessage ?? (webView.isLoading ? "Loading…" : "Ready") }
     }
-    private func offerExternal(_ url: URL) {
+    private func offerExternal(_ url: URL, download: Bool = false) {
         externalURL = url; external.isHidden = false
-        status.stringValue = "This address opens in another application."
+        external.toolTip = "Open " + url.absoluteString
+        status.stringValue = download ? "Use Open externally to download this file in your browser." : "This address opens in another application."
     }
     func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = action.request.url else { decisionHandler(.cancel); return }
         switch BrowserAddress.parse(url.absoluteString) {
         case .page:
-            if action.targetFrame == nil { decisionHandler(.cancel); webView.load(action.request) }
+            if action.shouldPerformDownload { offerExternal(url, download: true); decisionHandler(.cancel) }
+            else if action.targetFrame == nil { decisionHandler(.cancel); webView.load(action.request) }
             else { decisionHandler(.allow) }
         case .external(let url): offerExternal(url); decisionHandler(.cancel)
         case .invalid: status.stringValue = "This address cannot be displayed."; decisionHandler(.cancel)
         }
+    }
+    func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+        let disposition = (response.response as? HTTPURLResponse)?.value(forHTTPHeaderField: "Content-Disposition")?.lowercased() ?? ""
+        guard !response.canShowMIMEType || disposition.hasPrefix("attachment") else { decisionHandler(.allow); return }
+        if response.isForMainFrame, let url = response.response.url, case .page = BrowserAddress.parse(url.absoluteString) {
+            offerExternal(url, download: true)
+        }
+        decisionHandler(.cancel)
     }
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         navigationStarted = true
@@ -126,7 +136,9 @@ import SpookkyFiles
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { failure(error) }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { failure(error) }
     private func failure(_ error: Error) {
-        if (error as NSError).code != NSURLErrorCancelled { failureMessage = "Could not load page: " + error.localizedDescription; status.stringValue = failureMessage! }
+        let cause = error as NSError
+        if externalURL != nil, cause.domain == WebKitErrorDomain, cause.code == Int(WebKitErrorFrameLoadInterruptedByPolicyChange) { return }
+        if cause.code != NSURLErrorCancelled { failureMessage = "Could not load page: " + error.localizedDescription; status.stringValue = failureMessage! }
     }
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { failureMessage = "Page process ended. Reload to reopen; unsent page input may be unavailable."; status.stringValue = failureMessage! }
     func dispose() {

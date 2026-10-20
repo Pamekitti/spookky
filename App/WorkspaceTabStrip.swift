@@ -13,11 +13,13 @@ import AppKit
     var selected = false { didSet { updateAppearance(); updateInteraction() } }
     var isHeading = false { didSet { needsDisplay = true } }
     var closable = true { didSet { updateInteraction() } }
-    private var actionsWidth: CGFloat { CGFloat(trailingActions.count) * SpookkyStyle.points(32) }
+    private var actionsWidth: CGFloat { CGFloat(trailingActions.filter { !$0.isHidden }.count) * SpookkyStyle.points(32) }
     var maximumNaturalWidth: CGFloat { Self.maximumWidth + actionsWidth }
+    var preferredWidth: CGFloat {
+        min(maximumNaturalWidth, max(Self.minimumWidth + actionsWidth, titleButton.intrinsicContentSize.width + SpookkyStyle.points(closable ? 28 : 0) + actionsWidth))
+    }
     var naturalWidth: CGFloat {
-        min(availableWidth.map { max(SpookkyStyle.points(48) + actionsWidth, $0) } ?? maximumNaturalWidth,
-            maximumNaturalWidth, max(Self.minimumWidth + actionsWidth, titleButton.intrinsicContentSize.width + SpookkyStyle.points(closable ? 28 : 0) + actionsWidth))
+        min(availableWidth.map { max(SpookkyStyle.points(48) + actionsWidth, $0) } ?? maximumNaturalWidth, preferredWidth)
     }
 
     init(title: String, image: NSImage? = nil, help: String? = nil, closable: Bool = true, trailingActions: [ActionButton] = [],
@@ -77,7 +79,7 @@ import AppKit
         titleButton.frame = NSRect(x: 0, y: 0, width: max(0, bounds.width - SpookkyStyle.points(closable ? 28 : 0) - actionsWidth), height: bounds.height)
         titleButton.contentInset = min(SpookkyStyle.controlInset, max(0, (titleButton.frame.width - SpookkyStyle.iconSlot) / 2))
         closeButton.frame = NSRect(x: max(0, bounds.width - SpookkyStyle.points(28)), y: bounds.midY - SpookkyStyle.points(12), width: SpookkyStyle.points(24), height: SpookkyStyle.points(24))
-        for (index, button) in trailingActions.enumerated() {
+        for (index, button) in trailingActions.filter({ !$0.isHidden }).enumerated() {
             button.frame = NSRect(x: bounds.width - actionsWidth + SpookkyStyle.points(CGFloat(index * 32 + 4)),
                 y: bounds.midY - SpookkyStyle.points(14), width: SpookkyStyle.points(28), height: SpookkyStyle.points(28))
         }

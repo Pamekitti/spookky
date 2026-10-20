@@ -76,6 +76,15 @@ def main():
             (page / 'second.html').write_text('<html><head><title>Fixture two</title></head><body><h1>Second page</h1><a href="index.html">Back to form</a></body></html>')
             class Handler(http.server.SimpleHTTPRequestHandler):
                 def do_GET(self):
+                    if self.path.endswith(('/download.html', '/download.bin')):
+                        payload = b'SPOOKKY_DISPOSABLE_DOWNLOAD'
+                        self.send_response(200)
+                        self.send_header('Content-Type', 'text/html' if self.path.endswith('.html') else 'application/octet-stream')
+                        self.send_header('Content-Disposition', 'attachment; filename="fixture.txt"')
+                        self.send_header('Content-Length', str(len(payload)))
+                        self.end_headers()
+                        self.wfile.write(payload)
+                        return
                     if self.path.endswith('/slow.html'):
                         time.sleep(0.5)
                     try:

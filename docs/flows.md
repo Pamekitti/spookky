@@ -60,6 +60,8 @@ Create      -> name + destination + optional Git -> create folder -> select
 
 Project creation is local. It does not create or publish a GitHub repository. Preserve form values on cancellation and validation errors. Existing destinations must never be overwritten. Re-registering a known folder reuses the project.
 
+Registration selects that project's retained landing draft. It never moves the current global or another project's draft. If registration finishes after navigation, keep the new project registered without changing the selected thread. Removing a project preserves its draft as a standalone entry. An intentional draft folder change does not transfer ownership of the retained global/project draft.
+
 Use folder once selects an anchor without project registration. Empty Git repositories support Local. Disable new-worktree creation until there is a commit, with an explanation. Do not run repository setup scripts during registration.
 
 ## Local and existing worktrees

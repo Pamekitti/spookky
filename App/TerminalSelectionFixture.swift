@@ -21,9 +21,17 @@ import SpookkyRuntime
         let before = try await runtime.inspect(binding)
         let size = ghostty_surface_size(surface)
         let scale = window.backingScaleFactor
-        let cellWidth = Double(size.cell_width_px) / scale, cellHeight = Double(size.cell_height_px) / scale
+        let cellWidth = Double(size.cell_width_px) / scale
+        var region = ghostty_selection_s()
+        region.top_left.tag = GHOSTTY_POINT_VIEWPORT; region.top_left.coord = GHOSTTY_POINT_COORD_EXACT
+        region.bottom_right.tag = GHOSTTY_POINT_VIEWPORT; region.bottom_right.coord = GHOSTTY_POINT_COORD_EXACT
+        region.bottom_right.x = UInt32(marker.count - 1)
+        var text = ghostty_text_s()
+        guard ghostty_surface_read_text(surface, region, &text) else { throw LaunchError.invalid("Selection text geometry is unavailable.") }
+        let origin = NSPoint(x: text.tl_px_x, y: text.tl_px_y)
+        ghostty_surface_free_text(surface, &text)
         func event(_ type: NSEvent.EventType, column: Double) throws -> NSEvent {
-            let point = view.convert(NSPoint(x: 12 + cellWidth * column, y: 10 + cellHeight * 0.5), to: nil)
+            let point = view.convert(NSPoint(x: origin.x + cellWidth * column, y: origin.y), to: nil)
             guard let event = NSEvent.mouseEvent(with: type, location: point, modifierFlags: [],
                 timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
                 eventNumber: 0, clickCount: 1, pressure: type == .leftMouseUp ? 0 : 1) else { throw LaunchError.invalid("Selection fixture mouse event is unavailable.") }

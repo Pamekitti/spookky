@@ -570,6 +570,30 @@ final class ContextRow: NSView {
     }
 }
 
+@MainActor final class ProviderStartupNoticeView: NSStackView {
+    private let message = ChromeTextField(wrappingLabelWithString: "")
+    init(focus: @escaping () -> Void, details: @escaping () -> Void) {
+        super.init(frame: .zero)
+        orientation = .vertical; alignment = .leading; spacing = SpookkyStyle.points(6)
+        edgeInsets = NSEdgeInsets(top: SpookkyStyle.points(8), left: SpookkyStyle.points(8), bottom: SpookkyStyle.points(8), right: SpookkyStyle.points(8))
+        message.font = .systemFont(ofSize: SpookkyStyle.points(11)); message.textColor = SpookkyPalette.secondary
+        message.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        addArrangedSubview(message)
+        let actions = NSStackView(views: [ActionButton("Focus terminal", height: SpookkyStyle.points(24), action: focus),
+                                        ActionButton("Details", height: SpookkyStyle.points(24), action: details)])
+        actions.spacing = SpookkyStyle.points(8); addArrangedSubview(actions)
+        message.widthAnchor.constraint(equalTo: widthAnchor, constant: -16).displayScaled().isActive = true
+        setContentHuggingPriority(.required, for: .vertical)
+        isHidden = true
+    }
+    required init?(coder: NSCoder) { fatalError("Use init") }
+    func update(message value: String?) {
+        guard message.stringValue != (value ?? "") || isHidden != (value == nil) else { return }
+        message.stringValue = value ?? ""; message.setAccessibilityLabel(value ?? "")
+        isHidden = value == nil
+    }
+}
+
 private final class ComposerDocumentView: NSView {
     override var isFlipped: Bool { true }
 }

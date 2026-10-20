@@ -1,5 +1,7 @@
 # Agent activity
 
+Prepared native resumes receive the same optional activity context as fresh launches. The coordinator validates the original resume or attach arguments before integration, preserves the executable choice and operation ID, and does not resolve the provider again. Activity setup failure falls back to the native command. It never assigns a fresh conversation ID or resends a starting prompt.
+
 Spookky shows which terminal needs attention through provider lifecycle hooks. The terminal remains the place to read responses, answer questions, and approve tools.
 
 ## Status and attention
@@ -71,6 +73,8 @@ Only the latest top-level CLI invocation in a terminal owns its activity. Use se
 SQLite metadata version 5 adds one bounded activity record per tab and completion acknowledgment IDs. Migration creates a private pre-v5 backup. Child presence is transient and capped at 64 records per terminal. Restored activity becomes Unknown until a fresh event arrives. Restoring does not launch agents, resend prompts, or replay notifications.
 
 The app owns one private local datagram socket. Each monitored CLI has one waiting launch helper. Each provider event briefly starts a callback helper. There is no transcript scan or periodic status poll. Callback input is capped at 1 MiB; socket messages are capped at 8 KiB. Socket errors and malformed callbacks produce no output and exit successfully. A monitoring registration failure starts the original CLI without injected hooks.
+
+If the activity receiver could not start, activating the app or reopening its window retries it. An active receiver owned by another instance remains protected. Activity stays Unknown until a fresh provider event arrives; recovery does not restart agents or replay prompts.
 
 Records, wrappers, and the socket stay under the app's existing private runtime root. A secret and the active invocation ID correlate events to the current terminal. Closed bindings lose their registration. Provider IDs and previews have explicit size limits.
 

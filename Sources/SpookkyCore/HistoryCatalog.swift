@@ -28,6 +28,13 @@ extension Workspace {
 }
 
 extension WorkspaceState {
+    @discardableResult public mutating func openProject(_ location: WorkspaceLocation, ifSelected workspaceID: UUID?, homeDirectory: String) -> UUID {
+        let projectID = registerProject(location)
+        guard selectedWorkspaceID == workspaceID else { return projectID }
+        showLanding(projectID: projectID, homeDirectory: homeDirectory)
+        return projectID
+    }
+
     @discardableResult public mutating func showLanding(projectID: UUID? = nil, homeDirectory: String,
                                                        inheriting source: TerminalDraft? = nil) -> UUID {
         let context = projectID?.uuidString ?? "global"
@@ -65,9 +72,14 @@ extension WorkspaceState {
     public mutating func promoteLanding(_ id: UUID) {
         guard let index = workspaces.firstIndex(where: { $0.id == id }), workspaces[index].isLanding else { return }
         workspaces[index].landingContext = nil
-        workspaces[index].automaticTitle = .friendly
+        guard !workspaces[index].customTitle else { return }
         let tool = workspaces[index].primaryTerminal?.draft.tool ?? .codex
-        workspaces[index].title = tool == .shell ? "Terminal" : tool.displayName + " session"
+        if let title = workspaces[index].primaryTerminal.flatMap({ WorkspaceNaming.promptTitle($0.draft.prompt) }) {
+            workspaces[index].title = title; workspaces[index].automaticTitle = .prompt
+        } else {
+            workspaces[index].title = tool == .shell ? "Terminal" : tool.displayName + " session"
+            workspaces[index].automaticTitle = .friendly
+        }
     }
 
     /// Returns the catalog rows so persistence can migrate both stores in one transaction.

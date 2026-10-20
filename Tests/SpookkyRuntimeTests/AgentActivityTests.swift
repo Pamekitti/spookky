@@ -1,6 +1,7 @@
 import XCTest
+import Darwin
 import SpookkyCore
-import SpookkyRuntime
+@testable import SpookkyRuntime
 import SpookkyWorkspace
 import SpookkyPersistence
 import GRDB
@@ -192,6 +193,34 @@ final class AgentActivityTests: XCTestCase {
         AgentActivitySocket.send(wrong, socket: context.socket)
         AgentActivitySocket.send(current.event(.working), socket: context.socket)
         await fulfillment(of: [accepted], timeout: 2)
+        withExtendedLifetime(receiver) {}
+    }
+    func testReceiverCanRetryAfterItsPreviousOwnerStopsWithoutCleanup() async throws {
+        let root = URL(fileURLWithPath: "/tmp/spookky-agent-" + UUID().uuidString.prefix(8))
+        try PrivateFiles.directory(root)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let socketPath = root.appendingPathComponent("activity.sock").path
+        let descriptor = Darwin.socket(AF_UNIX, SOCK_DGRAM, 0)
+        XCTAssertGreaterThanOrEqual(descriptor, 0)
+        var address = try AgentActivitySocket.address(socketPath)
+        let bound = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                Darwin.bind(descriptor, $0, socklen_t(MemoryLayout<sockaddr_un>.size))
+            }
+        }
+        XCTAssertEqual(bound, 0)
+        XCTAssertThrowsError(try AgentActivityReceiver(root: root) { _ in })
+        close(descriptor)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: socketPath))
+        let context = AgentTerminalContext(bindingID: binding, secret: secret, root: root.path, helper: "/bin/true")
+        let invocation = AgentInvocation(context: context, provider: .claude)
+        try PrivateFiles.write(invocation, to: URL(fileURLWithPath: context.activePath))
+        let received = expectation(description: "Retry receives the current provider event")
+        let receiver = try AgentActivityReceiver(root: root) { event in
+            XCTAssertEqual(event.invocationID, invocation.id); received.fulfill()
+        }
+        AgentActivitySocket.send(invocation.event(.working), socket: socketPath)
+        await fulfillment(of: [received], timeout: 2)
         withExtendedLifetime(receiver) {}
     }
     func testVersionThreeMigrationPreservesActivityDefaultsAndBackup() async throws {

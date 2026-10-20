@@ -73,9 +73,6 @@ def run(provider, *, real=False, failure=False, mode="normal", helper=HELPER):
         context = dict(bindingID=binding, secret=secret, root=str(root), helper=str(helper))
         context_path = root / f"agent-terminal-{binding}.json"
         private_json(context_path, context)
-        channel = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-        channel.bind(str(root / "activity.sock"))
-        channel.settimeout(0.1)
         events = []
         stop = threading.Event()
 
@@ -86,8 +83,6 @@ def run(provider, *, real=False, failure=False, mode="normal", helper=HELPER):
                 except socket.timeout:
                     pass
 
-        listener = threading.Thread(target=receive)
-        listener.start()
         environment = {key: value for key, value in os.environ.items() if not key.startswith("SUPERSET_") and key != "SPOOKKY_AGENT_OWNER"}
         environment["SPOOKKY_ACTIVITY_CONTEXT"] = str(context_path)
         if real:
@@ -113,15 +108,21 @@ def run(provider, *, real=False, failure=False, mode="normal", helper=HELPER):
                 (root / f"agent-active-{binding}.json").mkdir(mode=0o700)
             if mode == "nested":
                 environment["SPOOKKY_AGENT_OWNER"] = str(uuid.uuid4())
+        channel = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
+        channel.bind(str(root / "activity.sock"))
+        channel.settimeout(0.1)
+        listener = threading.Thread(target=receive)
+        listener.start()
         started = time.monotonic()
-        process = subprocess.Popen([str(helper), "--agent-run", provider, "--executable", executable, "--", *original],
-                                   cwd=root, env=environment, stdin=subprocess.DEVNULL,
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+        process = None
         try:
+            process = subprocess.Popen([str(helper), "--agent-run", provider, "--executable", executable, "--", *original],
+                                       cwd=root, env=environment, stdin=subprocess.DEVNULL,
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
             output, errors = process.communicate(timeout=120 if real else 10)
             time.sleep(0.15)
         finally:
-            if process.poll() is None:
+            if process is not None and process.poll() is None:
                 os.killpg(process.pid, signal.SIGTERM)
                 try:
                     process.communicate(timeout=3)

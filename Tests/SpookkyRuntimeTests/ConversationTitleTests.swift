@@ -177,6 +177,20 @@ final class ConversationTitleTests: XCTestCase {
 }
 
 extension ConversationTitleTests {
+    func testLandingPromotionUsesPromptAndKeepsExplicitAlias() {
+        var state = WorkspaceState()
+        let landing = state.showLanding(homeDirectory: "/tmp")
+        state.editDraft(state.primaryTerminalID!, tool: .claude, prompt: "Build a small local task board\nKeep this unsent source")
+        state.promoteLanding(landing)
+        XCTAssertEqual(state.selected?.displayTitle, "Build a small local task board")
+        XCTAssertEqual(state.selected?.automaticTitle, .prompt)
+        let next = state.showLanding(homeDirectory: "/tmp")
+        state.editDraft(state.primaryTerminalID!, prompt: "Another task")
+        state.renameWorkspace(next, "My explicit alias")
+        state.promoteLanding(next)
+        XCTAssertEqual(state.selected?.displayTitle, "My explicit alias")
+    }
+
     func testGenericProviderIdentifierDoesNotReplaceDescriptiveTitle() {
         var state = WorkspaceState()
         let id = ConversationID(provider: .claude, sessionID: sessionA)

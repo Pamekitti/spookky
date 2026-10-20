@@ -32,25 +32,25 @@ def request_cpu(fixture):
     raise RuntimeError("CPU observation did not arrive.")
 
 
-def startup():
+def startup(*, binary=NATIVE_BINARY):
     samples = []
     for _ in range(30):
         started = time.monotonic()
         with native_fixture(["--workspace", "--workspace-measure", "--workspace-benchmark-count", "0"],
-                            prefix="spookky-m1-start-", workspace=True) as fixture:
+                            prefix="spookky-m1-start-", binary=binary, workspace=True) as fixture:
             fixture.wait_ready(90, "Empty workspace startup did not become ready.", poll_interval=0.005)
             samples.append((time.monotonic() - started) * 1000)
     return {**summarize(samples), "failure_count": 0,
             "boundary": "Fresh process and private fixture setup through empty workspace readiness. Excludes first rendered frame, provider discovery and first interactive CLI; filesystem caches may be warm."}
 
 
-def resources(count, seconds, split=False, foreground=False, conversations=False):
+def resources(count, seconds, split=False, foreground=False, conversations=False, *, binary=NATIVE_BINARY):
     arguments = ["--workspace", "--workspace-measure", "--workspace-benchmark-count", str(count)]
     if split: arguments.append("--workspace-benchmark-split")
     if foreground: arguments.append("--workspace-benchmark-front")
     if conversations: arguments.append("--workspace-benchmark-conversations")
     with native_fixture(arguments,
-                        prefix="spookky-m1-bench-", workspace=True) as fixture:
+                        prefix="spookky-m1-bench-", binary=binary, workspace=True) as fixture:
         fixture.wait_ready(90, "Workspace fixture did not become ready.")
         if conversations:
             ready = json.loads((fixture.root / "ready.json").read_text())
@@ -169,6 +169,7 @@ def timing(resize=False, *, binary=NATIVE_BINARY, extra_arguments=(), prepare=No
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--binary", type=Path, default=NATIVE_BINARY)
     parser.add_argument("--seconds", type=int, default=60)
     parser.add_argument("--mode", choices=["resources", "timing", "startup", "all"], default="all")
     parser.add_argument("--sessions", nargs="+", type=int, choices=[0, 1, 5, 10], default=[0, 1, 5, 10])
@@ -178,24 +179,25 @@ def main():
     parser.add_argument("--conversations", action="store_true", help="Use one primary shell per conversation workspace")
     parser.add_argument("--output", default=".cache/m1-benchmarks.json")
     args = parser.parse_args()
+    args.binary = args.binary.resolve()
     if args.seconds < 1: parser.error("--seconds must be positive")
     if args.conversations and args.split: parser.error("--split requires terminals in the same workspace")
-    report = {"binary_sha256": hashlib.sha256(NATIVE_BINARY.read_bytes()).hexdigest(), "host": platform.platform(),
+    report = {"binary_sha256": hashlib.sha256(args.binary.read_bytes()).hexdigest(), "host": platform.platform(),
               "cpu_note": "Cumulative CPU-time difference across stable long-lived owned processes plus reaped app-child CPU, divided by elapsed time. 100% equals one core; collector excluded. RSS includes shared pages and is affected by compression.",
               "fixture_note": "Clean zsh -f shells, one visible terminal and at most one warm hidden surface. Window is visible in the background. Opt-in diagnostics are included in app costs.",
               "workspace_structure": "independent conversation workspaces" if args.conversations else "terminal tabs in one workspace"}
     path = Path(args.output); path.parent.mkdir(parents=True, exist_ok=True)
     if args.mode in ["startup", "all"]:
-        report["startup"] = startup()
+        report["startup"] = startup(binary=args.binary)
         path.write_text(json.dumps(report, indent=2) + "\n")
     if args.mode in ["resources", "all"]:
         report["resources"] = []
         for count in args.sessions:
-            row = resources(count, args.seconds, args.split, args.foreground, args.conversations); report["resources"].append(row)
+            row = resources(count, args.seconds, args.split, args.foreground, args.conversations, binary=args.binary); report["resources"].append(row)
             path.write_text(json.dumps(report, indent=2) + "\n")
             print(json.dumps(row), flush=True)
-    if args.mode in ["timing", "all"]: report["timing"] = timing(args.resize, conversations=args.conversations)
-    report["binary_changed_during_run"] = hashlib.sha256(NATIVE_BINARY.read_bytes()).hexdigest() != report["binary_sha256"]
+    if args.mode in ["timing", "all"]: report["timing"] = timing(args.resize, binary=args.binary, conversations=args.conversations)
+    report["binary_changed_during_run"] = hashlib.sha256(args.binary.read_bytes()).hexdigest() != report["binary_sha256"]
     path.write_text(json.dumps(report, indent=2) + "\n")
     print(str(path), flush=True)
     if report["binary_changed_during_run"] or report.get("startup", {}).get("failure_count", 0) or any(r["failure_count"] for r in report.get("resources", [])) or any(r["failure_count"] for r in report.get("timing", {}).values()):

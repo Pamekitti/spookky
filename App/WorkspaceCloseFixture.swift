@@ -6,7 +6,7 @@ import SpookkyRuntime
 @MainActor enum WorkspaceCloseFixture {
     static func run(window: NSWindow, state: () -> WorkspaceState, runtime: any SessionRuntime,
                     view: (UUID) -> TerminalHostView?, command: (NSEvent) -> Bool, reopen: () -> Void,
-                    openTerminal: () -> Void, openBrowser: (UUID) -> Void, supportingView: () -> NSView?, selectWorkspace: (UUID) -> Void,
+                    openTerminal: () -> Void, landingFocused: () -> Bool, openBrowser: (UUID) -> Void, supportingView: () -> NSView?, selectWorkspace: (UUID) -> Void,
                     openSupportingTerminal: () -> Void, reopenSupportingTerminal: (UUID) -> Void,
                     prepareStop: () -> Void, stop: () -> Void, setAppearance: (WorkspaceAppearance) -> Void,
                     support: (UUID?, SupportingLayout?) -> Void, host: SupportingContentFixtureHost,
@@ -47,6 +47,8 @@ import SpookkyRuntime
         }
         window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
         try await wait("Fixture did not activate") { NSApp.isActive && window.isKeyWindow }
+        try await wait("Initial landing composer did not focus") { landingFocused() }
+        checks["first_use_landing_composer_focused"] = landingFocused()
         let initial = state(), landingID = initial.selectedWorkspaceID!, landingTerminal = initial.primaryTerminalID!
         checks["blank_home_draft"] = initial.selected?.isLanding == true && initial.selected?.anchor == nil && initial.selectedTab?.isEditable == true
         openTerminal()
@@ -56,6 +58,14 @@ import SpookkyRuntime
         guard let binding = state().tab(primaryID)?.binding, let terminal = view(primaryID) else { throw LaunchError.invalid("Shell unavailable") }
         let before = try await runtime.inspect(binding)
         try await wait("Shell prompt unavailable") { terminal.visibleText().trimmingCharacters(in: .whitespacesAndNewlines).hasSuffix("%") }
+        let focusStarted = ContinuousClock.now
+        var focusDetails = ["initial_responder": window.firstResponder.map { String(describing: type(of: $0)) } ?? "nil",
+            "initial_terminal_focused": String(window.firstResponder === terminal), "initial_surface_attached": String(terminal.window === window)]
+        try PrivateFiles.write(focusDetails, to: root.appendingPathComponent("close-focus-observation.json"))
+        try await wait("Primary terminal focus did not settle") { window.firstResponder === terminal }
+        let focusWait = focusStarted.duration(to: .now).components
+        focusDetails["focus_wait_milliseconds"] = String(Double(focusWait.seconds) * 1000 + Double(focusWait.attoseconds) / 1e15)
+        try PrivateFiles.write(focusDetails, to: root.appendingPathComponent("close-focus-observation.json"))
         checks["primary_terminal_focus"] = window.firstResponder === terminal
         terminal.insertText("printf 'SPOOKKY_FOUNDATION_INPUT\\n'", replacementRange: NSRange(location: NSNotFound, length: 0))
         terminal.keyDown(with: try key("\r", code: 36, modifiers: []))
@@ -155,6 +165,8 @@ import SpookkyRuntime
         let retained = state().workspaces.first { $0.id == workspaceID }
         checks["explicit_stop_ends_only_owned_primary"] = supportingAfterStop?.processID == supportBefore?.processID && stopped == nil && retained?.primaryTerminalID == primaryID && retained?.support?.tabs.count == 1
         try await send("n", code: 45)
+        try await wait("Retained landing composer did not focus") { landingFocused() }
+        checks["cmd_n_landing_composer_focused"] = landingFocused()
         checks["cmd_n_restores_landing_draft"] = state().workspaces.count == 2 && state().selectedWorkspaceID == landingID && state().selected?.isLanding == true && state().selectedTab?.binding == nil
         try await send("w", code: 13)
         try await wait("Landing Cmd+W did not close the window") { !window.isVisible }

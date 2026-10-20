@@ -356,6 +356,53 @@ private actor FailedPersistence: WorkspacePersistence {
             let count = await runtime.count(); XCTAssertEqual(count, 1)
         }
     }
+    func testPreparedContinuationReceivesActivityContextWithoutResolvingAgain() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("spookky-prepared-activity-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let session = "11111111-1111-4111-8111-111111111111", directory = root.path
+        for (provider, arguments) in [(SessionTool.codex, ["resume", session, "--cd", directory]),
+                                      (.claude, ["--resume", session]), (.claude, ["attach", "background-42"])] {
+            let store = WorkspaceStore(), runtime = FixtureRuntime()
+            store.update { $0.newWorkspace(directory: directory) }
+            let id = try XCTUnwrap(store.state.selectedTab?.id)
+            let item = ConversationMetadata(id: ConversationID(provider: provider, sessionID: session), title: nil,
+                                            directory: directory, updatedAt: Date())
+            let prepared = try LaunchSpec(tool: provider, executable: "/tmp/native-provider", arguments: arguments, directory: directory)
+            let resolver = AgentActivityResolver(base: UnexpectedLaunchResolver(), root: root, helper: "/usr/bin/true")
+            await LaunchCoordinator(store: store, runtime: runtime, resolver: resolver).resume(id, conversation: item, prepared: prepared)
+            let launched = await runtime.launchedSpecs()
+            let spec = try XCTUnwrap(launched.first)
+            XCTAssertEqual(launched.count, 1)
+            XCTAssertEqual(spec.operationID, prepared.operationID)
+            XCTAssertEqual(spec.directory, prepared.directory)
+            XCTAssertEqual(spec.executable, "/usr/bin/true")
+            XCTAssertEqual(Array(spec.arguments.suffix(arguments.count)), arguments)
+            XCTAssertFalse(spec.arguments.contains("--session-id"))
+            XCTAssertNil(spec.environment["SPOOKKY_PROVIDER_SESSION_ID"])
+            let path = try XCTUnwrap(spec.environment["SPOOKKY_ACTIVITY_CONTEXT"])
+            let context = try AgentIntegration.read(AgentTerminalContext.self, path: path)
+            XCTAssertEqual(context.bindingID, prepared.operationID)
+            XCTAssertEqual(store.state.tab(id)?.promptDelivery, PromptDelivery.none)
+            XCTAssertEqual(store.state.tab(id)?.startup?.expectsPrompt, false)
+        }
+    }
+    func testPreparedContinuationStillRunsWhenActivitySetupIsUnavailable() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("spookky-prepared-activity-" + UUID().uuidString)
+        try Data().write(to: root)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let store = WorkspaceStore(), runtime = FixtureRuntime()
+        store.update { $0.newWorkspace(directory: "/tmp") }
+        let id = try XCTUnwrap(store.state.selectedTab?.id), session = "11111111-1111-4111-8111-111111111111"
+        let item = ConversationMetadata(id: ConversationID(provider: .claude, sessionID: session), title: nil,
+                                        directory: "/tmp", updatedAt: Date())
+        let prepared = try LaunchSpec(tool: .claude, executable: "/tmp/native-provider", arguments: ["--resume", session], directory: "/tmp")
+        let resolver = AgentActivityResolver(base: UnexpectedLaunchResolver(), root: root, helper: "/usr/bin/true")
+        await LaunchCoordinator(store: store, runtime: runtime, resolver: resolver).resume(id, conversation: item, prepared: prepared)
+        let launched = await runtime.launchedSpecs()
+        XCTAssertEqual(launched, [prepared])
+        XCTAssertEqual(store.state.tab(id)?.status, .running)
+        XCTAssertEqual(store.state.tab(id)?.promptDelivery, PromptDelivery.none)
+    }
     func testPreparedContinuationRejectsOtherIDsFoldersPromptsAndPermissionOverrides() async throws {
         let session = "11111111-1111-4111-8111-111111111111"
         let badSpecs: [LaunchSpec] = [
