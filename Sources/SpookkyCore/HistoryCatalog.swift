@@ -22,7 +22,7 @@ extension Workspace {
         catalogMetadata != nil && viewClosed == true && !customTitle && anchor == nil && tabs.count == 1 &&
             locationOperationID == nil && locationOwnerWorkspaceID == nil &&
             support?.tabs.isEmpty != false && tabs.allSatisfy {
-                $0.binding == nil && $0.launch == nil && $0.draft.prompt.isEmpty && !$0.customTitle
+                $0.binding == nil && $0.launch == nil && $0.draft.isEmpty && !$0.customTitle
             }
     }
 }

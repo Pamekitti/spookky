@@ -81,6 +81,7 @@ import SpookkyGit
     private let sidebarDivider = FileDivider()
     private var railWidth: NSLayoutConstraint!
     private var composers: [UUID: LaunchComposerView] = [:]
+    private let promptImageDirectory: URL
     private var contentKey = ""
     private var navigation: [UUID] = []
     private var navigationIndex = -1
@@ -133,6 +134,7 @@ import SpookkyGit
          resolver: any ExecutableResolver = CLIResolver(), backgroundFixture: Bool = false,
          catalog: (any SessionCatalogReading)? = nil) throws {
         let paths = AppPaths(bundleID: Bundle.main.bundleIdentifier, home: FileManager.default.homeDirectoryForCurrentUser, userID: getuid())
+        promptImageDirectory = paths.data.appendingPathComponent("PromptImages")
         avatarCache = GitHubAvatarCache(directory: paths.data.appendingPathComponent("AvatarCache"))
         self.backgroundFixture = backgroundFixture
         let fixture = backgroundFixture || CommandLine.arguments.contains { $0.hasPrefix("--workspace-benchmark") }
@@ -1920,8 +1922,10 @@ import SpookkyGit
             stack.spacing = SpookkyStyle.points(12); stack.edgeInsets = NSEdgeInsets(top: SpookkyStyle.points(24), left: SpookkyStyle.points(24), bottom: SpookkyStyle.points(24), right: SpookkyStyle.points(24))
             install(stack, in: container)
         } else if tab.isEditable || tab.status == .preparing || tab.status == .launching {
-            let composer = composers[tab.id] ?? LaunchComposerView(tabID: tab.id); composers[tab.id] = composer
+            let composer = composers[tab.id] ?? LaunchComposerView(tabID: tab.id, imageDirectory: promptImageDirectory); composers[tab.id] = composer
             composer.onDraft = { [weak self] tool, prompt in self?.store.update(debounced: prompt != nil) { $0.editDraft(tab.id, tool: tool, prompt: prompt) } }
+            composer.onImages = { [weak self, id = tab.id] images in self?.editPromptImages(images, for: id) }
+            composer.onImageError = { [weak self] message in self?.alert("Could not paste image", message) }
             composer.onLaunch = { [weak self] in self?.launch(tab.id) }
             composer.onTerminal = { [weak self] in self?.openTerminal(from: tab.id) }
             composer.onChooseFolder = { [weak self] in self?.chooseFolder(register: false) }
@@ -2116,15 +2120,38 @@ import SpookkyGit
             }
             launch(shellID, tool: .shell); return
         }
-        if !tab.draft.prompt.isEmpty || !tab.isEditable || store.state.workspace(containing: id)?.primaryTerminalID == id && tab.binding != nil {
+        if !tab.draft.isEmpty || !tab.isEditable || store.state.workspace(containing: id)?.primaryTerminalID == id && tab.binding != nil {
             store.update { $0.newTab() }; if let id = store.state.selectedTab?.id { launch(id, tool: .shell) }
         } else { launch(id, tool: .shell) }
     }
     @objc private func launchSelected() {
         guard let id = store.state.selectedTab?.id, composers[id]?.hasInputFocus == true else { return }; launch(id)
     }
+    private func editPromptImages(_ images: [String], for id: UUID) {
+        let previous = store.state.tab(id)?.draft.images ?? []
+        store.update { $0.editDraft(id, images: images) }
+        let candidates = Set(previous + images).subtracting(store.state.tab(id)?.draft.images ?? [])
+        guard !candidates.isEmpty else { return }
+        let tabs = store.state.workspaces.flatMap(\.tabs)
+        let retained = Set(tabs.flatMap { $0.draft.images })
+        let arguments = tabs.flatMap { $0.launch?.arguments ?? [] }
+        let unused = candidates.filter { path in
+            !retained.contains(path) && !arguments.contains(where: { $0.contains(path) })
+        }
+        guard !unused.isEmpty else { return }
+        let directory = promptImageDirectory
+        Task.detached {
+            for path in unused {
+                let file = URL(fileURLWithPath: path)
+                guard file.deletingLastPathComponent().path == directory.path, file.pathExtension == "png",
+                      UUID(uuidString: file.deletingPathExtension().lastPathComponent) != nil else { continue }
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
+    }
+
     private func launch(_ id: UUID, tool: SessionTool? = nil) {
-        guard initialLaunchTasks[id] == nil, let tab = store.state.tab(id),
+        guard initialLaunchTasks[id] == nil, composers[id]?.isImportingImage != true, let tab = store.state.tab(id),
               let workspace = store.state.workspace(containing: id), !launches.isBusy(id),
               tab.isEditable || (tab.status == .failed && tab.launch != nil) else { return }
         if (tool ?? tab.draft.tool) != .shell, workspace.primaryTerminalID != id {
@@ -2607,6 +2634,19 @@ import SpookkyGit
         if CommandLine.arguments.contains("--workspace-benchmark-sidebar") {
             guard count == 0 else { throw LaunchError.invalid("Sidebar fixtures start without running sessions.") }
             try await checkSidebar(root: root)
+        }
+        if CommandLine.arguments.contains("--workspace-benchmark-prompt-images") {
+            guard count == 0 else { throw LaunchError.invalid("Prompt image checks require no running sessions.") }
+            store.update {
+                _ = $0.showLanding(homeDirectory: root.path)
+                $0.editDraft($0.primaryTerminalID!, tool: .codex, prompt: "Explain this screenshot")
+            }
+            if let renderTask { await renderTask.value }
+            guard let id = store.state.primaryTerminalID, let composer = composers[id] else {
+                throw LaunchError.invalid("Prompt image composer is unavailable.")
+            }
+            try await PromptImageFixture.run(composer: composer, window: window, root: root,
+                draft: { self.store.state.tab(id)!.draft }, changeTool: { tool in self.store.update { $0.editDraft(id, tool: tool) } })
         }
         if CommandLine.arguments.contains("--workspace-benchmark-browser") {
             guard count == 0, let host = supportingContentHost as? BrowserArtifactContentHost else { throw LaunchError.invalid("Browser fixtures require no launched sessions.") }

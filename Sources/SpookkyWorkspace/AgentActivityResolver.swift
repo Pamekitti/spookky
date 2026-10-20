@@ -10,7 +10,11 @@ public struct AgentActivityResolver: ExecutableResolver {
         self.base = base; self.root = root; self.helper = helper
     }
     public func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec {
-        let original = try await base.resolve(tool, directory: directory, prompt: prompt)
+        try await resolveFresh(tool, directory: directory, prompt: prompt, images: [])
+    }
+    public func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?, images: [String]) async throws -> LaunchSpec {
+        let resolved = try await base.resolve(tool, directory: directory, prompt: prompt)
+        let original = try await resolved.attachingPromptImages(images)
         let root = root, helper = helper
         return await Task.detached {
             var spec = original
