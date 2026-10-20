@@ -5,7 +5,10 @@ import SpookkyWorkspace
 struct ComposerFixtureModels: ProviderModelDiscovering {
     func models(for tool: SessionTool, directory: String, refresh: Bool) async -> ProviderModels {
         if tool == .codex {
-            return ProviderModels(models: [ProviderModel(id: "fixture-sol", name: "Sol fixture", efforts: ["low", "high"])])
+            if refresh { return ProviderModels(issue: "Fixture discovery is unavailable. Your selection is retained.") }
+            return ProviderModels(models: [ProviderModel(id: "fixture-sol", name: "Sol fixture", efforts: ["low", "high"]),
+                                          ProviderModel(id: "fixture-other", name: "Other fixture", efforts: ["low"]),
+                                          ProviderModel(id: "fixture-plain", name: "Plain fixture")])
         }
         return ProviderModels(models: [ProviderModel(id: "sonnet", name: "Sonnet"), ProviderModel(id: "opus", name: "Opus")], efforts: ["low", "high"])
     }

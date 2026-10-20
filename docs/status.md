@@ -2,6 +2,16 @@
 
 Spookky is an early native macOS development preview. The terminal, workspace, project/worktree, file/diff, and metadata layers are implemented. Daily-use and distribution acceptance remain incomplete.
 
+## Composer polish, 20 October 2026
+
+The composer now has balanced footer padding, circular attachment/send targets, Enter to start and Shift+Enter for a newline. Enter starts an empty draft too. The compact, muted context row retains the previous design. Its location popover contains the New worktree switch. No keyboard hint is displayed. The combined model picker keeps effort controls outside the scrolling model list and retains each model’s effort choice. Saved preference history is optional and capped at 32 models per provider.
+
+The Release build passed 74 native composer assertions and 12 image assertions. Checks covered Enter and Shift+Enter, marked-text routing, held-key suppression, one-open model/effort selection, effort recall, discovery failure, checkout switching, detached and empty repositories, both appearances, and 1120-, 680- and 650-point windows. Native screenshots confirmed the compact context row, circular send button and absence of a keyboard caption.
+
+After rebasing onto the native integration changes, Swift passed 331 XCTest cases with six opt-in skips, plus 22 Swift Testing cases. All 36 Python checks passed with isolated Git configuration; the first runs encountered a temporary-repository cleanup race. The repository checker and prototype synchronization passed. One fixture sample measured 166.5 MiB app RSS plus 19.9 MiB for its private runtime and shell, totaling 186.4 MiB. This is a single sample, not a before/after performance claim.
+
+Catalog values were fixtures and no model request was sent. Physical IME input, spoken VoiceOver and installed-app delivery remain unverified. The historical results below describe earlier revisions.
+
 ## Native PR integration, 20 October 2026
 
 The integrated native changes retain independent project drafts, exact-ID provider continuations, supporting-editor focus, provider icons, project avatars and one-shot title reveal. Changes opens directly from the toolbar. The side-panel control retains its tabs, selection, layout and processes when hidden. Compact headers keep the selected title readable and expose less frequent actions through the conversation menu.

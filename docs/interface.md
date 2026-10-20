@@ -52,15 +52,15 @@ With no selected thread, show the centered landing composer and focus its input.
                          >_ Open Terminal
 ```
 
-The optional starting prompt grows from 80 points to the smaller of 300 points or half the available height, then scrolls. The composer uses a 16-point radius. Attachment and provider controls stay left; model and supported effort controls stay right beside Start. Below 420 points the footer uses two rows. Image previews sit above the prompt with removal controls. The arrow's accessible label states whether it starts the CLI with a prompt.
+The optional starting prompt grows from 64 points to the smaller of 300 points or half the available height, then scrolls. The composer uses a 16-point radius, 16-point text inset and 12-point footer insets. Attachment and send have 32-point targets. Send uses a filled circle and centered up arrow. Attachment uses a circular hover fill. Attachment and provider controls stay left; model and supported effort controls stay right beside Start. Below 420 points the footer uses two rows. Image previews sit above the prompt with removal controls. The arrow's accessible label states whether it starts the CLI with a prompt.
 
 First use selects Codex with Default model. New drafts inherit the viewed primary provider and recorded model/effort. Unknown models use the last choice for that provider, then Default. Retained drafts take precedence over inheritance. A fresh project draft starts at its registered Local checkout, including when opened from a worktree.
 
-The context row has searchable project and checkout pickers. Local shows the current branch. New worktree exposes its starting reference. Worktree options retain branch naming, destination and cached-reference recovery. Non-Git folders hide Git controls. No project selects Home without discarding text or images.
+A compact, muted context row contains project, location and branch. The location popover keeps a New worktree switch below its searchable checkout list. With the switch off, choose Local or an existing worktree. With it on, the row shows the starting reference and the popover exposes Options. Switching modes retains the selected checkout and worktree settings. Empty repositories disable the switch until their first commit. Selecting controls never creates a worktree. Worktree options retain branch naming, destination and cached-reference recovery. Non-Git folders hide Git controls. No project selects Home without discarding text or images.
 
-The model picker keeps separate selections for each provider. Codex models and efforts come from its metadata catalog. Claude aliases and efforts come from installed CLI help. Default adds no override. Custom IDs remain available when discovery fails. Discovery runs on demand off the UI thread, shares concurrent requests, runs at most two helpers, caches at most eight results for five minutes, and closes its bounded helper. It starts no agent or model turn.
+The combined model and effort popover applies both choices immediately and stays open until Escape, an outside click or another picker. Model search and the scrolling list sit above a fixed effort section. Search never filters the effort controls. Default effort sends no override. The picker remembers the last effort for up to 32 explicit models per provider, restores supported choices and otherwise selects Default effort. Models without advertised effort support hide that section. The model picker keeps separate selections for each provider. Codex models and efforts come from its metadata catalog. Claude aliases and efforts come from installed CLI help. Default adds no override. Custom IDs remain available when discovery fails. Discovery runs on demand off the UI thread, shares concurrent requests, runs at most two helpers, caches at most eight results for five minutes, and closes its bounded helper. It starts no agent or model turn.
 
-Enter inserts a newline. Cmd+Return in the composer starts the selected agent. An empty prompt is valid. The quiet Open Terminal action below starts a plain shell and retains the agent draft. Starting an agent replaces the composer with its real TUI. A supporting shell opens beside the retained composer. There is no app chat renderer or floating input proxy.
+Enter and Cmd+Return in the composer start the selected agent, including with an empty prompt. Shift+Return inserts a newline. Marked-text composition owns Enter until composition finishes. Held Enter keys do not repeat launch. Both launch shortcuts use the send button’s enabled action. Keyboard guidance stays in tooltips; the composer has no shortcut caption. An empty prompt is valid. The quiet Open Terminal action below starts a plain shell and retains the agent draft. Starting an agent replaces the composer with its real TUI. A supporting shell opens beside the retained composer. There is no app chat renderer or floating input proxy.
 
 ## Spacing and dimensions
 
@@ -77,7 +77,7 @@ These are the native component dimensions. The HTML retains the approved flow an
 | Conversation row | 31 points, one regular 14-point title line, activity or PR indicator |
 | File row / common icon target | 28px |
 | Right sidebar | 248 points |
-| Composer | 620-point maximum width; 24-point outer padding; 80-point minimum prompt height; grows to 300 points or half the available content height |
+| Composer | 620-point maximum width; 24-point outer padding; 64-point minimum prompt height; grows to 300 points or half the available content height |
 | Menus | 8px corner radius, 5-6px inner padding |
 | Dialog | 400px maximum width, 20px padding, 10px radius |
 | Main text / dense labels / metadata | 13px / 12px / 11px |
@@ -176,7 +176,8 @@ HighlighterSwift supplies the language definitions. Spookky's bounded range adap
 | Cmd+W | Close the focused support; close the window on Conversation or landing |
 | Cmd+K | Focus history search |
 | Cmd+Shift+[ / ] | Previous / next tab |
-| Cmd+Enter | Launch only while the optional composer owns input focus |
+| Enter / Cmd+Enter | Launch from the composer; Enter waits for marked-text composition |
+| Shift+Enter | Insert a newline in the composer |
 
 Buttons, menus and shortcuts share their actions. Other terminal keys remain with the CLI. Sidebar collapse preserves input focus. Hiding Files/Changes while it owns focus returns to the terminal or composer. Overflow exposes existing tabs. Supporting + offers explicit content types.
 

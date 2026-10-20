@@ -78,10 +78,10 @@ Earlier evidence: the initial 18 October layout/startup candidate passed 191 tar
 - [x] Browser/artifact form state, terminal input and primary process identity survive layout and selection changes.
 - [x] Supporting + opens New tab with address/search, Files, Changes, Open artifact and Terminal; new agents use New chat/project +/Cmd+N.
 - [x] Support closure chooses nearest left, then next, then primary. Primary has no close action; Cmd+W closes the window and retains history/processes.
-- [x] Startup has a bottom composer, maximum width 800 points, 24-point padding, optional prompt and provider/folder chips inside.
+- [x] Startup has a centered composer, maximum width 620 points, 24-point outer padding, optional prompt and provider/model controls inside.
 - [x] First use chooses Codex; new drafts remember the last agent independently of shells; existing drafts keep their provider and text.
-- [ ] Local defaults in the folder popover; worktree/source/branch controls remain there.
-- [ ] Enter adds a newline; Cmd+Return in the composer launches. Running CLI content replaces the composer.
+- [ ] Local defaults in the checkout picker; the location popover’s New worktree switch reveals source and branch options.
+- [ ] Enter or Cmd+Return in the composer launches, including an empty draft; Shift+Return adds a newline. Marked text and held-key repeats do not launch. Running CLI content replaces the composer.
 
 - [ ] Cmd+N, Cmd+T, Cmd+W, Cmd+K, Cmd+Enter, and mouse equivalents follow the current contract.
 - [x] Cmd+N selects the retained global landing draft; Cmd+T opens New tab without launching a CLI. Direct shell access remains available.

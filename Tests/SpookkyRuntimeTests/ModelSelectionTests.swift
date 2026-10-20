@@ -5,6 +5,39 @@ import SpookkyPersistence
 @testable import SpookkyWorkspace
 
 final class ModelSelectionTests: XCTestCase {
+    func testModelEffortMemorySurvivesSwitchesDefaultAndRestart() throws {
+        var state = WorkspaceState(); state.showLanding(homeDirectory: "/tmp")
+        let id = try XCTUnwrap(state.primaryTerminalID)
+        state.editDraft(id, tool: .codex)
+        state.editModelSelection(id, selection: AgentModelSelection(model: "a", effort: "high"))
+        state.editModelSelection(id, selection: AgentModelSelection(model: "b", effort: "low"))
+        state.editDraft(id, tool: .claude)
+        state.editModelSelection(id, selection: AgentModelSelection(model: "a", effort: "max"))
+        state.editDraft(id, tool: .codex)
+        state.editModelSelection(id, selection: AgentModelSelection())
+        let restored = try JSONDecoder().decode(WorkspaceState.self, from: JSONEncoder().encode(state))
+        XCTAssertEqual(restored.tab(id)?.draft.modelSelection, AgentModelSelection())
+        XCTAssertEqual(restored.rememberedModelSelection(for: .codex, model: "a")?.effort, "high")
+        XCTAssertEqual(restored.rememberedModelSelection(for: .codex, model: "b")?.effort, "low")
+        XCTAssertEqual(restored.rememberedModelSelection(for: .claude, model: "a")?.effort, "max")
+        state.editModelSelection(id, selection: AgentModelSelection(model: "a"))
+        XCTAssertNotNil(state.rememberedModelSelection(for: .codex, model: "a"))
+        XCTAssertNil(state.rememberedModelSelection(for: .codex, model: "a")?.effort)
+        try restored.validate()
+    }
+
+    func testModelMemoryIsBoundedAndReadsLegacyProviderChoice() throws {
+        var state = WorkspaceState(); state.showLanding(homeDirectory: "/tmp")
+        let id = try XCTUnwrap(state.primaryTerminalID); state.editDraft(id, tool: .codex)
+        for index in 0..<33 { state.editModelSelection(id, selection: AgentModelSelection(model: "model-\(index)", effort: "high")) }
+        XCTAssertNil(state.rememberedModelSelection(for: .codex, model: "model-0"))
+        XCTAssertNotNil(state.rememberedModelSelection(for: .codex, model: "model-1"))
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(state)) as? [String: Any])
+        object.removeValue(forKey: "modelChoiceHistory")
+        let legacy = try JSONDecoder().decode(WorkspaceState.self, from: JSONSerialization.data(withJSONObject: object))
+        XCTAssertEqual(legacy.rememberedModelSelection(for: .codex, model: "model-32")?.effort, "high")
+        try legacy.validate(); try state.validate()
+    }
     func testInstalledModelCatalogWithoutStartingConversation() async throws {
         guard ProcessInfo.processInfo.environment["SPOOKKY_TEST_MODEL_CATALOG"] == "1" else {
             throw XCTSkip("Opt-in installed CLI metadata probe")
