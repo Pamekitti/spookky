@@ -1,0 +1,33 @@
+App/SidebarPresentation.swift
+  s_e4ebfd3393cdc4::t_34a911a74e071f 67,70,87-109,113-114,117-118,120-127,129-133,136-145
+App/SidebarReferenceFixture.swift
+  s_e4ebfd3393cdc4::t_ab7c6cf067aa76 127-169
+docs/interface.md
+  s_4020a47a1ad9fe::t_b5090858ed2dc0 77
+docs/status.md
+  s_4020a47a1ad9fe::t_d9472f682ac375 9-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "25c03ddb1e3d668e8a73dda8b96abd32410caaaf",
+  "prompts": {},
+  "sessions": {
+    "s_4020a47a1ad9fe": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a15793-dfc3-7320-b963-e626240ae4b0",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_e4ebfd3393cdc4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a15793-dfc3-7320-b963-e626240ae4b0",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
