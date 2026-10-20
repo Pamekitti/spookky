@@ -340,6 +340,7 @@ class ActionButton: NSButton {
     var contentInset: CGFloat = SpookkyStyle.controlInset
     var menuIndicator = false { didSet { invalidateIntrinsicContentSize() } }
     var compactUtility = false
+    var alignsToBounds = false
     var revealOnInteraction = false { didSet { updateInteractionVisibility() } }
     var interactionActive = false { didSet { updateInteractionVisibility() } }
     var onFocusChange: ((Bool) -> Void)?
@@ -374,8 +375,8 @@ class ActionButton: NSButton {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override var isOpaque: Bool { false }
     override var alignmentRectInsets: NSEdgeInsets {
-        // Custom symbol buttons have no native bezel outside their declared target.
-        compactUtility && title.isEmpty ? NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0) : super.alignmentRectInsets
+        // Custom targets can opt out of native symbol alignment outside their bounds.
+        alignsToBounds || compactUtility && title.isEmpty ? NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 0) : super.alignmentRectInsets
     }
     override var intrinsicContentSize: NSSize {
         let text = (title as NSString).size(withAttributes: [.font: font ?? NSFont.systemFont(ofSize: SpookkyStyle.points(13))]).width

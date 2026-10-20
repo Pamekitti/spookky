@@ -100,6 +100,7 @@ import SpookkyGit
     private let navigationForward = ActionButton("", symbol: "chevron.right", help: "Next thread", action: {})
     private let threadDetails = ActionButton("", symbol: "slider.horizontal.3", help: "Thread details", action: {})
     private let threadActions = ActionButton("", symbol: "ellipsis", help: "Thread actions", action: {})
+    private let threadChanges = ActionButton("", symbol: "plus.forwardslash.minus", help: "View changes", action: {})
 
     var renderTask: Task<Void, Never>?
     private var closing = Set<UUID>()
@@ -550,11 +551,13 @@ import SpookkyGit
         warning.isHidden = true
         cancelLocation.isHidden = true
         cancelLocation.handler = { [weak self] in guard let self else { return }; locations.activeOperationIDs.forEach { self.locations.cancel($0) } }
-        for view in [header, railScroll, tabScroll, workspaceLayout.headerView, workspaceBody, sidebarToggle, tabOverflow, sidebarDivider, warning, cancelLocation, navigationBack, navigationForward, threadDetails, threadActions] { view.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(view) }
+        for view in [header, railScroll, tabScroll, workspaceLayout.headerView, workspaceBody, sidebarToggle, tabOverflow, sidebarDivider, warning, cancelLocation, navigationBack, navigationForward, threadDetails, threadActions, threadChanges] { view.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(view) }
         rail.translatesAutoresizingMaskIntoConstraints = false; tabs.translatesAutoresizingMaskIntoConstraints = false
         navigationBack.handler = { [weak self] in self?.navigateThread(-1) }
         navigationForward.handler = { [weak self] in self?.navigateThread(1) }
         threadDetails.handler = { [weak self] in self?.showThreadDetails() }
+        threadChanges.handler = { [weak self] in self?.showChanges() }
+        threadChanges.alignsToBounds = true
         threadActions.handler = { [weak self] in
             guard let self, let id = store.state.selectedWorkspaceID else { return }
             workspaceContextMenu(id).popUp(positioning: nil, at: NSPoint(x: 0, y: threadActions.bounds.minY), in: threadActions)
@@ -590,9 +593,12 @@ import SpookkyGit
             sidebarToggle.widthAnchor.constraint(equalToConstant: 28).displayScaled(), sidebarToggle.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
             threadDetails.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -8).displayScaled(),
             threadActions.trailingAnchor.constraint(equalTo: threadDetails.leadingAnchor, constant: -4).displayScaled(),
-            tabOverflow.trailingAnchor.constraint(equalTo: threadActions.leadingAnchor, constant: -4).displayScaled(), overflowWidth,
+            threadChanges.trailingAnchor.constraint(equalTo: threadActions.leadingAnchor, constant: -4).displayScaled(),
+            tabOverflow.trailingAnchor.constraint(equalTo: threadChanges.leadingAnchor, constant: -4).displayScaled(), overflowWidth,
             threadDetails.widthAnchor.constraint(equalToConstant: 28).displayScaled(), threadDetails.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
             threadActions.widthAnchor.constraint(equalToConstant: 28).displayScaled(), threadActions.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
+            threadChanges.widthAnchor.constraint(equalToConstant: 28).displayScaled(), threadChanges.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
+            threadChanges.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor),
             threadDetails.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor), threadActions.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor),
             navigationBack.widthAnchor.constraint(equalToConstant: 28).displayScaled(), navigationBack.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
             navigationForward.widthAnchor.constraint(equalToConstant: 28).displayScaled(), navigationForward.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
@@ -638,11 +644,13 @@ import SpookkyGit
             workspaceLayout.setPrimaryItem(item, joined: joined)
             item.selected = !joined || workspace.support?.resolvedFullWidthSelection == .primary
         }
-        let available = max(0, content.bounds.width - tabStart - SpookkyStyle.points(20))
+        let utilityWidth = [threadChanges, threadActions, threadDetails].reduce(CGFloat.zero) { $0 + $1.intrinsicContentSize.width }
+        let headerEnd = content.bounds.width - utilityWidth - SpookkyStyle.points(24)
+        let available = max(0, headerEnd - tabStart)
         let splitStart = width + workspaceLayout.primaryPaneWidth(in: max(0, content.bounds.width - width)) + 5
         let mainWidth = workspaceLayout.joinsPrimary ? 0 : workspaceLayout.isSplit ? max(0, splitStart - tabStart - 5) : min(tabs.fittingSize.width, available)
         let supportStart = workspaceLayout.joinsPrimary ? tabStart : workspaceLayout.isSplit ? splitStart : tabStart + mainWidth
-        let supportWidth = max(0, content.bounds.width - SpookkyStyle.points(20) - supportStart)
+        let supportWidth = max(0, headerEnd - supportStart)
         let overflowing = (!workspaceLayout.joinsPrimary && tabs.fittingSize.width > mainWidth) || workspaceLayout.headerFittingWidth > supportWidth
         tabOverflow.isHidden = !overflowing
         if overflowWidth.constant != (overflowing ? SpookkyStyle.points(28) : 0) { overflowWidth.constant = overflowing ? SpookkyStyle.points(28) : 0 }
@@ -673,6 +681,10 @@ import SpookkyGit
         return menu
     }
     @objc private func toggleWorkspaceSidebar() { store.update { $0.sidebarCollapsed.toggle() } }
+    private func showChanges() {
+        store.update { $0.openSupport(.changes, title: "Changes") }
+        focusSupportingContent()
+    }
     @objc private func toggleCodeSidebar() {
         if (supportingContentHost as? BrowserArtifactContentHost)?.focusAddress(in: window) == true { return }
         if workspaceLayout.showsSupportingContent { store.update { $0.setSupportingLayout(.collapsed) }; focusSelectedContent() }
@@ -787,7 +799,7 @@ import SpookkyGit
         view.addItem(ClosureMenuItem("Toggle file tree") { [weak self] in self?.files.toggle() })
         view.addItem(ClosureMenuItem("Reset activity status") { [weak self] in if let ids = self?.store.state.selected?.tabs.map(\.id) { self?.changeAgentAttention(ids, action: "reset") } })
         view.addItem(ClosureMenuItem("Thread details") { [weak self] in self?.showThreadDetails() })
-        view.addItem(ClosureMenuItem("Review changes") { [weak self] in self?.store.update { $0.openSupport(.changes, title: "Changes") }; self?.files.focusSidebar() })
+        view.addItem(ClosureMenuItem("Review changes") { [weak self] in self?.showChanges() })
         for (title, action, key) in [("Toggle workspace sidebar", #selector(toggleWorkspaceSidebar), "b"),
                                      ("Show or hide supporting panel", #selector(toggleCodeSidebar), "l")] {
             let entry = view.addItem(withTitle: title, action: action, keyEquivalent: key)
@@ -941,6 +953,7 @@ import SpookkyGit
         let state = store.state, collapsed = state.sidebarCollapsed
         recordNavigation()
         threadActions.isEnabled = state.selected?.isLanding == false
+        threadChanges.isEnabled = state.selected != nil
         renderConversationSidebar(state, collapsed: collapsed)
         let tabsKey = String(describing: state.selectedWorkspaceID) + String(describing: state.selected?.primaryTerminalID)
         if tabsKey != tabRevision {
@@ -1404,6 +1417,31 @@ import SpookkyGit
                   let data = image.representation(using: .png, properties: [:]) else { return false }
             try data.write(to: root.appendingPathComponent(name + ".png")); return true
         }
+        threadChanges.performClick(nil)
+        if let renderTask { await renderTask.value }
+        let changesTab = store.state.selected?.support?.selectedTabID
+        checks["changes_shortcut_opens_and_focuses_changes"] = store.state.selected?.support?.selected?.target == .changes && workspaceLayout.hasFocus
+        checks["changes_shortcut_has_accessible_icon"] = threadChanges.title.isEmpty && threadChanges.image != nil && threadChanges.accessibilityLabel() == "View changes"
+        threadChanges.performClick(nil)
+        if let renderTask { await renderTask.value }
+        checks["changes_shortcut_reuses_existing_tab"] = store.state.selected?.support?.selectedTabID == changesTab && store.state.selected?.support?.tabs.filter { $0.target == .changes }.count == 1
+        store.update { $0.setSupportingLayout(.collapsed) }
+        threadChanges.performClick(nil)
+        if let renderTask { await renderTask.value }
+        checks["changes_shortcut_reveals_collapsed_panel"] = workspaceLayout.showsSupportingContent && store.state.selected?.support?.selectedTabID == changesTab
+        checks["changes_shortcut_screenshot"] = try capture("identity-toolbar-changes")
+        if let bitmap = threadChanges.bitmapImageRepForCachingDisplay(in: threadChanges.bounds) {
+            threadChanges.cacheDisplay(in: threadChanges.bounds, to: bitmap)
+            var brightness: [CGFloat] = []
+            for x in 0..<bitmap.pixelsWide {
+                for y in 0..<bitmap.pixelsHigh {
+                    if let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) {
+                        brightness.append((color.redComponent + color.greenComponent + color.blueComponent) / 3)
+                    }
+                }
+            }
+            checks["changes_shortcut_renders_visible_glyph"] = (brightness.max() ?? 0) - (brightness.min() ?? 0) > 0.1
+        } else { checks["changes_shortcut_renders_visible_glyph"] = false }
         store.update { $0.selectSupport(shell); $0.setSupportingLayout(.split, fraction: 0.55) }
         if let renderTask { await renderTask.value }
         window.contentView?.layoutSubtreeIfNeeded()
@@ -3725,7 +3763,7 @@ import SpookkyGit
         let title = SpookkyStyle.label(workspace.displayTitle); title.font = .boldSystemFont(ofSize: SpookkyStyle.points(13))
         let provider = SpookkyStyle.label(workspace.displayProvider.displayName)
         let folder = ChromeTextField(wrappingLabelWithString: workspace.directory); folder.isSelectable = true; folder.textColor = SpookkyPalette.secondary
-        let review = ActionButton("Changes", symbol: "arrow.triangle.branch") { [weak self] in self?.store.update { $0.openSupport(.changes, title: "Changes") }; self?.detailsPopover?.performClose(nil) }
+        let review = ActionButton("Changes", symbol: "arrow.triangle.branch") { [weak self] in self?.detailsPopover?.performClose(nil); self?.showChanges() }
         var views: [NSView] = [title, provider, folder]
         if let activity = workspace.activityState { views.append(SpookkyStyle.label(activity.label)) }
         if workspace.displayProvider != .shell && workspace.primaryTerminal?.activity?.displayState == .unknown {
