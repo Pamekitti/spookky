@@ -1,0 +1,19 @@
+docs/evidence/audit-regressions/README.md
+  s_b1f4fb153dc161::t_d4b0b587563aaa 78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "165df646dcb4204d2cae10c59bedb409a5657035",
+  "prompts": {},
+  "sessions": {
+    "s_b1f4fb153dc161": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a157fc-5ece-75c3-b279-a35746084dc7",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
