@@ -1,0 +1,27 @@
+docs/interface.md
+  s_727ac5da301eeb::t_a3539c59677cf6 24
+App/SupportingStartPage.swift
+  s_727ac5da301eeb::t_28eaf1d10f2baf 7-14,41-42,55-56
+App/SupportingWorkspaceView.swift
+  s_727ac5da301eeb::t_23b56a899b0461 130
+App/WorkspaceViews.swift
+  s_727ac5da301eeb::t_91e8de52a83ad0 123-141,144
+App/WorkspaceWindowController.swift
+  s_727ac5da301eeb::t_b9bc048c3607ad 103,561,682,3853-3854
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e2659f9a9bf306062825a5ed8f8352b862e48a3b",
+  "prompts": {},
+  "sessions": {
+    "s_727ac5da301eeb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a157c6-d40b-7fb3-84e8-9ce6730c2993",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
