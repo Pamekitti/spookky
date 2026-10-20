@@ -1,0 +1,29 @@
+App/WorkspaceWindowController.swift
+  s_7c3727d6a75c29::t_e527734a1a54a5 2338-2350
+App/WorkspaceViews.swift
+  s_d86d0f2215d243::t_83d265eba5342d 560,698
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dd02a2d572fe2949b78ab2ffb9932a9408410526",
+  "prompts": {},
+  "sessions": {
+    "s_7c3727d6a75c29": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1573a-f485-7ba0-b3fb-239057c2a944",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_d86d0f2215d243": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1573a-f485-7ba0-b3fb-239057c2a944",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
