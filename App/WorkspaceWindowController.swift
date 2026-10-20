@@ -1454,9 +1454,11 @@ import SpookkyGit
         checks["support_content_has_no_stacked_tab_header"] = workspaceLayout.content.frame == workspaceLayout.panel.bounds
         checks["running_primary_has_no_duplicate_header"] = retainedPrimary?.frame.height == body.bounds.height
         checks["split_tab_screenshot"] = try capture("identity-tabs-split")
+        checks["split_layout_has_full_view_icon"] = workspaceLayout.layoutButton.title.isEmpty && workspaceLayout.layoutButton.image != nil && workspaceLayout.layoutButton.accessibilityLabel() == "Full view"
         let splitPrimarySize = body.bounds.size
-        store.update { $0.setSupportingLayout(.fullWidth) }
+        workspaceLayout.layoutButton.performClick(nil)
         if let renderTask { await renderTask.value }
+        checks["full_layout_has_split_view_icon"] = workspaceLayout.layoutButton.title.isEmpty && workspaceLayout.layoutButton.image != nil && workspaceLayout.layoutButton.accessibilityLabel() == "Split view"
         checks["full_support_uses_entire_content_area"] = body.isHidden && workspaceLayout.panel.frame.width == workspaceLayout.bounds.width
         checks["hidden_primary_retains_terminal_geometry"] = body.bounds.size == splitPrimarySize
         let fullSupportingSize = workspaceLayout.panel.bounds.size
@@ -1476,7 +1478,7 @@ import SpookkyGit
             checks["full_browser_retains_both_terminal_surfaces"] = surfaces.view(primary) === retainedPrimary && surfaces.view(shell) === retainedShell
             checks["full_browser_tab_screenshot"] = try capture("identity-tabs-full-browser")
         }
-        store.update { $0.setSupportingLayout(.split) }
+        workspaceLayout.layoutButton.performClick(nil)
         if let renderTask { await renderTask.value }
         checks["return_to_split_restores_saved_fraction"] = store.state.selected?.support?.fraction == 0.55 && !body.isHidden && !workspaceLayout.panel.isHidden
         store.update { $0.selectSupport(shell) }
@@ -1530,9 +1532,33 @@ import SpookkyGit
                 checks["bounded_tab_widths_\(theme.rawValue)_\(width)"] = workspaceLayout.tabItems.allSatisfy {
                     (SpookkyStyle.points(48)...WorkspaceTabView.maximumWidth).contains($0.bounds.width)
                 }
+                checks["toolbar_controls_do_not_overlap_\(theme.rawValue)_\(width)"] = threadChanges.frame.maxX < threadActions.frame.minX &&
+                    threadActions.frame.maxX < threadDetails.frame.minX && workspaceLayout.headerView.frame.maxX <= tabOverflow.frame.minX &&
+                    workspaceLayout.layoutButton.frame.maxX <= workspaceLayout.headerView.bounds.width
+                checks["toolbar_controls_keep_utility_size_\(theme.rawValue)_\(width)"] = [threadChanges, workspaceLayout.layoutButton].allSatisfy {
+                    abs($0.bounds.width - SpookkyStyle.points(28)) < 1 && abs($0.bounds.height - SpookkyStyle.points(28)) < 1
+                }
+                checks["compact_layout_keeps_explanation_\(theme.rawValue)_\(width)"] = !workspaceLayout.compact ||
+                    (!workspaceLayout.layoutButton.isEnabled && workspaceLayout.layoutButton.toolTip == "Widen the window or reduce zoom to show two readable panes")
             }
         }
         checks["desktop_narrow_both_themes"] = screenshots == 4
+        let savedZoom = services.displayPreferences.zoom
+        for zoom in [0.8, 1.0, 1.5, 2.0] {
+            services.changeDisplay { $0.zoom = zoom }
+            for width in [1120, 680] {
+                window.setContentSize(NSSize(width: width, height: 760))
+                if let renderTask { await renderTask.value }
+                window.contentView?.layoutSubtreeIfNeeded()
+                let label = "\(Int(zoom * 100))_\(width)"
+                checks["toolbar_zoom_geometry_" + label] = threadChanges.frame.maxX < threadActions.frame.minX &&
+                    threadActions.frame.maxX < threadDetails.frame.minX && workspaceLayout.headerView.frame.maxX <= tabOverflow.frame.minX &&
+                    abs(workspaceLayout.layoutButton.bounds.width - SpookkyStyle.points(28)) < 1 &&
+                    workspaceLayout.layoutButton.frame.minX >= 0
+                checks["toolbar_zoom_compact_state_" + label] = workspaceLayout.layoutButton.isEnabled == (!workspaceLayout.compact && store.state.selected?.support?.tabs.isEmpty == false)
+            }
+        }
+        services.changeDisplay { $0.zoom = savedZoom }
         store.update {
             $0.recordAgentEvent(AgentEvent(bindingID: binding.id, invocationID: binding.id, secret: UUID(), provider: .codex,
                                           kind: .needsInput, sessionID: codexID.sessionID))

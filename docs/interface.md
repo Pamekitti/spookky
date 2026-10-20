@@ -21,6 +21,8 @@ Full view joins the primary tab first and all supporting tabs on the same row. T
 
 The top-right Changes button opens and focuses the current workspace's Changes tab, reusing it when already open. Changes remains available through the menus and thread details.
 
+The layout control uses a divided-rectangle icon for Split view and a single rectangle for Full view. Both controls use 28-point utility targets with action tooltips and accessibility labels. Compact windows retain the disabled Split control and its explanation.
+
 Supporting + opens the themed New tab page with address/search, Files, Changes, Terminal and Open artifact. New chat and Cmd+N select the current project's landing draft, otherwise the global draft. Project + selects its project draft. Closing a supporting tab selects its nearest left neighbor, otherwise its next neighbor, otherwise the primary. The primary conversation cannot close. Cmd+W on primary content closes the window and retains the thread and its processes.
 
 The sidebar toggle stays in the fixed header. It does not scroll with entries. The native window buttons retain their system size and spacing, start 20 points from the left edge, and share the header centerline. Fullscreen removes their reserved clearance. The toggle keeps its 28-point utility target. Unused header space can drag the window. Terminal, prompt and supporting content keep their own gestures.
