@@ -1,0 +1,23 @@
+docs/evidence/audit-regressions/README.md
+  s_3e39b8a4931a64::t_db50286c9c7a09 74-85,100
+docs/evidence/audit-regressions/integration-checks.json
+  s_3e39b8a4931a64::t_0e1d6e49f9271b 1-77
+docs/status.md
+  s_3e39b8a4931a64::t_844d81b24ef942 5-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9995365eeeb088bfea4d6800b181c85745839227",
+  "prompts": {},
+  "sessions": {
+    "s_3e39b8a4931a64": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a157fc-5ece-75c3-b279-a35746084dc7",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
