@@ -557,7 +557,7 @@ private final class ComposerDocumentView: NSView {
 
 private final class ComposerPopoverBackground: NSView {
     override var isOpaque: Bool { true }
-    override func draw(_ dirtyRect: NSRect) { SpookkyPalette.raised.setFill(); dirtyRect.fill() }
+    override func draw(_ dirtyRect: NSRect) { SpookkyPalette.raised.setFill(); bounds.fill() }
 }
 
 @MainActor private final class SpookkyWelcomeMark: NSView {
@@ -695,7 +695,7 @@ private final class ComposerPopoverBackground: NSView {
 
 @MainActor final class LaunchComposerView: NSView, NSTextViewDelegate {
     override var isOpaque: Bool { true }
-    override func draw(_ dirtyRect: NSRect) { SpookkyPalette.background.setFill(); dirtyRect.fill() }
+    override func draw(_ dirtyRect: NSRect) { SpookkyPalette.background.setFill(); bounds.fill() }
     let tabID: UUID
     let prompt = PromptTextView()
     let locationOptions = WorktreeOptionsView(frame: .zero)

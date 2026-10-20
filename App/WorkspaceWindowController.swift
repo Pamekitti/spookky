@@ -2335,6 +2335,19 @@ import SpookkyGit
             checks["contextual_heading_\(width)"] = heading != nil
             if let view = window.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
                 view.cacheDisplay(in: view.bounds, to: bitmap)
+                let sidebar = view.convert(railScroll.bounds, from: railScroll)
+                let scaleX = CGFloat(bitmap.pixelsWide) / view.bounds.width
+                let scaleY = CGFloat(bitmap.pixelsHigh) / view.bounds.height
+                let left = Int((sidebar.minX + 12) * scaleX), right = Int((sidebar.maxX - 12) * scaleX)
+                var darkest: CGFloat = 1, lightest: CGFloat = 0
+                for y in stride(from: Int(80 * scaleY), to: bitmap.pixelsHigh - Int(24 * scaleY), by: 4) {
+                    for x in stride(from: left, to: right, by: 4) {
+                        guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { continue }
+                        let brightness = (color.redComponent + color.greenComponent + color.blueComponent) / 3
+                        darkest = min(darkest, brightness); lightest = max(lightest, brightness)
+                    }
+                }
+                checks["composer_keeps_sidebar_pixels_\(width)"] = lightest - darkest > 0.15
                 try bitmap.representation(using: .png, properties: [:])?.write(to: root.appendingPathComponent("composer-" + theme.rawValue + ".png"))
             }
         }
