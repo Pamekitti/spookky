@@ -1,0 +1,55 @@
+HighlighterSwift theme notices
+
+These stylesheets are distributed in the Highlighter_Highlighter.bundle
+resource bundle. Each stylesheet retains its upstream header. The source
+is vendored from HighlighterSwift 3.1.0, commit
+fe7aae9c9b31d3b296fd3d2dd575e1a207bb29e0:
+https://github.com/smittytone/HighlighterSwift/tree/fe7aae9c9b31d3b296fd3d2dd575e1a207bb29e0/Sources/Assets/styles
+
+Spookky normalized end-of-file whitespace. No theme rules were changed.
+These theme files retain their respective licenses.
+
+Creative Commons Attribution-ShareAlike 4.0 International
+https://creativecommons.org/licenses/by-sa/4.0/
+Full text: CC-BY-SA-4.0.txt in this notice directory.
+
+- kimbie-dark.css and kimbie-light.css
+  Kimbie by Jan T. Sott
+  https://github.com/idleberg/Kimbie-highlight.js
+
+- nnfx-dark.css and nnfx-light.css
+  Copyright (c) 2020-2021 Jim Mason
+  Maintainer: @RocketMan
+  Theme version: 1.1.0
+  The pinned source above includes both stylesheets and their attribution.
+
+MIT-licensed themes with separate copyright notices:
+
+- nord.css
+  Copyright (c) 2017-present Arctic Ice Studio
+  Copyright (c) 2017-present Sven Greb
+  https://github.com/arcticicestudio/nord-highlightjs
+
+- night-owl.css
+  Copyright (c) 2018 Sarah Drasner
+  https://github.com/sdras/night-owl-vscode-theme
+
+The MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

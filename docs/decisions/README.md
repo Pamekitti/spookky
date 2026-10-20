@@ -19,7 +19,7 @@ Accepted product decisions are recorded here. Technical candidates remain candid
 | D13 | SQLite metadata, GRDB adapter | Preferred candidate, pin during implementation |
 | D14 | Worktree/file removal separate from workspace entry closing | Accepted |
 | D15 | Exact deployment target, packaging, updater, dependencies | Open technical decisions |
-| D16 | Public app name and code licensing | Spookky; original application code is not open-source licensed |
+| D16 | Public app name and code licensing | Spookky; original code, documentation, and artwork use MIT. Third-party materials retain their own terms. |
 | D17 | Speed, bounded resources, effortless starts, clear parallel work, and reliability govern feature selection | Accepted |
 | D18 | Public vision stands on user needs and outcomes; integration and dependency names belong in their dedicated sections | Accepted |
 
