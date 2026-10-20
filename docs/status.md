@@ -2,6 +2,18 @@
 
 Spookky is an early native macOS development preview. The terminal, workspace, project/worktree, file/diff, and metadata layers are implemented. Daily-use and distribution acceptance remain incomplete.
 
+## Contextual new-session composer, 19 October 2026
+
+The centered composer has a project-aware heading, attachment/provider controls on the left, and model/effort selection at the bottom right. Project, checkout and starting-reference pickers sit below. Fresh drafts inherit the viewed primary provider and recorded model, and default to the project's registered Local checkout. Retained drafts keep their explicit choices, text and images.
+
+Model choices persist without a metadata-version change. Fresh launches pass model and effort as literal arguments before the provider prompt. Default adds no override. Resume and reattachment keep their existing launch path. The CLI resolver skips Spookky runtime wrappers so inherited terminal PATH entries cannot shadow the installed provider during discovery or launch.
+
+The Release build passed 122 targeted native assertions: 23 composer, 12 image and 87 conversation/lifecycle checks. They covered both appearances, 1120- and 680-point windows, project/worktree menus, shortcut routing, model-popup focus, multiline text, image retention, real shell input/output and process preservation. The full Swift run passed 296 XCTest cases with four opt-in cases skipped, plus 22 Swift Testing cases. A subsequent 38-case model/resolver/coordinator run passed, including installed model discovery. All 32 Python tests and the repository checker passed.
+
+Installed Codex CLI 0.163.0 returned seven model choices in 1,136 ms. Claude Code 2.1.303 returned three aliases in 403 ms. These are single metadata-only observations. Discovery uses at most two temporary helpers, shares matching requests and retains at most eight cached results. No model turn was sent. Accessibility interaction in the isolated development app also loaded the real Codex catalog and selected GPT-6.1-Sol.
+
+One native fixture ready-state sample measured 161.2 MiB app RSS and 22.9 MiB for its private runtime and shell, totaling 184.1 MiB. This excludes active model work and is not a sustained-memory or capacity result. Physical typing, IME, spoken VoiceOver, paid provider responses and installed-app replacement remain outside this verification.
+
 ## Persistent threads and supporting tools, 18 October 2026
 
 Conversations now remain selectable threads. The primary heading has no close target. Cmd+W there closes the window while preserving selection and execution. Supporting tabs close independently. New chat focuses the retained composer; New tab offers address/search and supporting tools. Files uses a native searchable picker, Changes owns its review state, and Markdown artifacts have a read-only semantic preview. Project avatars and provider marks remain.

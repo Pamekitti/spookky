@@ -64,7 +64,7 @@ Use New chat in the UI. Existing workspace type and persistence names remain int
 
 | Area | Contract |
 | --- | --- |
-| Immediate start | With no open view, show the composer. Cmd+N selects the global draft; project + selects its project draft. Start promotes it into a session. Open Terminal retains the agent draft. Cmd+T opens a supporting browser. |
+| Immediate start | With no open view, show the composer. Cmd+N selects the current project's draft, otherwise global; project + selects its project draft. Start promotes it into a session. Open Terminal retains the agent draft. Cmd+T opens a supporting browser. |
 | Projects | Register an existing folder, clone a repository, or create a folder with optional Git initialization. |
 | Locations | Home, one-off folder, Local checkout, existing worktree, or new worktree. |
 | Worktrees | Explicit source and optional working branch name. Generated branch names are allowed. |
@@ -78,7 +78,7 @@ Use New chat in the UI. Existing workspace type and persistence names remain int
 | Lifecycle | Safe close behavior, explicit background continuation, metadata restore after restart. |
 | Polish | Stable keyboard focus, tooltips, native appearance, readable density, accessibility, and bounded resource use. |
 
-First use selects Codex. New sessions remember the last agent choice independently of shell launches. Existing drafts keep their saved provider and text.
+First use selects Codex with Default model. New drafts inherit the viewed primary provider and recorded model, with last-used choices as fallback. A fresh project draft defaults to its registered Local checkout. Existing drafts keep their provider, model, location, text and images.
 
 Both agent CLIs use their own credentials, configuration, permissions, model controls, and conversation histories. Spookky does not require its own account. A shell works without either agent installed.
 

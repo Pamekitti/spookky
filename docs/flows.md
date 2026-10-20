@@ -8,21 +8,22 @@ Status: current product behavior. [Current status](status.md) records implementa
 Open Spookky
   Returning user -> restore the last selected thread
   No selection   -> retained landing composer, input focused
-  Cmd+N          -> global landing draft
+  Cmd+N          -> current project's landing draft, otherwise global
   Project +      -> project landing draft
                        |
                        +-- Optional prompt
                        +-- Provider chip: Codex or Claude Code
-                       +-- Folder chip: Home, project or one-off folder
+                       +-- Provider-specific model and effort picker
+                       +-- Context row: Home, project or one-off folder
                        |      +-- Local by default
                        |      +-- Existing/new worktree, when chosen
                        +-- Start arrow / Cmd+Return -> real provider TUI
                        +-- Open Terminal -> plain shell, agent draft retained
 ```
 
-The bottom composer is at most 800 points wide with 24-point outer padding. Provider and folder choices sit inside it. Selecting a provider, folder or source does not launch a process. Worktree controls stay in the folder/location popover. An empty prompt is valid. Enter inserts a newline.
+The centered composer is at most 620 points wide with 24-point outer padding. Provider and attachment controls sit left; model and effort sit at the bottom right. Project, location and branch sit below. Selecting a provider, model, folder or source does not launch an agent. An empty prompt is valid. Enter inserts a newline.
 
-First use selects Codex. New chats then remember the last agent choice independently of shell launches. Restored drafts retain their saved provider and text. Once running, the provider's real TUI replaces the composer and owns subsequent input.
+First use selects Codex with Default model. New drafts copy the viewed primary provider and recorded model/effort. Unknown choices fall back to the last choice for that provider, then its default. Fresh project drafts use the registered Local checkout. Retained drafts take precedence and keep explicit choices, text and images. Once running, the provider's real TUI replaces the composer and owns subsequent input.
 
 The global landing and each project landing retain separate drafts. Showing one creates no agent or history entry. Starting an agent promotes its draft into a session. Restoring state never launches every saved conversation. A plain Home shell requires no project or provider account.
 
@@ -30,7 +31,7 @@ The global landing and each project landing retain separate drafts. Showing one 
 
 | Action | Result |
 | --- | --- |
-| Cmd+N / New chat | Select the retained global landing draft and focus its composer. |
+| Cmd+N / New chat | Select the viewed primary session's project draft, or the global draft without a project, and focus the composer. |
 | Project row | Toggle its workspace rows without changing the selected workspace or stopping processes. |
 | Project + | Select that project's retained landing draft, Local by default, and expand its group. |
 | Cmd+T | Open and select a New tab page. Keep the primary CLI and draft. |

@@ -55,9 +55,19 @@ public struct CLIResolver: ExecutableResolver {
             let candidate = URL(fileURLWithPath: directory).appendingPathComponent(name)
             guard FileManager.default.isExecutableFile(atPath: candidate.path),
                   (try? candidate.resolvingSymlinksInPath().resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true else { continue }
+            guard !isSpookkyWrapper(candidate, tool: name) else { continue }
             return candidate.path
         }
         return nil
+    }
+
+    private func isSpookkyWrapper(_ url: URL, tool: String) -> Bool {
+        guard (try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize).map({ $0 <= 4096 }) == true,
+              let handle = try? FileHandle(forReadingFrom: url) else { return false }
+        defer { try? handle.close() }
+        guard let data = try? handle.read(upToCount: 4096), let script = String(data: data, encoding: .utf8) else { return false }
+        let normalized = script.replacingOccurrences(of: "\\n", with: "\n").replacingOccurrences(of: "\\\"", with: "\"")
+        return normalized.hasPrefix("#!/bin/sh\nexec ") && normalized.contains("'--agent-run' '" + tool + "' '--'") && normalized.hasSuffix(" \"$@\"\n")
     }
 
     private func loginDirectories() -> [String] {

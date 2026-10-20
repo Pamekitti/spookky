@@ -3,12 +3,16 @@ import SpookkyCore
 import SpookkyRuntime
 
 public protocol ExecutableResolver: Sendable {
+    func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?, images: [String], model: AgentModelSelection) async throws -> LaunchSpec
     func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?, images: [String]) async throws -> LaunchSpec
     func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec
     func resolve(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec
 }
 
 extension ExecutableResolver {
+    public func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?, images: [String], model: AgentModelSelection) async throws -> LaunchSpec {
+        try await resolveFresh(tool, directory: directory, prompt: prompt, images: images).selectingModel(model)
+    }
     public func resolveFresh(_ tool: SessionTool, directory: String, prompt: String?, images: [String]) async throws -> LaunchSpec {
         let spec = try await resolveFresh(tool, directory: directory, prompt: prompt)
         return try await spec.attachingPromptImages(images)
@@ -45,7 +49,7 @@ extension ExecutableResolver {
             else {
                 spec = try await resolver.resolveFresh(tool ?? tab.draft.tool,
                     directory: tab.startDirectory ?? workspace.directory,
-                    prompt: tab.draft.prompt.isEmpty ? nil : tab.draft.prompt, images: tab.draft.images)
+                    prompt: tab.draft.prompt.isEmpty ? nil : tab.draft.prompt, images: tab.draft.images, model: tab.draft.modelSelection)
             }
             try Task.checkCancellation()
             store.update {

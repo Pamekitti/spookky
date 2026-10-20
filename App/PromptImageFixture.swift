@@ -1,5 +1,15 @@
 import AppKit
 import SpookkyCore
+import SpookkyWorkspace
+
+struct ComposerFixtureModels: ProviderModelDiscovering {
+    func models(for tool: SessionTool, directory: String, refresh: Bool) async -> ProviderModels {
+        if tool == .codex {
+            return ProviderModels(models: [ProviderModel(id: "fixture-sol", name: "Sol fixture", efforts: ["low", "high"])])
+        }
+        return ProviderModels(models: [ProviderModel(id: "sonnet", name: "Sonnet"), ProviderModel(id: "opus", name: "Opus")], efforts: ["low", "high"])
+    }
+}
 
 @MainActor enum PromptImageFixture {
     static func run(composer: LaunchComposerView, window: NSWindow, root: URL,
@@ -20,7 +30,7 @@ import SpookkyCore
         let png = bitmap.representation(using: .png, properties: [:])!
         let text = composer.prompt.string
         var errors: [String] = []
-        composer.onImageError = { errors.append($0) }
+        composer.onError = { errors.append($0) }
 
         func descendants(of view: NSView) -> [NSView] {
             view.subviews.flatMap { [$0] + descendants(of: $0) }
