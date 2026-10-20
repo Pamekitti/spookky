@@ -706,7 +706,7 @@ private final class ComposerPopoverBackground: NSView {
     private let source = ActionButton("", symbol: "point.3.connected.trianglepath.dotted", help: "Starting branch", action: {})
     private let model = ActionButton("Default model", help: "Choose model", action: {})
     private let attach = ActionButton("", symbol: "plus", help: "Attach images", action: {})
-    private let heading = NSTextField(wrappingLabelWithString: "What would you like to work on?")
+    private let heading = ChromeTextField(wrappingLabelWithString: "What would you like to work on?")
     private let welcome = NSStackView()
     private let context = ResponsiveStackView()
     private let leftControls = NSStackView(), rightControls = NSStackView()
