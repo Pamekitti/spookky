@@ -1,0 +1,19 @@
+App/WorkspaceViews.swift
+  s_d86d0f2215d243::t_2b8e197803e67b 709
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "93a9a89fe947f521e452e9f33f904c8de2a12074",
+  "prompts": {},
+  "sessions": {
+    "s_d86d0f2215d243": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1573a-f485-7ba0-b3fb-239057c2a944",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
