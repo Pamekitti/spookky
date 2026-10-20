@@ -27,3 +27,5 @@ Claude Code exposes this shared skill as `/ship` through `.claude/skills/ship`. 
 ## Review and license
 
 The maintainer reviews incoming changes. Keep pull requests focused and follow the [code of conduct](CODE_OF_CONDUCT.md). Contributions are accepted under the [MIT license](LICENSE). Retain third-party notices and document adopted dependencies in [THIRD_PARTY.md](THIRD_PARTY.md).
+
+Submit only material you have the right to contribute. For copied or adapted code, artwork, or templates, record the source, exact revision, license, and changes. Employer or client ownership and brand permissions need separate checks. A public source repository or an icon's copyright license does not make every use permissible.

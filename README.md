@@ -9,7 +9,7 @@ Open a shell immediately. Keep parallel sessions together, use Git worktrees whe
   <img src="website/assets/workspace-light.png" alt="Spookky's native terminal workspace with a file diff and changes panel">
 </picture>
 
-Native development build. Visit [the website](https://pamekitti.github.io/spookky/) for release availability.
+Native development build. [Download the source ZIP](https://github.com/Pamekitti/spookky/archive/refs/heads/main.zip) or visit [the website](https://pamekitti.github.io/spookky/). Building requires the tools below. A public Mac installer is not available yet.
 
 ## Why I built Spookky
 

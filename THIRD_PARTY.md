@@ -8,9 +8,9 @@ Spookky's application interface and engineering documents were authored for this
 | --- | --- |
 | Product and engineering documents | Authored for this project; current product, flow, architecture, and interface specifications |
 | Prototype fragment and pre-polish baseline | Project HTML/CSS/JavaScript; anonymized sample projects and files |
-| Visual references | Desktop interface screenshots informed design; screenshots are not redistributed in this repo |
+| Visual references | Superset and Codex desktop interfaces informed the design. Their application bundles and reference screenshots are not redistributed in this repo. Screenshots under `website/` and `docs/evidence/` show Spookky. |
 | Standalone preview template | Generated visualization export wrapper, preserved from the existing prototype export; keep its embedded notices/runtime text intact |
-| Prototype icons | Lucide, loaded from the existing pinned CDN URL in the preview template; no provider logos imported |
+| Prototype icons | Lucide 1.17.0, loaded from the pinned CDN URL in the preview template. Its ISC and Feather MIT notices are retained in [Lucide.txt](Dependencies/licenses/Lucide.txt). |
 
 The native app links Ghostty 1.3.1. Its exact revision, MIT notice, resources, and compatibility, source-path and read-only appearance bridge patches are documented in [Dependencies/README.md](Dependencies/README.md).
 
@@ -30,6 +30,8 @@ Original Spookky code, documentation, and artwork are released under the MIT lic
 
 Spookky vendors [HighlighterSwift](Dependencies/HighlighterSwift/UPSTREAM.md) 3.1.0 at `fe7aae9c9b31d3b296fd3d2dd575e1a207bb29e0`. A documented range adapter bypasses HTML conversion for bounded previews. It wraps Highlight.js 11.11.1 through JavaScriptCore and returns native attributed text. The combined [MIT and BSD notices](Dependencies/licenses/HighlighterSwift.txt) are bundled with the app. Spookky's adapter preserves source text, maps the library's pinned token palette to native light/dark roles, and supplies bounded source versions for diffs.
 
+The bundled CSS themes also carry their own notices. Kimbie dark/light by Jan T. Sott and nnfx dark/light by Jim Mason use CC BY-SA 4.0. Nord and Night Owl retain their authors' MIT notices. [Theme attribution](Dependencies/licenses/HighlighterSwift-Themes.txt) and the [CC BY-SA 4.0 license](Dependencies/licenses/CC-BY-SA-4.0.txt) accompany the app. These files are not relicensed under Spookky's MIT license.
+
 The initially approved grammar integration was replaced at the user's request to use the simplest existing library. No Tree-sitter grammar sources or queries are part of this implementation.
 
 ## Packaged runtime and updater
@@ -47,6 +49,8 @@ The DMG layout build uses ds_store 1.3.3 and mac_alias 2.2.3 under MIT. Their pa
 ## Provider marks
 
 The OpenAI mark used for Codex and the Claude mark come from [Simple Icons 13.21.0](https://github.com/simple-icons/simple-icons/tree/3fd92a7d0656c3d780bccdf7b5a3e9b9991dd6e5), commit `3fd92a7d0656c3d780bccdf7b5a3e9b9991dd6e5`. The SVG paths are unchanged. Asset catalogs render them as monochrome templates for native appearance and contrast. The project dedicates its icons under [CC0 1.0](Dependencies/licenses/SimpleIcons.txt). Brand marks remain the property of their respective owners. They identify the CLI provider and do not imply endorsement.
+
+CC0 does not grant trademark permission. Use remains subject to the owners' terms, including [OpenAI's brand guidelines](https://openai.com/brand/). Spookky is an independent project. Provider names, terminal interfaces, and marks in screenshots identify the software being used.
 
 Source files: [OpenAI](https://github.com/simple-icons/simple-icons/blob/3fd92a7d0656c3d780bccdf7b5a3e9b9991dd6e5/icons/openai.svg) and [Claude](https://github.com/simple-icons/simple-icons/blob/3fd92a7d0656c3d780bccdf7b5a3e9b9991dd6e5/icons/claude.svg).
 

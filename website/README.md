@@ -17,11 +17,13 @@ npx playwright install chromium
 npm test
 ```
 
-The six checks cover desktop, 390px, 320px, system light/dark appearance, keyboard access, screenshot links, and release metadata.
+The checks cover desktop, 390px, 320px, system light/dark appearance, keyboard access, screenshot links, release metadata, and downloads without JavaScript.
 
 ## Release availability
 
-`release-manifest.json` contains `{"release":null}` until a public installer passes its release gates. The primary action then points to the source, with build instructions beside it. A verified manifest changes it to a Mac download with the version, requirements, and size. The secondary action then links to GitHub.
+`release-manifest.json` contains `{"release":null}` until a public installer passes its release gates. The primary action downloads the current main branch as a source ZIP, with build instructions beside it. This plain link works without JavaScript or a metadata request. The page states that a build is required.
+
+A verified manifest changes the button to a direct Mac installer download with the version, requirements, and size. The secondary action then links to GitHub. Missing or invalid metadata keeps the source download available.
 
 Follow [the release procedure](../docs/releasing.md) before publishing metadata or the signed updater feed. Never add a placeholder installer URL.
 
