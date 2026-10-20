@@ -2,6 +2,36 @@
 
 Spookky is an early native macOS development preview. The terminal, workspace, project/worktree, file/diff, and metadata layers are implemented. Daily-use and distribution acceptance remain incomplete.
 
+## Native PR integration, 20 October 2026
+
+The integrated native changes retain independent project drafts, exact-ID provider continuations, supporting-editor focus, provider icons, project avatars and one-shot title reveal. Changes opens directly from the toolbar. The side-panel control retains its tabs, selection, layout and processes when hidden. Compact headers keep the selected title readable and expose less frequent actions through the conversation menu.
+
+The affected native suites passed 2,839 assertions. Swift completed 329 XCTest cases with six skips and zero failures, plus 22 Swift Testing cases. All 36 Python cases completed with two skips. Offline Codex and Claude ownership checks passed nine and ten checks respectively. [Integration evidence](evidence/audit-regressions/README.md#integration-verification-20-october-2026) records binary boundaries and remaining limits.
+
+This is source merge verification. Installed replacement, eight-hour continuity, physical typing/IME and spoken VoiceOver remain separate acceptance work. The earlier results below describe their own revisions.
+
+## Contextual new-session composer, 19 October 2026
+
+The centered composer has a project-aware heading, attachment/provider controls on the left, and model/effort selection at the bottom right. Project, checkout and starting-reference pickers sit below. Fresh drafts inherit the viewed primary provider and recorded model, and default to the project's registered Local checkout. Retained drafts keep their explicit choices, text and images.
+
+Model choices persist without a metadata-version change. Fresh launches pass model and effort as literal arguments before the provider prompt. Default adds no override. Resume and reattachment keep their existing launch path. The CLI resolver skips Spookky runtime wrappers so inherited terminal PATH entries cannot shadow the installed provider during discovery or launch.
+
+The Release build passed 122 targeted native assertions: 23 composer, 12 image and 87 conversation/lifecycle checks. They covered both appearances, 1120- and 680-point windows, project/worktree menus, shortcut routing, model-popup focus, multiline text, image retention, real shell input/output and process preservation. The full Swift run passed 296 XCTest cases with four opt-in cases skipped, plus 22 Swift Testing cases. A subsequent 38-case model/resolver/coordinator run passed, including installed model discovery. All 32 Python tests and the repository checker passed.
+
+Installed Codex CLI 0.163.0 returned seven model choices in 1,136 ms. Claude Code 2.1.303 returned three aliases in 403 ms. These are single metadata-only observations. Discovery uses at most two temporary helpers, shares matching requests and retains at most eight cached results. No model turn was sent. Accessibility interaction in the isolated development app also loaded the real Codex catalog and selected GPT-6.1-Sol.
+
+One native fixture ready-state sample measured 161.2 MiB app RSS and 22.9 MiB for its private runtime and shell, totaling 184.1 MiB. This excludes active model work and is not a sustained-memory or capacity result. Physical typing, IME, spoken VoiceOver, paid provider responses and installed-app replacement remain outside this verification.
+
+## Sidebar status and reference treatment, 20 October 2026
+
+The sidebar now uses outlined project folders, text-only conversation rows, neutral colors, direct pin/archive actions, scrolling overflow titles and a details hover card. Blue unread completion, Needs input and the working ring use the supplied dimensions. Verified worktree and GitHub PR indicators remain separate from activity. GitHub lookup is read-only, visible-row bounded and silent when unavailable.
+
+The title-motion follow-up keeps the native text origin and baseline during the 500 ms hover pause. It scrolls once and holds at the end until interaction leaves. The Release build, repository checker and 121 native sidebar assertions passed. Native screenshots confirmed the complete trailing text; aligned glyph pixels matched the resting title baseline. The fixture sampled 0.13% idle app CPU and 0.49% hover app CPU over 5.2 seconds each. Three hover intervals lost focus and were excluded. These app-only samples exclude providers and WindowServer. The installed app was not replaced.
+
+Unread acknowledgment requires a visible terminal in the active window and a confirmed bottom viewport. Completion identity and viewport revision are rechecked after asynchronous inspection. Scroll changes retry the current completion. Scrollback and unknown viewport state retain unread. Viewing never clears Needs input or failure.
+
+The isolated Release build passed 109 reference assertions and 1,848 native sidebar/display assertions. Five native restart checks and four surface-lifecycle race checks passed. Swift completed 297 XCTest cases with four skipped and zero failures; 22 Swift Testing cases passed. All 32 Python tests and 12 hook fixture cases passed. Real disposable Codex and Claude question, denial, approval, resumption and completion flows were observed. The bundle and development signature audits passed. [Screenshots, measurements and limits](evidence/sidebar-reference/README.md) distinguish native UI fixtures from real provider callbacks. Production replacement and release publishing were not part of this pass.
+
 ## Persistent threads and supporting tools, 18 October 2026
 
 Conversations now remain selectable threads. The primary heading has no close target. Cmd+W there closes the window while preserving selection and execution. Supporting tabs close independently. New chat focuses the retained composer; New tab offers address/search and supporting tools. Files uses a native searchable picker, Changes owns its review state, and Markdown artifacts have a read-only semantic preview. Project avatars and provider marks remain.

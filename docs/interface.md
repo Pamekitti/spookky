@@ -19,7 +19,15 @@ The primary conversation header and supporting tabs occupy one 40-point row. In 
 
 Full view joins the primary tab first and all supporting tabs on the same row. The selected content fills the area below. Clicking the primary keeps every supporting tab visible. Split view restores the primary TUI on the left and the last selected support on the right. It keeps the divider width, live views, drafts and processes.
 
-Supporting + opens the themed New tab page with address/search, Files, Changes, Terminal and Open artifact. New chat and Cmd+N select the global landing draft. Project + selects its project draft. Closing a supporting tab selects its nearest left neighbor, otherwise its next neighbor, otherwise the primary. The primary conversation cannot close. Cmd+W on primary content closes the window and retains the thread and its processes.
+The conversation title owns its actions menu and thread-details control. These controls move with the primary heading between Split and joined Full layouts. Supporting-panel controls stay on the right.
+
+The top-right Changes button opens and focuses the current workspace's Changes tab, reusing it when already open. Compact headers move Changes into the conversation actions menu to retain a readable selected title. Show/Hide side panel stays visible. Its outlined document with stacked plus and minus signs is shared by Changes tabs, the New tab tool, menus and thread details.
+
+The layout control uses a divided-rectangle icon for Split view and a single rectangle for Full view. Both controls use 28-point utility targets with action tooltips and accessibility labels. Narrow content retains the disabled Split control and its explanation. Compact headers move the layout action into the conversation actions menu.
+
+The rightmost sidebar icon shows or hides the supporting panel. Hiding removes its tab strip, add control, overflow and layout control, returns focus to the primary terminal or composer, and retains its tabs and processes. Changes and Show side panel stay available. Showing restores the selected support, previous Split or Full layout and divider fraction. An empty panel opens New tab. Older saved panels without a remembered layout reopen in Split view. The selected supporting tab always exposes its close button; other close buttons appear on hover or keyboard focus. Closing the last support collapses the panel.
+
+Supporting + opens the themed New tab page with address/search, Files, Changes, Terminal and Open artifact. New chat and Cmd+N select the current project's landing draft, otherwise the global draft. Project + selects its project draft. Closing a supporting tab selects its nearest left neighbor, otherwise its next neighbor, otherwise the primary. The primary conversation cannot close. Cmd+W on primary content closes the window and retains the thread and its processes.
 
 The sidebar toggle stays in the fixed header. It does not scroll with entries. The native window buttons retain their system size and spacing, start 20 points from the left edge, and share the header centerline. Fullscreen removes their reserved clearance. The toggle keeps its 28-point utility target. Unused header space can drag the window. Terminal, prompt and supporting content keep their own gestures.
 
@@ -29,23 +37,28 @@ Terminal text selection remains highlighted after mouse release. Cmd+C copies th
 
 ## Start page
 
-With no selected thread, show the landing composer immediately and focus its input. It has no close tab or full-page New chat button. The start area stays mostly empty above the bottom composer, with 24-point outer padding and an 800-point maximum width.
+With no selected thread, show the centered landing composer and focus its input. A muted 38-point Spookky mark sits above “What's next in {project}?” Without a project, use “What would you like to work on?” Keep 24-point outer padding and a 620-point maximum composer width. Omit the subtitle, machine and environment controls.
 
 ```text
-                    Empty session area
+                        Spookky mark
+                   What's next in spookky?
 
        +------------------------------------------------+
-       | Start with a prompt…                           |
+       | What would you like to work on?                |
        |                                                |
-       | [Codex v] [Folder · Local v]              (up)  |
+       | [+] [Codex v]           [Model · Effort v] (up) |
        +------------------------------------------------+
-        Prompt optional       Enter newline · Cmd+Return start
+        [Project v] [Local v] [main]
                          >_ Open Terminal
 ```
 
-The optional starting prompt grows from 80 points to the smaller of 300 points or half the available height, then scrolls. The composer uses a 13-point radius. Provider and folder chips sit inside its footer with the Start arrow. The arrow's accessible label states whether it starts the CLI with a prompt.
+The optional starting prompt grows from 80 points to the smaller of 300 points or half the available height, then scrolls. The composer uses a 16-point radius. Attachment and provider controls stay left; model and supported effort controls stay right beside Start. Below 420 points the footer uses two rows. Image previews sit above the prompt with removal controls. The arrow's accessible label states whether it starts the CLI with a prompt.
 
-First use selects Codex. Global and project landing drafts retain their own provider, folder and text across navigation and restart. New drafts remember the last agent choice independently of shell launches. The folder popover defaults to Local. It contains project/folder selection, existing worktrees and optional new-worktree source/branch controls. These controls do not occupy a separate startup toolbar.
+First use selects Codex with Default model. New drafts inherit the viewed primary provider and recorded model/effort. Unknown models use the last choice for that provider, then Default. Retained drafts take precedence over inheritance. A fresh project draft starts at its registered Local checkout, including when opened from a worktree.
+
+The context row has searchable project and checkout pickers. Local shows the current branch. New worktree exposes its starting reference. Worktree options retain branch naming, destination and cached-reference recovery. Non-Git folders hide Git controls. No project selects Home without discarding text or images.
+
+The model picker keeps separate selections for each provider. Codex models and efforts come from its metadata catalog. Claude aliases and efforts come from installed CLI help. Default adds no override. Custom IDs remain available when discovery fails. Discovery runs on demand off the UI thread, shares concurrent requests, runs at most two helpers, caches at most eight results for five minutes, and closes its bounded helper. It starts no agent or model turn.
 
 Enter inserts a newline. Cmd+Return in the composer starts the selected agent. An empty prompt is valid. The quiet Open Terminal action below starts a plain shell and retains the agent draft. Starting an agent replaces the composer with its real TUI. A supporting shell opens beside the retained composer. There is no app chat renderer or floating input proxy.
 
@@ -56,15 +69,15 @@ These are the native component dimensions. The HTML retains the approved flow an
 | Element | Reference |
 | --- | --- |
 | Spacing scale | 4, 8, 12, 16, 24, 32px; 6px for compact icon padding |
-| Expanded sidebar | 232-point default; drag between 200 and 600 points, with at least 320 points left for content |
+| Expanded sidebar | 264-point default; drag between 200 and 600 points, with at least 320 points left for content |
 | Hidden sidebar | No conversation rail; fixed header restore control |
 | Tab strip | 40px |
 | Terminal, preview, and Files/Changes headers | 40 points |
 | Project row | 28 points |
-| Conversation row | 32 points, one title line, optional attention indicator |
+| Conversation row | 31 points, one regular 14-point title line, activity or PR indicator |
 | File row / common icon target | 28px |
 | Right sidebar | 248 points |
-| Composer | 800-point maximum width; 24-point outer padding; 80-point minimum prompt height; grows to 300 points or half the available content height |
+| Composer | 620-point maximum width; 24-point outer padding; 80-point minimum prompt height; grows to 300 points or half the available content height |
 | Menus | 8px corner radius, 5-6px inner padding |
 | Dialog | 400px maximum width, 20px padding, 10px radius |
 | Main text / dense labels / metadata | 13px / 12px / 11px |
@@ -74,17 +87,17 @@ These are the native component dimensions. The HTML retains the approved flow an
 
 Use SF Symbols in the native app. A symbol beside a row or button label uses a 14-point regular glyph in a 16-point slot, followed by 6 points of space. Icon-only add, close, and pane controls use a 14-point medium glyph centered in a 28×28-point target. The tab close target is 24 points wide. Tabs occupy the full 40-point height with 96–220-point widths, rounded inset selection and restrained hover fill. Constrained panes may compact a tab to its 48-point icon and close targets; the overflow menu retains full names. Spare horizontal space remains neutral. Keep the symbol's optical size consistent within each role rather than stretching every symbol to a fixed image rectangle.
 
-Keep 8 points between compact controls, 12 points between sections, and 4 points within a compound control. Use 12-point sidebar selection insets, with 8 points of internal row padding on both sides. Project rows remain 28 points high, conversation rows 32 points high, and the tab strip 40 points high. Use the existing 13/12/11-point type hierarchy. Conversations add one 12-point indent. Rows share one trailing status/action slot. Sidebar controls and history scroll only vertically, with no horizontal bounce. Titles use static truncation. Full titles, folder paths and detailed activity remain in tooltips and accessibility labels. There is no title-reveal animation or routine Saved/path subtitle.
+Keep 8 points between compact controls, 12 points between sections, and 4 points within a compound control. Sidebar highlights use 3-point left and 8-point right insets, a 30-point height and 10-point corners. Project rows remain 28 points high, conversation rows 31 points high, and the tab strip 40 points high. Sidebar titles use regular 14-point text. Other controls retain the 13/12/11-point hierarchy. The sidebar scrolls vertically. Overflowing titles reveal on hover or keyboard focus after 500 ms at 30 points per second, then hold at the end until hover or keyboard focus leaves. The title keeps its text origin and baseline when reveal begins. Text remains clipped within the row. A details hover card retains the full title, project, relative time and known activity/PR details. Reduce Motion keeps titles static. There is no routine Saved/path subtitle.
 
 The project list uses a virtualized native table below fixed New chat and search controls. Show five recent history rows per project; Show more requests ten further entries. Search begins with ten results and supports further pages. Keep selected and open local entries available without duplicates. Only the active conversation is selected. Project headers and Show more are actions, so mouse clicks never select them or leave keyboard-focus styling behind. Hover and keyboard focus are separate states and are reconciled after scrolling, resizing and window activation.
 
-Use four button roles: primary launch, secondary destination/direct launch, quiet navigation/utility, and destructive confirmation. Filled controls retain their role on hover and press. Quiet controls use the foreground wash. Keyboard focus uses a neutral fill inside the existing target. Native controls suppress focus rings. Focus never changes padding, border thickness or control size. Disabled states remain visible. Selected rows and tabs carry the selection fill. Project add and conversation contextual menus appear on row hover or descendant keyboard focus. Supporting tabs share 24-point close targets. The primary conversation never has a close target. Standalone add controls remain visible. Actions reserve their space at rest and never move the title when revealed. Row and tab hover fills cover their enclosing component; nested label buttons do not draw another fill. Files and Changes use the same quiet selection treatment, not the system-blue segmented style. A plain-language visual fixture must not display the Unicode stress-test names used by automated compatibility checks.
+Use four button roles: primary launch, secondary destination/direct launch, quiet navigation/utility, and destructive confirmation. Filled controls retain their role on hover and press. Quiet controls use the foreground wash. Keyboard focus uses a neutral fill inside the existing target. Native controls suppress focus rings. Focus never changes padding, border thickness or control size. Disabled states remain visible. Selected rows and tabs carry the selection fill. Project add and conversation contextual menus appear on row hover or descendant keyboard focus. Supporting tabs share 24-point close targets. The primary conversation never has a close target. Standalone add controls remain visible. Revealing row actions keeps the title origin fixed and updates its clipped width. Row and tab hover fills cover their enclosing component; nested label buttons do not draw another fill. Files and Changes use the same quiet selection treatment, not the system-blue segmented style. A plain-language visual fixture must not display the Unicode stress-test names used by automated compatibility checks.
 
 The HTML's fixed 760px frame is a preview constraint, not a native window requirement. Avoid shrinking text to fit more controls. The sidebar can overlay at 800 points and below. Split view keeps both pane headers aligned at the divider. Full view gives the selected content the available width. At 600 points and below, diffs use unified layout. Touch targets should expand if a touch-capable surface is ever supported.
 
 ### Native row and preview geometry
 
-Project icons start 20 points from the sidebar edge; project titles start at 42. Nested conversation icons start at 32 points; titles start at 54. No-project rows use the top-level alignment. Leading icons use a 16-point slot and a 6-point title gap. The Projects heading aligns with project icons, and Show more aligns with conversation titles. Project groups have an 8-point gap. Contextual actions align to the title line, with a reserved trailing target. Add and close glyphs use 12-point regular-weight symbols and a centered 20-point hover fill with a 5-point radius. Tab close targets are 24 by 24 points.
+Project owner or organization avatars start 12 points from the sidebar edge, with a folder fallback when unavailable. Conversation rows show the Codex, Claude or terminal icon in the same 16-point slot. Project labels and conversation titles start at 35 points. Provider identity also remains in thread details and accessibility labels. Show more aligns with conversation titles. A trailing accessory group uses 28-point targets with a 12-point right inset. Verified worktrees have a gray glyph; activity takes priority over PR state in the final position. Needs input expands into a blue pill. Hover and keyboard focus replace the accessories with Pin/Unpin and Archive/Unarchive. The context menu remains available. Tab close targets are 24 by 24 points.
 
 Files and preview tables use the plain native style with no enclosing horizontal content inset. File group headings and root icons begin 8 points from the panel edge. Root filenames begin at 28 points; each directory level adds 12 points. Directory disclosure uses native chevrons. Files use native code, document, configuration, image, archive or generic symbols. Repository and symlink entries remain distinct. Git status letters carry semantic colors and descriptive accessibility names. Parent paths use secondary text and yield space before the filename. Status indicators remain 8 points from the trailing edge. Selection and keyboard focus use foreground washes within row bounds. Tables draw no focus outline.
 
@@ -157,7 +170,7 @@ HighlighterSwift supplies the language definitions. Spookky's bounded range adap
 | --- | --- |
 | Cmd+plus / Cmd+minus / Cmd+0 | Zoom the whole app in/out, or restore 100% |
 | Cmd+B | Toggle the project/workspace sidebar |
-| Cmd+L | Toggle Files/Changes |
+| Cmd+L | Focus the browser address, otherwise show or hide the supporting panel |
 | Cmd+N | Select the retained global landing draft |
 | Cmd+T | Open a New tab supporting page |
 | Cmd+W | Close the focused support; close the window on Conversation or landing |
@@ -187,7 +200,7 @@ Verification boundaries are recorded in [current status](status.md). The prior a
 
 ## Display preferences
 
-App zoom supports 80%, 90%, 100%, 110%, 125%, 150%, 175% and 200%. Native fonts and layout are recalculated. Web pages use WebKit page zoom; terminal surfaces use their font size. No workspace screenshot is stretched. OS window buttons retain their native size. Sidebar width and terminal font adjustment persist independently of zoom. Double-click the sidebar divider to restore 232 points. Narrow split layouts temporarily join the tabs and show one selected view, preserving the requested split layout for a wider window.
+App zoom supports 80%, 90%, 100%, 110%, 125%, 150%, 175% and 200%. Native fonts and layout are recalculated. Web pages use WebKit page zoom; terminal surfaces use their font size. No workspace screenshot is stretched. OS window buttons retain their native size. Sidebar width and terminal font adjustment persist independently of zoom. Double-click the sidebar divider to restore 264 points. Narrow split layouts temporarily join the tabs and show one selected view, preserving the requested split layout for a wider window.
 
 Terminal appearance follows Ghostty's configuration, includes and both theme variants through the pinned parser. Commands, environment and keybindings are excluded from the exported appearance. Configuration reads and change detection run off the main thread. The last valid profile is cached privately and retained after invalid edits. Settings reports the error. Appearance changes preserve terminal processes and provider-owned input.
 

@@ -18,7 +18,7 @@ Spookky shows which terminal needs attention through provider lifecycle hooks. T
 
 Finished means the provider ended a turn. It does not establish that the requested work succeeded. A failed tool call alone leaves the agent Working because the agent can recover.
 
-The workspace uses the highest-priority status: Needs input, Agent failed, Working, Finished unread, then Unknown or Interrupted. Unread completions survive later invocations and app restarts. Reported child agents appear as a bounded count in the terminal header and tooltips. Child events cannot finish their parent.
+The sidebar follows the primary conversation terminal. Its activity indicator takes precedence over PR state: Needs input, Agent failed, Working, then Finished unread. Unknown and Interrupted remain available in details. Unread completions survive later invocations and app restarts. Reported child agents appear as a bounded count in the terminal header and tooltips. Child events cannot finish their parent.
 
 ```text
 provider hook --> private helper --> local activity socket --> matching terminal
@@ -32,9 +32,19 @@ Working --> Needs input --> Working --> Finished, unread --> viewed --> Idle
     +--> Agent failed / Interrupted / Activity unknown
 ```
 
-Viewing a terminal in the active, visible window acknowledges its completion. Both visible split panes count. Right-click a tab or workspace for Mark unread, Mark read, or Reset activity status. Mark read clears unread completion attention. A live Needs input or failure status remains until a provider event or explicit reset changes it.
+Viewing a terminal in the active, visible window acknowledges completion only after its scrollback is confirmed at the bottom. Both visible split panes count. The check combines Ghostty viewport metrics with the owned tmux viewport. Empty, unavailable or failed observations retain unread attention. After the asynchronous check, the invocation and completion IDs must still match. A newer completion receives its own check. Provider-internal scrolling is outside this viewport guarantee.
 
-The status occupies existing tab and workspace indicator slots. The native Working spinner runs only for visible indicators and respects Reduce Motion. The tab overflow menu includes activity labels. Window and terminal dimensions are unchanged.
+Right-click a tab or workspace for Mark unread, Mark read, or Reset activity status. Mark read explicitly clears unread completion attention. Viewing or marking a completion read preserves a live Needs input or failure status.
+
+The sidebar uses a blue unread dot, a blue Needs input pill, and a thin gray Working ring. The ring animates only while visible and respects Reduce Motion. Hover and keyboard focus reveal direct Pin/Archive actions. The tab overflow menu retains activity labels. Terminal dimensions follow the existing layout controls.
+
+## Read-only checkout and PR indicators
+
+A gray worktree glyph requires Git to report a linked checkout. PR state comes from the installed GitHub CLI and its existing authentication. Draft PRs are gray, open PRs green, closed PRs red, and merged PRs purple. A verified PR can be opened from the details card. Spookky does not merge PRs.
+
+New associations require a live thread binding and an observed repository/branch. A unique matching open PR is preferred. A closed or merged PR must match the observed head commit. Fork collisions and ambiguous matches stay unknown. Imported history without a saved association does not inherit the current folder's PR. Optional verified associations survive metadata restart; older snapshots require no migration.
+
+Only visible rows request refreshes. Requests share the two-process Git read scheduler, deduplicate by repository/branch or known PR, and use 10-second process and 128 KiB output limits. The transient cache holds at most 128 entries for one minute. Hidden or inactive windows cancel refresh work. Missing GitHub CLI, authentication, unsupported remotes or network errors leave PR state unavailable without a login prompt. GitHub.com is the initial supported host.
 
 ## Notifications
 

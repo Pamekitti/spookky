@@ -15,7 +15,7 @@ import SpookkyCore
     private let strip = NSStackView()
     private let scroll = TabStripScrollView()
     private let controls = NSStackView()
-    private let layoutButton = ActionButton("Split", symbol: "rectangle.split.2x1", action: {})
+    let layoutButton = ActionButton("", symbol: "rectangle.split.2x1", help: "Split view", action: {})
     private let divider = FileDivider()
     private var state = SupportingPanelState()
     var onSelect: ((UUID) -> Void)?
@@ -34,7 +34,7 @@ import SpookkyCore
     var compactHeader = false { didSet { if oldValue != compactHeader { headerView.needsLayout = true } } }
     private var layoutControlWidth: CGFloat { compactHeader ? 0 : layoutButton.intrinsicContentSize.width }
     var headerActionViews: [NSView] { controls.arrangedSubviews + [layoutButton] }
-    var layoutActionTitle: String { layoutButton.title }
+    var layoutActionTitle: String { isSplit ? "Full view" : "Split view" }
     var canToggleLayout: Bool { layoutButton.isEnabled }
     func toggleLayout() {
         guard canToggleLayout else { return }
@@ -83,8 +83,8 @@ import SpookkyCore
         add.handler = { [weak self, weak add] in if let add { self?.onAdd?(add) } }
         layoutButton.handler = { [weak self] in self?.toggleLayout() }
         controls.orientation = .horizontal; controls.spacing = 0
-        add.widthAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true
         for button in [add, layoutButton] {
+            button.widthAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true
             button.heightAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true
             if button !== layoutButton { controls.addArrangedSubview(button) }
         }
@@ -107,6 +107,7 @@ import SpookkyCore
         if let editor = responder as? NSTextView, editor.isFieldEditor, let control = editor.delegate as? NSView {
             return control.isDescendant(of: panel)
         }
+        if let primaryItem, responder.isDescendant(of: primaryItem) { return false }
         return responder === panel || responder.isDescendant(of: panel) || responder.isDescendant(of: headerView)
     }
     func update(_ state: SupportingPanelState) {
@@ -133,14 +134,13 @@ import SpookkyCore
                 items[tab.id] = item
             }
             item.update(title: tab.displayTitle,
-                image: NSImage(systemSymbolName: SpookkyStyle.supportingSymbol(tab.target), accessibilityDescription: nil),
+                image: SpookkyStyle.supportingImage(tab.target),
                 help: help, selected: selected && tab.id == state.selectedTabID)
             item.move(to: strip, at: index + (joinsPrimary ? 1 : 0))
         }
         layoutButton.isEnabled = !state.tabs.isEmpty && !compact
-        layoutButton.title = isSplit ? "Full" : "Split"
-        layoutButton.image = nil
-        layoutButton.toolTip = compact ? "Widen the window or reduce zoom to show two readable panes" : isSplit ? "Show selected supporting tab at full width" : "Show conversation and supporting tab side by side"
+        layoutButton.image = NSImage(systemSymbolName: isSplit ? "rectangle" : "rectangle.split.2x1", accessibilityDescription: nil)
+        layoutButton.toolTip = compact ? "Widen the window or reduce zoom to show two readable panes" : isSplit ? "Full view" : "Split view"
         layoutButton.setAccessibilityLabel(layoutButton.toolTip!)
         needsLayout = true; headerView.needsLayout = true
     }

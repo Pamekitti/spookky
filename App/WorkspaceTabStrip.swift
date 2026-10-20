@@ -5,24 +5,28 @@ import AppKit
     static var maximumWidth: CGFloat { SpookkyStyle.points(220) }
     let titleButton: ActionButton
     let closeButton: ActionButton
+    let trailingActions: [ActionButton]
     private var widthConstraint: NSLayoutConstraint!
     private var tracking: NSTrackingArea?
     private var hovered = false
     var availableWidth: CGFloat? { didSet { if oldValue != availableWidth { needsLayout = true; invalidateIntrinsicContentSize() } } }
-    var selected = false { didSet { updateAppearance() } }
+    var selected = false { didSet { updateAppearance(); updateInteraction() } }
     var isHeading = false { didSet { needsDisplay = true } }
     var closable = true { didSet { updateInteraction() } }
+    private var actionsWidth: CGFloat { CGFloat(trailingActions.filter { !$0.isHidden }.count) * SpookkyStyle.points(32) }
+    var maximumNaturalWidth: CGFloat { Self.maximumWidth + actionsWidth }
     var preferredWidth: CGFloat {
-        min(Self.maximumWidth, max(Self.minimumWidth, titleButton.intrinsicContentSize.width + SpookkyStyle.points(closable ? 28 : 0)))
+        min(maximumNaturalWidth, max(Self.minimumWidth + actionsWidth, titleButton.intrinsicContentSize.width + SpookkyStyle.points(closable ? 28 : 0) + actionsWidth))
     }
     var naturalWidth: CGFloat {
-        min(availableWidth.map { max(SpookkyStyle.points(48), $0) } ?? Self.maximumWidth, preferredWidth)
+        min(availableWidth.map { max(SpookkyStyle.points(48) + actionsWidth, $0) } ?? maximumNaturalWidth, preferredWidth)
     }
 
-    init(title: String, image: NSImage? = nil, help: String? = nil, closable: Bool = true,
+    init(title: String, image: NSImage? = nil, help: String? = nil, closable: Bool = true, trailingActions: [ActionButton] = [],
          onSelect: @escaping () -> Void, onClose: @escaping () -> Void = {}) {
         titleButton = ActionButton(title, help: help, height: SpookkyStyle.headerHeight, action: onSelect)
         closeButton = ActionButton("", symbol: "xmark", help: "Close " + title, height: SpookkyStyle.points(24), action: onClose)
+        self.trailingActions = trailingActions
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
         titleButton.image = image
@@ -34,6 +38,11 @@ import AppKit
         titleButton.onFocusChange = { [weak self] focused in self?.focusChanged(focused) }
         closeButton.onFocusChange = { [weak self] focused in self?.focusChanged(focused) }
         addSubview(titleButton); addSubview(closeButton)
+        for button in trailingActions {
+            button.translatesAutoresizingMaskIntoConstraints = true
+            button.alignsToBounds = true
+            addSubview(button)
+        }
         widthConstraint = widthAnchor.constraint(equalToConstant: naturalWidth)
         NSLayoutConstraint.activate([widthConstraint, heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).displayScaled(alreadyScaled: true)])
         self.closable = closable
@@ -54,7 +63,7 @@ import AppKit
         if superview === stack, stack.arrangedSubviews.firstIndex(where: { $0 === self }) == index { return }
         let previousWindow = window
         let responder = window?.firstResponder as? NSView
-        let restoresFocus = responder.map { $0 === titleButton || $0 === closeButton } == true
+        let restoresFocus = responder.map { $0.isDescendant(of: self) } == true
         if let previous = superview as? NSStackView { previous.removeArrangedSubview(self) }
         removeFromSuperview()
         stack.insertArrangedSubview(self, at: min(max(0, index), stack.arrangedSubviews.count))
@@ -67,9 +76,13 @@ import AppKit
         super.layout()
         titleButton.contentInset = SpookkyStyle.controlInset
         widthConstraint.constant = naturalWidth
-        titleButton.frame = NSRect(x: 0, y: 0, width: max(0, bounds.width - SpookkyStyle.points(closable ? 28 : 0)), height: bounds.height)
+        titleButton.frame = NSRect(x: 0, y: 0, width: max(0, bounds.width - SpookkyStyle.points(closable ? 28 : 0) - actionsWidth), height: bounds.height)
         titleButton.contentInset = min(SpookkyStyle.controlInset, max(0, (titleButton.frame.width - SpookkyStyle.iconSlot) / 2))
         closeButton.frame = NSRect(x: max(0, bounds.width - SpookkyStyle.points(28)), y: bounds.midY - SpookkyStyle.points(12), width: SpookkyStyle.points(24), height: SpookkyStyle.points(24))
+        for (index, button) in trailingActions.filter({ !$0.isHidden }).enumerated() {
+            button.frame = NSRect(x: bounds.width - actionsWidth + SpookkyStyle.points(CGFloat(index * 32 + 4)),
+                y: bounds.midY - SpookkyStyle.points(14), width: SpookkyStyle.points(28), height: SpookkyStyle.points(28))
+        }
         reconcileHover()
     }
     override func updateTrackingAreas() {
@@ -125,8 +138,8 @@ import AppKit
         needsDisplay = true
     }
     private func updateInteraction() {
-        let hidden = !closable || window?.isKeyWindow != true
-        let active = closable && (hovered || containsKeyboardFocus)
+        let hidden = !closable
+        let active = closable && (selected || window?.isKeyWindow == true && (hovered || containsKeyboardFocus))
         if closeButton.isHidden != hidden { closeButton.isHidden = hidden }
         if closeButton.interactionActive != active { closeButton.interactionActive = active }
         needsDisplay = true

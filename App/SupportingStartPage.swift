@@ -4,7 +4,14 @@ import SpookkyCore
 enum SupportingTool: CaseIterable {
     case changes, terminal, files, artifact
     var title: String { switch self { case .changes: "Changes"; case .terminal: "Terminal"; case .files: "Files"; case .artifact: "Open artifact" } }
-    var symbol: String { switch self { case .changes: "arrow.triangle.branch"; case .terminal: "terminal"; case .files: "folder"; case .artifact: "doc.richtext" } }
+    @MainActor var image: NSImage? {
+        switch self {
+        case .changes: SpookkyStyle.changesImage
+        case .terminal: NSImage(systemSymbolName: "terminal", accessibilityDescription: nil)
+        case .files: NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
+        case .artifact: NSImage(systemSymbolName: "doc.richtext", accessibilityDescription: nil)
+        }
+    }
 }
 
 @MainActor final class SupportingStartPage: NSView {
@@ -31,7 +38,8 @@ enum SupportingTool: CaseIterable {
         for pair: [SupportingTool] in [[.changes, .terminal], [.files, .artifact]] {
             let row = NSStackView(); row.distribution = .fillEqually; row.spacing = SpookkyStyle.points(8)
             for tool in pair {
-                let button = ActionButton(tool.title, symbol: tool.symbol) { [weak self] in self?.onTool?(tool) }
+                let button = ActionButton(tool.title) { [weak self] in self?.onTool?(tool) }
+                button.image = tool.image; button.imagePosition = .imageLeading
                 button.alignment = .left; button.emphasis = .secondary
                 button.heightAnchor.constraint(equalToConstant: 36).displayScaled().isActive = true
                 row.addArrangedSubview(button)
@@ -44,7 +52,8 @@ enum SupportingTool: CaseIterable {
         [address, heading, tools].forEach { stack.addArrangedSubview($0) }; stack.orientation = .vertical; stack.alignment = .leading
         stack.spacing = SpookkyStyle.points(20); stack.translatesAutoresizingMaskIntoConstraints = false
         for tab in recent.reversed().prefix(5) where tab.target != .startPage {
-            let button = ActionButton(tab.displayTitle, symbol: SpookkyStyle.supportingSymbol(tab.target)) { [weak self] in self?.onRecent?(tab.target, tab.displayTitle) }
+            let button = ActionButton(tab.displayTitle) { [weak self] in self?.onRecent?(tab.target, tab.displayTitle) }
+            button.image = SpookkyStyle.supportingImage(tab.target); button.imagePosition = .imageLeading
             button.alignment = .left; stack.addArrangedSubview(button)
         }
         retainedSection.orientation = .vertical; retainedSection.alignment = .leading

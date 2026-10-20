@@ -43,6 +43,10 @@ final class GhosttyEngine {
                   let userdata = ghostty_surface_userdata(surface) else { return false }
             let view = Unmanaged<TerminalHostView>.fromOpaque(userdata).takeUnretainedValue()
             switch action.tag {
+            case GHOSTTY_ACTION_SCROLLBAR:
+                let bar = action.action.scrollbar
+                DispatchQueue.main.async { [weak view] in view?.receiveScrollbar(total: bar.total, offset: bar.offset, length: bar.len) }
+                return true
             case GHOSTTY_ACTION_SET_TITLE:
                 if view.onTitle != nil, let title = action.action.set_title.title {
                     let text = String(cString: title)

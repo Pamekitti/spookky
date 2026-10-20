@@ -71,6 +71,18 @@ Empty readiness excludes provider discovery, the first rendered frame and CLI re
 
 Source `5c4f716` completed all 20 matched cases, including four foreground observations. Its continuity attempt was interrupted after 12 minutes 51 seconds to repair startup acknowledgment during a native conversation switch. All 110 setup cycles passed their 13 resource checks. The preceding `67aa7fe` attempt was interrupted after 40 minutes 35 seconds to repair project-opening completion. Neither attempt is an eight-hour pass. The corrected `8b52a31` executable passed all 20 matched cases. Its eight-hour attempt failed after 960 successful checkpoints, the last at 4 hours 10 minutes 50 seconds. All 110 setup cycles passed their 13 resource checks. The maximum checkpoint gap was 17 seconds. The owner log recorded explicit termination calls for eight baseline shells. Two baseline shells and the output producer were still alive before fixture cleanup. The macOS log confirms an incoming Quit AppleEvent just before those calls; its sender is unconfirmed. All thirteen protected or diagnostic process identities were preserved. [Continuity attempt evidence](continuity-runs.json) retains this failure. No eight-hour pass exists.
 
+## Integration verification, 20 October 2026
+
+Integration with current main preserves contextual drafts, image/model launch arguments, restored provider icons and project avatars, one-shot title reveal, and restorable supporting-panel controls. Compact headers move Changes and layout actions into the conversation menu. Show/Hide stays visible and the selected tab retains readable text.
+
+[Integration results](integration-checks.json) record 2,839 passing native assertions across the affected suites. They include terminal truecolor, unread races, draft isolation, focus retention, native menu refresh, narrow/zoom hit targets, browser state and process preservation. Swift passed 329 XCTest cases with six skips and zero failures, plus 22 Swift Testing cases. Python completed 36 cases with two skips and zero failures. Offline ownership fixtures passed nine Codex and ten Claude checks without external model requests.
+
+The final application source is `ebe5f88`. Its Release executable SHA-256 is `434d4e2605dd6dc72f95ec313419adbda3806e7e98eecc14e5e647a572998574`. Suites ran again after relevant repairs; the result file retains their separate binary hashes. A final fixture-only correction checks utility geometry only when that utility is visible. Earlier failures remain in private local evidence.
+
+Native accessibility clicks in the ordinary development app verified Changes opening, panel hiding and restoration of the selected Changes tab. The development app then quit through its native menu. Provider history was read through its existing discovery path. No provider conversation was resumed or sent a prompt during that check.
+
+These checks establish scoped merge readiness. They do not establish installed delivery or resolve the eight-hour acceptance gate. The earlier interrupted continuity attempts and provider filesystem-access limits below remain recorded.
+
 ## Remaining limits
 
 Standalone Ghostty configuration was read, but the desktop tool denied access to its app. Visual provider-TUI parity remains unproven. Standalone Ghostty is 1.2.3; the embedded engine is 1.3.1. ANSI fixtures alone do not prove parity.
@@ -85,7 +97,7 @@ The development bundle's existing Documents grant resolves to an earlier frozen 
 
 Real Codex activity hooks remained gated by its native trust decision. Claude activity callbacks passed. Missing monitoring stays unknown. Native resume does not establish exclusive cross-application Claude ownership.
 
-## Tested application source
+## Earlier tested application source
 
 Application source commit: `8b52a312073f8d34d56630cdc5403d6fbbdc519c`.
 

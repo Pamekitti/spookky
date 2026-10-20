@@ -18,6 +18,7 @@ import SpookkyGit
     private let avatarCache: GitHubAvatarCache
     private var avatarTasks: [UUID: Task<Void, Never>] = [:]
     private var projectOwners: [String: String] = [:]
+    private var projectImages: [UUID: NSImage] = [:]
     private let sessionCatalog: any SessionCatalogReading
     private let associationResolver = ProjectAssociationResolver()
     var historyRefreshTask: Task<Void, Never>?
@@ -47,7 +48,12 @@ import SpookkyGit
     private let historyWatcher = HistorySourceWatcher()
     let conversationSidebar = WorkspaceSidebarView(frame: .zero)
     private var sidebarRecords: [String: ConversationCatalogRecord] = [:]
-    private var projectImages: [UUID: NSImage] = [:]
+    private let sidebarPRService = GitHubPullRequestService()
+    private var sidebarGit: [String: (checkout: SidebarCheckoutInfo?, pr: PullRequestStatus?, date: Date)] = [:]
+    private var sidebarGitTask: Task<Void, Never>?
+    private var sidebarGitTimer: Timer?
+    private var sidebarGitGeneration = UUID()
+    private var sidebarVisibleItems: [WorkspaceSidebarItem] = []
     let historySearch = ChromeSearchField()
     let launches: LaunchCoordinator
     let surfaces: TerminalSurfaceManager
@@ -68,7 +74,6 @@ import SpookkyGit
     }
     private let sidebarToggle = ActionButton("", symbol: "sidebar.left", help: "Collapse workspace sidebar · ⌘B", action: {})
     private let tabOverflow = ActionButton("", symbol: "chevron.down", help: "All tabs", action: {})
-    private let trailingHeaderActions = NSStackView()
     private let header = WorkspaceHeaderView()
     private var toggleLeading: NSLayoutConstraint!
     private var navigationLeading: NSLayoutConstraint!
@@ -77,6 +82,7 @@ import SpookkyGit
     private var supportHeaderLeading: NSLayoutConstraint!
     private var workspaceBottom: NSLayoutConstraint!
     private var overflowWidth: NSLayoutConstraint!
+    private var changesWidth: NSLayoutConstraint!
     private var compactHeader = false
     private var updatingHeader = false
     private let cancelLocation = ActionButton("Cancel operation", action: {})
@@ -86,6 +92,7 @@ import SpookkyGit
     private let sidebarDivider = FileDivider()
     private var railWidth: NSLayoutConstraint!
     private var composers: [UUID: LaunchComposerView] = [:]
+    private let promptImageDirectory: URL
     private var contentKey = ""
     private var navigation: [UUID] = []
     private var navigationIndex = -1
@@ -102,6 +109,8 @@ import SpookkyGit
     private let navigationForward = ActionButton("", symbol: "chevron.right", help: "Next thread", action: {})
     private let threadDetails = ActionButton("", symbol: "slider.horizontal.3", help: "Thread details", action: {})
     private let threadActions = ActionButton("", symbol: "ellipsis", help: "Thread actions", action: {})
+    private let threadChanges = ActionButton("", help: "View changes", action: {})
+    private let supportingToggle = ActionButton("", symbol: "sidebar.right", help: "Show side panel", action: {})
 
     var renderTask: Task<Void, Never>?
     private var closing = Set<UUID>()
@@ -130,6 +139,7 @@ import SpookkyGit
     private let activityRoot: URL
     private var knownActivityBindings = Set<UUID>()
     private var knownActivityTabs = Set<UUID>()
+    private var acknowledgmentTasks: [UUID: Task<Void, Never>] = [:]
     private var agentPreferencesTask: Task<Void, Never>?
     private let backgroundFixture: Bool
     private var fixtureCloseRequests: [[String: String]] = []
@@ -139,6 +149,7 @@ import SpookkyGit
          resolver: any ExecutableResolver = CLIResolver(), backgroundFixture: Bool = false,
          catalog: (any SessionCatalogReading)? = nil) throws {
         let paths = AppPaths(bundleID: Bundle.main.bundleIdentifier, home: FileManager.default.homeDirectoryForCurrentUser, userID: getuid())
+        promptImageDirectory = paths.data.appendingPathComponent("PromptImages")
         avatarCache = GitHubAvatarCache(directory: paths.data.appendingPathComponent("AvatarCache"))
         self.backgroundFixture = backgroundFixture
         let fixture = backgroundFixture || CommandLine.arguments.contains { $0.hasPrefix("--workspace-benchmark") }
@@ -155,7 +166,7 @@ import SpookkyGit
         let actionLog = CommandLine.arguments.contains("--workspace-benchmark-continuity") ? root.appendingPathComponent("runtime-actions.json") : nil
         let baseRuntime = try TmuxRuntime(executable: tmux, helper: helper, root: root, eventFile: runtimeEvents.eventFile, actionLog: actionLog)
         let runtime: any SessionViewportRuntime
-        if CommandLine.arguments.contains("--workspace-benchmark-races"), CommandLine.arguments.contains("--workspace-benchmark-count"),
+        if (CommandLine.arguments.contains("--workspace-benchmark-races") || CommandLine.arguments.contains("--workspace-benchmark-sidebar")), CommandLine.arguments.contains("--workspace-benchmark-count"),
            root.path.hasPrefix("/tmp/spookky-m1-"), ProcessInfo.processInfo.environment["SPOOKKY_M1_DATA"] != nil {
             runtime = WorkspaceViewportFixtureRuntime(baseRuntime)
         } else { runtime = baseRuntime }
@@ -238,6 +249,7 @@ import SpookkyGit
             return true
         }
         surfaces.onViewport = { [weak self] id, viewport in self?.store.update { $0.setViewport(viewport, tabID: id) } }
+        surfaces.onViewportChanged = { [weak self] _ in self?.refreshAgentAttention() }
         surfaces.onViewportFailure = { [weak self] id, error in
             guard let self, self.store.state.tab(id)?.binding != nil else { return }
             self.store.update { $0.apply(.failure(.unavailable, TabFailure(.observation, error.localizedDescription), clearIntent: false), to: id) }
@@ -306,13 +318,28 @@ import SpookkyGit
         let tabs = Set(store.state.workspaces.flatMap(\.tabs).map(\.id))
         for id in knownActivityTabs.subtracting(tabs) { agentNotifications.clear(id) }
         knownActivityTabs = tabs
-        let seen = store.state.visibleTabIDs.filter { id in
-            guard agentTargetVisible(id), let activity = store.state.tab(id)?.activity else { return false }
-            return (activity.completionID != nil && activity.completionID != activity.seenCompletionID) || (clearManual && activity.manualUnread)
-        }
-        if !seen.isEmpty {
-            store.update(debounced: true) { state in for id in seen { state.acknowledgeAgent(id) } }
-            for id in seen { agentNotifications.clear(id) }
+        for id in store.state.visibleTabIDs {
+            guard acknowledgmentTasks[id] == nil else { continue }
+            guard agentTargetVisible(id), let activity = store.state.tab(id)?.activity else { continue }
+            guard (activity.completionID != nil && activity.completionID != activity.seenCompletionID) || (clearManual && activity.manualUnread) else { continue }
+            let receipt = AgentCompletionReceipt(activity)
+            let observedView = surfaces.view(id), viewportRevision = observedView?.viewportRevision
+            acknowledgmentTasks[id] = Task { [weak self] in
+                guard let self else { return }
+                defer {
+                    acknowledgmentTasks[id] = nil
+                    if let latest = store.state.tab(id)?.activity, latest.unread,
+                       latest.completionID != receipt.completionID || latest.invocationID != receipt.invocationID ||
+                       surfaces.view(id) !== observedView || observedView?.viewportRevision != viewportRevision {
+                        refreshAgentAttention(clearManual: clearManual)
+                    }
+                }
+                let atBottom = try? await surfaces.viewportAtBottom(id)
+                guard !Task.isCancelled, agentTargetVisible(id) else { return }
+                var acknowledged = false
+                store.update(debounced: true) { acknowledged = $0.acknowledgeAgent(id, receipt: receipt, viewportAtBottom: atBottom ?? nil) }
+                if acknowledged { agentNotifications.clear(id) }
+            }
         }
         agentNotifications.updateBadge(store.state, preferences: services.agentPreferences)
         let bindings = Set(store.state.workspaces.flatMap(\.tabs).compactMap { $0.binding?.id ?? $0.launch?.operationID })
@@ -465,6 +492,8 @@ import SpookkyGit
         }
     }
     deinit {
+        sidebarGitTask?.cancel(); sidebarGitTimer?.invalidate()
+        for task in acknowledgmentTasks.values { task.cancel() }
         historyRefreshTask?.cancel()
         conversationOpenTask?.cancel(); historySearchTask?.cancel()
         let watcher = historyWatcher
@@ -529,7 +558,7 @@ import SpookkyGit
         railScroll.documentView = rail; railScroll.hasVerticalScroller = false; railScroll.hasHorizontalScroller = false
         railScroll.horizontalScrollElasticity = .none; railScroll.verticalScrollElasticity = .none
         railScroll.autohidesScrollers = true
-        railScroll.drawsBackground = true; railScroll.backgroundColor = SpookkyPalette.sidebar
+        railScroll.drawsBackground = true; railScroll.backgroundColor = SidebarPalette.background
         tabs.orientation = .horizontal; tabs.spacing = 0; tabs.alignment = .centerY
         tabs.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: SpookkyStyle.points(8))
         tabScroll.documentView = tabs; tabScroll.hasHorizontalScroller = false; tabScroll.autohidesScrollers = true; tabScroll.drawsBackground = false
@@ -540,14 +569,16 @@ import SpookkyGit
         warning.isHidden = true
         cancelLocation.isHidden = true
         cancelLocation.handler = { [weak self] in guard let self else { return }; locations.activeOperationIDs.forEach { self.locations.cancel($0) } }
-        trailingHeaderActions.orientation = .horizontal; trailingHeaderActions.alignment = .centerY; trailingHeaderActions.spacing = SpookkyStyle.points(4)
-        trailingHeaderActions.detachesHiddenViews = true
-        for view in [tabOverflow, threadActions, threadDetails] { trailingHeaderActions.addArrangedSubview(view) }
-        for view in [header, railScroll, tabScroll, workspaceLayout.headerView, workspaceBody, sidebarToggle, trailingHeaderActions, sidebarDivider, warning, cancelLocation, navigationBack, navigationForward] { view.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(view) }
+        for view in [header, railScroll, tabScroll, workspaceLayout.headerView, workspaceBody, sidebarToggle, tabOverflow, sidebarDivider, warning, cancelLocation, navigationBack, navigationForward, threadChanges, supportingToggle] { view.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(view) }
         rail.translatesAutoresizingMaskIntoConstraints = false; tabs.translatesAutoresizingMaskIntoConstraints = false
         navigationBack.handler = { [weak self] in self?.navigateThread(-1) }
         navigationForward.handler = { [weak self] in self?.navigateThread(1) }
         threadDetails.handler = { [weak self] in self?.showThreadDetails() }
+        threadChanges.handler = { [weak self] in self?.showChanges() }
+        threadChanges.image = SpookkyStyle.changesImage; threadChanges.imagePosition = .imageOnly
+        threadChanges.alignsToBounds = true
+        supportingToggle.alignsToBounds = true
+        supportingToggle.handler = { [weak self] in self?.toggleSupportingPanel() }
         threadActions.handler = { [weak self] in
             guard let self, let id = store.state.selectedWorkspaceID else { return }
             headerActionsMenu(id).popUp(positioning: nil, at: NSPoint(x: 0, y: threadActions.bounds.minY), in: threadActions)
@@ -555,7 +586,7 @@ import SpookkyGit
         sidebarDivider.setAccessibilityLabel("Resize workspace sidebar")
         sidebarDivider.onMove = { [weak self] x in self?.services.changeDisplay { $0.sidebarWidth = Double(x) / $0.zoom } }
         sidebarDivider.onKey = { [weak self] delta in self?.services.changeDisplay { $0.sidebarWidth += delta < 0 ? -16 : 16 } }
-        sidebarDivider.onReset = { [weak self] in self?.services.changeDisplay { $0.sidebarWidth = 232 } }
+        sidebarDivider.onReset = { [weak self] in self?.services.changeDisplay { $0.sidebarWidth = 264 } }
         railWidth = railScroll.widthAnchor.constraint(equalToConstant: SpookkyStyle.sidebarWidth)
         navigationLeading = navigationBack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 92)
         toggleLeading = sidebarToggle.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 196).displayScaled()
@@ -564,6 +595,7 @@ import SpookkyGit
         supportHeaderLeading = workspaceLayout.headerView.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: SpookkyStyle.sidebarWidth + 220)
         workspaceBottom = workspaceBody.bottomAnchor.constraint(equalTo: content.bottomAnchor)
         overflowWidth = tabOverflow.widthAnchor.constraint(equalToConstant: 0).displayScaled()
+        changesWidth = threadChanges.widthAnchor.constraint(equalToConstant: 28).displayScaled()
         NSLayoutConstraint.activate([
             header.leadingAnchor.constraint(equalTo: content.leadingAnchor), header.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             header.topAnchor.constraint(equalTo: content.topAnchor), header.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).displayScaled(alreadyScaled: true),
@@ -574,21 +606,25 @@ import SpookkyGit
             sidebarDivider.widthAnchor.constraint(equalToConstant: 6),
             rail.widthAnchor.constraint(equalTo: railScroll.widthAnchor), rail.heightAnchor.constraint(equalTo: railScroll.heightAnchor),
             tabsLeading, tabsWidth, supportHeaderLeading,
-            workspaceLayout.headerView.trailingAnchor.constraint(equalTo: trailingHeaderActions.leadingAnchor, constant: -4).displayScaled(),
+            workspaceLayout.headerView.trailingAnchor.constraint(equalTo: tabOverflow.leadingAnchor, constant: -4).displayScaled(),
             workspaceLayout.headerView.topAnchor.constraint(equalTo: content.topAnchor),
             workspaceLayout.headerView.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).displayScaled(alreadyScaled: true),
             tabScroll.topAnchor.constraint(equalTo: content.topAnchor), tabScroll.heightAnchor.constraint(equalToConstant: SpookkyStyle.headerHeight).displayScaled(alreadyScaled: true),
             tabs.heightAnchor.constraint(equalTo: tabScroll.heightAnchor),
             navigationLeading, toggleLeading, sidebarToggle.topAnchor.constraint(equalTo: content.topAnchor, constant: 6).displayScaled(),
             sidebarToggle.widthAnchor.constraint(equalToConstant: 28).displayScaled(), sidebarToggle.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
-            trailingHeaderActions.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -8).displayScaled(),
-            trailingHeaderActions.centerYAnchor.constraint(equalTo: header.centerYAnchor), overflowWidth,
-            threadDetails.widthAnchor.constraint(equalToConstant: 28).displayScaled(), threadDetails.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
-            threadActions.widthAnchor.constraint(equalToConstant: 28).displayScaled(), threadActions.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
+            supportingToggle.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -8).displayScaled(),
+            threadChanges.trailingAnchor.constraint(equalTo: supportingToggle.leadingAnchor, constant: -4).displayScaled(),
+            tabOverflow.trailingAnchor.constraint(equalTo: threadChanges.leadingAnchor, constant: -4).displayScaled(), overflowWidth,
+            supportingToggle.widthAnchor.constraint(equalToConstant: 28).displayScaled(), supportingToggle.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
+            changesWidth, threadChanges.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
+            threadChanges.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor),
+            supportingToggle.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor),
             navigationBack.widthAnchor.constraint(equalToConstant: 28).displayScaled(), navigationBack.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
             navigationForward.widthAnchor.constraint(equalToConstant: 28).displayScaled(), navigationForward.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
             navigationBack.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor), navigationForward.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor),
             navigationForward.leadingAnchor.constraint(equalTo: navigationBack.trailingAnchor),
+            tabOverflow.centerYAnchor.constraint(equalTo: sidebarToggle.centerYAnchor),
             tabOverflow.heightAnchor.constraint(equalToConstant: 28).displayScaled(),
             workspaceBody.leadingAnchor.constraint(equalTo: railScroll.trailingAnchor), workspaceBody.trailingAnchor.constraint(equalTo: content.trailingAnchor),
             workspaceBody.topAnchor.constraint(equalTo: tabScroll.bottomAnchor), workspaceBottom,
@@ -629,24 +665,28 @@ import SpookkyGit
             workspaceLayout.setPrimaryItem(item, joined: joined)
             item.selected = !joined || workspace.support?.resolvedFullWidthSelection == .primary
         }
+        let expanded = supportingPanelExpanded
         compactHeader = content.bounds.width - tabStart < SpookkyStyle.points(240)
         workspaceLayout.compactHeader = compactHeader
         threadDetails.isHidden = compactHeader
+        threadChanges.isHidden = compactHeader
+        changesWidth.constant = compactHeader ? 0 : SpookkyStyle.points(28)
         threadActions.isEnabled = compactHeader ? store.state.selected != nil : store.state.selected?.isLanding == false
         threadActions.toolTip = compactHeader ? "Tabs and thread actions" : "Thread actions"
         threadActions.setAccessibilityLabel(threadActions.toolTip!)
-        let trailing = SpookkyStyle.points(compactHeader ? 40 : 72)
+        let utilityWidth = [threadChanges, supportingToggle].filter { !$0.isHidden }.reduce(CGFloat.zero) { $0 + $1.intrinsicContentSize.width }
+        let headerEnd = content.bounds.width - utilityWidth - SpookkyStyle.points(24)
         let splitStart = width + workspaceLayout.primaryPaneWidth(in: max(0, content.bounds.width - width)) + 5
         let preferredMainWidth = tabs.arrangedSubviews.compactMap { ($0 as? WorkspaceTabView)?.preferredWidth }.reduce(0, +) + tabs.edgeInsets.left + tabs.edgeInsets.right
         func widths(overflow: CGFloat) -> (main: CGFloat, supportStart: CGFloat, support: CGFloat) {
-            let available = max(0, content.bounds.width - tabStart - trailing - overflow)
-            let main = workspaceLayout.joinsPrimary ? 0 : workspaceLayout.isSplit ? min(available, max(0, splitStart - tabStart - 5)) :
-                min(preferredMainWidth, max(0, available - workspaceLayout.headerControlsWidth))
-            let start = workspaceLayout.joinsPrimary ? tabStart : workspaceLayout.isSplit ? splitStart : tabStart + main
-            return (main, start, max(0, content.bounds.width - trailing - overflow - start))
+            let available = max(0, headerEnd - tabStart - overflow)
+            let main = workspaceLayout.joinsPrimary ? 0 : expanded && workspaceLayout.isSplit ? min(available, max(0, splitStart - tabStart - 5)) :
+                min(preferredMainWidth, max(0, available - (expanded ? workspaceLayout.headerControlsWidth : 0)))
+            let start = workspaceLayout.joinsPrimary ? tabStart : expanded && workspaceLayout.isSplit ? splitStart : tabStart + main
+            return (main, start, max(0, headerEnd - overflow - start))
         }
         let initial = widths(overflow: 0)
-        let overflowing = (!workspaceLayout.joinsPrimary && preferredMainWidth > initial.main) || workspaceLayout.headerFittingWidth > initial.support
+        let overflowing = expanded && ((!workspaceLayout.joinsPrimary && preferredMainWidth > initial.main) || workspaceLayout.headerFittingWidth > initial.support)
         tabOverflow.isHidden = compactHeader || !overflowing
         let overflow = !compactHeader && overflowing
         let overflowButtonWidth = overflow ? SpookkyStyle.points(28) : 0
@@ -656,7 +696,10 @@ import SpookkyGit
         if tabsWidth.constant != resolved.main { tabsWidth.constant = resolved.main }
         if supportHeaderLeading.constant != resolved.supportStart { supportHeaderLeading.constant = resolved.supportStart }
         tabScroll.isHidden = store.state.selected == nil || workspaceLayout.joinsPrimary
-        workspaceLayout.headerView.isHidden = store.state.selected == nil
+        workspaceLayout.headerView.isHidden = store.state.selected == nil || !expanded
+        supportingToggle.toolTip = expanded ? "Hide side panel" : "Show side panel"
+        supportingToggle.setAccessibilityLabel(supportingToggle.toolTip!)
+        supportingToggle.setAccessibilityValue(expanded ? "Expanded" : "Collapsed")
     }
     private func showTabOverflow() {
         guard let workspace = store.state.selected else { return }
@@ -668,6 +711,7 @@ import SpookkyGit
         let menu = tabOverflowMenu(workspace)
         menu.addItem(.separator())
         menu.addItem(ClosureMenuItem("New tab") { [weak self] in self?.newTab() })
+        menu.addItem(ClosureMenuItem("View changes") { [weak self] in self?.showChanges() })
         menu.addItem(ClosureMenuItem("Thread details") { [weak self] in self?.showThreadDetails() })
         let layout = ClosureMenuItem(workspaceLayout.layoutActionTitle) { [weak self] in self?.workspaceLayout.toggleLayout() }
         layout.isEnabled = workspaceLayout.canToggleLayout; menu.addItem(layout)
@@ -684,7 +728,7 @@ import SpookkyGit
                 self?.store.update { $0.selectSupport(tab.id) }; self?.focusSupportingContent()
             }
             item.representedObject = tab.id
-            item.image = NSImage(systemSymbolName: SpookkyStyle.supportingSymbol(tab.target), accessibilityDescription: nil)
+            item.image = SpookkyStyle.supportingImage(tab.target)
             item.state = tab.id == workspace.support?.selectedTabID ? .on : .off; menu.addItem(item)
         }
         menu.addItem(.separator())
@@ -692,11 +736,30 @@ import SpookkyGit
         return menu
     }
     @objc private func toggleWorkspaceSidebar() { store.update { $0.sidebarCollapsed.toggle() } }
+    private func showChanges() {
+        store.update { $0.openSupport(.changes, title: "Changes") }
+        focusSupportingContent()
+    }
+    private var supportingPanelExpanded: Bool {
+        guard let panel = store.state.selected?.support else { return false }
+        return panel.layout != .collapsed && !panel.tabs.isEmpty
+    }
+    private func toggleSupportingPanel() {
+        guard let workspace = store.state.selected else { return }
+        if supportingPanelExpanded {
+            store.update { $0.setSupportingLayout(.collapsed) }
+            focusSelectedContent()
+        } else {
+            store.update {
+                if let selected = workspace.support?.selectedTabID { $0.selectSupport(selected) }
+                else { $0.openSupport(.startPage, title: "New tab") }
+            }
+            focusSupportingContent()
+        }
+    }
     @objc private func toggleCodeSidebar() {
         if (supportingContentHost as? BrowserArtifactContentHost)?.focusAddress(in: window) == true { return }
-        if workspaceLayout.showsSupportingContent { store.update { $0.setSupportingLayout(.collapsed) }; focusSelectedContent() }
-        else if store.state.selected?.support?.tabs.isEmpty == false { store.update { $0.setSupportingLayout(.split) } }
-        else { store.update { $0.openSupport(.changes, title: "Changes") } }
+        toggleSupportingPanel()
     }
     private func chooseSupportingFile(replacing tabID: UUID? = nil) {
         guard let workspace = store.state.selected else { return }
@@ -806,7 +869,7 @@ import SpookkyGit
         view.addItem(ClosureMenuItem("Toggle file tree") { [weak self] in self?.files.toggle() })
         view.addItem(ClosureMenuItem("Reset activity status") { [weak self] in if let ids = self?.store.state.selected?.tabs.map(\.id) { self?.changeAgentAttention(ids, action: "reset") } })
         view.addItem(ClosureMenuItem("Thread details") { [weak self] in self?.showThreadDetails() })
-        view.addItem(ClosureMenuItem("Review changes") { [weak self] in self?.store.update { $0.openSupport(.changes, title: "Changes") }; self?.files.focusSidebar() })
+        view.addItem(ClosureMenuItem("Review changes") { [weak self] in self?.showChanges() })
         for (title, action, key) in [("Toggle workspace sidebar", #selector(toggleWorkspaceSidebar), "b"),
                                      ("Show or hide supporting panel", #selector(toggleCodeSidebar), "l")] {
             let entry = view.addItem(withTitle: title, action: action, keyEquivalent: key)
@@ -952,7 +1015,7 @@ import SpookkyGit
         let key = state.visibleTabIDs.map { id in id.uuidString + (state.tab(id)?.status.rawValue ?? "") + String(describing: state.tab(id)?.binding?.id) }.joined() + String(describing: state.selectedWorkspaceID) + String(describing: state.selected?.support?.selectedTabID) + String(describing: state.selected?.support?.layout) + String(describing: state.selected?.support?.fullWidthSelection)
         for id in state.visibleTabIDs {
             if let tab = state.tab(id), let w = state.workspace(containing: id) {
-                composers[id]?.repositorySnapshot = w.projectID.flatMap { repositorySnapshots[$0] }
+                composers[id]?.repositorySnapshot = repositorySnapshots[w.projectID ?? w.id]
                 composers[id]?.update(tab, workspace: w, state: state)
             }
         }
@@ -966,6 +1029,9 @@ import SpookkyGit
     private func renderChrome() {
         let state = store.state, collapsed = state.sidebarCollapsed
         recordNavigation()
+        threadActions.isEnabled = state.selected?.isLanding == false
+        threadChanges.isEnabled = state.selected != nil
+        supportingToggle.isEnabled = state.selected != nil
         renderConversationSidebar(state, collapsed: collapsed)
         let tabsKey = String(describing: state.selectedWorkspaceID) + String(describing: state.selected?.primaryTerminalID)
         if tabsKey != tabRevision {
@@ -973,7 +1039,7 @@ import SpookkyGit
             tabRevision = tabsKey; tabPairs.removeAll(); clear(tabs)
             if let workspace = state.selected, let terminal = workspace.primaryTerminal {
                 let item = WorkspaceTabView(title: workspace.displayTitle,
-                    image: SpookkyStyle.toolImage(workspace.displayProvider), closable: false,
+                    image: SpookkyStyle.toolImage(workspace.displayProvider), closable: false, trailingActions: [threadActions, threadDetails],
                     onSelect: { [weak self] in self?.selectTab(terminal.id) })
                 item.titleButton.onDoubleClick = { [weak self] in if !workspace.isLanding { self?.rename(workspaceID: workspace.id) } }
                 item.titleButton.onNavigate = { [weak self] key in self?.moveTabFocus(from: terminal.id, offset: key == 123 || key == 126 ? -1 : 1) }
@@ -1449,10 +1515,66 @@ import SpookkyGit
                   let data = image.representation(using: .png, properties: [:]) else { return false }
             try data.write(to: root.appendingPathComponent(name + ".png")); return true
         }
+        func toolbarGeometryIsValid() -> Bool {
+            guard let heading = tabPairs[primary] else { return false }
+            return threadActions.superview === heading && threadDetails.superview === heading &&
+                heading.titleButton.frame.maxX <= threadActions.frame.minX + 0.5 &&
+                threadActions.frame.maxX <= heading.bounds.width + 0.5 &&
+                (threadDetails.isHidden || threadActions.frame.maxX < threadDetails.frame.minX && threadDetails.frame.maxX <= heading.bounds.width + 0.5) &&
+                (threadChanges.isHidden || threadChanges.frame.maxX < supportingToggle.frame.minX) &&
+                workspaceLayout.headerView.frame.maxX <= tabOverflow.frame.minX + 0.5 &&
+                (workspaceLayout.layoutButton.isHidden || workspaceLayout.layoutButton.frame.maxX <= workspaceLayout.headerView.bounds.width + 0.5)
+        }
+        threadChanges.performClick(nil)
+        if let renderTask { await renderTask.value }
+        let changesTab = store.state.selected?.support?.selectedTabID
+        checks["changes_shortcut_opens_and_focuses_changes"] = store.state.selected?.support?.selected?.target == .changes && workspaceLayout.hasFocus
+        checks["changes_shortcut_has_accessible_icon"] = threadChanges.title.isEmpty && threadChanges.image != nil && threadChanges.accessibilityLabel() == "View changes"
+        threadChanges.performClick(nil)
+        if let renderTask { await renderTask.value }
+        checks["changes_shortcut_reuses_existing_tab"] = store.state.selected?.support?.selectedTabID == changesTab && store.state.selected?.support?.tabs.filter { $0.target == .changes }.count == 1
+        store.update { $0.setSupportingLayout(.collapsed) }
+        threadChanges.performClick(nil)
+        if let renderTask { await renderTask.value }
+        checks["changes_shortcut_reveals_collapsed_panel"] = workspaceLayout.showsSupportingContent && store.state.selected?.support?.selectedTabID == changesTab
+        checks["changes_shortcut_screenshot"] = try capture("identity-toolbar-changes")
+        if let bitmap = threadChanges.bitmapImageRepForCachingDisplay(in: threadChanges.bounds) {
+            threadChanges.cacheDisplay(in: threadChanges.bounds, to: bitmap)
+            var brightness: [CGFloat] = []
+            for x in 0..<bitmap.pixelsWide {
+                for y in 0..<bitmap.pixelsHigh {
+                    if let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) {
+                        brightness.append((color.redComponent + color.greenComponent + color.blueComponent) / 3)
+                    }
+                }
+            }
+            checks["changes_shortcut_renders_visible_glyph"] = (brightness.max() ?? 0) - (brightness.min() ?? 0) > 0.1
+        } else { checks["changes_shortcut_renders_visible_glyph"] = false }
         store.update { $0.selectSupport(shell); $0.setSupportingLayout(.split, fraction: 0.55) }
         if let renderTask { await renderTask.value }
         window.contentView?.layoutSubtreeIfNeeded()
         let retainedPrimary = surfaces.view(primary), retainedShell = surfaces.view(shell)
+        for layout in [SupportingLayout.split, .fullWidth] {
+            store.update { $0.setSupportingLayout(layout) }
+            if let renderTask { await renderTask.value }
+            let descriptors = store.state.selected?.support?.tabs
+            supportingToggle.performClick(nil)
+            if let renderTask { await renderTask.value }
+            checks["panel_hide_\(layout.rawValue)"] = store.state.selected?.support?.layout == .collapsed && !body.isHidden &&
+                workspaceLayout.headerView.isHidden && workspaceLayout.panel.isHidden && tabOverflow.isHidden &&
+                store.state.selected?.support?.tabs == descriptors && window.firstResponder === retainedPrimary &&
+                supportingToggle.accessibilityLabel() == "Show side panel"
+            checks["panel_hidden_screenshot_\(layout.rawValue)"] = try capture("identity-panel-hidden-" + layout.rawValue)
+            supportingToggle.performClick(nil)
+            if let renderTask { await renderTask.value }
+            checks["panel_restore_\(layout.rawValue)"] = store.state.selected?.support?.layout == layout &&
+                store.state.selected?.support?.selectedTabID == shell && store.state.selected?.support?.fraction == 0.55 &&
+                workspaceLayout.showsSupportingContent && !workspaceLayout.headerView.isHidden && workspaceLayout.hasFocus &&
+                supportingToggle.accessibilityLabel() == "Hide side panel" && toolbarGeometryIsValid()
+        }
+        store.update { $0.setSupportingLayout(.split) }
+        if let renderTask { await renderTask.value }
+        checks["selected_support_has_visible_close_button"] = workspaceLayout.tabItems.first(where: { $0.selected })?.closeButton.isRevealed == true
         let supportHeaderFrame = workspaceLayout.headerView.convert(workspaceLayout.headerView.bounds, to: window.contentView)
         let primaryHeaderFrame = tabScroll.convert(tabScroll.bounds, to: window.contentView)
         let supportingFrame = workspaceLayout.panel.convert(workspaceLayout.panel.bounds, to: window.contentView)
@@ -1461,9 +1583,11 @@ import SpookkyGit
         checks["support_content_has_no_stacked_tab_header"] = workspaceLayout.content.frame == workspaceLayout.panel.bounds
         checks["running_primary_has_no_duplicate_header"] = retainedPrimary?.frame.height == body.bounds.height
         checks["split_tab_screenshot"] = try capture("identity-tabs-split")
+        checks["split_layout_has_full_view_icon"] = workspaceLayout.layoutButton.title.isEmpty && workspaceLayout.layoutButton.image != nil && workspaceLayout.layoutButton.accessibilityLabel() == "Full view"
         let splitPrimarySize = body.bounds.size
-        store.update { $0.setSupportingLayout(.fullWidth) }
+        workspaceLayout.layoutButton.performClick(nil)
         if let renderTask { await renderTask.value }
+        checks["full_layout_has_split_view_icon"] = workspaceLayout.layoutButton.title.isEmpty && workspaceLayout.layoutButton.image != nil && workspaceLayout.layoutButton.accessibilityLabel() == "Split view"
         checks["full_support_uses_entire_content_area"] = body.isHidden && workspaceLayout.panel.frame.width == workspaceLayout.bounds.width
         checks["hidden_primary_retains_terminal_geometry"] = body.bounds.size == splitPrimarySize
         let fullSupportingSize = workspaceLayout.panel.bounds.size
@@ -1483,7 +1607,10 @@ import SpookkyGit
             checks["full_browser_retains_both_terminal_surfaces"] = surfaces.view(primary) === retainedPrimary && surfaces.view(shell) === retainedShell
             checks["full_browser_tab_screenshot"] = try capture("identity-tabs-full-browser")
         }
-        store.update { $0.setSupportingLayout(.split) }
+        window.makeFirstResponder(threadActions)
+        checks["primary_actions_keep_primary_focus_scope"] = window.firstResponder === threadActions && !workspaceLayout.hasFocus
+        focusSupportingContent()
+        workspaceLayout.layoutButton.performClick(nil)
         if let renderTask { await renderTask.value }
         checks["return_to_split_restores_saved_fraction"] = store.state.selected?.support?.fraction == 0.55 && !body.isHidden && !workspaceLayout.panel.isHidden
         store.update { $0.selectSupport(shell) }
@@ -1535,11 +1662,34 @@ import SpookkyGit
                 checks["selected_support_tab_visible_\(theme.rawValue)_\(width)"] = workspaceLayout.selectedTabCanFit
                     ? workspaceLayout.selectedTabFullyVisible : workspaceLayout.selectedTabVisibleWidth > 0
                 checks["bounded_tab_widths_\(theme.rawValue)_\(width)"] = workspaceLayout.tabItems.allSatisfy {
-                    (SpookkyStyle.points(48)...WorkspaceTabView.maximumWidth).contains($0.bounds.width)
+                    (SpookkyStyle.points(48)...$0.maximumNaturalWidth).contains($0.bounds.width)
                 }
+                checks["toolbar_controls_do_not_overlap_\(theme.rawValue)_\(width)"] = toolbarGeometryIsValid()
+                checks["toolbar_controls_keep_utility_size_\(theme.rawValue)_\(width)"] = [threadChanges, supportingToggle, threadActions, threadDetails, workspaceLayout.layoutButton].filter { !$0.isHidden }.allSatisfy {
+                    abs($0.bounds.width - SpookkyStyle.points(28)) < 1 && abs($0.bounds.height - SpookkyStyle.points(28)) < 1
+                }
+                checks["compact_layout_keeps_explanation_\(theme.rawValue)_\(width)"] = !workspaceLayout.compact ||
+                    (!workspaceLayout.layoutButton.isEnabled && workspaceLayout.layoutButton.toolTip == "Widen the window or reduce zoom to show two readable panes")
             }
         }
         checks["desktop_narrow_both_themes"] = screenshots == 4
+        let savedZoom = services.displayPreferences.zoom
+        for zoom in [0.8, 1.0, 1.5, 2.0] {
+            services.changeDisplay { $0.zoom = zoom }
+            for width in [1120, 680] {
+                window.setContentSize(NSSize(width: width, height: 760))
+                if let renderTask { await renderTask.value }
+                window.contentView?.layoutSubtreeIfNeeded()
+                let label = "\(Int(zoom * 100))_\(width)"
+                checks["toolbar_zoom_geometry_" + label] = toolbarGeometryIsValid() &&
+                    (workspaceLayout.layoutButton.isHidden ||
+                        abs(workspaceLayout.layoutButton.bounds.width - SpookkyStyle.points(28)) < 1 && workspaceLayout.layoutButton.frame.minX >= 0)
+                checks["compact_header_keeps_changes_and_panel_actions_" + label] = !compactHeader ||
+                    (threadChanges.isHidden && !supportingToggle.isHidden && headerActionsMenu(workspaceID).items.contains { $0.title == "View changes" })
+                checks["toolbar_zoom_compact_state_" + label] = workspaceLayout.layoutButton.isEnabled == (!workspaceLayout.compact && store.state.selected?.support?.tabs.isEmpty == false)
+            }
+        }
+        services.changeDisplay { $0.zoom = savedZoom }
         store.update {
             $0.recordAgentEvent(AgentEvent(bindingID: binding.id, invocationID: binding.id, secret: UUID(), provider: .codex,
                                           kind: .needsInput, sessionID: codexID.sessionID))
@@ -1581,13 +1731,23 @@ import SpookkyGit
         }
         let draftTerminal = store.state.primaryTerminalID!
         if let renderTask { await renderTask.value }
+        supportingToggle.performClick(nil)
+        if let renderTask { await renderTask.value }
+        checks["empty_panel_toggle_opens_new_tab_without_agent"] = store.state.selected?.support?.selected?.target == .startPage &&
+            store.state.selected?.tabs.allSatisfy { $0.binding == nil } == true && workspaceLayout.hasFocus
+        let closeStartPage = workspaceLayout.tabItems.first(where: { $0.selected && $0.closable })?.closeButton
+        checks["new_tab_close_is_visible"] = closeStartPage?.isRevealed == true && closeStartPage?.isHidden == false
+        closeStartPage?.performClick(nil)
+        if let renderTask { await renderTask.value }
+        checks["last_support_close_collapses_panel"] = store.state.selected?.support?.tabs.isEmpty == true &&
+            workspaceLayout.headerView.isHidden && supportingToggle.accessibilityLabel() == "Show side panel"
         guard let composer = composers[draftTerminal] else { throw LaunchError.invalid("Startup composer did not render.") }
         for (theme, width, height) in [(WorkspaceAppearance.dark, 1120, 760), (.light, 680, 480)] {
             store.update { $0.appearance = theme }
             window.setContentSize(NSSize(width: width, height: height))
             window.contentView?.layoutSubtreeIfNeeded()
             let editor = composer.convert(composer.prompt.bounds, from: composer.prompt)
-            checks["startup_composer_bottom_\(width)"] = editor.midY < composer.bounds.midY && editor.minX >= 24 && editor.maxX <= composer.bounds.width - 24
+            checks["startup_composer_centered_\(width)"] = abs(editor.midX - composer.bounds.midX) < 2 && editor.minX >= 24 && editor.maxX <= composer.bounds.width - 24
             checks["startup_screenshot_\(width)"] = try capture("identity-startup-" + theme.rawValue + "-" + String(width))
         }
         checks["startup_keeps_initial_draft"] = composer.prompt.string == "Retain this starting instruction"
@@ -1674,6 +1834,7 @@ import SpookkyGit
             $0.renameWorkspace(workspaceID, name)
             $0.editDraft($0.selectedTab!.id, tool: .codex, prompt: "Keep this unsent draft")
         }
+        if let renderTask { await renderTask.value }
         let original = store.state.selected!
         let projectKey = "project:" + projectID.uuidString, workspaceKey = sidebarItemIDForFixture(workspaceID)
         var checks: [String: Bool] = [:]
@@ -1694,14 +1855,17 @@ import SpookkyGit
         }
         let tabClose = pair.closeButton
         checks["section_accessibility_press_is_inert"] = sidebarCellForFixture("section:projects")?.accessibilityPerformPress() == false
-        checks["single_line_conversation_row"] = cell.subviews.compactMap { $0 as? NSTextField }.count == 1 && abs(cell.bounds.height - 32) < 0.5
+        checks["single_line_conversation_row"] = cell.subviews.compactMap { $0 as? NSTextField }.count == 1 && abs(cell.bounds.height - 31) < 0.5
         let projectIcon = sidebarCellForFixture(projectKey)?.subviews.compactMap { $0 as? NSImageView }.first
         let conversationIcon = cell.subviews.compactMap { $0 as? NSImageView }.first
-        checks["project_content_has_internal_padding"] = projectIcon.map { abs($0.convert($0.bounds, to: conversationSidebar).minX - 8) < 0.5 } == true
-        checks["conversation_has_only_one_indentation_level"] = conversationIcon.map { abs($0.convert($0.bounds, to: conversationSidebar).minX - 20) < 0.5 } == true
+        let conversationTitle = cell.subviews.compactMap { $0 as? NSTextField }.first
+        let projectTitle = sidebarCellForFixture(projectKey)?.subviews.compactMap { $0 as? NSTextField }.first
+        checks["project_content_has_internal_padding"] = projectIcon.map { abs($0.convert($0.bounds, to: conversationSidebar).minX - 12) < 0.5 } == true
+        checks["conversation_and_project_titles_align_with_provider_icon"] = conversationIcon?.isHidden == false && conversationIcon?.image != nil &&
+            conversationTitle.map { abs($0.frame.minX - 35) < 0.5 } == true && projectTitle.map { abs($0.frame.minX - 35) < 0.5 } == true
         railScroll.contentView.scroll(to: NSPoint(x: 120, y: 0)); railScroll.reflectScrolledClipView(railScroll.contentView)
         checks["fixed_sidebar_controls_cannot_scroll_sideways"] = railScroll.contentView.bounds.minX == 0 && railScroll.horizontalScrollElasticity == .none
-        checks["full_title_in_accessibility_and_tooltip"] = cell.toolTip?.contains(name) == true && cell.accessibilityLabel()?.contains(name) == true
+        checks["full_title_in_accessibility_without_native_tooltip"] = cell.toolTip == nil && cell.accessibilityLabel()?.contains(name) == true
         checks["thread_menu_has_archive_without_close"] = conversationSidebar.onContextMenu?(workspaceKey)?.items.contains { $0.title == "Archive" } == true && conversationSidebar.onContextMenu?(workspaceKey)?.items.contains { $0.title == "Close conversation view" } == false
         checks["compact_tab_close_target"] = abs(tabClose.frame.width - 24) < 0.5 && abs(tabClose.frame.height - 24) < 0.5
         window.makeFirstResponder(pair.titleButton); await Task.yield()
@@ -1719,6 +1883,8 @@ import SpookkyGit
         (window.firstResponder as? NSView)?.keyDown(with: try key(36, "\r"))
         checks["project_keyboard_collapses_rows"] = sidebarCellForFixture(workspaceKey) == nil && store.state.projects.first { $0.id == projectID }?.isCollapsed == true
         checks["collapse_preserves_workspace_and_draft"] = store.state.workspaces.first { $0.id == workspaceID } == original
+        interactionDetails["original_workspace"] = String(data: try JSONEncoder().encode(original), encoding: .utf8)
+        interactionDetails["collapsed_workspace"] = String(data: try JSONEncoder().encode(store.state.workspaces.first { $0.id == workspaceID }), encoding: .utf8)
         checks["collapse_preserves_project_keyboard_focus"] = conversationSidebar.focusedItemID == projectKey && (window.firstResponder as? NSView)?.isDescendant(of: conversationSidebar) == true
         (window.firstResponder as? NSView)?.keyDown(with: try key(36, "\r"))
         checks["expand_restores_rows"] = sidebarCellForFixture(workspaceKey) != nil
@@ -1735,6 +1901,7 @@ import SpookkyGit
             await Task.yield()
             checks["project_mouse_click_toggles_without_selection_or_keyboard_fill"] = store.state.projects.first { $0.id == projectID }?.isCollapsed == true &&
                 table.selectedRow == -1 && conversationSidebar.keyboardFocusItemID == nil && store.state.selectedWorkspaceID == workspaceID
+            interactionDetails["project_click_state"] = "collapsed=\(store.state.projects.first { $0.id == projectID }?.isCollapsed == true) selectedRow=\(table.selectedRow) keyboard=\(conversationSidebar.keyboardFocusItemID ?? "none") workspace=\(store.state.selectedWorkspaceID == workspaceID)"
             conversationSidebar.focusItem(projectKey)
             (window.firstResponder as? NSView)?.keyDown(with: try key(36, "\r"))
             checks["keyboard_navigation_restores_neutral_focus_after_mouse_click"] = conversationSidebar.keyboardFocusItemID == projectKey && sidebarCellForFixture(workspaceKey) != nil
@@ -1797,23 +1964,23 @@ import SpookkyGit
             interactionDetails["expected_hover_after_scroll"] = expected ?? "none"
             checks["scroll_reconciles_stationary_pointer"] = oldHover != nil && expected != nil && oldHover != expected && conversationSidebar.hoveredItemID == expected
             func actions(_ view: NSView) -> [ActionButton] { (view as? ActionButton).map { [$0] } ?? view.subviews.flatMap { actions($0) } }
-            checks["only_one_hover_accessory_visible"] = actions(conversationSidebar).filter { !$0.isHidden }.count == 1
+            checks["two_direct_hover_actions_visible"] = actions(conversationSidebar).filter { !$0.isHidden }.count == 2
             interactionDetails["visible_hover_accessories"] = String(actions(conversationSidebar).filter { !$0.isHidden }.count)
             let title = expected.flatMap { sidebarCellForFixture($0) }?.subviews.compactMap { $0 as? NSTextField }.first
-            checks["hover_does_not_animate_or_shift_title"] = title?.maximumNumberOfLines == 1 && title?.layer?.animationKeys()?.isEmpty != false
+            checks["hover_title_stays_single_line_and_clipped"] = title?.maximumNumberOfLines == 1 && title?.layer?.animationKeys()?.isEmpty != false
             window.orderOut(nil); await Task.yield()
             checks["inactive_window_hides_all_row_accessories"] = actions(conversationSidebar).allSatisfy(\.isHidden)
             try await activate()
-            checks["reactivation_reveals_only_hovered_row_accessory"] = window.isKeyWindow && actions(conversationSidebar).filter { !$0.isHidden }.count == 1
+            checks["reactivation_reveals_only_hovered_row_accessory"] = window.isKeyWindow && actions(conversationSidebar).filter { !$0.isHidden }.count == 2
             scroller.contentView.scroll(to: NSPoint(x: 0, y: scroller.contentView.bounds.minY + 96))
             scroller.reflectScrolledClipView(scroller.contentView); await Task.yield()
             let reactivatedRow = table.row(at: table.convert(local, from: nil))
             checks["reactivated_scroll_hides_other_row_accessories"] = updated.indices.contains(reactivatedRow) &&
-                conversationSidebar.hoveredItemID == updated[reactivatedRow].id && actions(conversationSidebar).filter { !$0.isHidden }.count == 1
+                conversationSidebar.hoveredItemID == updated[reactivatedRow].id && actions(conversationSidebar).filter { !$0.isHidden }.count == 2
             conversationSidebar.pointerLocation = { _ in nil }
             conversationSidebar.focusItem(focusedID); await Task.yield()
             let accessory = sidebarCellForFixture(focusedID)?.subviews.compactMap { $0 as? ActionButton }.first
-            checks["keyboard_focus_reveals_only_its_row_accessory"] = accessory?.isHidden == false && actions(conversationSidebar).filter { !$0.isHidden }.count == 1
+            checks["keyboard_focus_reveals_only_its_row_accessory"] = accessory?.isHidden == false && actions(conversationSidebar).filter { !$0.isHidden }.count == 2
             if let accessory { window.makeFirstResponder(accessory) }
             await Task.yield()
             checks["revealed_row_accessory_accepts_keyboard_focus"] = accessory != nil && window.firstResponder === accessory && accessory?.isHidden == false
@@ -1874,14 +2041,127 @@ import SpookkyGit
             checks[green ? "native_truecolor_green_survives_tmux" : "native_truecolor_red_survives_tmux"] =
                 surface.visibleText().contains("SPOOKKY_NATIVE_COLOR_ENV_OK") && RenderedFixtureProbe.matches(surface, green: green)
         }
-        surface.insertText("SPOOKKY_SIDEBAR_UNSENT", replacementRange: NSRange(location: NSNotFound, length: 0))
+        surface.insertText("for i in {1..120}; do printf 'READ_CHECK_%s\\n' \"$i\"; done", replacementRange: NSRange(location: NSNotFound, length: 0))
+        surface.keyDown(with: try key(36, "\r"))
+        try await Task.sleep(for: .milliseconds(250))
+        try await surfaces.scrollFixtureHistory(shellID, offset: 25)
+        let invocation = UUID(), secret = UUID()
+        func activityEvent(_ kind: AgentEventKind) -> AgentEvent {
+            AgentEvent(bindingID: binding.id, invocationID: invocation, secret: secret, provider: .codex, kind: kind)
+        }
+        store.update { $0.recordAgentEvent(activityEvent(.working)); $0.recordAgentEvent(activityEvent(.finished)) }
+        try await Task.sleep(for: .milliseconds(250))
+        let scrolledBottom = try await surfaces.viewportAtBottom(shellID)
+        checks["completion_stays_unread_in_real_scrollback"] = store.state.tab(shellID)?.activity?.unread == true && scrolledBottom == false
+        interactionDetails["observed_scrolled_bottom"] = String(describing: scrolledBottom)
+        try await surfaces.scrollFixtureHistory(shellID, offset: 0)
+        window.makeKeyAndOrderFront(nil); window.makeFirstResponder(surface); NSApp.activate(ignoringOtherApps: true)
+        refreshAgentAttention()
+        for _ in 0..<100 {
+            if store.state.tab(shellID)?.activity?.unread == false { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        checks["completion_acknowledged_at_real_terminal_bottom"] = store.state.tab(shellID)?.activity?.unread == false
+        interactionDetails["observed_live_bottom"] = String(describing: try await surfaces.viewportAtBottom(shellID))
+        if let ownerID = store.state.workspace(containing: shellID)?.id {
+            store.update { _ = $0.showLanding(homeDirectory: root.path) }
+            if let renderTask { await renderTask.value }
+            store.update { $0.recordAgentEvent(activityEvent(.working)); $0.recordAgentEvent(activityEvent(.finished)) }
+            try await Task.sleep(for: .milliseconds(200))
+            checks["background_completion_remains_unread"] = store.state.tab(shellID)?.activity?.unread == true
+            store.update { $0.selectWorkspace(ownerID); $0.selectTab(shellID); $0.setSupportingLayout(.split) }
+            if let renderTask { await renderTask.value }
+            refreshAgentAttention()
+            for _ in 0..<100 {
+                if store.state.tab(shellID)?.activity?.unread == false { break }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            checks["visible_split_terminal_acknowledges_completion"] = store.state.tab(shellID)?.activity?.unread == false
+        }
+        guard let cancelCopyMode = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .control,
+            timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber, context: nil,
+            characters: "\u{3}", charactersIgnoringModifiers: "c", isARepeat: false, keyCode: 8) else { throw LaunchError.invalid("Copy-mode cancellation event unavailable.") }
+        surface.keyDown(with: cancelCopyMode)
+        for _ in 0..<100 {
+            if try await surfaces.observedViewport(shellID) == nil { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        checks["return_to_bottom_keeps_live_terminal_input"] = try await surfaces.observedViewport(shellID) == nil
+        store.update { $0.recordAgentEvent(activityEvent(.needsInput)) }
+        refreshAgentAttention(); try await Task.sleep(for: .milliseconds(100))
+        checks["viewing_real_terminal_keeps_input_request"] = store.state.tab(shellID)?.activity?.displayState == .needsInput
+        store.update { $0.recordAgentEvent(activityEvent(.failed)) }
+        refreshAgentAttention(); try await Task.sleep(for: .milliseconds(100))
+        checks["viewing_real_terminal_keeps_failure"] = store.state.tab(shellID)?.activity?.displayState == .failed
+        guard let viewportOwner = launches.runtime as? WorkspaceViewportFixtureRuntime else {
+            throw LaunchError.invalid("Sidebar viewport race fixture is unavailable.")
+        }
+        store.update { $0.resetAgent(shellID) }
+        for task in Array(acknowledgmentTasks.values) { await task.value }
+        window.makeKeyAndOrderFront(nil); window.makeFirstResponder(surface); NSApp.activate(ignoringOtherApps: true)
+        for _ in 0..<100 {
+            if agentTargetVisible(shellID), try await surfaces.viewportAtBottom(shellID) == true { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        interactionDetails["acknowledgment_race_setup"] = "visible=\(agentTargetVisible(shellID)) revision=\(surface.viewportRevision) bottom=\(String(describing: try await surfaces.viewportAtBottom(shellID))) pending=\(acknowledgmentTasks[shellID] != nil)"
+        try PrivateFiles.write(interactionDetails, to: root.appendingPathComponent("sidebar-interaction-diagnostics.json"))
+        await viewportOwner.holdViewport(after: 1)
+        store.update { $0.recordAgentEvent(activityEvent(.working)); $0.recordAgentEvent(activityEvent(.finished)) }
+        refreshAgentAttention()
+        for _ in 0..<100 {
+            if await viewportOwner.isHeld { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        guard await viewportOwner.isHeld else { throw LaunchError.invalid("Sidebar acknowledgment did not reach its delayed bottom query.") }
+        let bottomAcknowledgment = acknowledgmentTasks[shellID]
+        surface.onViewportInteraction?()
+        checks["pending_scroll_keeps_viewport_unknown"] = try await surfaces.viewportAtBottom(shellID) == nil
+        try await surfaces.scrollFixtureHistory(shellID, offset: 25)
         try await Task.sleep(for: .milliseconds(150))
+        await viewportOwner.resume()
+        await bottomAcknowledgment?.value
+        for task in Array(acknowledgmentTasks.values) { await task.value }
+        checks["scroll_during_bottom_query_retains_unread"] = store.state.tab(shellID)?.activity?.unread == true
+        await viewportOwner.holdViewport(after: 1)
+        refreshAgentAttention()
+        for _ in 0..<100 {
+            if await viewportOwner.isHeld { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        guard await viewportOwner.isHeld else { throw LaunchError.invalid("Sidebar acknowledgment did not reach its delayed scrollback query.") }
+        let scrollbackAcknowledgment = acknowledgmentTasks[shellID]
+        surface.onViewportInteraction?()
+        try await surfaces.scrollFixtureHistory(shellID, offset: 0)
+        try await Task.sleep(for: .milliseconds(150))
+        await viewportOwner.resume()
+        await scrollbackAcknowledgment?.value
+        for _ in 0..<100 {
+            if store.state.tab(shellID)?.activity?.unread == false { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        checks["return_to_bottom_during_query_retries_acknowledgment"] = store.state.tab(shellID)?.activity?.unread == false
+        interactionDetails["acknowledgment_race_result"] = "visible=\(agentTargetVisible(shellID)) revision=\(surface.viewportRevision) bottom=\(String(describing: try await surfaces.viewportAtBottom(shellID))) pending=\(acknowledgmentTasks[shellID] != nil)"
+        try PrivateFiles.write(interactionDetails, to: root.appendingPathComponent("sidebar-interaction-diagnostics.json"))
+        surface.keyDown(with: cancelCopyMode)
+        for _ in 0..<100 {
+            if try await surfaces.observedViewport(shellID) == nil { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        store.update { $0.resetAgent(shellID) }
+        surface.insertText("SPOOKKY_SIDEBAR_UNSENT", replacementRange: NSRange(location: NSNotFound, length: 0))
+        func unsentInputVisible() -> Bool { surface.visibleText().replacingOccurrences(of: "\n", with: "").contains("SPOOKKY_SIDEBAR_UNSENT") }
+        for _ in 0..<100 {
+            if unsentInputVisible() { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        interactionDetails["input_before_collapse"] = String(surface.visibleText().suffix(300))
         let before = try await launches.runtime.inspect(binding)
         conversationSidebar.onActivate?(projectKey)
         let after = try await launches.runtime.inspect(binding)
         checks["collapse_preserves_running_process"] = before?.processID != nil && before?.processID == after?.processID && surfaces.view(shellID) === surface
         conversationSidebar.onActivate?(projectKey)
-        checks["collapse_preserves_terminal_input"] = surface.visibleText().contains("SPOOKKY_SIDEBAR_UNSENT")
+        checks["collapse_preserves_terminal_input"] = unsentInputVisible()
+        interactionDetails["input_after_collapse"] = String(surface.visibleText().suffix(300))
         checks["agent_draft_survives_shell_and_collapse"] = store.state.tab(original.selectedTabID)?.draft == original.tabs[0].draft
         checks.merge(try await checkActivityRecovery(root: root, terminal: shellID), uniquingKeysWith: { _, new in new })
         try await activate()
@@ -1921,7 +2201,13 @@ import SpookkyGit
         let action = ActionButton("Keyboard action", action: {})
         let intrinsicSize = action.intrinsicContentSize
         let buttonFrame = NSRect(x: 24, y: 24, width: 140, height: 28)
-        action.frame = buttonFrame; window.contentView?.addSubview(action); window.makeFirstResponder(action)
+        action.frame = buttonFrame; window.contentView?.addSubview(action)
+        window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+        for _ in 0..<100 {
+            if window.isKeyWindow && NSApp.isActive { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        window.makeFirstResponder(action)
         checks["keyboard_button_feedback_keeps_bounds_and_intrinsic_size"] = action.showsKeyboardFocus && action.frame == buttonFrame && action.intrinsicContentSize == intrinsicSize && action.focusRingType == .none
         action.removeFromSuperview(); window.makeFirstResponder(surface)
         NSApp.sendAction(NSSelectorFromString("showSettings"), to: services, from: nil)
@@ -1957,7 +2243,7 @@ import SpookkyGit
                 activate: activate,
                 apply: { preferences in self.services.changeDisplay { $0 = preferences } },
                 tabs: { Array(self.tabPairs.values) + self.workspaceLayout.tabItems },
-                headerActions: { [self.navigationBack, self.navigationForward, self.sidebarToggle, self.threadDetails, self.threadActions, self.tabOverflow] + self.workspaceLayout.headerActionViews },
+                headerActions: { [self.navigationBack, self.navigationForward, self.sidebarToggle, self.threadDetails, self.threadActions, self.tabOverflow, self.threadChanges, self.supportingToggle] + self.workspaceLayout.headerActionViews },
                 surfaces: surfaces, terminal: store.state.tab(shellID), runtime: launches.runtime,
                 appearanceStatus: { self.services.terminalAppearanceMessage },
                 layout: { mode in self.store.update { $0.setSupportingLayout(mode) } },
@@ -2082,17 +2368,30 @@ import SpookkyGit
             stack.spacing = SpookkyStyle.points(12); stack.edgeInsets = NSEdgeInsets(top: SpookkyStyle.points(24), left: SpookkyStyle.points(24), bottom: SpookkyStyle.points(24), right: SpookkyStyle.points(24))
             install(stack, in: container)
         } else if tab.isEditable || tab.status == .preparing || tab.status == .launching {
-            let composer = composers[tab.id] ?? LaunchComposerView(tabID: tab.id); composers[tab.id] = composer
+            let catalog: any ProviderModelDiscovering = CommandLine.arguments.contains("--workspace-benchmark-composer") ? ComposerFixtureModels() : ProviderModelCatalog.shared
+            let composer = composers[tab.id] ?? LaunchComposerView(tabID: tab.id, imageDirectory: promptImageDirectory, modelCatalog: catalog); composers[tab.id] = composer
             composer.onDraft = { [weak self] tool, prompt in self?.store.update(debounced: prompt != nil) { $0.editDraft(tab.id, tool: tool, prompt: prompt) } }
+            composer.onImages = { [weak self, id = tab.id] images in self?.editPromptImages(images, for: id) }
+            composer.onError = { [weak self] message in self?.alert("Could not update draft", message) }
+            composer.onModel = { [weak self] selection in self?.store.update { $0.editModelSelection(tab.id, selection: selection) } }
+            composer.onNoProject = { [weak self] in
+                guard let self, let workspace = store.state.workspace(containing: tab.id) else { return }
+                store.update { $0.setLocation(WorkspaceLocation(path: FileManager.default.homeDirectoryForCurrentUser.path), projectID: nil, workspaceID: workspace.id) }
+                scheduleRepositoryRefresh()
+            }
             composer.onLaunch = { [weak self] in self?.launch(tab.id) }
             composer.onTerminal = { [weak self] in self?.openTerminal(from: tab.id) }
             composer.onChooseFolder = { [weak self] in self?.chooseFolder(register: false) }
             composer.onAddProject = { [weak self] anchor in self?.addProjectMenu(anchor: anchor) }
             composer.onLocate = { [weak self] in self?.chooseFolder(register: false, relocate: true) }
             composer.onProject = { [weak self] id in self?.chooseProject(id) }
-            composer.onFocus = { [weak self] in self?.selectTab(tab.id) }
+            composer.onFocus = { [weak self] in
+                guard let self else { return }
+                let selection = store.state.selected?.support?.fullWidthSelection
+                if store.state.selectedTab?.id != tab.id || (selection != nil && selection != .primary) { selectTab(tab.id) }
+            }
             if let w = store.state.workspace(containing: tab.id) {
-                composer.repositorySnapshot = w.projectID.flatMap { repositorySnapshots[$0] }
+                composer.repositorySnapshot = repositorySnapshots[w.projectID ?? w.id]
                 composer.locationOptions.onDraft = { [weak self] draft in
                     guard let self, let current = store.state.workspace(containing: tab.id) else { return }
                     store.update(debounced: true) { state in
@@ -2280,11 +2579,166 @@ import SpookkyGit
         surfaces.release(id)
         store.update { $0.apply(.failure(.failed, TabFailure(.attachment, "Terminal view disconnected. Your session is still running."), clearIntent: false), to: id) }
     }
+    private func runComposerFixture(root: URL) async throws {
+        var checks: [String: Bool] = [:]
+        window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+        let projectRoot = root.appendingPathComponent("spookky"), worktreeRoot = root.appendingPathComponent("topic")
+        try PrivateFiles.directory(projectRoot)
+        for arguments in [["init", "-b", "main"], ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--allow-empty", "-m", "fixture"],
+                          ["worktree", "add", "-b", "topic", worktreeRoot.path]] {
+            let result = try await ProcessRunner.asyncRun("/usr/bin/git", ["-C", projectRoot.path] + arguments)
+            guard result.status == 0 else { throw LaunchError.invalid("Composer Git fixture failed") }
+        }
+        let local = try await locations.git.discover(projectRoot), worktree = try await locations.git.discover(worktreeRoot)
+        var project = UUID()
+        store.update {
+            project = $0.registerProject(local)
+            $0.newWorkspace(location: worktree, projectID: project)
+            $0.editDraft($0.primaryTerminalID!, tool: .claude, prompt: "Previous session")
+            $0.editModelSelection($0.primaryTerminalID!, selection: AgentModelSelection(model: "opus", effort: "high"))
+        }
+        guard let newChat = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0,
+            windowNumber: window.windowNumber, context: nil, characters: "n", charactersIgnoringModifiers: "n", isARepeat: false, keyCode: 45) else {
+            throw LaunchError.invalid("New chat shortcut event unavailable")
+        }
+        checks["cmd_n_routes_to_new_chat"] = handleCommand(newChat)
+        if let renderTask { await renderTask.value }
+        await refreshSelectedRepository()
+        guard let id = store.state.primaryTerminalID, let composer = composers[id] else { throw LaunchError.invalid("Composer did not render") }
+        checks["cmd_n_inherits_project_local"] = store.state.selected?.projectID == project && store.state.selected?.directory == local.path
+        checks["cmd_n_inherits_provider_and_model"] = store.state.tab(id)?.draft.tool == .claude && store.state.tab(id)?.draft.modelSelection.model == "opus"
+        checks["new_session_does_not_copy_previous_prompt"] = store.state.tab(id)?.draft.isEmpty == true
+        func descendants(_ view: NSView) -> [NSView] { view.subviews.flatMap { [$0] + descendants($0) } }
+        func button(_ title: String, in view: NSView) -> NSButton? {
+            descendants(view).compactMap { $0 as? NSButton }.first { $0.title == title }
+        }
+        func popupButton(_ title: String) -> NSButton? {
+            NSApp.windows.filter { $0 !== window && $0.isVisible }.compactMap(\.contentView)
+                .flatMap(descendants).compactMap { $0 as? NSButton }.first { $0.title == title }
+        }
+        func waitPopup(_ title: String) async throws -> NSButton {
+            for _ in 0..<200 {
+                if let item = popupButton(title) { return item }
+                try await Task.sleep(for: .milliseconds(10))
+            }
+            try PrivateFiles.write(NSApp.windows.map { popup in
+                ["title": popup.title, "visible": String(popup.isVisible),
+                 "buttons": popup.contentView.map { descendants($0).compactMap { ($0 as? NSButton)?.title }.joined(separator: " | ") } ?? "none"]
+            }, to: root.appendingPathComponent("composer-popup-debug.json"))
+            for (index, popup) in NSApp.windows.enumerated() {
+                if let view = popup.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                    view.cacheDisplay(in: view.bounds, to: bitmap)
+                    try bitmap.representation(using: .png, properties: [:])?.write(to: root.appendingPathComponent("composer-popup-\(index).png"))
+                }
+            }
+            throw LaunchError.invalid("Composer menu item missing: " + title)
+        }
+        func openModels() throws {
+            guard let control = descendants(composer).compactMap({ $0 as? NSButton }).first(where: { $0.accessibilityLabel()?.hasPrefix("Choose ") == true && $0.accessibilityLabel()?.contains(" model · ") == true }) else {
+                throw LaunchError.invalid("Model picker is unavailable")
+            }
+            control.performClick(nil)
+        }
+        composer.focus(); composer.prompt.insertText("Review this change", replacementRange: NSRange(location: NSNotFound, length: 0))
+        composer.prompt.insertNewline(nil)
+        composer.prompt.insertText("Keep the details", replacementRange: NSRange(location: NSNotFound, length: 0))
+        checks["native_prompt_accepts_text_and_newline"] = store.state.tab(id)?.draft.prompt == "Review this change\nKeep the details"
+        try openModels(); let sonnet = try await waitPopup("Sonnet"); sonnet.performClick(nil)
+        checks["claude_model_menu_updates_draft"] = store.state.tab(id)?.draft.modelSelection.model == "sonnet"
+        store.update { $0.editDraft(id, tool: .codex) }
+        if let renderTask { await renderTask.value }
+        try openModels(); let sol = try await waitPopup("Sol fixture"); sol.performClick(nil)
+        try openModels(); let high = try await waitPopup("High"); high.performClick(nil)
+        checks["codex_model_and_effort_update_draft"] = store.state.tab(id)?.draft.modelSelection == AgentModelSelection(model: "fixture-sol", effort: "high", displayName: "Sol fixture")
+        checks["model_choice_restores_composer_shortcuts"] = composer.hasInputFocus
+        store.update { $0.editDraft(id, tool: .claude) }
+        checks["switch_back_restores_provider_model"] = store.state.tab(id)?.draft.modelSelection.model == "sonnet"
+        store.update { $0.editDraft(id, tool: .codex) }
+        checks["switching_providers_keeps_prompt"] = composer.prompt.string == "Review this change\nKeep the details"
+        button("Local", in: composer)?.performClick(nil)
+        (try await waitPopup("New worktree")).performClick(nil)
+        checks["location_menu_selects_new_worktree"] = store.state.selected?.locationDraft?.mode == .worktree
+        let from = descendants(composer).compactMap { $0 as? NSButton }.first { $0.title.hasPrefix("From ") }
+        from?.performClick(nil); (try await waitPopup("main")).performClick(nil)
+        checks["source_menu_selects_reference"] = store.state.selected?.locationDraft?.source == "refs/heads/main"
+        button("New worktree", in: composer)?.performClick(nil)
+        (try await waitPopup("Local")).performClick(nil)
+        checks["local_keeps_checkout_files_and_branch"] = store.state.selected?.directory == local.path && store.state.selected?.selectedLocation.branch == "main"
+        button("spookky", in: composer)?.performClick(nil)
+        (try await waitPopup("No project")).performClick(nil)
+        checks["no_project_retains_prompt"] = store.state.selected?.projectID == nil && composer.prompt.string == "Review this change\nKeep the details"
+        button("No project", in: composer)?.performClick(nil)
+        (try await waitPopup("spookky")).performClick(nil)
+        await refreshSelectedRepository()
+        for (theme, width, height) in [(WorkspaceAppearance.dark, 1120, 760), (.light, 680, 480)] {
+            store.update { $0.appearance = theme }
+            window.setContentSize(NSSize(width: width, height: height)); window.contentView?.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(100))
+            let editor = composer.convert(composer.prompt.bounds, from: composer.prompt)
+            checks["composer_fits_\(width)"] = editor.minX >= 23 && editor.maxX <= composer.bounds.width - 23
+            let heading = descendants(composer).compactMap { $0 as? NSTextField }.first { $0.stringValue == "What’s next in spookky?" }
+            checks["contextual_heading_\(width)"] = heading != nil
+            if let view = window.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+                view.cacheDisplay(in: view.bounds, to: bitmap)
+                let sidebar = view.convert(railScroll.bounds, from: railScroll)
+                let scaleX = CGFloat(bitmap.pixelsWide) / view.bounds.width
+                let scaleY = CGFloat(bitmap.pixelsHigh) / view.bounds.height
+                let left = Int((sidebar.minX + 12) * scaleX), right = Int((sidebar.maxX - 12) * scaleX)
+                var darkest: CGFloat = 1, lightest: CGFloat = 0
+                for y in stride(from: Int(80 * scaleY), to: bitmap.pixelsHigh - Int(24 * scaleY), by: 4) {
+                    for x in stride(from: left, to: right, by: 4) {
+                        guard let color = bitmap.colorAt(x: x, y: y)?.usingColorSpace(.deviceRGB) else { continue }
+                        let brightness = (color.redComponent + color.greenComponent + color.blueComponent) / 3
+                        darkest = min(darkest, brightness); lightest = max(lightest, brightness)
+                    }
+                }
+                checks["composer_keeps_sidebar_pixels_\(width)"] = lightest - darkest > 0.15
+                try bitmap.representation(using: .png, properties: [:])?.write(to: root.appendingPathComponent("composer-" + theme.rawValue + ".png"))
+            }
+        }
+        window.setContentSize(NSSize(width: 1120, height: 760))
+        try openModels(); _ = try await waitPopup("Sol fixture")
+        if let view = NSApp.windows.first(where: { $0 !== window && $0.isVisible && $0.contentView.map { button("Sol fixture", in: $0) != nil } == true })?.contentView,
+           let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
+            view.cacheDisplay(in: view.bounds, to: bitmap)
+            try bitmap.representation(using: .png, properties: [:])?.write(to: root.appendingPathComponent("composer-model-menu.png"))
+        }
+        (try await waitPopup("Default model")).performClick(nil)
+        checks["default_model_clears_overrides"] = store.state.tab(id)?.draft.modelSelection == AgentModelSelection()
+        let prompt = store.state.tab(id)!.draft.prompt
+        guard let terminalButton = button("Open Terminal", in: composer) else { throw LaunchError.invalid("Terminal action missing") }
+        terminalButton.performClick(nil)
+        var terminalID: UUID?
+        for _ in 0..<300 {
+            if let selected = store.state.primaryTerminalID, selected != id, surfaces.view(selected) != nil { terminalID = selected; break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        guard let terminalID, let surface = surfaces.view(terminalID), let binding = store.state.tab(terminalID)?.binding else { throw LaunchError.invalid("Disposable terminal did not start") }
+        let pid = try await launches.runtime.inspect(binding)?.processID
+        surface.insertText("printf 'COMPOSER_%s\\n' 'READY'", replacementRange: NSRange(location: NSNotFound, length: 0))
+        if let enter = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+            windowNumber: window.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36) { surface.keyDown(with: enter) }
+        for _ in 0..<200 where !surface.visibleText().contains("COMPOSER_READY") { try await Task.sleep(for: .milliseconds(20)) }
+        checks["real_shell_input_and_output"] = surface.visibleText().contains("COMPOSER_READY")
+        newWorkspace(); if let renderTask { await renderTask.value }
+        checks["terminal_keeps_agent_draft"] = store.state.primaryTerminalID == id && store.state.tab(id)?.draft.prompt == prompt
+        checks["returning_keeps_shell_process"] = try await launches.runtime.inspect(binding)?.processID == pid && pid != nil
+        let sessions = try await launches.runtime.list()
+        checks["menus_and_new_chat_launch_no_agents"] = sessions.count == 1 && sessions.allSatisfy { $0.tool == .shell }
+        try await store.flush()
+        try PrivateFiles.write(checks, to: root.appendingPathComponent("composer-checks.json"))
+        try PrivateFiles.write(["app_rss_mib": WorkspaceDiagnostics.residentMiB() ?? 0, "runtime_sessions": Double(sessions.count)], to: root.appendingPathComponent("composer-resources.json"))
+        guard checks.values.allSatisfy({ $0 }) else { throw LaunchError.invalid("Composer checks failed: " + checks.filter { !$0.value }.keys.sorted().joined(separator: ", ")) }
+    }
+
     @objc private func newWorkspace() {
         let hidden = !window.isVisible
+        let context = store.state.selected
         window.makeFirstResponder(nil)
         cancelLaunchPreflight()
-        store.update { $0.showLanding(homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path) }
+        store.update { $0.showLanding(projectID: context?.projectID,
+            homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path, inheriting: context?.primaryTerminal?.draft) }
+        scheduleRepositoryRefresh()
         if hidden { reopen() }
         if let id = store.state.primaryTerminalID { composers[id]?.focus() }
     }
@@ -2305,15 +2759,38 @@ import SpookkyGit
             }
             launch(shellID, tool: .shell); return
         }
-        if !tab.draft.prompt.isEmpty || !tab.isEditable || store.state.workspace(containing: id)?.primaryTerminalID == id && tab.binding != nil {
+        if !tab.draft.isEmpty || !tab.isEditable || store.state.workspace(containing: id)?.primaryTerminalID == id && tab.binding != nil {
             store.update { $0.newTab() }; if let id = store.state.selectedTab?.id { launch(id, tool: .shell) }
         } else { launch(id, tool: .shell) }
     }
     @objc private func launchSelected() {
         guard let id = store.state.selectedTab?.id, composers[id]?.hasInputFocus == true else { return }; launch(id)
     }
+    private func editPromptImages(_ images: [String], for id: UUID) {
+        let previous = store.state.tab(id)?.draft.images ?? []
+        store.update { $0.editDraft(id, images: images) }
+        let candidates = Set(previous + images).subtracting(store.state.tab(id)?.draft.images ?? [])
+        guard !candidates.isEmpty else { return }
+        let tabs = store.state.workspaces.flatMap(\.tabs)
+        let retained = Set(tabs.flatMap { $0.draft.images })
+        let arguments = tabs.flatMap { $0.launch?.arguments ?? [] }
+        let unused = candidates.filter { path in
+            !retained.contains(path) && !arguments.contains(where: { $0.contains(path) })
+        }
+        guard !unused.isEmpty else { return }
+        let directory = promptImageDirectory
+        Task.detached {
+            for path in unused {
+                let file = URL(fileURLWithPath: path)
+                guard file.deletingLastPathComponent().path == directory.path, file.pathExtension == "png",
+                      UUID(uuidString: file.deletingPathExtension().lastPathComponent) != nil else { continue }
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
+    }
+
     private func launch(_ id: UUID, tool: SessionTool? = nil) {
-        guard initialLaunchTasks[id] == nil, let tab = store.state.tab(id),
+        guard initialLaunchTasks[id] == nil, composers[id]?.isImportingImage != true, let tab = store.state.tab(id),
               let workspace = store.state.workspace(containing: id), !launches.isBusy(id),
               tab.isEditable || (tab.status == .failed && tab.launch != nil) else { return }
         if (tool ?? tab.draft.tool) != .shell, workspace.primaryTerminalID != id {
@@ -2395,9 +2872,10 @@ import SpookkyGit
     }
     private func newProjectWorkspace(_ id: UUID) {
         guard store.state.projects.contains(where: { $0.id == id }) else { return }
+        let draft = store.state.selected?.primaryTerminal?.draft
         window.makeFirstResponder(nil)
         cancelLaunchPreflight()
-        store.update { $0.showLanding(projectID: id, homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path) }
+        store.update { $0.showLanding(projectID: id, homeDirectory: FileManager.default.homeDirectoryForCurrentUser.path, inheriting: draft) }
         scheduleRepositoryRefresh()
     }
     private func chooseProject(_ id: UUID) {
@@ -2410,21 +2888,23 @@ import SpookkyGit
         repositoryRefreshTask = Task { await refreshSelectedRepository() }
     }
     private func refreshSelectedRepository() async {
-        guard let workspace = store.state.selected, let projectID = workspace.projectID, workspace.selectedLocation.isGit else { return }
-        let generation = UUID(); repositoryGenerations[projectID] = generation
+        guard let workspace = store.state.selected, workspace.selectedLocation.isGit else { return }
+        let key = workspace.projectID ?? workspace.id
+        let generation = UUID(); repositoryGenerations[key] = generation
         do {
             let snapshot = try await locations.git.snapshot(workspace.selectedLocation)
-            guard repositoryGenerations[projectID] == generation else { return }
-            repositorySnapshots[projectID] = snapshot
+            guard repositoryGenerations[key] == generation, store.state.selectedWorkspaceID == workspace.id,
+                  store.state.selected?.selectedLocation.path == workspace.selectedLocation.path else { return }
+            repositorySnapshots[key] = snapshot
             store.update { state in
-                state.refreshProject(projectID, location: snapshot.location)
+                if let projectID = workspace.projectID { state.refreshProject(projectID, location: snapshot.location) }
                 for checkout in snapshot.checkouts where checkout.available {
                     state.recordCheckout(WorkspaceLocation(path: checkout.path, checkoutIdentity: checkout.identity,
                         branch: checkout.branch, commonRepository: snapshot.location.commonRepository))
                 }
                 if let current = state.workspaces.first(where: { $0.id == workspace.id }), current.anchor == nil, current.locationDraft == nil {
                     var draft = LocationDraft()
-                    draft.source = state.projects.first { $0.id == projectID }?.preferredSource ?? snapshot.defaultSource
+                    draft.source = state.projects.first { $0.id == workspace.projectID }?.preferredSource ?? snapshot.defaultSource
                     state.editLocation(draft, workspaceID: workspace.id)
                 }
             }
@@ -2825,6 +3305,30 @@ import SpookkyGit
             guard count == 0 else { throw LaunchError.invalid("Sidebar fixtures start without running sessions.") }
             try await checkSidebar(root: root)
         }
+        if CommandLine.arguments.contains("--workspace-benchmark-prompt-images") {
+            guard count == 0 else { throw LaunchError.invalid("Prompt image checks require no running sessions.") }
+            store.update {
+                _ = $0.showLanding(homeDirectory: root.path)
+                $0.editDraft($0.primaryTerminalID!, tool: .codex, prompt: "Explain this screenshot")
+            }
+            if let renderTask { await renderTask.value }
+            guard let id = store.state.primaryTerminalID, let composer = composers[id] else {
+                throw LaunchError.invalid("Prompt image composer is unavailable.")
+            }
+            try await PromptImageFixture.run(composer: composer, window: window, root: root,
+                draft: { self.store.state.tab(id)!.draft }, changeTool: { tool in self.store.update { $0.editDraft(id, tool: tool) } })
+        }
+        if CommandLine.arguments.contains("--workspace-benchmark-composer") {
+            guard count == 0 else { throw LaunchError.invalid("Composer checks require no running sessions.") }
+            try await runComposerFixture(root: root)
+        }
+        if CommandLine.arguments.contains("--workspace-benchmark-sidebar-reference") {
+            guard count == 0 else { throw LaunchError.invalid("Sidebar reference fixtures start without running sessions.") }
+            let previousAppearance = store.state.appearance
+            defer { store.update { $0.appearance = previousAppearance } }
+            try await SidebarReferenceFixture.run(window: window, root: root,
+                setAppearance: { appearance in self.store.update { $0.appearance = appearance } })
+        }
         if CommandLine.arguments.contains("--workspace-benchmark-browser") {
             guard count == 0, let host = supportingContentHost as? BrowserArtifactContentHost else { throw LaunchError.invalid("Browser fixtures require no launched sessions.") }
             try await SupportingPreviewFixture.run(window: window, host: host, state: { self.store.state },
@@ -3207,16 +3711,20 @@ import SpookkyGit
         }
         if sidebarRevision != structure {
             sidebarRevision = structure; clear(rail)
-            let outerInset = SpookkyStyle.sidebarOuterInset
-            rail.edgeInsets = NSEdgeInsets(top: SpookkyStyle.points(8), left: outerInset, bottom: SpookkyStyle.points(12), right: outerInset)
+            rail.edgeInsets = NSEdgeInsets(top: SpookkyStyle.points(8), left: 0, bottom: SpookkyStyle.points(12), right: 0)
             let create = ActionButton("New chat", symbol: "plus", help: "New chat · ⌘N") { [weak self] in self?.newWorkspace() }
+            create.contentTintColor = SidebarPalette.text
             create.alignment = .left
             create.heightAnchor.constraint(equalToConstant: 32).displayScaled().isActive = true
-            rail.addArrangedSubview(create)
-            rail.addArrangedSubview(historySearch); historySearch.heightAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true
+            let controls = NSStackView(views: [create, historySearch])
+            controls.orientation = .vertical; controls.alignment = .leading; controls.spacing = SpookkyStyle.points(4)
+            controls.edgeInsets = NSEdgeInsets(top: 0, left: SpookkyStyle.points(8), bottom: 0, right: SpookkyStyle.points(8))
+            for view in controls.arrangedSubviews { view.widthAnchor.constraint(equalTo: controls.widthAnchor, constant: -16).displayScaled().isActive = true }
+            rail.addArrangedSubview(controls)
+            historySearch.heightAnchor.constraint(equalToConstant: 28).displayScaled().isActive = true
             rail.addArrangedSubview(conversationSidebar)
             conversationSidebar.setContentHuggingPriority(.defaultLow, for: .vertical)
-            for view in rail.arrangedSubviews { view.widthAnchor.constraint(equalTo: rail.widthAnchor, constant: -2 * outerInset).displayScaled(alreadyScaled: true).isActive = true }
+            for view in rail.arrangedSubviews { view.widthAnchor.constraint(equalTo: rail.widthAnchor).isActive = true }
             conversationSidebar.heightAnchor.constraint(greaterThanOrEqualToConstant: 0).displayScaled().isActive = true
             conversationSidebar.onActivate = { [weak self] in self?.activateSidebarItem($0) }
             conversationSidebar.onAddProject = { [weak self] in self?.addProjectMenu(anchor: $0) }
@@ -3225,6 +3733,20 @@ import SpookkyGit
             }
             conversationSidebar.onMore = { [weak self] value in self?.showMoreHistory(String(value.dropFirst(5))) }
             conversationSidebar.onContextMenu = { [weak self] in self?.sidebarContextMenu($0) }
+            conversationSidebar.onThreadAction = { [weak self] id, action in
+                guard let menu = self?.sidebarContextMenu(id), let item = menu.items.first(where: {
+                    (action == "pin" ? ["Pin", "Unpin"] : ["Archive", "Unarchive"]).contains($0.title)
+                }), let selector = item.action else { return }
+                NSApp.sendAction(selector, to: item.target, from: item)
+            }
+            conversationSidebar.onVisibleItems = { [weak self] items in
+                guard let self else { return }
+                if sidebarVisibleItems.map(\.id) != items.map(\.id), sidebarGitTask != nil {
+                    sidebarGitTask?.cancel()
+                    let service = sidebarPRService; Task { await service.cancelPending() }
+                }
+                sidebarVisibleItems = items; refreshSidebarGit()
+            }
         }
         var items: [WorkspaceSidebarItem] = []; sidebarRecords.removeAll(keepingCapacity: true); sidebarWorkspaceIDs.removeAll(keepingCapacity: true)
         var seen = Set<ConversationID>()
@@ -3330,7 +3852,109 @@ import SpookkyGit
             }
         }
         if !showingArchived && search.isEmpty { localSection("Recents", key: "recents", filter: { $0.lastVisitedAt != nil && $0.archivedAt == nil }) }
+        for index in items.indices where items[index].kind == .conversation {
+            guard let key = sidebarThreadKey(items[index].id) else { continue }
+            let record = sidebarRecords[items[index].id]
+            let workspace = workspaceByKey[key]
+            let presentation = state.presentation(for: key)
+            items[index].pinned = presentation.pinnedAt != nil; items[index].archived = presentation.archivedAt != nil
+            items[index].provider = workspace?.displayProvider ?? record?.id.provider
+            items[index].updatedAt = workspace?.primaryTerminal?.activity.flatMap { $0.lastEventAt > 0 ? Date(timeIntervalSince1970: $0.lastEventAt) : nil } ?? record?.metadata.updatedAt
+            let projectID = workspace?.projectID ?? record?.projectID
+            items[index].projectName = state.projects.first { $0.id == projectID }?.name
+            items[index].checkout = sidebarGit[key]?.checkout; items[index].pullRequest = sidebarGit[key]?.pr
+            items[index].help += "\n" + [items[index].provider?.displayName, items[index].pullRequest?.label,
+                items[index].checkout?.linkedWorktree == true ? "Linked worktree" : nil, items[index].checkout?.branch].compactMap { $0 }.joined(separator: " · ")
+        }
         conversationSidebar.update(items: items, collapsed: false)
+    }
+    private func sidebarThreadKey(_ id: String) -> String? {
+        if let record = sidebarRecords[id] { return record.id.threadKey }
+        if let workspaceID = sidebarWorkspaceIDs[id] { return store.state.workspaces.first { $0.id == workspaceID }?.threadKey }
+        return store.state.workspaces.first { $0.threadKey == id }?.threadKey
+    }
+    private func refreshSidebarGit() {
+        guard let window, NSApp.isActive, window.isVisible, window.occlusionState.contains(.visible), !store.state.sidebarCollapsed else {
+            if sidebarGitTask != nil {
+                sidebarGitTask?.cancel()
+                let service = sidebarPRService; Task { await service.cancelPending() }
+            }
+            if sidebarGitTimer != nil { sidebarGitTimer?.invalidate(); sidebarGitTimer = nil }
+            return
+        }
+        if sidebarGitTimer == nil {
+            sidebarGitTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+                Task { @MainActor in self?.refreshSidebarGit() }
+            }
+        }
+        guard sidebarGitTask == nil else { return }
+        struct Job: Sendable {
+            let key: String
+            let workspaceID: UUID?
+            let bindingID: UUID?
+            let directory: String?
+            let association: ThreadPullRequest?
+        }
+        var keys = Set<String>()
+        let jobs = sidebarVisibleItems.compactMap { item -> Job? in
+            guard let key = sidebarThreadKey(item.id), keys.insert(key).inserted,
+                  sidebarGit[key].map({ Date().timeIntervalSince($0.date) >= 60 }) ?? true else { return nil }
+            let workspace = store.state.workspaces.first { $0.threadKey == key && $0.primaryTerminal?.binding != nil && $0.primaryTerminal?.status == .running }
+            let association = store.state.presentation(for: key).pullRequest
+            guard workspace != nil || association != nil else { return nil }
+            return Job(key: key, workspaceID: workspace?.id, bindingID: workspace?.primaryTerminal?.binding?.id,
+                directory: workspace?.directory, association: association)
+        }
+        guard !jobs.isEmpty else { return }
+        let generation = UUID(); sidebarGitGeneration = generation
+        let service = sidebarPRService
+        sidebarGitTask = Task { [weak self] in
+            await withTaskGroup(of: (Job, SidebarCheckoutInfo?, PullRequestStatus?, Bool).self) { group in
+                for job in jobs.prefix(128) {
+                    group.addTask {
+                        let git = GitRepository(executor: NativeGitExecutor(timeout: 10, outputLimit: 131_072))
+                        let checkout = if let directory = job.directory { try? await git.sidebarCheckout(directory) } else { nil as SidebarCheckoutInfo? }
+                        let status: PullRequestStatus?
+                        var invalidAssociation = false
+                        if let checkout {
+                            if let known = job.association, known.repository == checkout.repository, known.branch == checkout.branch {
+                                let previous = await service.status(association: known)
+                                if let previous, !previous.matchesLiveCheckout(checkout) {
+                                    invalidAssociation = true; status = await service.status(checkout: checkout)
+                                } else { status = previous }
+                            } else { invalidAssociation = job.association != nil; status = await service.status(checkout: checkout) }
+                            if let directory = job.directory, (try? await git.sidebarCheckout(directory)) != checkout { return (job, nil, nil, false) }
+                        } else if let known = job.association, job.directory == nil {
+                            let fetched = await service.status(association: known)
+                            let observed = SidebarCheckoutInfo(repository: known.repository, branch: known.branch,
+                                headCommit: known.headCommit, linkedWorktree: false)
+                            status = fetched?.matchesLiveCheckout(observed) == true ? fetched : nil
+                        }
+                        else { status = nil }
+                        return (job, checkout, status, invalidAssociation)
+                    }
+                }
+                for await (job, checkout, pr, invalidAssociation) in group {
+                    guard !Task.isCancelled, let self, self.sidebarGitGeneration == generation,
+                          self.sidebarVisibleItems.contains(where: { self.sidebarThreadKey($0.id) == job.key }),
+                          self.window.isVisible, NSApp.isActive else { continue }
+                    if let id = job.workspaceID {
+                        guard let workspace = self.store.state.workspaces.first(where: { $0.id == id }),
+                              workspace.threadKey == job.key, workspace.primaryTerminal?.binding?.id == job.bindingID,
+                              workspace.directory == job.directory else { continue }
+                    }
+                    self.sidebarGit[job.key] = (checkout, pr, Date())
+                    if let association = pr?.association, self.store.state.presentation(for: job.key).pullRequest != association {
+                        self.store.update(debounced: true) { $0.editThread(job.key) { $0.pullRequest = association } }
+                    } else if invalidAssociation {
+                        self.store.update(debounced: true) { $0.editThread(job.key) { $0.pullRequest = nil } }
+                    }
+                    while self.sidebarGit.count > 128, let oldest = self.sidebarGit.min(by: { $0.value.date < $1.value.date })?.key { self.sidebarGit[oldest] = nil }
+                    self.chromeRevision = ""; self.renderChrome()
+                }
+            }
+            if let self, self.sidebarGitGeneration == generation { self.sidebarGitTask = nil; self.refreshSidebarGit() }
+        }
     }
     private func activateSidebarItem(_ value: String) {
         if !value.hasPrefix("project:") && !value.hasPrefix("more:") { selectedSidebarOccurrence = value }
@@ -3442,6 +4066,9 @@ import SpookkyGit
     }
     private func addThreadActions(_ menu: NSMenu, key: String, record: ConversationCatalogRecord? = nil) {
         let presentation = store.state.presentation(for: key)
+        if let association = sidebarGit[key]?.pr?.association ?? presentation.pullRequest, association.isValid {
+            menu.addItem(ClosureMenuItem("Open PR #" + String(association.number)) { NSWorkspace.shared.open(association.url) })
+        }
         menu.addItem(ClosureMenuItem(presentation.pinnedAt == nil ? "Pin" : "Unpin") { [weak self] in
             self?.store.update { if let record { $0.rememberThread(record) }; $0.editThread(key) { $0.pinnedAt = presentation.pinnedAt == nil ? Date() : nil } }
             self?.chromeRevision = ""; self?.render()
@@ -3478,7 +4105,8 @@ import SpookkyGit
         let title = SpookkyStyle.label(workspace.displayTitle); title.font = .boldSystemFont(ofSize: SpookkyStyle.points(13))
         let provider = SpookkyStyle.label(workspace.displayProvider.displayName)
         let folder = ChromeTextField(wrappingLabelWithString: workspace.directory); folder.isSelectable = true; folder.textColor = SpookkyPalette.secondary
-        let review = ActionButton("Changes", symbol: "arrow.triangle.branch") { [weak self] in self?.store.update { $0.openSupport(.changes, title: "Changes") }; self?.detailsPopover?.performClose(nil) }
+        let review = ActionButton("Changes") { [weak self] in self?.detailsPopover?.performClose(nil); self?.showChanges() }
+        review.image = SpookkyStyle.changesImage; review.imagePosition = .imageLeading
         var views: [NSView] = [title, provider, folder]
         if let activity = workspace.activityState { views.append(SpookkyStyle.label(activity.label)) }
         if workspace.displayProvider != .shell && workspace.primaryTerminal?.activity?.displayState == .unknown {

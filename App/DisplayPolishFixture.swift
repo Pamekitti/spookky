@@ -16,12 +16,14 @@ import SpookkyRuntime
         func inspectHeader(_ key: String) {
             guard let content = window.contentView else { return }
             content.layoutSubtreeIfNeeded()
-            let actions = headerActions().filter { !$0.isHiddenOrHasHiddenAncestor }
+            let actions = headerActions().filter {
+                !$0.isHiddenOrHasHiddenAncestor && (($0.superview as? WorkspaceTabView)?.selected != false)
+            }
             checks["header_actions_fit_" + key] = actions.allSatisfy {
                 $0.bounds.width > 0 && content.bounds.contains($0.convert($0.bounds, to: content)) && $0.visibleRect.contains($0.bounds)
             }
             var seen = Set<ObjectIdentifier>()
-            let targets: [NSView] = (tabs().map { $0 as NSView } + actions).filter {
+            let targets: [NSView] = (tabs().flatMap { [$0.titleButton, $0.closeButton] as [NSView] } + actions).filter {
                 !$0.isHiddenOrHasHiddenAncestor && !$0.bounds.intersection($0.visibleRect).isEmpty && seen.insert(ObjectIdentifier($0)).inserted
             }
             let frames = targets.map { $0.convert($0.bounds.intersection($0.visibleRect), to: content) }
@@ -216,8 +218,8 @@ import SpookkyRuntime
                         checks["sidebar_stays_in_window_" + key] = content.bounds.contains(sidebar.convert(sidebar.bounds, to: content))
                         if let container = sidebar.superview {
                             let frame = sidebar.convert(sidebar.bounds, to: container)
-                            checks["sidebar_has_balanced_outer_margins_" + key] = abs(frame.minX - 12 * zoom) < 0.5 &&
-                                abs(container.bounds.maxX - frame.maxX - 12 * zoom) < 0.5
+                            checks["sidebar_owns_its_row_insets_" + key] = abs(frame.minX) < 0.5 &&
+                                abs(container.bounds.maxX - frame.maxX) < 0.5
                         }
 
                     }
