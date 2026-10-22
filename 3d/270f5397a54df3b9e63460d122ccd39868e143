@@ -1,0 +1,37 @@
+App/WorkspaceViews.swift
+  s_7ac6fbcc7a8fc1::t_3ce0841f84adfc 618-669,875,898-900,1013,1043,1245-1263,1270,1276
+App/WorkspaceWindowController.swift
+  s_506582c776c9c6::t_e12197b583ffb1 571-575,958,968,2389-2404,2864-2910
+Sources/SpookkyCore/LocationModels.swift
+  s_506582c776c9c6::t_94777185b555fb 94
+Sources/SpookkyWorkspace/LocationCoordinator.swift
+  s_506582c776c9c6::t_46cc057d5e18cf 66,269
+Sources/SpookkyCore/WorkspaceState.swift
+  s_7ac6fbcc7a8fc1::t_a4a4d9fec9eaa5 75,603-609,612-619
+Tests/SpookkyRuntimeTests/WorktreeTests.swift
+  s_7ac6fbcc7a8fc1::t_291732e02af706 151-171
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3d270f5397a54df3b9e63460d122ccd39868e143",
+  "prompts": {},
+  "sessions": {
+    "s_506582c776c9c6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1589e-0e2e-73d0-9ad2-e3b0233f845d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_7ac6fbcc7a8fc1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1626d-cbf8-7193-80dd-319621302582",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
