@@ -38,6 +38,7 @@ The global landing and each project landing retain separate drafts. Showing one 
 | Supporting + | Open New tab with address/search, Changes, Files, Terminal and Open artifact. |
 | Cmd+Enter in launch composer | Launch selected tool with optional initial prompt. |
 | Enter in initial prompt | Launch selected tool, including with an empty prompt. |
+| Enter with a skill suggestion open | Insert the selected skill reference into the draft. |
 | Shift+Enter in initial prompt | Insert a newline. |
 | Cmd+W | Close the focused supporting tab. On Conversation or landing, close the window and retain the thread. |
 | Archive thread | Hide it from ordinary navigation. Keep provider history, processes, files and branch. |
@@ -108,6 +109,10 @@ Metadata upgrade replaces automatic New workspace and workspace-xxxxxxxx labels,
 The primary conversation supplies the row and primary header title unless an explicit local alias takes precedence. Supporting views retain content-type titles and icons. See [conversation names](conversation-titles.md).
 
 The start page uses one bottom composer with provider and folder chips. The prompt is optional. With no prompt the Start arrow opens the selected CLI. With text it supplies that initial instruction. Enter or Cmd+Return launches from the composer. Shift+Return inserts a newline. Open Terminal below starts a shell and preserves the agent draft.
+
+In an agent draft, `$` or `/` followed by part of a skill name shows matches from local skill manifests. Selecting a match replaces only that token. Codex inserts `$skill-name` for either trigger. Claude Code inserts `/skill-name`. CLI control commands remain in the running terminal.
+
+The model picker also offers Full access. It is Off for each fresh session and remains set on a retained draft. Switching providers turns it Off. An enabled fresh Codex launch skips approvals and sandboxing; an enabled fresh Claude Code launch skips permission prompts. Shell, resume and reattachment keep their existing behavior.
 
 Changing agents preserves the prompt draft. Opening a shell does not change the last agent choice. Shell launches never execute that text. Auth and permission prompts remain inside the provider CLI. Missing executables lead to guidance plus a working Terminal fallback.
 

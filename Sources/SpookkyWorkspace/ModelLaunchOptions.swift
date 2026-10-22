@@ -2,6 +2,14 @@ import Foundation
 import SpookkyCore
 
 extension LaunchSpec {
+    func selectingFullAccess(_ enabled: Bool) throws -> LaunchSpec {
+        guard enabled, tool != .shell else { return self }
+        var arguments = arguments
+        let flag = tool == .codex ? "--dangerously-bypass-approvals-and-sandbox" : "--dangerously-skip-permissions"
+        arguments.insert(flag, at: arguments.firstIndex(of: "--") ?? arguments.endIndex)
+        return try LaunchSpec(operationID: operationID, tool: tool, executable: executable,
+                              arguments: arguments, directory: directory, environment: environment)
+    }
     func selectingModel(_ selection: AgentModelSelection) throws -> LaunchSpec {
         guard selection.isValid else { throw LaunchError.invalid("Enter a valid model name and reasoning effort.") }
         guard tool != .shell else { return self }

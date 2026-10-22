@@ -52,6 +52,7 @@ extension ExecutableResolver {
                 spec = try await resolver.resolveFresh(tool ?? tab.draft.tool,
                     directory: tab.startDirectory ?? workspace.directory,
                     prompt: tab.draft.prompt.isEmpty ? nil : tab.draft.prompt, images: tab.draft.images, model: tab.draft.modelSelection)
+                    .selectingFullAccess(tab.draft.fullAccess)
             }
             try Task.checkCancellation()
             store.update {

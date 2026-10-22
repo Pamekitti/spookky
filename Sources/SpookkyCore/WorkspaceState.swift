@@ -19,6 +19,11 @@ public enum WorkspaceTransition: Sendable {
 public struct TerminalDraft: Codable, Equatable, Sendable {
     public var tool: SessionTool
     public var prompt: String
+    private var fullAccessChoice: Bool?
+    public var fullAccess: Bool {
+        get { fullAccessChoice == true }
+        set { fullAccessChoice = newValue ? true : nil }
+    }
     private var modelChoices: [String: AgentModelSelection]?
     public func recordedModelSelection(for tool: SessionTool) -> AgentModelSelection? { modelChoices?[tool.rawValue] }
     public var modelSelection: AgentModelSelection { recordedModelSelection(for: tool) ?? AgentModelSelection() }
@@ -432,6 +437,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
         let fallback = tool.map { lastModelSelection(for: $0) }
         updateTab(id) {
             if let tool {
+                if $0.draft.tool != tool { $0.draft.fullAccess = false }
                 $0.draft.tool = tool
                 if $0.draft.recordedModelSelection(for: tool) == nil, let fallback { $0.draft.selectModel(fallback, for: tool) }
                 if let metadata = $0.providerTitle, metadata.provider != tool { $0.providerTitle = nil }
@@ -459,6 +465,13 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
             history.removeAll { $0.model == selection.model }
             history.insert(selection, at: 0)
             modelChoiceHistory?[tab.draft.tool.rawValue] = Array(history.prefix(32))
+        }
+    }
+    public mutating func editFullAccess(_ id: UUID, enabled: Bool) {
+        guard let tab = tab(id), tab.isEditable, tab.draft.tool != .shell else { return }
+        updateTab(id) {
+            $0.draft.fullAccess = enabled
+            $0.launch = nil; $0.failure = nil; $0.status = .draft
         }
     }
     public mutating func setLocation(_ location: WorkspaceLocation, projectID: UUID?, workspaceID: UUID) {

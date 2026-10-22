@@ -7,6 +7,8 @@ The native app must satisfy these requirements before release. [Current status](
 - [x] Cmd+N and New chat select the viewed primary conversation's project draft, otherwise the global draft. A fresh project draft uses Local.
 - [x] Existing drafts take precedence over inherited context. Text, images and provider-specific model choices survive switching and metadata round trips.
 - [x] Model and supported effort choices appear at the bottom right and reach fresh provider launches as literal arguments. Default adds no override.
+- [x] The model panel opens above its control at 1120×760 and 650×450. Its model list scrolls while effort and Full access stay visible.
+- [x] Full access starts Off for new sessions, survives retained drafts, resets on provider change, and supplies only the selected provider's fresh-launch flag.
 - [x] Project, No project, Local, existing checkout and new-worktree reference choices remain explicit. Discovery launches no agent.
 - [x] Native popup selection restores composer shortcut focus. Real multiline input and disposable shell input/output pass.
 - [x] Centered layout fits desktop and narrow windows in both appearances. Native image paste, removal and retained preview checks pass.
@@ -109,6 +111,7 @@ The maintainer confirmed the physical keyboard checks on 13 October 2026. Cmd+T 
 - [ ] New workspace names are readable and unique. The first composer starting prompt names a workspace once, including after a shell launch. Manual names win; retries, additional prompts, and restart keep the title. Saved generic automatic labels upgrade without changing readable/manual names, paths, branches, drafts, or process identities. See [targeted naming verification](status.md#workspace-naming-verification).
 - [ ] Project/workspace context menus support right-click and keyboard access.
 - [x] Tab/workspace switching preserves drafts, processes, output, scroll, and file selection.
+- [ ] `$sim` and `/sim` show installed skill matches in an agent launch draft. Enter inserts a provider reference, Escape keeps the draft, and ordinary Enter still launches.
 - [x] Root directory identity and start subdirectory remain distinct.
 - [x] Distinct conversations may share a checkout. Saved identity deduplication uses provider plus session ID.
 
