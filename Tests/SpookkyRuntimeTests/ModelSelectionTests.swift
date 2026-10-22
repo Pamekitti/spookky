@@ -5,6 +5,37 @@ import SpookkyPersistence
 @testable import SpookkyWorkspace
 
 final class ModelSelectionTests: XCTestCase {
+    func testFullAccessIsDraftScopedAndDefaultsOffAfterProviderChange() throws {
+        var state = WorkspaceState(); state.showLanding(homeDirectory: "/tmp")
+        let id = try XCTUnwrap(state.primaryTerminalID)
+        state.editDraft(id, tool: .codex, prompt: "Keep this draft")
+        state.editFullAccess(id, enabled: true)
+        XCTAssertTrue(state.tab(id)!.draft.fullAccess)
+        let restored = try JSONDecoder().decode(WorkspaceState.self, from: JSONEncoder().encode(state))
+        XCTAssertTrue(restored.tab(id)!.draft.fullAccess)
+        state.editDraft(id, tool: .claude)
+        XCTAssertFalse(state.tab(id)!.draft.fullAccess)
+        state.editFullAccess(id, enabled: true)
+        state.editDraft(id, tool: .codex)
+        XCTAssertFalse(state.tab(id)!.draft.fullAccess)
+        state.editFullAccess(id, enabled: true)
+        var fresh = WorkspaceState(); fresh.showLanding(homeDirectory: "/tmp", inheriting: state.tab(id)!.draft)
+        XCTAssertFalse(fresh.tab(fresh.primaryTerminalID!)!.draft.fullAccess)
+        let legacy = try JSONDecoder().decode(TerminalDraft.self, from: Data(#"{"tool":"codex","prompt":"old"}"#.utf8))
+        XCTAssertFalse(legacy.fullAccess)
+    }
+
+    func testFullAccessFlagsStayBeforePromptAndNeverReachShell() throws {
+        for tool in [SessionTool.codex, .claude] {
+            let original = try LaunchSpec(tool: tool, executable: "/bin/cat", directory: "/tmp", initialPrompt: "literal prompt")
+            let enabled = try original.selectingFullAccess(true)
+            XCTAssertEqual(enabled.arguments.first, tool == .codex ? "--dangerously-bypass-approvals-and-sandbox" : "--dangerously-skip-permissions")
+            XCTAssertEqual(Array(enabled.arguments.suffix(2)), ["--", "literal prompt"])
+            XCTAssertEqual(try original.selectingFullAccess(false), original)
+        }
+        let shell = try LaunchSpec(tool: .shell, executable: "/bin/zsh", directory: "/tmp")
+        XCTAssertEqual(try shell.selectingFullAccess(true), shell)
+    }
     func testModelEffortMemorySurvivesSwitchesDefaultAndRestart() throws {
         var state = WorkspaceState(); state.showLanding(homeDirectory: "/tmp")
         let id = try XCTUnwrap(state.primaryTerminalID)

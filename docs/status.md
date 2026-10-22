@@ -2,6 +2,12 @@
 
 Spookky is an early native macOS development preview. The terminal, workspace, project/worktree, file/diff, and metadata layers are implemented. Daily-use and distribution acceptance remain incomplete.
 
+## Model menu and launch access, 22 October 2026
+
+The model menu now opens above its control. Native fixture checks passed at 1120×760 and 650×450. The model list scrolls within a 320-point-wide menu; reasoning effort and Full access stay in its fixed footer. Search stays hidden for short catalogs. Full access is Off for a new session, remains on a retained draft, and resets when the provider changes. The selected mode stays visible in the closed control.
+
+The Release build, 14 targeted model tests (one opt-in skip), 24 coordinator tests, native composer and image fixtures, and the repository checker passed. Launch tests checked the exact Codex and Claude arguments and frozen launch intent. A fixture did not start either provider or send a model request. Physical typing, spoken VoiceOver, and installed-app delivery remain unverified.
+
 ## Composer polish, 20 October 2026
 
 The composer now has balanced footer padding, circular attachment/send targets, Enter to start and Shift+Enter for a newline. Enter starts an empty draft too. The compact, muted context row retains the previous design. Its location popover contains the New worktree switch. No keyboard hint is displayed. The combined model picker keeps effort controls outside the scrolling model list and retains each model’s effort choice. Saved preference history is optional and capped at 32 models per provider.

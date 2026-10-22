@@ -721,6 +721,7 @@ private final class ComposerPopoverBackground: NSView {
     var onDismiss: (() -> Void)?
     private var values: [ComposerChoice] = []
     private var buttons: [ActionButton] = []
+    private var edge: NSRectEdge = .maxY
     private(set) weak var anchor: NSView?
     var isShown: Bool { popover.isShown }
 
@@ -755,18 +756,29 @@ private final class ComposerPopoverBackground: NSView {
         ])
         DisplayMetrics.registerRoot(controller.view)
     }
-    func show(from anchor: NSView, title: String, search placeholder: String, rows: [ComposerChoice]) {
+    func show(from anchor: NSView, title: String, search placeholder: String, rows: [ComposerChoice],
+              searchable: Bool = true, preferredEdge: NSRectEdge = .maxY) {
         close(); self.anchor = anchor; search.stringValue = ""; search.placeholderString = placeholder
+        edge = preferredEdge
+        search.isHidden = !searchable
+        popover.behavior = searchable ? .transient : .semitransient
         search.setAccessibilityLabel(placeholder); controller.view.setAccessibilityLabel(title)
         values = rows; render()
-        popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: .maxY)
-        controller.view.window?.makeFirstResponder(search)
+        popover.show(relativeTo: anchor.bounds, of: anchor, preferredEdge: preferredEdge)
+        if searchable { controller.view.window?.makeFirstResponder(search) }
+        else if let first = buttons.first { controller.view.window?.makeFirstResponder(first) }
     }
     func close() {
         let previous = anchor
         if popover.isShown { popover.performClose(nil) }
         anchor = nil
         if onDismiss == nil { previous?.window?.makeFirstResponder(previous) }
+    }
+    func setSearchable(_ enabled: Bool) {
+        guard search.isHidden == enabled else { return }
+        search.isHidden = !enabled
+        if !enabled { search.stringValue = "" }
+        render()
     }
     func update(_ values: [ComposerChoice]) { self.values = values; render() }
     private func render() {
@@ -805,9 +817,16 @@ private final class ComposerPopoverBackground: NSView {
         if matches.isEmpty {
             let empty = SpookkyStyle.label("No matches"); rows.addArrangedSubview(empty); height = SpookkyStyle.points(32)
         }
-        let available = anchor?.window?.contentView?.bounds.size ?? NSSize(width: 400, height: 600)
-        popover.contentSize = NSSize(width: min(SpookkyStyle.points(340), max(240, available.width - 48)),
-            height: min(max(140, available.height - 80), SpookkyStyle.points(450), max(100, height + SpookkyStyle.points(52) + (accessory.isHidden ? 0 : accessory.fittingSize.height + SpookkyStyle.points(6)))))
+        let content = anchor?.window?.contentView
+        let available = content?.bounds.size ?? NSSize(width: 400, height: 600)
+        let heightLimit: CGFloat
+        if edge == .minY, let anchor, let window = anchor.window {
+            let control = window.convertToScreen(anchor.convert(anchor.bounds, to: nil))
+            heightLimit = max(SpookkyStyle.points(120), window.frame.maxY - control.maxY - SpookkyStyle.points(56))
+        } else { heightLimit = max(SpookkyStyle.points(140), available.height - SpookkyStyle.points(80)) }
+        let chrome = search.isHidden ? SpookkyStyle.points(16) : SpookkyStyle.points(52)
+        popover.contentSize = NSSize(width: min(SpookkyStyle.points(320), max(240, available.width - 24)),
+            height: min(heightLimit, SpookkyStyle.points(400), max(SpookkyStyle.points(110), height + chrome + (accessory.isHidden ? 0 : accessory.fittingSize.height + SpookkyStyle.points(6)))))
         controller.view.layoutSubtreeIfNeeded()
         scroll.contentView.scroll(to: NSPoint(x: 0, y: min(scrollOrigin.y, max(0, scroll.documentView!.bounds.height - scroll.contentSize.height))))
         if let focused, let button = buttons.first(where: { $0.title == focused }) { controller.view.window?.makeFirstResponder(button) }
@@ -853,12 +872,14 @@ private final class ComposerPopoverBackground: NSView {
     private var rightWidth: NSLayoutConstraint!
     private let choices = ComposerChoicePopover()
     private let modelChoices = ComposerChoicePopover()
+    private let fullAccessToggle = NSSwitch()
     private var effortKey = ""
     private let modelCatalog: any ProviderModelDiscovering
     private var discoveredModels: ProviderModels?
     private var catalogKey = ""
     private var modelTask: Task<Void, Never>?
     private var selection = AgentModelSelection()
+    private var fullAccess = false
     private var currentWorkspace: Workspace?
     private var currentProject: Project? { projects.first { $0.id == currentWorkspace?.projectID } }
     private let launch = ActionButton("", symbol: "arrow.up", height: SpookkyStyle.points(32), action: {})
@@ -893,6 +914,7 @@ private final class ComposerPopoverBackground: NSView {
     var onDraft: ((SessionTool?, String?) -> Void)?
     var onImages: (([String]) -> Void)?
     var onModel: ((AgentModelSelection) -> Void)?
+    var onFullAccess: ((Bool) -> Void)?
     var onRecallModel: ((String) -> AgentModelSelection?)?
     var onNoProject: (() -> Void)?
     var onError: ((String) -> Void)?
@@ -1205,7 +1227,7 @@ private final class ComposerPopoverBackground: NSView {
         let promptChanged = prompt.string != tab.draft.prompt
         if promptChanged { prompt.string = tab.draft.prompt }
         currentTool = tab.draft.tool; projects = state.projects
-        currentWorkspace = workspace; selection = tab.draft.modelSelection
+        currentWorkspace = workspace; selection = tab.draft.modelSelection; fullAccess = tab.draft.fullAccess
         loadSkillsIfNeeded(tool: tab.draft.tool, directory: workspace.directory)
         if promptChanged { refreshSuggestions() }
         let project = currentProject
@@ -1305,7 +1327,7 @@ private final class ComposerPopoverBackground: NSView {
         if picker.title != providerTitle { picker.title = providerTitle }
         if folder.title != folderTitle { folder.title = folderTitle }
         let modelName = discoveredModels?.models.first { $0.id == selection.model }?.name ?? selection.displayName ?? selection.model ?? "Default model"
-        let modelTitle = modelName + (selection.effort.map { " · " + $0.capitalized } ?? "")
+        let modelTitle = modelName + (selection.effort.map { " · " + $0.capitalized } ?? "") + (fullAccess ? " · Full access" : "")
         if model.title != modelTitle { model.title = modelTitle }
         model.toolTip = "Choose " + tool.displayName + " model · " + modelTitle
         model.setAccessibilityLabel(model.toolTip)
@@ -1433,7 +1455,9 @@ private final class ComposerPopoverBackground: NSView {
         locationPopover.performClose(nil); choices.close()
         updateEffortChoices()
         if !modelChoices.isShown {
-            modelChoices.show(from: model, title: tool.displayName + " model and effort", search: "Search models…", rows: modelRows(loading: discoveredModels == nil))
+            modelChoices.show(from: model, title: tool.displayName + " model, effort and access", search: "Search models…",
+                              rows: modelRows(loading: discoveredModels == nil), searchable: (discoveredModels?.models.count ?? 0) > 8,
+                              preferredEdge: .minY)
         }
         modelTask?.cancel()
         modelTask = Task { [weak self, modelCatalog] in
@@ -1464,39 +1488,58 @@ private final class ComposerPopoverBackground: NSView {
         onModel?(AgentModelSelection(model: value.id, effort: effort, displayName: value.name))
     }
     private func updateModelChoices() {
-        updateEffortChoices(); modelChoices.update(modelRows())
+        updateEffortChoices()
+        modelChoices.setSearchable((discoveredModels?.models.count ?? 0) > 8)
+        modelChoices.update(modelRows())
     }
     private func updateEffortChoices() {
         let efforts = currentTool == .codex ? discoveredModels?.models.first { $0.id == selection.model }?.efforts ?? [] : discoveredModels?.efforts ?? []
-        let key = (currentTool?.rawValue ?? "") + "|" + (selection.model ?? "") + "|" + (selection.effort ?? "") + "|" + efforts.joined(separator: ",")
+        let key = (currentTool?.rawValue ?? "") + "|" + (selection.model ?? "") + "|" + (selection.effort ?? "") + "|" + efforts.joined(separator: ",") + "|" + String(fullAccess)
         guard key != effortKey else { return }; effortKey = key
         let footer = modelChoices.accessory
         let focusedTitle = (footer.window?.firstResponder as? NSButton)?.title
         for view in footer.arrangedSubviews { footer.removeArrangedSubview(view); view.removeFromSuperview() }
-        footer.isHidden = efforts.isEmpty
-        guard !efforts.isEmpty else { return }
+        footer.isHidden = false
         let separator = NSBox(); separator.boxType = .separator
         footer.addArrangedSubview(separator); separator.widthAnchor.constraint(equalTo: footer.widthAnchor).isActive = true
-        let label = SpookkyStyle.label("Reasoning effort")
-        label.font = .systemFont(ofSize: SpookkyStyle.points(11)); label.textColor = SpookkyPalette.secondary
-        footer.addArrangedSubview(label)
-        let values: [String?] = [nil] + efforts.map(Optional.some)
-        for offset in stride(from: 0, to: values.count, by: 3) {
-            let row = NSStackView(); row.spacing = SpookkyStyle.points(4); row.distribution = .fillEqually
-            for value in values[offset..<min(offset + 3, values.count)] {
-                let button = ActionButton(value?.capitalized ?? "Default effort", action: {})
-                button.selected = value == selection.effort
-                button.setAccessibilityValue(button.selected ? "Selected" : "Not selected")
-                button.handler = { [weak self] in
-                    guard let self else { return }; var next = selection; next.effort = value; onModel?(next)
+        if !efforts.isEmpty {
+            let label = SpookkyStyle.label("Reasoning effort")
+            label.font = .systemFont(ofSize: SpookkyStyle.points(11)); label.textColor = SpookkyPalette.secondary
+            footer.addArrangedSubview(label)
+            let values: [String?] = [nil] + efforts.map(Optional.some)
+            for offset in stride(from: 0, to: values.count, by: 3) {
+                let row = NSStackView(); row.spacing = SpookkyStyle.points(4); row.distribution = .fillEqually
+                for value in values[offset..<min(offset + 3, values.count)] {
+                    let button = ActionButton(value?.capitalized ?? "Default effort", action: {})
+                    button.selected = value == selection.effort
+                    button.setAccessibilityValue(button.selected ? "Selected" : "Not selected")
+                    button.handler = { [weak self] in
+                        guard let self else { return }; var next = selection; next.effort = value; onModel?(next)
+                    }
+                    button.onCancel = { [weak self] in self?.modelChoices.close() }
+                    row.addArrangedSubview(button)
+                    if button.title == focusedTitle { DispatchQueue.main.async { [weak button] in button?.window?.makeFirstResponder(button) } }
                 }
-                button.onCancel = { [weak self] in self?.modelChoices.close() }
-                row.addArrangedSubview(button)
-                if button.title == focusedTitle { DispatchQueue.main.async { [weak button] in button?.window?.makeFirstResponder(button) } }
+                footer.addArrangedSubview(row); row.widthAnchor.constraint(equalTo: footer.widthAnchor).isActive = true
             }
-            footer.addArrangedSubview(row); row.widthAnchor.constraint(equalTo: footer.widthAnchor).isActive = true
+        }
+        let accessRow = NSStackView(); accessRow.alignment = .centerY
+        let accessLabel = SpookkyStyle.label("Full access")
+        accessRow.addArrangedSubview(accessLabel)
+        let spacer = NSView(); accessRow.addArrangedSubview(spacer)
+        spacer.setContentHuggingPriority(.init(1), for: .horizontal)
+        fullAccessToggle.state = fullAccess ? .on : .off
+        fullAccessToggle.target = self; fullAccessToggle.action = #selector(toggleFullAccess)
+        fullAccessToggle.setAccessibilityLabel("Full access for " + (currentTool?.displayName ?? "agent"))
+        accessRow.addArrangedSubview(fullAccessToggle)
+        footer.addArrangedSubview(accessRow); accessRow.widthAnchor.constraint(equalTo: footer.widthAnchor).isActive = true
+        if fullAccess {
+            let detail = SpookkyStyle.label(currentTool == .codex ? "No approvals or sandbox" : "Permission prompts skipped")
+            detail.font = .systemFont(ofSize: SpookkyStyle.points(11)); detail.textColor = SpookkyPalette.warning
+            footer.addArrangedSubview(detail)
         }
     }
+    @objc private func toggleFullAccess() { onFullAccess?(fullAccessToggle.state == .on) }
     @objc private func toggleWorktree() {
         guard newWorktree.isEnabled, let workspace = currentWorkspace else { return }
         modelChoices.close()

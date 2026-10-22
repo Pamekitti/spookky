@@ -112,6 +112,8 @@ The start page uses one bottom composer with provider and folder chips. The prom
 
 In an agent draft, `$` or `/` followed by part of a skill name shows matches from local skill manifests. Selecting a match replaces only that token. Codex inserts `$skill-name` for either trigger. Claude Code inserts `/skill-name`. CLI control commands remain in the running terminal.
 
+The model picker also offers Full access. It is Off for each fresh session and remains set on a retained draft. Switching providers turns it Off. An enabled fresh Codex launch skips approvals and sandboxing; an enabled fresh Claude Code launch skips permission prompts. Shell, resume and reattachment keep their existing behavior.
+
 Changing agents preserves the prompt draft. Opening a shell does not change the last agent choice. Shell launches never execute that text. Auth and permission prompts remain inside the provider CLI. Missing executables lead to guidance plus a working Terminal fallback.
 
 Cmd+V in the initial prompt accepts clipboard images and shows removable previews. Drafts retain up to eight images, each at most 20 MB and 25 megapixels. Images are saved privately beside workspace metadata so reopening a draft or retrying a launch can still use them. Codex receives native image arguments. Claude Code receives image file references in the initial prompt. Opening a shell keeps the image draft and passes no images to the shell.
