@@ -71,7 +71,7 @@ Use New chat in the UI. Existing workspace type and persistence names remain int
 | Terminals | Real shell, Codex CLI, and Claude Code CLI; optional initial agent prompt. |
 | Parallel work | Each UI-launched agent gets a sibling sidebar workspace. Supporting + opens Browser, Files, Changes, Artifact or Terminal. Split and Full view retain live views and drafts. |
 | Agent attention | Provider-reported activity, unread completions, workspace rollups, and optional native notifications. See [agent activity](agent-activity.md). |
-| Navigation | Single-line project history, five recent entries and repeated ten-entry expansion, one search field, contextual actions and a collapsible icon rail. |
+| Navigation | Single-line project history in saved order, five entries and repeated ten-entry expansion, one search field, contextual actions and a collapsible icon rail. |
 | File inspection | Full file tree, file search, read-only preview, external-editor action. |
 | Change inspection | Uncommitted groups and committed comparison against a selected branch; unified/split diff. |
 | Recovery | Clear launch errors, retained successful worktree creation, reconnect, ended sessions, explicit resume. |

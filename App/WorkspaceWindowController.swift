@@ -1061,6 +1061,28 @@ import SpookkyGit
         updateHeaderGeometry()
     }
     func historyFixtureRecords(_ key: String) -> [ConversationCatalogRecord] { historyRecords[key] ?? [] }
+    private func stableHistoryRows(_ incoming: [ConversationCatalogRecord], key: String, limit: Int) -> [ConversationCatalogRecord] {
+        if key == "search" { return Array(incoming.prefix(limit)) }
+        var byID: [ConversationID: ConversationCatalogRecord] = [:]
+        for record in historyRecords[key] ?? [] { byID[record.id] = record }
+        for record in incoming { byID[record.id] = record }
+        let state = store.state
+        let ranked: [(record: ConversationCatalogRecord, position: Double)] = byID.values.map { record in
+            let position = state.presentation(for: record.id.threadKey).sidebarPosition ?? record.metadata.updatedAt.timeIntervalSinceReferenceDate
+            return (record, position)
+        }
+        let ordered = ranked.sorted { left, right in
+            left.position == right.position ? left.record.id.threadKey < right.record.id.threadKey : left.position > right.position
+        }
+        return Array(ordered.prefix(limit).map(\.record))
+    }
+    private func removeHistoryDuplicates(_ incoming: [ConversationCatalogRecord], keeping key: String) {
+        let ids = Set(incoming.map(\.id))
+        for other in Array(historyRecords.keys) where other != key && other != "search" {
+            guard let records = historyRecords[other] else { continue }
+            historyRecords[other] = records.filter { !ids.contains($0.id) }
+        }
+    }
     func catalogProjectSignature() -> String {
         store.state.projects.map { $0.id.uuidString + $0.location.path }.joined(separator: "\n")
     }
@@ -1115,6 +1137,9 @@ import SpookkyGit
                     let cached = try await historyCatalog.cached(allProjects: true, search: query, limit: limit, excluding: historyExclusions(for: nil, allProjects: true))
                     try Task.checkCancellation()
                     historyRecords["search"] = cached
+                    if cached.contains(where: { store.state.presentation(for: $0.id.threadKey).sidebarPosition == nil }) {
+                        store.update { $0.rememberSidebarPositions(cached) }
+                    }
                     chromeRevision = ""; render()
                     try await refreshHistoryGroup("search", projects: projects, locations: locations, query: query, reset: true, force: false)
                 } else {
@@ -1122,7 +1147,11 @@ import SpookkyGit
                         let key = projectID?.uuidString ?? "unbound"
                         let cached = try await historyCatalog.cached(projectID: projectID, limit: historyPageLimits[key] ?? 5, excluding: historyExclusions(for: projectID))
                         try Task.checkCancellation()
-                        historyRecords[key] = cached
+                        if cached.contains(where: { store.state.presentation(for: $0.id.threadKey).sidebarPosition == nil }) {
+                            store.update { $0.rememberSidebarPositions(cached) }
+                        }
+                        removeHistoryDuplicates(cached, keeping: key)
+                        historyRecords[key] = stableHistoryRows(cached, key: key, limit: historyPageLimits[key] ?? 5)
                     }
                     chromeRevision = ""; render()
                     // Discover recent external worktrees without enumerating the provider's full history.
@@ -1162,8 +1191,13 @@ import SpookkyGit
             cursor = page?.nextCursor
             let cached = try await historyCatalog.cached(projectID: projectID, allProjects: isSearch, search: query, limit: limit + 1, excluding: historyExclusions(for: projectID, allProjects: isSearch))
             try Task.checkCancellation()
-            historyRecords[key] = Array(cached.prefix(limit))
-            if cached.count > limit || cursor != nil { historyHasMore.insert(key) } else { historyHasMore.remove(key) }
+            if cached.contains(where: { store.state.presentation(for: $0.id.threadKey).sidebarPosition == nil }) {
+                store.update { $0.rememberSidebarPositions(cached) }
+            }
+            removeHistoryDuplicates(cached, keeping: key)
+            let knownCount = Set((historyRecords[key] ?? []).map(\.id)).union(cached.map(\.id)).count
+            historyRecords[key] = stableHistoryRows(cached, key: key, limit: limit)
+            if knownCount > limit || cached.count > limit || cursor != nil { historyHasMore.insert(key) } else { historyHasMore.remove(key) }
             historyCursors[key] = cursor
             for issue in page?.issues ?? [] where !issue.message.hasPrefix("No local Claude Code history") { providerHistoryNotices.insert(issue.message) }
             historyIssues[key] = nil
@@ -1182,7 +1216,7 @@ import SpookkyGit
         }
     }
     private func showMoreHistory(_ key: String) {
-        if ["pinned", "recents", "archived"].contains(key) { sectionLimits[key] = (sectionLimits[key] ?? 5) + 10; chromeRevision = ""; render(); return }
+        if ["pinned", "archived"].contains(key) { sectionLimits[key] = (sectionLimits[key] ?? 5) + 10; chromeRevision = ""; render(); return }
         historyPageLimits[key] = (historyPageLimits[key] ?? (key == "search" ? 10 : 5)) + 10
         historyRefreshTask?.cancel()
         let token = UUID(); historyGeneration = token
@@ -1863,8 +1897,8 @@ import SpookkyGit
         let conversationTitle = cell.subviews.compactMap { $0 as? NSTextField }.first
         let projectTitle = sidebarCellForFixture(projectKey)?.subviews.compactMap { $0 as? NSTextField }.first
         checks["project_content_has_internal_padding"] = projectIcon.map { abs($0.convert($0.bounds, to: conversationSidebar).minX - 12) < 0.5 } == true
-        checks["conversation_and_project_titles_align_with_provider_icon"] = conversationIcon?.isHidden == false && conversationIcon?.image != nil &&
-            conversationTitle.map { abs($0.frame.minX - 35) < 0.5 } == true && projectTitle.map { abs($0.frame.minX - 35) < 0.5 } == true
+        checks["conversation_title_is_indented_below_project"] = conversationIcon?.isHidden == false && conversationIcon?.image != nil &&
+            conversationTitle.map { abs($0.frame.minX - 51) < 0.5 } == true && projectTitle.map { abs($0.frame.minX - 35) < 0.5 } == true
         railScroll.contentView.scroll(to: NSPoint(x: 120, y: 0)); railScroll.reflectScrolledClipView(railScroll.contentView)
         checks["fixed_sidebar_controls_cannot_scroll_sideways"] = railScroll.contentView.bounds.minX == 0 && railScroll.horizontalScrollElasticity == .none
         checks["full_title_in_accessibility_without_native_tooltip"] = cell.toolTip == nil && cell.accessibilityLabel()?.contains(name) == true
@@ -3922,6 +3956,13 @@ import SpookkyGit
                 }), let selector = item.action else { return }
                 NSApp.sendAction(selector, to: item.target, from: item)
             }
+            conversationSidebar.onReorder = { [weak self] ids in
+                guard let self else { return }
+                let keys = ids.compactMap(sidebarThreadKey)
+                guard keys.count == ids.count else { return }
+                store.update { $0.reorderThreads(keys) }
+                chromeRevision = ""; render()
+            }
             conversationSidebar.onVisibleItems = { [weak self] items in
                 guard let self else { return }
                 if sidebarVisibleItems.map(\.id) != items.map(\.id), sidebarGitTask != nil {
@@ -3950,7 +3991,7 @@ import SpookkyGit
                     localAlias: workspace.customTitle ? workspace.title : nil, workspaceID: workspace.id, terminalID: workspace.primaryTerminalID)
             }
             let moved = (state.threadPresentations ?? [:]).values.filter { $0.hasProjectOverride && (key == "search" || $0.projectOverride == projectID) }.compactMap(\.conversation)
-            var rows: [(id: String, date: Date, record: ConversationCatalogRecord?, workspace: Workspace?)] = []
+            var rows: [(id: String, position: Double, record: ConversationCatalogRecord?, workspace: Workspace?)] = []
             for originalRecord in records + supplemental + moved {
                 var record = originalRecord
                 let presentation = state.presentation(for: record.id.threadKey)
@@ -3960,16 +4001,20 @@ import SpookkyGit
                 if key != "search", (workspace?.projectID ?? record.projectID) != projectID { continue }
                 if !search.isEmpty, ![workspace?.displayTitle ?? record.displayTitle, record.metadata.directory, record.id.sessionID].contains(where: { $0.localizedCaseInsensitiveContains(search) }) { continue }
                 guard seen.insert(record.id).inserted else { continue }
-                rows.append(("conversation:" + record.id.threadKey, record.metadata.updatedAt, record, workspace))
+                rows.append(("conversation:" + record.id.threadKey,
+                    presentation.sidebarPosition ?? record.metadata.updatedAt.timeIntervalSinceReferenceDate, record, workspace))
             }
             for workspace in state.workspaces where !workspace.isLanding && workspace.projectID == projectID && workspace.conversationID == nil && !state.isArchived(workspace) &&
                 (search.isEmpty || workspace.displayTitle.localizedCaseInsensitiveContains(search)) {
-                rows.append((workspace.threadKey, workspace.lastViewedAt ?? .distantPast, nil, workspace))
+                let fallback = Double(state.workspaces.firstIndex { $0.id == workspace.id } ?? 0)
+                rows.append((workspace.threadKey, state.presentation(for: workspace.threadKey).sidebarPosition ?? fallback, nil, workspace))
             }
-            rows.sort { $0.date == $1.date ? $0.id < $1.id : $0.date > $1.date }
+            rows.sort { $0.position == $1.position ? $0.id < $1.id : $0.position > $1.position }
             let limit = historyPageLimits[key] ?? (key == "search" ? 10 : 5)
-            var visible = Array(rows.prefix(limit))
-            if let selected = rows.first(where: { $0.workspace?.id == state.selectedWorkspaceID }), !visible.contains(where: { $0.id == selected.id }) { visible.append(selected) }
+            let selectedIndex = rows.firstIndex { $0.workspace?.id == state.selectedWorkspaceID }
+            let visibleLimit = max(limit, selectedIndex.map { $0 + 1 } ?? 0)
+            if visibleLimit > limit { historyPageLimits[key] = visibleLimit }
+            let visible = Array(rows.prefix(visibleLimit))
             for row in visible {
                 let record = row.record, workspace = row.workspace, activity = workspace?.activityState
                 if let record { sidebarRecords[row.id] = record }
@@ -3979,7 +4024,7 @@ import SpookkyGit
                     image: SpookkyStyle.toolImage(record?.id.provider ?? workspace?.displayProvider ?? .shell),
                     help: ([heading, record?.metadata.directory ?? workspace?.directory, workspace?.currentProjectAssociation?.message, activity?.label].compactMap { $0 }).joined(separator: "\n"),
                     selected: workspace?.id == state.selectedWorkspaceID && (selectedSidebarOccurrence == nil || selectedSidebarOccurrence == row.id),
-                    nested: projectID != nil, activity: activity))
+                    nested: projectID != nil, activity: activity, groupID: key, reorderable: key != "search"))
             }
             if rows.count > limit || historyHasMore.contains(key) || historyIssues[key] != nil {
                 items.append(WorkspaceSidebarItem(id: "more:" + key, kind: .more,
@@ -4034,7 +4079,6 @@ import SpookkyGit
                 append(unbound, projectID: nil, key: "unbound")
             }
         }
-        if !showingArchived && search.isEmpty { localSection("Recents", key: "recents", filter: { $0.lastVisitedAt != nil && $0.archivedAt == nil }) }
         for index in items.indices where items[index].kind == .conversation {
             guard let key = sidebarThreadKey(items[index].id) else { continue }
             let record = sidebarRecords[items[index].id]

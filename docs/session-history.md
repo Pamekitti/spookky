@@ -1,6 +1,6 @@
 # Saved conversation sidebar
 
-Spookky shows five recent Codex and Claude Code conversations per project. Show more requests ten more, repeatedly. Search starts with ten results and can request further pages, including history not previously cached. The selected conversation and open local sessions remain available without duplicate rows.
+Spookky shows five Codex and Claude Code conversations per project in saved order. New conversations enter above older ones. Provider updates and visits leave existing rows in place. Dragging within a project changes and saves that order. Show more requests ten more, repeatedly. Search starts with ten results and can request further pages, including history not previously cached. The selected conversation and open local sessions remain available without duplicate rows.
 
 Each row has one title line, a provider mark and an indicator when attention is needed. Saved paths, full titles and detailed status remain in tooltips and accessibility labels. Titles stay still. A contextual menu supplies secondary actions.
 
