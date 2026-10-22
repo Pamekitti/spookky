@@ -1,0 +1,31 @@
+App/SkillSuggestions.swift
+  s_4765a128980824::t_d58c6364cee982 1-125
+App/WorkspaceViews.swift
+  s_4765a128980824::t_3182378b7ef02d 213,225-228,397,404-408,433,451-454,466,490,502-503,505-506,613-614,616-691
+Spookky.xcodeproj/project.pbxproj
+  s_e182451eb690ec::t_ff454c95df110d 21-22,67,73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8975b811d0b1ed2818a511c45261ad5762802cdb",
+  "prompts": {},
+  "sessions": {
+    "s_4765a128980824": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a16293-bc16-7770-abba-6e0a2742f42e",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_e182451eb690ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a16296-aeac-79f2-af6e-c1a475f3c614",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
