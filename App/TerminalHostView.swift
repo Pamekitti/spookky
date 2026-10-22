@@ -49,8 +49,6 @@ final class TerminalHostView: NSView, NSTextInputClient {
     init(engine: GhosttyEngine, command: String, directory: String, initialSize: NSSize? = nil) throws {
         self.engine = engine
         super.init(frame: NSRect(origin: .zero, size: initialSize ?? NSSize(width: 900, height: 600)))
-        wantsLayer = true
-        layer?.backgroundColor = NSColor(calibratedRed: 0.082, green: 0.075, blue: 0.071, alpha: 1).cgColor
         var configuration = ghostty_surface_config_new()
         configuration.platform_tag = GHOSTTY_PLATFORM_MACOS
         configuration.platform.macos.nsview = Unmanaged.passUnretained(self).toOpaque()
