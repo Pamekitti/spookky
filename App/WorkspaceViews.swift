@@ -719,6 +719,7 @@ private final class ComposerPopoverBackground: NSView {
     var onDismiss: (() -> Void)?
     private var values: [ComposerChoice] = []
     private var buttons: [ActionButton] = []
+    private var edge: NSRectEdge = .maxY
     private(set) weak var anchor: NSView?
     var isShown: Bool { popover.isShown }
 
@@ -756,6 +757,7 @@ private final class ComposerPopoverBackground: NSView {
     func show(from anchor: NSView, title: String, search placeholder: String, rows: [ComposerChoice],
               searchable: Bool = true, preferredEdge: NSRectEdge = .maxY) {
         close(); self.anchor = anchor; search.stringValue = ""; search.placeholderString = placeholder
+        edge = preferredEdge
         search.isHidden = !searchable
         popover.behavior = searchable ? .transient : .semitransient
         search.setAccessibilityLabel(placeholder); controller.view.setAccessibilityLabel(title)
@@ -815,14 +817,14 @@ private final class ComposerPopoverBackground: NSView {
         }
         let content = anchor?.window?.contentView
         let available = content?.bounds.size ?? NSSize(width: 400, height: 600)
-        let roomAbove: CGFloat
-        if let anchor, let window = anchor.window {
+        let heightLimit: CGFloat
+        if edge == .minY, let anchor, let window = anchor.window {
             let control = window.convertToScreen(anchor.convert(anchor.bounds, to: nil))
-            roomAbove = max(SpookkyStyle.points(120), window.frame.maxY - control.maxY - SpookkyStyle.points(56))
-        } else { roomAbove = available.height / 2 }
+            heightLimit = max(SpookkyStyle.points(120), window.frame.maxY - control.maxY - SpookkyStyle.points(56))
+        } else { heightLimit = max(SpookkyStyle.points(140), available.height - SpookkyStyle.points(80)) }
         let chrome = search.isHidden ? SpookkyStyle.points(16) : SpookkyStyle.points(52)
         popover.contentSize = NSSize(width: min(SpookkyStyle.points(320), max(240, available.width - 24)),
-            height: min(roomAbove, SpookkyStyle.points(400), max(SpookkyStyle.points(110), height + chrome + (accessory.isHidden ? 0 : accessory.fittingSize.height + SpookkyStyle.points(6)))))
+            height: min(heightLimit, SpookkyStyle.points(400), max(SpookkyStyle.points(110), height + chrome + (accessory.isHidden ? 0 : accessory.fittingSize.height + SpookkyStyle.points(6)))))
         controller.view.layoutSubtreeIfNeeded()
         scroll.contentView.scroll(to: NSPoint(x: 0, y: min(scrollOrigin.y, max(0, scroll.documentView!.bounds.height - scroll.contentSize.height))))
         if let focused, let button = buttons.first(where: { $0.title == focused }) { controller.view.window?.makeFirstResponder(button) }
