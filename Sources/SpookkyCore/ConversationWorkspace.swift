@@ -103,6 +103,7 @@ extension WorkspaceState {
             shared.pinnedAt = shared.pinnedAt ?? previous.pinnedAt
             shared.archivedAt = shared.archivedAt ?? previous.archivedAt
             shared.lastVisitedAt = max(shared.lastVisitedAt ?? .distantPast, previous.lastVisitedAt ?? .distantPast)
+            shared.sidebarPosition = shared.sidebarPosition ?? previous.sidebarPosition
             if !shared.hasProjectOverride, previous.hasProjectOverride {
                 shared.hasProjectOverride = true; shared.projectOverride = previous.projectOverride
             }
