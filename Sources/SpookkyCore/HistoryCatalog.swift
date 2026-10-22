@@ -59,7 +59,10 @@ extension WorkspaceState {
         if let index = workspaces.firstIndex(where: { $0.id == id }) {
             workspaces[index].landingContext = context
             workspaces[index].title = "New chat"; workspaces[index].automaticTitle = nil
-            if let retainedDraft { workspaces[index].tabs[0].draft = retainedDraft }
+            if var retainedDraft {
+                retainedDraft.fullAccess = false
+                workspaces[index].tabs[0].draft = retainedDraft
+            }
             else if let source, source.tool != .shell {
                 workspaces[index].tabs[0].draft.tool = source.tool
                 let selection = source.recordedModelSelection(for: source.tool) ?? lastModelSelection(for: source.tool)

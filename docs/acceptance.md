@@ -7,6 +7,8 @@ The native app must satisfy these requirements before release. [Current status](
 - [x] Cmd+N and New chat select the viewed primary conversation's project draft, otherwise the global draft. A fresh project draft uses Local.
 - [x] Existing drafts take precedence over inherited context. Text, images and provider-specific model choices survive switching and metadata round trips.
 - [x] Model and supported effort choices appear at the bottom right and reach fresh provider launches as literal arguments. Default adds no override.
+- [x] The model panel opens above its control at 1120×760 and 650×450. Its model list scrolls while effort and Full access stay visible.
+- [x] Full access starts Off for new sessions, survives retained drafts, resets on provider change, and supplies only the selected provider's fresh-launch flag.
 - [x] Project, No project, Local, existing checkout and new-worktree reference choices remain explicit. Discovery launches no agent.
 - [x] Native popup selection restores composer shortcut focus. Real multiline input and disposable shell input/output pass.
 - [x] Centered layout fits desktop and narrow windows in both appearances. Native image paste, removal and retained preview checks pass.

@@ -2376,6 +2376,7 @@ import SpookkyGit
             composer.onImages = { [weak self, id = tab.id] images in self?.editPromptImages(images, for: id) }
             composer.onError = { [weak self] message in self?.alert("Could not update draft", message) }
             composer.onModel = { [weak self] selection in self?.store.update { $0.editModelSelection(tab.id, selection: selection) } }
+            composer.onFullAccess = { [weak self] enabled in self?.store.update { $0.editFullAccess(tab.id, enabled: enabled) } }
             composer.onNoProject = { [weak self] in
                 guard let self, let workspace = store.state.workspace(containing: tab.id) else { return }
                 store.update { $0.setLocation(WorkspaceLocation(path: FileManager.default.homeDirectoryForCurrentUser.path), projectID: nil, workspaceID: workspace.id) }
@@ -2733,15 +2734,18 @@ import SpookkyGit
         (try await waitPopup("Sol fixture")).performClick(nil)
         if let renderTask { await renderTask.value }
         if let popup = popupButton("Sol fixture")?.window,
-           let search = popup.contentView.map(descendants)?.compactMap({ $0 as? NSSearchField }).first {
-            search.stringValue = "Other"; search.delegate?.controlTextDidChange?(Notification(name: NSControl.textDidChangeNotification, object: search))
-            checks["model_search_keeps_effort_visible"] = popupButton("Sol fixture") == nil && popupButton("High") != nil
-            search.stringValue = ""; search.delegate?.controlTextDidChange?(Notification(name: NSControl.textDidChangeNotification, object: search))
+           let search = popup.contentView.map(descendants)?.compactMap({ $0 as? NSSearchField }).first,
+           let access = popup.contentView.map(descendants)?.compactMap({ $0 as? NSSwitch }).first {
+            checks["short_model_list_hides_search"] = search.isHidden && popupButton("High") != nil
+            checks["full_access_starts_off"] = access.state == .off && store.state.tab(id)?.draft.fullAccess == false
+            access.performClick(nil)
+            checks["full_access_updates_draft"] = store.state.tab(id)?.draft.fullAccess == true
         }
         closeModels()
         await Task.yield()
         checks["model_choice_restores_composer_shortcuts"] = composer.hasInputFocus
         store.update { $0.editDraft(id, tool: .claude) }
+        checks["provider_change_clears_full_access"] = store.state.tab(id)?.draft.fullAccess == false
         checks["switch_back_restores_provider_model"] = store.state.tab(id)?.draft.modelSelection.model == "sonnet"
         store.update { $0.editDraft(id, tool: .codex) }
         checks["switching_providers_keeps_prompt"] = composer.prompt.string == "Review this change\nKeep the details"
@@ -2826,12 +2830,29 @@ import SpookkyGit
         window.setContentSize(NSSize(width: 1120, height: 760))
         window.contentView?.layoutSubtreeIfNeeded()
         try await Task.sleep(for: .milliseconds(150))
+        func modelMenuAboveControl(_ label: String) -> Bool {
+            guard let control = descendants(composer).compactMap({ $0 as? NSButton }).first(where: { $0.accessibilityLabel()?.contains(" model · ") == true }),
+                  let host = control.window, let popup = popupButton("Sol fixture")?.window else { return false }
+            let controlFrame = host.convertToScreen(control.convert(control.bounds, to: nil))
+            try? PrivateFiles.write(["controlTop": Double(controlFrame.maxY), "popupBottom": Double(popup.frame.minY),
+                                     "popupTop": Double(popup.frame.maxY), "windowTop": Double(host.frame.maxY)],
+                                    to: root.appendingPathComponent("composer-menu-geometry-" + label + ".json"))
+            return popup.frame.minY >= controlFrame.maxY - 2 && popup.frame.maxY <= host.frame.maxY - 20
+        }
         try openModels(); _ = try await waitPopup("Sol fixture")
+        checks["model_menu_above_control_1120"] = modelMenuAboveControl("1120")
         if let view = NSApp.windows.first(where: { $0 !== window && $0.isVisible && $0.contentView.map { button("Sol fixture", in: $0) != nil } == true })?.contentView,
            let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
             view.cacheDisplay(in: view.bounds, to: bitmap)
             try bitmap.representation(using: .png, properties: [:])?.write(to: root.appendingPathComponent("composer-model-menu.png"))
         }
+        closeModels()
+        window.setContentSize(NSSize(width: 650, height: 450)); window.contentView?.layoutSubtreeIfNeeded()
+        try openModels(); _ = try await waitPopup("Sol fixture")
+        checks["model_menu_above_control_650"] = modelMenuAboveControl("650")
+        closeModels()
+        window.setContentSize(NSSize(width: 1120, height: 760)); window.contentView?.layoutSubtreeIfNeeded()
+        try openModels(); _ = try await waitPopup("Sol fixture")
         (try await waitPopup("Default model")).performClick(nil)
         checks["default_model_clears_overrides"] = store.state.tab(id)?.draft.modelSelection == AgentModelSelection()
         (try await waitPopup("Sol fixture")).performClick(nil)

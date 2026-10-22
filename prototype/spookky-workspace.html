@@ -424,6 +424,9 @@
 #spookky-app .effort-footer {flex:none}
 #spookky-app .effort-choices {display:grid;grid-template-columns:repeat(3,1fr);gap:4px}
 #spookky-app .effort-choices button[aria-pressed="true"] {background:var(--selected)}
+#spookky-app .access-choice {display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);margin-top:8px;padding:8px 4px 2px}
+#spookky-app .access-choice button {min-width:48px}
+#spookky-app .access-note {margin:2px 4px 0;color:var(--muted);font-size:11px}
 #spookky-app .worktree-switch {padding:2px 8px;border-radius:12px;background:var(--selected)}
 @media(max-width:600px){#spookky-app .composer-footer{flex-wrap:wrap}#spookky-app .composer-model{margin-left:auto}#spookky-app .composer-model>div{right:0;left:auto;max-width:calc(100vw - 80px)}}
 </style>
@@ -477,7 +480,7 @@ function nameFromPrompt(w,t){if(w.customTitle||w.automaticTitle!=='friendly'||t.
 function migrateNames(){state.workspaces.forEach(w=>{if(w.automaticTitle)return;if(w.customTitle===false&&/^(?:New workspace|workspace-[0-9a-f]{8})$/i.test(w.name)){w.name=friendlyName();w.automaticTitle='friendly'}else w.automaticTitle='legacy'})}
 function workspaceMetadata(w,c){if(!c)return w.draft?.projectId?'Not started':'Home · not started';const kind=c.kind==='worktree'?'Worktree':c.path==='~'?'Home':'Local',generated=c.generatedBranch||/^spookky\/workspace-[0-9a-f]{8}$/i.test(c.branch||'');const location=c.branch?(generated||w.name===c.branch?kind:c.branch):(c.path==='~'?'Home':c.path);return location+(w.viewClosed?' · View closed':'')}
 const viewDefault=()=>({sideTab:'files',query:'',folded:[],fileId:null,diffOpen:false,fileView:true,diffMode:'unified',maxDiff:false,scope:'uncommitted',compare:'origin/dev',width:48,context:false,diffScroll:0});
-const launchDefault=tool=>({tool,prompt:'',showPrompt:false});
+const launchDefault=tool=>({tool,prompt:'',showPrompt:false,fullAccess:false});
 const newTabData=(id,tool='codex')=>({id,tool:null,title:'',status:'blank',draft:'',cwd:'',messages:[],scroll:0,launch:launchDefault(tool),promptSent:false,history:false,job:false});
 function initialState(){return {schema:SCHEMA,revision:0,next:20,lastTool:'codex',lastAgentTool:'codex',activeId:'w-start',ui:{nav:root.clientWidth>800,side:false,theme:'dark',font:13},failure:'none',forms:{},projects:[
  {id:'p-n',name:'northstar',githubOwner:'github',rootId:'c-n',refs:['HEAD','dev','main','feature/search','origin/dev','origin/main'],defaultRef:'origin/dev'},
@@ -532,11 +535,12 @@ function menu(label,body,cls=''){return `<details class="start-menu ${cls}"><sum
 function launchLabel(t){return t.launch.tool!=='shell'&&t.launch.prompt.trim()?'Start '+labels[t.launch.tool]+' with prompt':'Open '+labels[t.launch.tool]}
 const sampleModels={codex:[{id:'gpt-6.1-sol',name:'GPT-6.1-Sol',efforts:['low','medium','high']},{id:'plain',name:'Model without effort',efforts:[]}],claude:[{id:'sonnet',name:'Sonnet',efforts:['low','medium','high']},{id:'opus',name:'Opus',efforts:['low','medium','high']}]};
 function modelChoice(t){return t.launch.modelChoices?.[t.launch.tool]||{}}
-function modelTitle(t){const c=modelChoice(t),m=sampleModels[t.launch.tool]?.find(m=>m.id===c.model);return (m?.name||'Default model')+(c.effort?' · '+c.effort[0].toUpperCase()+c.effort.slice(1):'')}
+function modelTitle(t){const c=modelChoice(t),m=sampleModels[t.launch.tool]?.find(m=>m.id===c.model);return (m?.name||'Default model')+(c.effort?' · '+c.effort[0].toUpperCase()+c.effort.slice(1):'')+(t.launch.fullAccess?' · Full access':'')}
 function modelRows(t,query=''){const c=modelChoice(t);return button('model','Default model'+(!c.model?icon('check'):''),'data-model=""')+(sampleModels[t.launch.tool]||[]).filter(m=>(m.name+' '+m.id).toLowerCase().includes(query.toLowerCase())).map(m=>button('model',safe(m.name)+(c.model===m.id?icon('check'):''),`data-model="${m.id}"`)).join('')}
 function effortRows(t){const c=modelChoice(t),m=sampleModels[t.launch.tool]?.find(m=>m.id===c.model);return m?.efforts.length?`<div class="picker-divider"></div><p class="hint">Reasoning effort</p><div class="effort-choices">${['',...m.efforts].map(e=>button('effort',e?e[0].toUpperCase()+e.slice(1):'Default',`data-effort="${e}" aria-pressed="${(c.effort||'')===e}"`)).join('')}</div>`:''}
-function modelPicker(t){return `<details class="start-menu composer-model"><summary aria-label="Choose model and effort"><span>${safe(modelTitle(t))}</span>${icon('chevron-down')}</summary><div><input data-field="model-search" placeholder="Search models…" aria-label="Search models"><div class="model-list">${modelRows(t)}</div><div class="effort-footer">${effortRows(t)}</div><p class="hint">Sample catalog</p></div></details>`}
-function updateModelPicker(){const t=tab(),host=find('.composer-model');host.querySelector('summary span').textContent=modelTitle(t);host.querySelector('.model-list').innerHTML=modelRows(t,host.querySelector('input').value);host.querySelector('.effort-footer').innerHTML=effortRows(t);setupIcons()}
+function accessRow(t){return `<div class="access-choice"><span>Full access</span>${button('full-access',t.launch.fullAccess?'On':'Off',`aria-pressed="${!!t.launch.fullAccess}"`)}</div>${t.launch.fullAccess?`<p class="access-note">${t.launch.tool==='codex'?'No approvals or sandbox':'Permission prompts skipped'}</p>`:''}`}
+function modelPicker(t){return `<details class="start-menu composer-model"><summary aria-label="Choose model, effort and access"><span>${safe(modelTitle(t))}</span>${icon('chevron-down')}</summary><div><div class="model-list">${modelRows(t)}</div><div class="effort-footer">${effortRows(t)}${accessRow(t)}</div></div></details>`}
+function updateModelPicker(){const t=tab(),host=find('.composer-model');host.querySelector('summary span').textContent=modelTitle(t);host.querySelector('.model-list').innerHTML=modelRows(t);host.querySelector('.effort-footer').innerHTML=effortRows(t)+accessRow(t);setupIcons()}
 function launchControl(t){return `<div class="composer-footer">${iconButton('attach-image','plus','Attach images','class="composer-attach"')}<details class="start-menu composer-tool"><summary aria-label="Choose agent">${icon(toolIcon(t.launch.tool))}<span>${safe(labels[t.launch.tool])}</span>${icon('chevron-down')}</summary><div>${['codex','claude'].map(id=>button('tool',`${icon(toolIcon(id))}<span>${labels[id]}</span>${t.launch.tool===id?icon('check'):''}`,`data-tool="${id}"`)).join('')}</div></details><span class="spacer"></span>${modelPicker(t)}${iconButton('launch','arrow-up',launchLabel(t),'class="composer-launch"')}</div>`}
 function toolIcon(tool){return tool==='codex'?'aperture':tool==='claude'?'sparkles':tool==='shell'?'terminal':'plus'}
 function measureTitle(node){const text=node.firstElementChild;if(!text)return;const overflow=Math.max(0,text.scrollWidth-node.clientWidth);node.dataset.overflow=String(overflow>1.5);node.style.setProperty('--overflow',overflow>1.5?overflow:0);node.style.setProperty('--duration',Math.min(6,Math.max(.5,overflow/32))+'s')}
@@ -700,7 +704,8 @@ if(a==='choose-project')return selectProject(b.dataset.id);
 if(a==='attach-image')return notify('Native Spookky supports image attachments. This prototype uses no files.');
 if(a==='model'||a==='effort'){const t=tab(),provider=t.launch.tool;t.launch.modelChoices??={};t.launch.modelMemory??={};const memory=t.launch.modelMemory[provider]??={},previous=modelChoice(t);if(a==='model'){const m=sampleModels[provider].find(m=>m.id===b.dataset.model),saved=memory[b.dataset.model]||{};t.launch.modelChoices[provider]=m?{model:m.id,effort:m.efforts.includes(saved.effort)?saved.effort:null}:{};}else t.launch.modelChoices[provider]={...previous,effort:b.dataset.effort||null};const c=modelChoice(t);if(c.model){delete memory[c.model];memory[c.model]=c;const ids=Object.keys(memory);if(ids.length>32)delete memory[ids[0]];t.launch.modelMemory[provider]=memory}updateModelPicker();persist();return}
 if(a==='mode'){w.draft.mode=b.dataset.mode;w.error='';render();const picker=find('.composer-checkout');if(picker)picker.open=true;persist();return}
-if(a==='tool'){t.launch.tool=b.dataset.tool;state.lastAgentTool=b.dataset.tool;renderTerminal();setupIcons();persist();return}
+if(a==='tool'){if(t.launch.tool!==b.dataset.tool)t.launch.fullAccess=false;t.launch.tool=b.dataset.tool;state.lastAgentTool=b.dataset.tool;renderTerminal();setupIcons();persist();return}
+if(a==='full-access'){t.launch.fullAccess=!t.launch.fullAccess;updateModelPicker();persist();return}
 if(a==='select-checkout'){w.draft.mode='local';w.draft.checkoutId=b.dataset.id;w.error='';render();persist();return}
 if(a==='source-ref'){w.draft.ref=b.dataset.ref;render();persist();return}
 if(a==='done-branch'){find('.branch-options').open=false;persist();return}
