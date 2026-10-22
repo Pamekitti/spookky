@@ -314,7 +314,7 @@ import SpookkyGit
               store.state.visibleTabIDs.contains(id), let surface = surfaces.view(id) else { return false }
         return surface.window === window && !surface.isHiddenOrHasHiddenAncestor
     }
-    private func refreshAgentAttention(clearManual: Bool = false) {
+    private func refreshAgentAttention(clearManual: Bool = false, retryCount: Int = 0) {
         let tabs = Set(store.state.workspaces.flatMap(\.tabs).map(\.id))
         for id in knownActivityTabs.subtracting(tabs) { agentNotifications.clear(id) }
         knownActivityTabs = tabs
@@ -326,18 +326,26 @@ import SpookkyGit
             let observedView = surfaces.view(id), viewportRevision = observedView?.viewportRevision
             acknowledgmentTasks[id] = Task { [weak self] in
                 guard let self else { return }
+                var atBottom: Bool?
+                var acknowledged = false
                 defer {
                     acknowledgmentTasks[id] = nil
-                    if let latest = store.state.tab(id)?.activity, latest.unread,
-                       latest.completionID != receipt.completionID || latest.invocationID != receipt.invocationID ||
-                       surfaces.view(id) !== observedView || observedView?.viewportRevision != viewportRevision {
-                        refreshAgentAttention(clearManual: clearManual)
+                    if let latest = store.state.tab(id)?.activity, latest.unread {
+                        let changed = AgentCompletionReceipt(latest) != receipt || surfaces.view(id) !== observedView ||
+                            observedView?.viewportRevision != viewportRevision
+                        if changed { refreshAgentAttention(clearManual: clearManual) }
+                        else if !Task.isCancelled, !acknowledged, atBottom != true, retryCount < 3,
+                                observedView?.terminalViewportAtBottom == true, agentTargetVisible(id) {
+                            Task { [weak self] in
+                                try? await Task.sleep(for: .milliseconds(80))
+                                self?.refreshAgentAttention(clearManual: clearManual, retryCount: retryCount + 1)
+                            }
+                        }
                     }
                 }
-                let atBottom = try? await surfaces.viewportAtBottom(id)
+                atBottom = try? await surfaces.viewportAtBottom(id)
                 guard !Task.isCancelled, agentTargetVisible(id) else { return }
-                var acknowledged = false
-                store.update(debounced: true) { acknowledged = $0.acknowledgeAgent(id, receipt: receipt, viewportAtBottom: atBottom ?? nil) }
+                store.update(debounced: true) { acknowledged = $0.acknowledgeAgent(id, receipt: receipt, viewportAtBottom: atBottom) }
                 if acknowledged { agentNotifications.clear(id) }
             }
         }
