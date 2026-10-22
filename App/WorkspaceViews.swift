@@ -1597,7 +1597,8 @@ private final class ComposerPopoverBackground: NSView {
             button.setAccessibilityLabel(prefix + skill.name + ", skill, " + detail)
             button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
             suggestions.addArrangedSubview(button)
-            button.widthAnchor.constraint(equalTo: suggestions.widthAnchor, constant: -SpookkyStyle.points(12)).isActive = true
+            button.widthAnchor.constraint(equalTo: suggestions.widthAnchor, constant: -SpookkyStyle.points(12))
+                .displayScaled(alreadyScaled: true).isActive = true
         }
         suggestions.isHidden = false
     }
