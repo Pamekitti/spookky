@@ -64,6 +64,8 @@ Full access defaults Off for each fresh session. A retained draft keeps its choi
 
 Enter and Cmd+Return in the composer start the selected agent, including with an empty prompt. Shift+Return inserts a newline. Marked-text composition owns Enter until composition finishes. Held Enter keys do not repeat launch. Both launch shortcuts use the send button’s enabled action. Keyboard guidance stays in tooltips; the composer has no shortcut caption. An empty prompt is valid. The quiet Open Terminal action below starts a plain shell and retains the agent draft. Starting an agent replaces the composer with its real TUI. A supporting shell opens beside the retained composer. There is no app chat renderer or floating input proxy.
 
+Typing `$` or `/` at a word boundary in an agent launch draft shows up to six matching installed skills. Arrow keys choose a match, Enter inserts it, and Escape closes the list. Codex inserts `$skill-name` for either trigger because this field supplies an initial prompt. Claude Code inserts `/skill-name`. The list reads local skill manifests and does not execute them.
+
 ## Spacing and dimensions
 
 These are the native component dimensions. The HTML retains the approved flow and layout reference; native differences are listed in the source comparison.

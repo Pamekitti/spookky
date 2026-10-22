@@ -111,6 +111,7 @@ The maintainer confirmed the physical keyboard checks on 13 October 2026. Cmd+T 
 - [ ] New workspace names are readable and unique. The first composer starting prompt names a workspace once, including after a shell launch. Manual names win; retries, additional prompts, and restart keep the title. Saved generic automatic labels upgrade without changing readable/manual names, paths, branches, drafts, or process identities. See [targeted naming verification](status.md#workspace-naming-verification).
 - [ ] Project/workspace context menus support right-click and keyboard access.
 - [x] Tab/workspace switching preserves drafts, processes, output, scroll, and file selection.
+- [ ] `$sim` and `/sim` show installed skill matches in an agent launch draft. Enter inserts a provider reference, Escape keeps the draft, and ordinary Enter still launches.
 - [x] Root directory identity and start subdirectory remain distinct.
 - [x] Distinct conversations may share a checkout. Saved identity deduplication uses provider plus session ID.
 
