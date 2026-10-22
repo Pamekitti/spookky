@@ -14,6 +14,7 @@ Package an already-tested app with the pinned release tools. Use its full source
 .cache/release-tools/bin/python scripts/prepare_local_dmg.py \
   --app path/to/tested/Spookky.app \
   --source-commit FULL_TESTED_COMMIT \
+  --signing-identity KEYCHAIN_CERTIFICATE_SHA1 \
   --output .cache/local-download
 python3 scripts/serve_local_download.py --directory .cache/local-download
 ```
@@ -22,7 +23,9 @@ Open [the local download page](http://127.0.0.1:48769/), download the DMG, and d
 
 If macOS blocks opening, click Done. Open System Settings → Privacy & Security, scroll to Security, and click Open Anyway for Spookky. Authenticate if asked, then confirm Open in the next alert. This records an exception for this app. See [Apple's first-open instructions](https://support.apple.com/en-us/102445).
 
-The package uses a local ad hoc signature and production identity `dev.spookky.app`. It keeps the normal Spookky data location for a later signed release. It does not import development or historical metadata. Automatic updates are disabled. Install future local builds manually after quitting the installed app safely. Preserve running sessions through the app's quit choices before replacement.
+The private package requires a persistent local Code Signing certificate in the maintainer's login Keychain. Create one named `Spookky Local Signing` with Keychain Access Certificate Assistant and keep its private key outside the repository. Run `security find-identity -v -p codesigning` and pass its 40-character SHA-1 fingerprint. Packaging rejects missing or ad hoc identities and checks that the app and bundled helpers have version-independent designated requirements. This local certificate cannot be notarized or used for public distribution. Test two consecutive builds on this Mac before claiming macOS retains Documents access.
+
+The package uses production identity `dev.spookky.app`. It keeps the normal Spookky data location for a later Developer ID release. It does not import development or historical metadata. Automatic updates are disabled. Install future local builds manually after quitting the installed app safely. Preserve running sessions through the app's quit choices before replacement.
 
 The local packaging command copies the source app, strips owned executable debug paths, verifies bundled dependencies, and creates a branded DMG with a checksum and local build manifest. It never changes the tested source bundle. Public release verification rejects the local marker. The public download manifest and updater feed remain unchanged.
 

@@ -6,10 +6,11 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from urllib.error import HTTPError
 from urllib.request import urlopen
 
-from prepare_local_dmg import local_info
+from prepare_local_dmg import local_info, require_signing_identity, stable_requirement
 from verify_bundle import library_paths, verify
 
 
@@ -37,6 +38,20 @@ class LocalInstallerTests(unittest.TestCase):
         self.assertIs(local["SUEnableAutomaticChecks"], False)
         self.assertIs(local["SUAutomaticallyUpdate"], False)
         self.assertIn("SUFeedURL", self.info)
+
+    def test_local_signing_rejects_version_specific_requirement(self):
+        with mock.patch("prepare_local_dmg.subprocess.run") as run:
+            run.return_value.stdout = ""
+            run.return_value.stderr = 'designated => cdhash H"abc"\n'
+            with self.assertRaisesRegex(ValueError, "version-specific"):
+                stable_requirement(Path("fixture.app"))
+
+    def test_private_packaging_requires_valid_persistent_identity(self):
+        with self.assertRaisesRegex(ValueError, "40-character"):
+            require_signing_identity("-")
+        with mock.patch("prepare_local_dmg.subprocess.check_output", return_value="0 valid identities found"):
+            with self.assertRaisesRegex(ValueError, "not valid"):
+                require_signing_identity("a" * 40)
 
     def test_local_artifact_cannot_pass_public_release_verification(self):
         with tempfile.TemporaryDirectory() as temporary:
