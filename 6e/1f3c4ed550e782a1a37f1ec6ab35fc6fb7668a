@@ -1,0 +1,19 @@
+App/WorkspaceWindowController.swift
+  s_bc98889c160ac9::t_f840ceea663965 317,329-330,333-343,346,348
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6e1f3c4ed550e782a1a37f1ec6ab35fc6fb7668a",
+  "prompts": {},
+  "sessions": {
+    "s_bc98889c160ac9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1629f-3e8d-7e41-96fe-48ff2a9aa1e0",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
