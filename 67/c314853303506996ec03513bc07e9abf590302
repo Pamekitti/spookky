@@ -1,0 +1,21 @@
+docs/flows.md
+  s_e182451eb690ec::t_6fd77b1bad6c68 41,110
+docs/interface.md
+  s_e182451eb690ec::t_0f573817c42c95 64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "67c314853303506996ec03513bc07e9abf590302",
+  "prompts": {},
+  "sessions": {
+    "s_e182451eb690ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a16296-aeac-79f2-af6e-c1a475f3c614",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
