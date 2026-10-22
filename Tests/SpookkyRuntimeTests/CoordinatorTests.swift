@@ -85,11 +85,13 @@ private actor FailedPersistence: WorkspacePersistence {
         store.update {
             $0.editDraft(id, tool: .codex, prompt: "Only once")
             $0.editModelSelection(id, selection: AgentModelSelection(model: "selected", effort: "high"))
+            $0.editFullAccess(id, enabled: true)
         }
         let coordinator = LaunchCoordinator(store: store, runtime: runtime, resolver: FixtureResolver())
         await coordinator.launch(id)
         let frozen = try XCTUnwrap(store.state.tab(id)?.launch)
         XCTAssertTrue(frozen.arguments.contains("--model=selected"))
+        XCTAssertTrue(frozen.arguments.contains("--dangerously-bypass-approvals-and-sandbox"))
         store.update { $0.editModelSelection(id, selection: AgentModelSelection(model: "different")) }
         await coordinator.reconcile(id); await coordinator.launch(id)
         XCTAssertEqual(store.state.tab(id)?.launch, frozen)

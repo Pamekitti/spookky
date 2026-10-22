@@ -109,6 +109,8 @@ The primary conversation supplies the row and primary header title unless an exp
 
 The start page uses one bottom composer with provider and folder chips. The prompt is optional. With no prompt the Start arrow opens the selected CLI. With text it supplies that initial instruction. Enter or Cmd+Return launches from the composer. Shift+Return inserts a newline. Open Terminal below starts a shell and preserves the agent draft.
 
+The model picker also offers Full access. It is Off for each fresh session and remains set on a retained draft. Switching providers turns it Off. An enabled fresh Codex launch skips approvals and sandboxing; an enabled fresh Claude Code launch skips permission prompts. Shell, resume and reattachment keep their existing behavior.
+
 Changing agents preserves the prompt draft. Opening a shell does not change the last agent choice. Shell launches never execute that text. Auth and permission prompts remain inside the provider CLI. Missing executables lead to guidance plus a working Terminal fallback.
 
 Cmd+V in the initial prompt accepts clipboard images and shows removable previews. Drafts retain up to eight images, each at most 20 MB and 25 megapixels. Images are saved privately beside workspace metadata so reopening a draft or retrying a launch can still use them. Codex receives native image arguments. Claude Code receives image file references in the initial prompt. Opening a shell keeps the image draft and passes no images to the shell.
