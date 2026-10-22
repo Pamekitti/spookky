@@ -65,7 +65,7 @@ if '--help' in sys.argv:
 if 'resume' not in sys.argv: sys.exit(3)
 i=sys.argv.index('resume')
 with open(os.environ['HISTORY_FIXTURE_RUNS'],'a') as f:
- f.write(json.dumps({'id':sys.argv[i+1],'cwd':os.getcwd(),'arguments':sys.argv[i:]})+'\n')
+ f.write(json.dumps({'id':sys.argv[i+1],'cwd':os.getcwd(),'arguments':sys.argv[i:],'executable':sys.argv[0]})+'\n')
 print('HISTORY FIXTURE READY',flush=True)
 os.execv('/bin/cat',['cat'])
 """#
@@ -136,6 +136,21 @@ os.execv('/bin/cat',['cat'])
         checks["refresh_preserves_selected_landing"] = store.state.selectedWorkspaceID == selected && store.state.selected?.isLanding == true
         checks["real_native_sidebar_rows_bounded"] = conversationSidebar.itemCount >= 12 && conversationSidebar.itemCount <= 18 &&
             conversationSidebar.visibleCellCount > 0 && conversationSidebar.visibleCellCount <= 24
+        let projectRows = historyFixtureRecords(projectID.uuidString)
+        guard projectRows.count >= 2 else { throw LaunchError.invalid("History fixture needs two project rows for reorder checks.") }
+        let firstKey = projectRows[0].id.threadKey, secondKey = projectRows[1].id.threadKey
+        let firstRow = "conversation:" + firstKey, secondRow = "conversation:" + secondKey
+        store.update { $0.editThread(firstKey) { $0.lastVisitedAt = Date() } }
+        requestCatalogRefresh(force: true); try await settleHistory()
+        let afterVisit = conversationSidebar.itemIDs
+        checks["visit_and_refresh_keep_project_row_order"] = (afterVisit.firstIndex(of: firstRow) ?? Int.max) < (afterVisit.firstIndex(of: secondRow) ?? -1)
+        conversationSidebar.onReorder?([secondRow, firstRow] + projectRows.dropFirst(2).map { "conversation:" + $0.id.threadKey })
+        let afterMove = conversationSidebar.itemIDs
+        checks["explicit_reorder_moves_only_requested_project_row"] = (afterMove.firstIndex(of: secondRow) ?? Int.max) < (afterMove.firstIndex(of: firstRow) ?? -1)
+        try await store.flush()
+        requestCatalogRefresh(force: true); try await settleHistory()
+        let afterRefresh = conversationSidebar.itemIDs
+        checks["reorder_survives_provider_refresh"] = (afterRefresh.firstIndex(of: secondRow) ?? Int.max) < (afterRefresh.firstIndex(of: firstRow) ?? -1)
 
         try activate("more:" + projectID.uuidString); try await settleHistory()
         checks["show_more_adds_ten_in_one_project"] = historyFixtureRecords(projectID.uuidString).count == 15 && historyFixtureRecords(otherProjectID.uuidString).count == 5
@@ -210,7 +225,7 @@ os.execv('/bin/cat',['cat'])
         }
         checks["exact_id_cwd_no_prompt_one_execution"] = records.count == 1 && receipt["id"] as? String == original.id.sessionID &&
             receipt["arguments"] as? [String] == ["resume", original.id.sessionID, "--cd", original.metadata.directory]
-        checks["resume_uses_capabilities_without_exact_version_lock"] = records.count == 1 && primary.launch?.executable == cli.path
+        checks["resume_uses_capabilities_without_exact_version_lock"] = records.count == 1 && receipt["executable"] as? String == cli.path
         let actualDirectory = try FileManager.default.attributesOfItem(atPath: receipt["cwd"] as? String ?? "")
         let savedDirectory = try FileManager.default.attributesOfItem(atPath: original.metadata.directory)
         checks["actual_execution_cwd_matches_saved_folder"] = actualDirectory[.systemFileNumber] as? NSNumber == savedDirectory[.systemFileNumber] as? NSNumber && actualDirectory[.systemNumber] as? NSNumber == savedDirectory[.systemNumber] as? NSNumber
