@@ -1,0 +1,41 @@
+App/WorkspaceWindowController.swift
+  s_da30152ecf948e::t_f6bf2015e66214 2421,2779-2784,2790,2875-2883,2885,2891-2897
+Sources/SpookkyCore/HistoryCatalog.swift
+  s_da30152ecf948e::t_b2c6a697b7cefe 62-65
+Sources/SpookkyCore/WorkspaceState.swift
+  s_da30152ecf948e::t_b6d87dfa7aa427 22-26,440,470-476
+Sources/SpookkyWorkspace/LaunchCoordinator.swift
+  s_da30152ecf948e::t_9e91963e09abef 55
+Sources/SpookkyWorkspace/ModelLaunchOptions.swift
+  s_da30152ecf948e::t_662a2533b4c5e4 5-12
+Tests/SpookkyRuntimeTests/CoordinatorTests.swift
+  s_da30152ecf948e::t_9abf125fccf9f0 88,94
+Tests/SpookkyRuntimeTests/ModelSelectionTests.swift
+  s_da30152ecf948e::t_19c0fd6334fc93 8-38
+docs/acceptance.md
+  s_da30152ecf948e::t_beda8d31eadcb9 10-11
+docs/interface.md
+  s_da30152ecf948e::t_48595072131a0c 61-63
+docs/status.md
+  s_da30152ecf948e::t_7fd3f5fb19135f 5-10
+prototype/index.html
+  s_da30152ecf948e::t_390c3df6bb484f 1755-1757,1811,1866,1869-1871,2035-2036
+prototype/spookky-workspace.html
+  s_da30152ecf948e::t_7fa64446a80ab9 427-429,483,538,541-543,707-708
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cdee3afabe0f5965b9f6cb2293218db36b90cf31",
+  "prompts": {},
+  "sessions": {
+    "s_da30152ecf948e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a16296-aeac-79f2-af6e-c1a475f3c614",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
