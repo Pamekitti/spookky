@@ -1,0 +1,77 @@
+App/WorkspaceViews.swift
+  s_96199fda86d092::t_5e935781230cc9 756-757,759-760,763-765,773-778,816-825,871,878,907,1211,1309,1437-1439,1470-1472,1476,1481,1484-1500,1502,1504-1518,1521
+App/WorkspaceWindowController.swift
+  s_96199fda86d092::t_137fef1d91fabe 2379,2737-2742,2748,2833-2841,2843,2849-2855
+Sources/SpookkyCore/HistoryCatalog.swift
+  s_da30152ecf948e::t_023fc210bbb20e 62-65
+Sources/SpookkyCore/WorkspaceState.swift
+  s_da30152ecf948e::t_ecc592a2cd3c57 22-26,435,465-471
+Sources/SpookkyWorkspace/LaunchCoordinator.swift
+  s_da30152ecf948e::t_3ab5cdff0a7c97 55
+Sources/SpookkyWorkspace/ModelLaunchOptions.swift
+  s_da30152ecf948e::t_de513f01f773b9 5-12
+Tests/SpookkyRuntimeTests/ModelSelectionTests.swift
+  s_bc98889c160ac9::t_6c87fec8b11460 8-38
+docs/acceptance.md
+  s_96199fda86d092::t_f1b05c079f4ef5 10-11
+docs/flows.md
+  s_bc98889c160ac9::t_ab563091c3ebe8 112-113
+docs/interface.md
+  s_bc98889c160ac9::t_65d2037003ef04 61-63
+docs/status.md
+  s_96199fda86d092::t_bac6eddfbca277 5-10
+prototype/index.html
+  s_bc98889c160ac9::t_0e4cd3463e4192 1755-1757,1811,1866,1869-1871,2035-2036
+prototype/spookky-workspace.html
+  s_f5c6bb4231dc8e::t_2453b01ab5c97b 427-429,483,538,541-543,707-708
+Tests/SpookkyRuntimeTests/CoordinatorTests.swift
+  s_09d410947bf00f::t_3a35a114ffd5dc 88,94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "721f1a1e90c51b52b1eb5ef1ef5ab21b8312cf5b",
+  "prompts": {},
+  "sessions": {
+    "s_09d410947bf00f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a162a7-2a3d-7b31-908a-46587ece23f3",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_96199fda86d092": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1629f-3e8d-7e41-96fe-48ff2a9aa1e0",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_bc98889c160ac9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1629f-3e8d-7e41-96fe-48ff2a9aa1e0",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_da30152ecf948e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a16296-aeac-79f2-af6e-c1a475f3c614",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_f5c6bb4231dc8e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "24f24df4-b55f-490b-9687-952e5424548a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
