@@ -1,0 +1,35 @@
+docs/lifecycle.md
+  s_6e1f81f604ae93::t_68652c250038b0 54-55
+scripts/prepare_main_update.py
+  s_6e1f81f604ae93::t_b8c29e07314e18 19,23-24,56-57
+docs/releasing.md
+  s_7ac6fbcc7a8fc1::t_f273fb9700185f 17,26-28
+scripts/prepare_local_dmg.py
+  s_7ac6fbcc7a8fc1::t_164b2c18694af9 22-29,45-53,57,60,62-65,73,75,89,99
+scripts/test_local_dmg.py
+  s_7ac6fbcc7a8fc1::t_2b09150dc30b2b 9,13,42-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4aecf856407b43655acae6fa024cbea6701ab8e2",
+  "prompts": {},
+  "sessions": {
+    "s_6e1f81f604ae93": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a1626d-cbf8-7193-80dd-319621302582",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    },
+    "s_7ac6fbcc7a8fc1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1626d-cbf8-7193-80dd-319621302582",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
