@@ -568,7 +568,11 @@ import SpookkyGit
         warning.font = .systemFont(ofSize: SpookkyStyle.points(11)); warning.textColor = SpookkyPalette.warning
         warning.isHidden = true
         cancelLocation.isHidden = true
-        cancelLocation.handler = { [weak self] in guard let self else { return }; locations.activeOperationIDs.forEach { self.locations.cancel($0) } }
+        cancelLocation.handler = { [weak self] in
+            guard let self, let selected = store.state.selectedWorkspaceID,
+                  let operation = store.state.locations?.operations.first(where: { $0.status == .running && $0.request.workspaceID == selected }) else { return }
+            locations.cancel(operation.id)
+        }
         for view in [header, railScroll, tabScroll, workspaceLayout.headerView, workspaceBody, sidebarToggle, tabOverflow, sidebarDivider, warning, cancelLocation, navigationBack, navigationForward, threadChanges, supportingToggle] { view.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(view) }
         rail.translatesAutoresizingMaskIntoConstraints = false; tabs.translatesAutoresizingMaskIntoConstraints = false
         navigationBack.handler = { [weak self] in self?.navigateThread(-1) }
@@ -951,7 +955,7 @@ import SpookkyGit
     }
     func render() {
         let state = store.state
-        let activeLocation = state.locations?.operations.first { $0.status == .running }
+        let activeLocation = state.locations?.operations.first { $0.status == .running && $0.request.workspaceID == state.selectedWorkspaceID }
         cancelLocation.isHidden = activeLocation == nil
         let appearanceName: NSAppearance.Name? = state.appearance == .system ? nil : state.appearance == .dark ? .darkAqua : .aqua
         if window.appearance?.name != appearanceName { window.appearance = appearanceName.flatMap(NSAppearance.init(named:)) }
@@ -961,9 +965,7 @@ import SpookkyGit
         renderSupportingContent()
         files.update(state.selected, operation: state.locations?.operations.last(where: { $0.status == .complete })?.request.id)
         files.layout.layoutSubtreeIfNeeded()
-        let lastOperation = state.locations?.operations.last
-        let locationNotice = lastOperation.flatMap { [.failed, .uncertain, .cancelled].contains($0.status) ? $0.request.kind.rawValue.capitalized + " · " + ($0.error ?? $0.request.destination) : nil }
-        warning.stringValue = store.saveError ?? activeLocation.map { $0.request.kind.rawValue.capitalized + " · " + $0.request.destination } ?? locationNotice ?? ""
+        warning.stringValue = store.saveError ?? activeLocation.map { $0.request.kind.rawValue.capitalized + " · " + $0.request.destination } ?? ""
         warning.lineBreakMode = .byTruncatingTail; warning.toolTip = warning.stringValue
         warning.isHidden = warning.stringValue.isEmpty
         workspaceBottom.constant = warning.isHidden && cancelLocation.isHidden ? 0 : -28
@@ -2384,6 +2386,22 @@ import SpookkyGit
                 return store.state.rememberedModelSelection(for: tool, model: model)
             }
             composer.onLaunch = { [weak self] in self?.launch(tab.id) }
+            composer.onRetryError = { [weak self] in self?.launch(tab.id) }
+            composer.onUseLocal = { [weak self] in
+                guard let self, let current = store.state.workspace(containing: tab.id) else { return }
+                var draft = current.locationDraft ?? LocationDraft(); draft.mode = .local
+                store.update { state in
+                    if let id = current.locationOperationID { state.dismissOperationNotice(id) }
+                    state.editLocation(draft, workspaceID: current.id)
+                }
+            }
+            composer.onDismissError = { [weak self] in
+                guard let self, let current = store.state.workspace(containing: tab.id) else { return }
+                store.update { state in
+                    if let id = current.locationOperationID { state.dismissOperationNotice(id) }
+                    state.dismissFailureNotice(tab.id)
+                }
+            }
             composer.onTerminal = { [weak self] in self?.openTerminal(from: tab.id) }
             composer.onChooseFolder = { [weak self] in self?.chooseFolder(register: false) }
             composer.onAddProject = { [weak self] anchor in self?.addProjectMenu(anchor: anchor) }
@@ -2843,6 +2861,53 @@ import SpookkyGit
         checks["returning_keeps_shell_process"] = try await launches.runtime.inspect(binding)?.processID == pid && pid != nil
         let sessions = try await launches.runtime.list()
         checks["menus_and_new_chat_launch_no_agents"] = sessions.count == 1 && sessions.allSatisfy { $0.tool == .shell }
+        guard let landingID = store.state.selectedWorkspaceID, let landingTab = store.state.primaryTerminalID,
+              let landingComposer = composers[landingTab] else { throw LaunchError.invalid("Error notice fixture has no landing composer") }
+        let failedRequest = LocationRequest(kind: .worktree, destination: root.appendingPathComponent("failed-worktree").path,
+            projectID: project, workspaceID: landingID, sourcePath: local.path,
+            commonRepository: local.commonRepository, source: "HEAD", branch: "fixture-error")
+        var failedOperation = LocationOperation(failedRequest)
+        failedOperation.status = .failed
+        failedOperation.error = "git-lfs filter-process: git-lfs: command not found\nfatal: the remote end hung up unexpectedly"
+        store.update { state in
+            var draft = state.selected!.locationDraft ?? LocationDraft(); draft.mode = .worktree
+            state.editLocation(draft, workspaceID: landingID)
+            state.recordOperation(failedOperation)
+            state.apply(.failure(.failed, TabFailure(.validation, failedOperation.error!), clearIntent: true), to: landingTab)
+        }
+        if let renderTask { await renderTask.value }
+        checks["worktree_error_card_scoped_to_composer"] = button("Use Local checkout", in: landingComposer) != nil && warning.isHidden
+        for (theme, width, height) in [(WorkspaceAppearance.dark, 1120, 760), (.light, 650, 450)] {
+            store.update { $0.appearance = theme }
+            window.setContentSize(NSSize(width: width, height: height)); window.contentView?.layoutSubtreeIfNeeded()
+            let card = descendants(landingComposer).compactMap { $0 as? AppErrorNoticeView }.first
+            checks["error_card_fits_\(theme.rawValue)_\(width)"] = card?.isHidden == false && (card?.frame.width ?? 0) <= landingComposer.bounds.width
+            if let content = window.contentView, let bitmap = content.bitmapImageRepForCachingDisplay(in: content.bounds) {
+                content.cacheDisplay(in: content.bounds, to: bitmap)
+                try bitmap.representation(using: .png, properties: [:])?.write(to: root.appendingPathComponent("composer-error-\(theme.rawValue)-\(width).png"))
+            }
+        }
+        if let shellWorkspaceID = store.state.workspace(containing: terminalID)?.id {
+            selectWorkspace(shellWorkspaceID)
+            if let renderTask { await renderTask.value }
+            checks["unrelated_terminal_has_no_worktree_error_footer"] = warning.isHidden && store.state.selectedWorkspaceID == shellWorkspaceID
+            selectWorkspace(landingID)
+            if let renderTask { await renderTask.value }
+        }
+        button("Dismiss", in: landingComposer)?.performClick(nil)
+        checks["error_dismissal_retains_failed_operation"] = store.state.locations?.operations.first(where: { $0.id == failedRequest.id })?.noticeDismissed == true &&
+            store.state.locations?.operations.first(where: { $0.id == failedRequest.id })?.status == .failed
+        store.update { state in
+            failedOperation.noticeDismissed = nil; state.recordOperation(failedOperation)
+            state.apply(.failure(.failed, TabFailure(.validation, failedOperation.error!), clearIntent: true), to: landingTab)
+        }
+        if let renderTask { await renderTask.value }
+        button("Use Local checkout", in: landingComposer)?.performClick(nil)
+        let sessionsAfterLocal = try await launches.runtime.list()
+        checks["error_local_action_preserves_prompt"] = store.state.selected?.locationDraft?.mode == .local &&
+            store.state.tab(landingTab)?.status == .draft && sessionsAfterLocal.count == sessions.count &&
+            store.state.tab(landingTab)?.draft.prompt == prompt &&
+            store.state.locations?.operations.first(where: { $0.id == failedRequest.id })?.status == .failed
         try await store.flush()
         try PrivateFiles.write(checks, to: root.appendingPathComponent("composer-checks.json"))
         try PrivateFiles.write(["app_rss_mib": WorkspaceDiagnostics.residentMiB() ?? 0, "runtime_sessions": Double(sessions.count)], to: root.appendingPathComponent("composer-resources.json"))

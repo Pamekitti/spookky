@@ -51,7 +51,8 @@ Existing shared development data is preserved. New checkout-specific builds do n
 The PR runs affected tests before merge. Main's Checks workflow runs source checks without repeating native or browser builds. After it passes, prepare a local installer from an isolated main checkout:
 
 ```sh
-.cache/release-tools/bin/python scripts/prepare_main_update.py --open
+.cache/release-tools/bin/python scripts/prepare_main_update.py \
+  --signing-identity KEYCHAIN_CERTIFICATE_SHA1 --open
 ```
 
 Create the pinned release-tools environment as described in [releasing](releasing.md) before the first run. Preparation fetches origin/main, creates a detached checkout, runs source and Swift checks, builds native Release, audits the bundle, and packages a local DMG. It preserves the checkout and artifacts under ignored `.cache/` folders. It does not change your working branch or installed app.

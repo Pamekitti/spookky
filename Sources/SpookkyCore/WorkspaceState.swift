@@ -72,6 +72,7 @@ public struct TabFailure: Codable, Equatable, Sendable {
     public let phase: FailurePhase
     public let message: String
     public let recovery: FailureRecovery?
+    public var noticeDismissed: Bool?
     public init(_ phase: FailurePhase, _ message: String, recovery: FailureRecovery? = nil) {
         self.phase = phase; self.message = message; self.recovery = recovery
     }
@@ -599,8 +600,23 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
             workspaces[index].locationOperationID = operation.id
         }
     }
+    public mutating func dismissOperationNotice(_ id: UUID) {
+        guard let index = locations?.operations.firstIndex(where: { $0.id == id }) else { return }
+        locations?.operations[index].noticeDismissed = true
+    }
+    public mutating func dismissFailureNotice(_ tabID: UUID) {
+        updateTab(tabID) { $0.failure?.noticeDismissed = true }
+    }
     public mutating func editLocation(_ draft: LocationDraft, workspaceID: UUID) {
         guard let index = workspaces.firstIndex(where: { $0.id == workspaceID }), workspaces[index].anchor == nil else { return }
+        if draft.mode != workspaces[index].locationDraft?.mode, draft.mode == .local {
+            let tabID = workspaces[index].primaryTerminalID ?? workspaces[index].selectedTabID
+            updateTab(tabID) { tab in
+                if tab.status == .failed && tab.binding == nil && tab.launch == nil {
+                    tab.status = .draft; tab.failure = nil
+                }
+            }
+        }
         workspaces[index].locationDraft = draft
     }
     public mutating func refreshProject(_ id: UUID, location: WorkspaceLocation) {

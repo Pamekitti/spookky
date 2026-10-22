@@ -91,6 +91,7 @@ public struct LocationOperation: Codable, Equatable, Identifiable, Sendable {
     public var status: LocationOperationStatus = .running
     public var receipts: [LocationReceipt] = []
     public var error: String?
+    public var noticeDismissed: Bool?
     public init(_ request: LocationRequest) { self.request = request }
     public var location: WorkspaceLocation? { receipts.last(where: { $0.location != nil })?.location }
     public var commit: String? { receipts.last(where: { $0.commit != nil && $0.phase != .cachedSource })?.commit }

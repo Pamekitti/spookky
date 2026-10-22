@@ -19,6 +19,14 @@ def run(arguments):
     subprocess.run([str(value) for value in arguments], check=True)
 
 
+def require_signing_identity(fingerprint):
+    if not re.fullmatch(r"[0-9a-fA-F]{40}", fingerprint):
+        raise ValueError("Pass the 40-character fingerprint of a persistent Keychain code-signing identity")
+    identities = subprocess.check_output(["security", "find-identity", "-v", "-p", "codesigning"], text=True)
+    if fingerprint.upper() not in identities.upper():
+        raise ValueError("Signing identity is not valid in Keychain; private packaging cannot use ad hoc signing")
+
+
 def local_info(info, source_commit):
     bundle_id = info.get("CFBundleIdentifier", "")
     if info.get("CFBundleExecutable") != "Spookky" or not (bundle_id in ("dev.spookky.m0", "dev.spookky.app") or
@@ -34,15 +42,27 @@ def local_info(info, source_commit):
     return result
 
 
-def sign_local(app):
+def stable_requirement(app):
+    result = subprocess.run(["codesign", "-dr", "-", str(app)], capture_output=True, text=True, check=True)
+    requirement = result.stdout + result.stderr
+    if "designated =>" not in requirement or "cdhash" in requirement:
+        raise ValueError("Local signing identity has a version-specific requirement")
+    return requirement.split("designated =>", 1)[1].strip().splitlines()[0]
+
+
+def sign_local(app, identity):
     binaries = [path for path in app.rglob("*") if path.is_file() and not path.is_symlink() and
                 "Mach-O" in subprocess.check_output(["file", "-b", path], text=True)]
     for path in sorted(binaries, key=lambda value: len(value.parts), reverse=True):
-        run(["codesign", "--force", "--sign", "-", "--timestamp=none", "--preserve-metadata=entitlements", path])
+        run(["codesign", "--force", "--sign", identity, "--timestamp=none", "--preserve-metadata=entitlements", path])
     bundles = [path for path in app.rglob("*") if path.is_dir() and not path.is_symlink() and path.suffix in (".app", ".xpc", ".framework")]
     for path in sorted(bundles, key=lambda value: len(value.parts), reverse=True) + [app]:
-        run(["codesign", "--force", "--sign", "-", "--timestamp=none", "--preserve-metadata=entitlements", path])
+        run(["codesign", "--force", "--sign", identity, "--timestamp=none", "--preserve-metadata=entitlements", path])
     run(["codesign", "--verify", "--deep", "--strict", app])
+    requirement = stable_requirement(app)
+    for name in ("spookky-launch", "spookky-runtime-check", "tmux"):
+        stable_requirement(app / "Contents/MacOS" / name)
+    return requirement
 
 
 def main():
@@ -50,7 +70,9 @@ def main():
     parser.add_argument("--app", type=Path, required=True, help="Existing tested app; it is copied, never modified")
     parser.add_argument("--source-commit", required=True)
     parser.add_argument("--output", type=Path, required=True, help="Fresh private output directory")
+    parser.add_argument("--signing-identity", required=True, help="Persistent local certificate in Keychain, never ad hoc signing")
     args = parser.parse_args()
+    require_signing_identity(args.signing_identity)
     source = args.app.resolve()
     info = local_info(plistlib.loads((source / "Contents/Info.plist").read_bytes()), args.source_commit)
     architectures = subprocess.check_output(["lipo", "-archs", source / "Contents/MacOS/Spookky"], text=True).split()
@@ -64,7 +86,7 @@ def main():
     (app / "Contents/Info.plist").write_bytes(plistlib.dumps(info))
     for binary in (app / "Contents/MacOS").iterdir():
         if binary.is_file(): run(["strip", "-S", binary])
-    sign_local(app)
+    requirement = sign_local(app, args.signing_identity)
     verify(app, local=True)
     name = "Spookky-" + info["CFBundleShortVersionString"] + "-local-arm64.dmg"
     dmg = output / name
@@ -74,6 +96,7 @@ def main():
     (output / "SHA256SUMS").write_text(digest + "  " + name + "\n")
     manifest = {"kind": "local", "version": info["CFBundleShortVersionString"], "build": info["CFBundleVersion"],
                 "sourceCommit": args.source_commit, "architecture": "arm64", "appleNotarized": False,
+                "designatedRequirement": requirement,
                 "automaticUpdates": False, "asset": name, "bytes": dmg.stat().st_size, "sha256": digest}
     (output / "local-build.json").write_text(json.dumps(manifest, indent=2) + "\n")
     shutil.copy2(ROOT / "App/Assets.xcassets/AppIcon.appiconset/icon-256@1x.png", output / "icon.png")

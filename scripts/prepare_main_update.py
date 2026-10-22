@@ -16,9 +16,12 @@ def run(arguments, *, cwd=ROOT):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--open", action="store_true", help="Open the finished DMG for manual installation")
+    parser.add_argument("--signing-identity", required=True, help="40-character fingerprint of the persistent local Keychain certificate")
     args = parser.parse_args()
     if not all(importlib.util.find_spec(name) for name in ["ds_store", "mac_alias"]):
         raise SystemExit("Use the pinned release-tools Python. See docs/releasing.md.")
+    from prepare_local_dmg import require_signing_identity
+    require_signing_identity(args.signing_identity)
     run(["git", "fetch", "origin", "main"])
     commit = subprocess.check_output(["git", "rev-parse", "refs/remotes/origin/main"], cwd=ROOT, text=True).strip()
     output = ROOT / ".cache/main-updates" / commit
@@ -50,7 +53,8 @@ def main():
     actual = subprocess.check_output(["git", "status", "--porcelain"], cwd=source, text=True).strip()
     if actual:
         raise SystemExit("Preparation changed tracked source. Inspect the retained checkout before packaging.")
-    run([sys.executable, "scripts/prepare_local_dmg.py", "--app", app, "--source-commit", commit, "--output", output], cwd=source)
+    run([sys.executable, "scripts/prepare_local_dmg.py", "--app", app, "--source-commit", commit,
+         "--signing-identity", args.signing_identity, "--output", output], cwd=source)
     print("Local installer prepared at:", output)
     print("Quit the daily app with Keep sessions running before replacing it in Applications.")
     if args.open:

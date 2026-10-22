@@ -63,7 +63,7 @@ import SpookkyGit
             guard existing.request == request, request.kind == .worktree, [.failed, .cancelled].contains(existing.status), await safeToRetry(existing) else {
                 throw LaunchError.invalid("Reconcile the existing operation before retrying.")
             }
-            existing.status = .running; existing.error = nil
+            existing.status = .running; existing.error = nil; existing.noticeDismissed = nil
             store.update { $0.recordOperation(existing) }
         } else { store.update { $0.recordOperation(LocationOperation(request)) } }
         do { try await store.flush() }
@@ -266,13 +266,13 @@ import SpookkyGit
     private func prepareLocation(workspaceID: UUID) async throws -> WorkspaceLocation {
         guard let workspace = store.state.workspaces.first(where: { $0.id == workspaceID }) else { throw LaunchError.invalid("Workspace was closed.") }
         if let anchor = workspace.anchor { return anchor }
+        guard let draft = workspace.locationDraft, draft.mode == .worktree else { return workspace.selectedLocation }
         var previous: LocationOperation?
         if let id = workspace.locationOperationID, let op = operation(id), op.request.kind == .worktree {
             if let recovered = try await reconcile(id) { return recovered }
             previous = operation(id)
             if previous?.status == .uncertain || previous?.status == .running { throw LaunchError.invalid(previous?.error ?? "Worktree creation requires reconciliation.") }
         }
-        guard let draft = workspace.locationDraft, draft.mode == .worktree else { return workspace.selectedLocation }
         guard !preparing.contains(workspaceID), let projectID = workspace.projectID,
               let project = store.state.projects.first(where: { $0.id == projectID }) else { throw LaunchError.invalid("Choose a Git project before creating a worktree.") }
         let snapshot = try await git.snapshot(workspace.selectedLocation)
