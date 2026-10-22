@@ -44,7 +44,7 @@ The current Release passed 1,899 native assertions across workflow, browser/arti
 - [x] Primary has no close target or close-thread menu action. Cmd+W closes its window and preserves execution.
 - [x] Supporting closure selects the correct neighbor or the same primary. Inactive closure preserves focus.
 - [x] New tab, native file search and independent Changes preserve the primary draft and process.
-- [x] Pinned, Projects, Recents and Archived use shared identities. Project assignments survive refresh.
+- [x] Pinned, Projects and Archived use shared identities. Project assignments survive refresh.
 - [x] Version 7 to 8 migration backs up and preserves aliases, drafts, launches, bindings and supporting descriptors.
 - [x] Five initial project rows, ten-row expansion and collapse reset remain lazy and bounded.
 - [x] Tabs receive pointer events across their full bounds in Split/Full and both appearances at 80%, 100%, 150% and 200%.
@@ -57,7 +57,8 @@ The version 7 production code passed 199 automated native workflow assertions, 3
 
 - [x] First use and final-view closure show the landing composer without an intermediate button or blank window.
 - [x] Cmd+N and project + select independent drafts. Persistence tests retain both through database restart.
-- [x] Five recent entries and repeated ten-entry expansion work independently per project. Search includes older uncached history.
+- [x] Five entries and repeated ten-entry expansion work independently per project. Search includes older uncached history.
+- [ ] Project rows retain saved order across activity, visits, metadata refresh and restart. New threads start at the top. Dragging reorders within one project group. Search restores the same order when cleared.
 - [x] Startup, project expansion, pagination and search start zero conversation agents.
 - [x] Native scroll checks reconcile a stationary pointer, one hover and one selected row, with static titles and preserved keyboard focus.
 - [x] Project clicks toggle without selecting the header. App-owned controls suppress focus rings, and keyboard feedback preserves control geometry.

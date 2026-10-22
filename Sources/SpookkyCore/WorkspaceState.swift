@@ -289,6 +289,10 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
         if tool != .shell { workspace.tabs[0].draft.selectModel(lastModelSelection(for: tool), for: tool) }
         if version >= 7 { workspace.lastViewedAt = Date() }
         workspaces.append(workspace); selectedWorkspaceID = workspace.id
+        if version >= 8 {
+            let position = nextSidebarPosition()
+            editThread(workspace.threadKey) { $0.sidebarPosition = position }
+        }
         if let projectID { setProjectCollapsed(projectID, false) }
         return workspace.id
     }
@@ -322,6 +326,7 @@ public struct WorkspaceState: Codable, Equatable, Sendable {
         guard let index = workspaces.firstIndex(where: { $0.id == workspaceID }),
               workspaces[index].conversationID == metadata.id else { return }
         workspaces[index].catalogMetadata = metadata
+        rememberSidebarPositions([ConversationCatalogRecord(metadata: metadata, projectID: projectID)])
         let presentation = presentation(for: metadata.id.threadKey)
         if presentation.hasProjectOverride { workspaces[index].projectID = presentation.projectOverride }
         else if let projectID, projects.contains(where: { $0.id == projectID }) { workspaces[index].projectID = projectID }

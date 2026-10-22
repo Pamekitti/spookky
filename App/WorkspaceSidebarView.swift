@@ -19,13 +19,16 @@ import SpookkyCore
     var archived = false
     var checkout: SidebarCheckoutInfo?
     var pullRequest: PullRequestStatus?
+    var groupID: String?
+    var reorderable = false
 
     init(id: String, kind: Kind, title: String, image: NSImage? = nil, help: String = "",
          selected: Bool = false, nested: Bool = false, collapsed: Bool = false,
-         activity: AgentActivityState? = nil) {
+         activity: AgentActivityState? = nil, groupID: String? = nil, reorderable: Bool = false) {
         self.id = id; self.kind = kind; self.title = title; self.image = image
         self.help = help.isEmpty ? title : help; self.selected = selected; self.nested = nested
         self.collapsed = collapsed; self.activity = activity
+        self.groupID = groupID; self.reorderable = reorderable
     }
 }
 
@@ -37,11 +40,13 @@ import SpookkyCore
     var onContextMenu: ((String) -> NSMenu?)?
     var onThreadAction: ((String, String) -> Void)?
     var onVisibleItems: (([WorkspaceSidebarItem]) -> Void)?
+    var onReorder: (([String]) -> Void)?
     var pointerLocation: (NSWindow) -> NSPoint? = { $0.mouseLocationOutsideOfEventStream } {
         didSet { reconcileHover() }
     }
     private let scroll = NSScrollView()
     private let table = WorkspaceSidebarTable()
+    private let reorderType = NSPasteboard.PasteboardType("dev.spookky.sidebar-thread")
     private var items: [WorkspaceSidebarItem] = []
     private var indexByID: [String: Int] = [:]
     private var collapsed = false
@@ -57,6 +62,7 @@ import SpookkyCore
     private(set) var focusedItemID: String?
     var keyboardFocusItemID: String? { hasKeyboardFocus && keyboardNavigation ? focusedItemID : nil }
     var itemCount: Int { items.count }
+    var itemIDs: [String] { items.map(\.id) }
     var selectedItemIDs: [String] { items.filter(\.selected).map(\.id) }
     var hoverCardContent: NSView? { hoverCard.visibleContent }
     var pendingHoverTasks: Int { (hoverTask == nil ? 0 : 1) + (hoverCloseTask == nil ? 0 : 1) }
@@ -78,6 +84,7 @@ import SpookkyCore
         column.minWidth = 0
         column.resizingMask = .autoresizingMask; table.addTableColumn(column)
         table.delegate = self; table.dataSource = self
+        table.registerForDraggedTypes([reorderType])
         table.target = self; table.action = #selector(clickedRow)
         table.onPointerChange = { [weak self] in self?.reconcileHover() }
         table.onKey = { [weak self] key in self?.handleKey(key) }
@@ -176,6 +183,39 @@ import SpookkyCore
     }
 
     func numberOfRows(in tableView: NSTableView) -> Int { items.count }
+    func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> NSPasteboardWriting? {
+        guard items.indices.contains(row), items[row].reorderable else { return nil }
+        let pasteboard = NSPasteboardItem()
+        pasteboard.setString(items[row].id, forType: reorderType)
+        return pasteboard
+    }
+    func tableView(_ tableView: NSTableView, draggingSession session: NSDraggingSession,
+                   sourceOperationMaskFor context: NSDraggingContext) -> NSDragOperation { .move }
+    func tableView(_ tableView: NSTableView, validateDrop info: NSDraggingInfo, proposedRow row: Int,
+                   proposedDropOperation operation: NSTableView.DropOperation) -> NSDragOperation {
+        guard info.draggingSource as AnyObject? === table,
+              let id = info.draggingPasteboard.string(forType: reorderType),
+              let source = indexByID[id], let group = items[source].groupID,
+              let first = items.firstIndex(where: { $0.reorderable && $0.groupID == group }),
+              let last = items.lastIndex(where: { $0.reorderable && $0.groupID == group }),
+              (first...last + 1).contains(row) else { return [] }
+        tableView.setDropRow(row, dropOperation: .above)
+        return .move
+    }
+    func tableView(_ tableView: NSTableView, acceptDrop info: NSDraggingInfo, row: Int,
+                   dropOperation operation: NSTableView.DropOperation) -> Bool {
+        guard self.tableView(tableView, validateDrop: info, proposedRow: row, proposedDropOperation: operation) == .move,
+              let id = info.draggingPasteboard.string(forType: reorderType),
+              let source = indexByID[id], let group = items[source].groupID else { return false }
+        let peers = items.enumerated().filter { $0.element.reorderable && $0.element.groupID == group && $0.element.id != id }
+        let destination = peers.prefix { $0.offset < row }.count
+        let current = items[..<source].filter { $0.reorderable && $0.groupID == group }.count
+        if destination == current { return false }
+        var order = peers.map { $0.element.id }
+        order.insert(id, at: destination)
+        onReorder?(order)
+        return true
+    }
     func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
         switch items[row].kind { case .project: SpookkyStyle.points(28); case .conversation, .more: SpookkyStyle.points(31); case .section: SpookkyStyle.points(28) }
     }
