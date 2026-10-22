@@ -79,6 +79,40 @@ final class SidebarStatusTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(ThreadPresentation.self, from: JSONEncoder().encode(entry)), entry)
         XCTAssertTrue(entry.pullRequest?.isValid == true)
     }
+    func testSidebarPositionSurvivesActivityRefreshAndExplicitMove() throws {
+        var state = WorkspaceState()
+        let project = UUID()
+        func record(_ session: String, _ updated: TimeInterval) -> ConversationCatalogRecord {
+            ConversationCatalogRecord(metadata: ConversationMetadata(
+                id: ConversationID(provider: .codex, sessionID: session), title: session,
+                directory: "/tmp/sidebar", updatedAt: Date(timeIntervalSinceReferenceDate: updated)), projectID: project)
+        }
+        let older = record("older", 100), newer = record("newer", 200)
+        state.rememberSidebarPositions([older, newer])
+        state.rememberSidebarPositions([record("older", 400)])
+        XCTAssertEqual(state.presentation(for: older.id.threadKey).sidebarPosition, 100)
+        XCTAssertEqual(state.presentation(for: newer.id.threadKey).sidebarPosition, 200)
+
+        state.reorderThreads([older.id.threadKey, newer.id.threadKey])
+        let moved = try XCTUnwrap(state.presentation(for: older.id.threadKey).sidebarPosition)
+        XCTAssertGreaterThan(moved, 200)
+        let restored = try JSONDecoder().decode(WorkspaceState.self, from: JSONEncoder().encode(state))
+        XCTAssertEqual(restored.presentation(for: older.id.threadKey).sidebarPosition, moved)
+        let equalA = record("equal-a", 500), equalB = record("equal-b", 500)
+        state.rememberSidebarPositions([equalA, equalB])
+        state.reorderThreads([equalB.id.threadKey, equalA.id.threadKey])
+        XCTAssertGreaterThan(state.presentation(for: equalB.id.threadKey).sidebarPosition ?? 0,
+                             state.presentation(for: equalA.id.threadKey).sidebarPosition ?? 0)
+        XCTAssertNil(try JSONDecoder().decode(ThreadPresentation.self, from: Data(#"{"hasProjectOverride":false}"#.utf8)).sidebarPosition)
+    }
+    func testPromotedLandingTakesNewThreadPosition() {
+        var state = WorkspaceState()
+        let id = state.showLanding(homeDirectory: "/tmp")
+        let key = "workspace:" + id.uuidString
+        state.editThread(key) { $0.sidebarPosition = 1 }
+        state.promoteLanding(id)
+        XCTAssertGreaterThan(state.presentation(for: key).sidebarPosition ?? 0, 1)
+    }
     func testUnreadRequiresVisibilityAndKnownBottomAndRejectsNewerCompletion() {
         let binding = UUID(), invocation = UUID(), secret = UUID()
         func event(_ kind: AgentEventKind) -> AgentEvent { AgentEvent(bindingID: binding, invocationID: invocation, secret: secret, provider: .codex, kind: kind) }

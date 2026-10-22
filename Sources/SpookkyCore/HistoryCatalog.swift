@@ -75,6 +75,8 @@ extension WorkspaceState {
     public mutating func promoteLanding(_ id: UUID) {
         guard let index = workspaces.firstIndex(where: { $0.id == id }), workspaces[index].isLanding else { return }
         workspaces[index].landingContext = nil
+        let position = nextSidebarPosition()
+        editThread(workspaces[index].threadKey) { $0.sidebarPosition = position }
         guard !workspaces[index].customTitle else { return }
         let tool = workspaces[index].primaryTerminal?.draft.tool ?? .codex
         if let title = workspaces[index].primaryTerminal.flatMap({ WorkspaceNaming.promptTitle($0.draft.prompt) }) {

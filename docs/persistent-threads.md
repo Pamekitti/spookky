@@ -8,7 +8,7 @@ New chat and Cmd+N select the retained global composer. Project + selects that p
 
 Thread back and forward navigation retains up to 64 destinations in the current window. Selecting a saved conversation uses exact-ID continuation only when needed. A surviving owned process reattaches. Navigation never submits a draft or launches another thread as a side effect.
 
-Pinned, Projects and Recents refer to shared thread identities. Their first page contains five entries; Show more adds ten. Project collapse resets that project's history page. Selection highlights the occurrence used for navigation. Unknown activity remains quiet.
+Pinned and Projects refer to shared thread identities. Their first page contains five entries; Show more adds ten. Project collapse resets that project's history page. Selection highlights the occurrence used for navigation. Visiting or updating a thread does not move its project row. Unknown activity remains quiet.
 
 Pinning, archiving and project assignment are local presentation preferences. Archive removes a thread from ordinary navigation and selects landing if necessary. It never deletes provider history or stops execution. View > Archived threads exposes Unarchive. Explicit local project assignments survive provider metadata refresh.
 

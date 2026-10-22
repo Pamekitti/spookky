@@ -4,6 +4,7 @@ public struct ThreadPresentation: Codable, Equatable, Sendable {
     public var pinnedAt: Date?
     public var archivedAt: Date?
     public var lastVisitedAt: Date?
+    public var sidebarPosition: Double?
     public var projectOverride: UUID?
     public var hasProjectOverride = false
     public var conversation: ConversationCatalogRecord?
@@ -21,6 +22,9 @@ extension Workspace {
 
 extension WorkspaceState {
     public func presentation(for key: String) -> ThreadPresentation { threadPresentations?[key] ?? ThreadPresentation() }
+    public func nextSidebarPosition() -> Double {
+        max(Date().timeIntervalSinceReferenceDate, (threadPresentations ?? [:]).values.compactMap(\.sidebarPosition).max().map { $0 + 1 } ?? 0)
+    }
     public func isArchived(_ workspace: Workspace) -> Bool { presentation(for: workspace.threadKey).archivedAt != nil }
     public var archivedConversationIDs: Set<ConversationID> {
         Set((threadPresentations ?? [:]).values.filter { $0.archivedAt != nil }.compactMap { $0.conversation?.id } + workspaces.filter { isArchived($0) }.compactMap(\.conversationID))
@@ -28,8 +32,21 @@ extension WorkspaceState {
     public mutating func rememberThread(_ record: ConversationCatalogRecord) {
         var entry = presentation(for: record.id.threadKey)
         entry.conversation = record
+        if entry.sidebarPosition == nil { entry.sidebarPosition = record.metadata.updatedAt.timeIntervalSinceReferenceDate }
         if threadPresentations == nil { threadPresentations = [:] }
         threadPresentations?[record.id.threadKey] = entry
+    }
+    public mutating func rememberSidebarPositions(_ records: [ConversationCatalogRecord]) {
+        for record in records where presentation(for: record.id.threadKey).sidebarPosition == nil {
+            editThread(record.id.threadKey) { $0.sidebarPosition = record.metadata.updatedAt.timeIntervalSinceReferenceDate }
+        }
+    }
+    public mutating func reorderThreads(_ keys: [String]) {
+        guard Set(keys).count == keys.count, !keys.isEmpty else { return }
+        let top = nextSidebarPosition() + Double(keys.count)
+        for (index, key) in keys.enumerated() {
+            editThread(key) { $0.sidebarPosition = top - Double(index) }
+        }
     }
     public mutating func editThread(_ key: String, _ edit: (inout ThreadPresentation) -> Void) {
         var entry = presentation(for: key); edit(&entry)
