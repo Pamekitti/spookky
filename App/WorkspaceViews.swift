@@ -322,7 +322,9 @@ final class PromptTextView: NSTextView {
     override var undoManager: UndoManager? { draftUndoManager }
     var onFocusChange: (() -> Void)?
     var onSubmit: (() -> Void)?
+    var onCompletionKey: ((NSEvent) -> Bool)?
     override func keyDown(with event: NSEvent) {
+        if !hasMarkedText(), onCompletionKey?(event) == true { return }
         let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
         if [36, 76].contains(event.keyCode), !hasMarkedText(), let onSubmit {
             if modifiers.isEmpty || modifiers == .command {
@@ -861,6 +863,7 @@ private final class ComposerPopoverBackground: NSView {
     private var currentProject: Project? { projects.first { $0.id == currentWorkspace?.projectID } }
     private let launch = ActionButton("", symbol: "arrow.up", height: SpookkyStyle.points(32), action: {})
     private let card = ChromeStackView()
+    private let suggestions = ChromeStackView()
     private let controls = NSStackView()
     private let promptScroll = NSScrollView()
     private let imageList = NSStackView()
@@ -881,6 +884,11 @@ private final class ComposerPopoverBackground: NSView {
     private let locate = ActionButton("Locate folder…", symbol: "folder", action: {})
     private var projects: [Project] = []
     private var currentTool: SessionTool?
+    private var skillLocation = ""
+    private var skills: [SkillSuggestion] = []
+    private var matches: [SkillSuggestion] = []
+    private var completionToken: SkillCompletionToken?
+    private var selectedSuggestion = 0
     private var folderTitle = "Home"
     var onDraft: ((SessionTool?, String?) -> Void)?
     var onImages: (([String]) -> Void)?
@@ -912,6 +920,7 @@ private final class ComposerPopoverBackground: NSView {
         prompt.onFocusChange = { [weak self] in
             guard let self else { return }; card.needsDisplay = true
         }
+        prompt.onCompletionKey = { [weak self] event in self?.handleCompletionKey(event) ?? false }
         prompt.onPasteImage = { [weak self] data in self?.pasteImage(data) }
         prompt.setAccessibilityLabel("Optional prompt for new session")
         promptScroll.documentView = prompt; promptScroll.hasVerticalScroller = true
@@ -965,6 +974,12 @@ private final class ComposerPopoverBackground: NSView {
         card.orientation = .vertical; card.alignment = .leading; card.spacing = SpookkyStyle.points(4)
         card.raised = true; card.cornerRadius = SpookkyStyle.composerRadius
         card.setAccessibilityLabel("New chat"); card.setAccessibilityRole(.group)
+        suggestions.orientation = .vertical; suggestions.alignment = .leading
+        suggestions.spacing = SpookkyStyle.points(2)
+        suggestions.edgeInsets = NSEdgeInsets(top: SpookkyStyle.points(6), left: SpookkyStyle.points(6),
+                                             bottom: SpookkyStyle.points(6), right: SpookkyStyle.points(6))
+        suggestions.raised = true; suggestions.cornerRadius = SpookkyStyle.composerRadius
+        suggestions.isHidden = true
         imageList.orientation = .horizontal; imageList.alignment = .top; imageList.spacing = SpookkyStyle.points(8)
         imageList.edgeInsets = NSEdgeInsets(top: 0, left: SpookkyStyle.points(12), bottom: 0, right: SpookkyStyle.points(12))
         imageList.isHidden = true
@@ -1010,7 +1025,7 @@ private final class ComposerPopoverBackground: NSView {
         welcome.addArrangedSubview(mark); welcome.addArrangedSubview(heading)
         message.font = .systemFont(ofSize: SpookkyStyle.points(11)); message.textColor = SpookkyPalette.warning
         message.maximumNumberOfLines = 3
-        let stack = NSStackView(views: [welcome, message, errorNotice, card, context, terminalRow])
+        let stack = NSStackView(views: [welcome, message, errorNotice, card, suggestions, context, terminalRow])
         stack.orientation = .vertical; stack.alignment = .centerX; stack.spacing = SpookkyStyle.points(8)
         stack.setCustomSpacing(SpookkyStyle.points(32), after: welcome)
         stack.setCustomSpacing(SpookkyStyle.points(16), after: context)
@@ -1036,6 +1051,7 @@ private final class ComposerPopoverBackground: NSView {
             stack.leadingAnchor.constraint(greaterThanOrEqualTo: document.leadingAnchor, constant: 24).displayScaled(),
             stack.trailingAnchor.constraint(lessThanOrEqualTo: document.trailingAnchor, constant: -24).displayScaled(), preferredWidth,
             card.widthAnchor.constraint(equalTo: stack.widthAnchor), terminalRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            suggestions.widthAnchor.constraint(equalTo: stack.widthAnchor),
             context.widthAnchor.constraint(equalTo: stack.widthAnchor),
             welcome.widthAnchor.constraint(equalTo: stack.widthAnchor), heading.widthAnchor.constraint(equalTo: welcome.widthAnchor),
             message.widthAnchor.constraint(equalTo: stack.widthAnchor)
@@ -1186,9 +1202,12 @@ private final class ComposerPopoverBackground: NSView {
     }
 
     func update(_ tab: WorkspaceTab, workspace: Workspace, state: WorkspaceState) {
-        if prompt.string != tab.draft.prompt { prompt.string = tab.draft.prompt }
+        let promptChanged = prompt.string != tab.draft.prompt
+        if promptChanged { prompt.string = tab.draft.prompt }
         currentTool = tab.draft.tool; projects = state.projects
         currentWorkspace = workspace; selection = tab.draft.modelSelection
+        loadSkillsIfNeeded(tool: tab.draft.tool, directory: workspace.directory)
+        if promptChanged { refreshSuggestions() }
         let project = currentProject
         let nextCatalogKey = tab.draft.tool.rawValue + "|" + workspace.directory
         if catalogKey != nextCatalogKey {
@@ -1534,8 +1553,86 @@ private final class ComposerPopoverBackground: NSView {
         let height = max(SpookkyStyle.points(64), min(content, SpookkyStyle.points(300), max(SpookkyStyle.points(64), bounds.height / 2)))
         if abs(promptHeight.constant - height) > 0.5 { promptHeight.constant = height }
     }
-    func textDidChange(_ notification: Notification) { resizePrompt(); onDraft?(nil, prompt.string) }
+    func textDidChange(_ notification: Notification) { resizePrompt(); onDraft?(nil, prompt.string); refreshSuggestions() }
+    func textViewDidChangeSelection(_ notification: Notification) { refreshSuggestions() }
     func textDidBeginEditing(_ notification: Notification) { onFocus?() }
+
+    private func loadSkillsIfNeeded(tool: SessionTool, directory: String) {
+        let key = tool.rawValue + "\0" + directory
+        guard key != skillLocation else { return }
+        skillLocation = key
+        skills = []; hideSuggestions()
+        guard tool != .shell else { return }
+        Task.detached(priority: .utility) { [weak self] in
+            let loaded = SkillSuggestions.load(tool: tool, directory: directory)
+            await self?.acceptSkills(loaded, for: key)
+        }
+    }
+
+    private func acceptSkills(_ loaded: [SkillSuggestion], for key: String) {
+        guard skillLocation == key else { return }
+        skills = loaded
+        refreshSuggestions()
+    }
+
+    private func refreshSuggestions() {
+        guard currentTool != .shell, !skills.isEmpty,
+              let token = SkillCompletionToken.atCaret(in: prompt.string, selection: prompt.selectedRange()) else {
+            hideSuggestions(); return
+        }
+        let next = SkillSuggestions.matches(skills, query: token.query)
+        guard !next.isEmpty else { hideSuggestions(); return }
+        completionToken = token
+        selectedSuggestion = min(selectedSuggestion, next.count - 1)
+        guard next != matches else { suggestions.isHidden = false; return }
+        matches = next
+        for view in suggestions.arrangedSubviews { suggestions.removeArrangedSubview(view); view.removeFromSuperview() }
+        for (index, skill) in next.enumerated() {
+            let prefix = currentTool == .codex ? "$" : "/"
+            let detail = skill.description.isEmpty ? skill.source : skill.description
+            let button = ActionButton(prefix + skill.name + "  ·  " + detail, action: { [weak self] in self?.insertSuggestion(index) })
+            button.selected = index == selectedSuggestion
+            button.alignment = .left
+            button.lineBreakMode = .byTruncatingTail
+            button.setAccessibilityLabel(prefix + skill.name + ", skill, " + detail)
+            button.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            suggestions.addArrangedSubview(button)
+            button.widthAnchor.constraint(equalTo: suggestions.widthAnchor, constant: -SpookkyStyle.points(12)).isActive = true
+        }
+        suggestions.isHidden = false
+    }
+
+    private func hideSuggestions() {
+        completionToken = nil; matches = []; selectedSuggestion = 0
+        suggestions.isHidden = true
+    }
+
+    private func updateSuggestionSelection() {
+        for (index, button) in suggestions.arrangedSubviews.compactMap({ $0 as? ActionButton }).enumerated() {
+            button.selected = index == selectedSuggestion
+        }
+    }
+
+    private func handleCompletionKey(_ event: NSEvent) -> Bool {
+        guard !suggestions.isHidden, event.modifierFlags.intersection([.command, .control, .option]).isEmpty else { return false }
+        switch event.keyCode {
+        case 125: selectedSuggestion = (selectedSuggestion + 1) % matches.count; updateSuggestionSelection(); return true
+        case 126: selectedSuggestion = (selectedSuggestion + matches.count - 1) % matches.count; updateSuggestionSelection(); return true
+        case 36, 76: insertSuggestion(selectedSuggestion); return true
+        case 53: hideSuggestions(); return true
+        default: return false
+        }
+    }
+
+    private func insertSuggestion(_ index: Int) {
+        guard matches.indices.contains(index), let token = completionToken else { return }
+        let prefix = currentTool == .codex ? "$" : "/"
+        let replacement = prefix + matches[index].name
+        window?.makeFirstResponder(prompt)
+        prompt.insertText(replacement, replacementRange: token.range)
+        prompt.setSelectedRange(NSRange(location: token.range.location + (replacement as NSString).length, length: 0))
+        hideSuggestions()
+    }
 }
 
 final class ClosureMenuItem: NSMenuItem {
