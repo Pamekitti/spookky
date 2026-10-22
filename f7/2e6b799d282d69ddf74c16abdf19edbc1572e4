@@ -1,0 +1,21 @@
+Sources/SpookkyCore/SkillCompletion.swift
+  s_4765a128980824::t_de8edf709b4ade 1-34
+Tests/SpookkyRuntimeTests/SkillCompletionTests.swift
+  s_4765a128980824::t_433a31a7fbad5b 1-22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f72e6b799d282d69ddf74c16abdf19edbc1572e4",
+  "prompts": {},
+  "sessions": {
+    "s_4765a128980824": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "01a16293-bc16-7770-abba-6e0a2742f42e",
+        "model": "unknown"
+      },
+      "human_author": "Pamekitti <93110244+Pamekitti@users.noreply.github.com>"
+    }
+  }
+}
