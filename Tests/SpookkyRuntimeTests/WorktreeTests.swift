@@ -148,6 +148,27 @@ final class WorktreeTests: XCTestCase {
         XCTAssertEqual(retry.operation(operation)?.status, .complete)
         XCTAssertTrue(location.isGit)
     }
+    @MainActor func testFailedWorktreeCanUseLocalWithoutRetryOrLosingFailure() async throws {
+        let fixture = try await GitFixture.make(); defer { fixture.cleanup() }
+        let store = try await fixture.store()
+        let coordinator = LocationCoordinator(store: store, git: GitRepository(executor: FailWorktreeOnce(latch: FailureLatch())))
+        let workspaceID = try XCTUnwrap(store.state.selectedWorkspaceID)
+        do { _ = try await coordinator.prepare(workspaceID: workspaceID); XCTFail("Worktree should fail") } catch { }
+        let operationID = try XCTUnwrap(store.state.selected?.locationOperationID)
+        XCTAssertEqual(coordinator.operation(operationID)?.status, .failed)
+        let original = try XCTUnwrap(store.state.selected?.selectedLocation)
+        store.update { state in
+            var draft = state.selected!.locationDraft!; draft.mode = .local
+            state.dismissOperationNotice(operationID)
+            state.editLocation(draft, workspaceID: workspaceID)
+        }
+        let selected = try await coordinator.prepare(workspaceID: workspaceID)
+        XCTAssertEqual(selected, original)
+        XCTAssertEqual(coordinator.operation(operationID)?.status, .failed)
+        XCTAssertEqual(coordinator.operation(operationID)?.noticeDismissed, true)
+        let restored = try JSONDecoder().decode(WorkspaceState.self, from: JSONEncoder().encode(store.state))
+        XCTAssertEqual(restored.locations?.operations.first { $0.id == operationID }?.noticeDismissed, true)
+    }
     @MainActor func testConcurrentPreparationAndMissingProviderRetainOneCheckout() async throws {
         let fixture = try await GitFixture.make(); defer { fixture.cleanup() }
         let store = try await fixture.store()

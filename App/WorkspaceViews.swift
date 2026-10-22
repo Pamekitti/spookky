@@ -615,6 +615,58 @@ final class ContextRow: NSView {
     }
 }
 
+@MainActor final class AppErrorNoticeView: NSStackView {
+    private let heading = ChromeTextField(wrappingLabelWithString: "")
+    private let details = ChromeTextField(wrappingLabelWithString: "")
+    private let detailButton = ActionButton("Details", height: SpookkyStyle.points(24), action: {})
+    private let retryButton = ActionButton("Retry", height: SpookkyStyle.points(24), action: {})
+    private let localButton = ActionButton("Use Local checkout", height: SpookkyStyle.points(24), action: {})
+    private let dismissButton = ActionButton("Dismiss", height: SpookkyStyle.points(24), action: {})
+    private var noticeID: String?
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        orientation = .vertical; alignment = .leading; spacing = SpookkyStyle.points(6)
+        edgeInsets = NSEdgeInsets(top: SpookkyStyle.points(10), left: SpookkyStyle.points(12), bottom: SpookkyStyle.points(10), right: SpookkyStyle.points(12))
+        heading.font = .systemFont(ofSize: SpookkyStyle.points(12), weight: .medium)
+        heading.textColor = SpookkyPalette.warning
+        details.font = .monospacedSystemFont(ofSize: SpookkyStyle.points(11), weight: .regular)
+        details.textColor = SpookkyPalette.secondary; details.maximumNumberOfLines = 10
+        let recovery = NSStackView(views: [retryButton, localButton])
+        let secondary = NSStackView(views: [detailButton, dismissButton])
+        recovery.spacing = SpookkyStyle.points(8); secondary.spacing = SpookkyStyle.points(8)
+        addArrangedSubview(heading); addArrangedSubview(details)
+        addArrangedSubview(recovery); addArrangedSubview(secondary)
+        heading.widthAnchor.constraint(equalTo: widthAnchor, constant: -24).displayScaled().isActive = true
+        details.widthAnchor.constraint(equalTo: widthAnchor, constant: -24).displayScaled().isActive = true
+        detailButton.handler = { [weak self] in
+            guard let self else { return }; details.isHidden.toggle()
+            detailButton.title = details.isHidden ? "Details" : "Hide details"
+        }
+        details.isHidden = true; isHidden = true
+    }
+    required init?(coder: NSCoder) { fatalError("Use init") }
+    override func draw(_ dirtyRect: NSRect) {
+        let path = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5), xRadius: SpookkyStyle.cornerRadius, yRadius: SpookkyStyle.cornerRadius)
+        SpookkyPalette.raised.setFill(); path.fill()
+        SpookkyPalette.border.setStroke(); path.lineWidth = 1; path.stroke()
+        super.draw(dirtyRect)
+    }
+    override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
+    func update(id: String?, title: String = "", detail: String = "", canRetry: Bool = false,
+                canUseLocal: Bool = false, retry: (() -> Void)? = nil, useLocal: (() -> Void)? = nil, dismiss: (() -> Void)? = nil) {
+        if noticeID != id { noticeID = id; details.isHidden = true; detailButton.title = "Details" }
+        isHidden = id == nil
+        guard id != nil else { return }
+        heading.stringValue = title; heading.setAccessibilityLabel(title)
+        details.stringValue = String(detail.prefix(8_192)); details.toolTip = detail
+        retryButton.isHidden = !canRetry; retryButton.handler = retry
+        localButton.isHidden = !canUseLocal; localButton.handler = useLocal
+        dismissButton.isHidden = dismiss == nil; dismissButton.handler = dismiss
+        detailButton.isHidden = detail.isEmpty
+    }
+}
+
 private final class ComposerDocumentView: NSView {
     override var isFlipped: Bool { true }
 }
@@ -820,6 +872,7 @@ private final class ComposerPopoverBackground: NSView {
     private var promptHeight: NSLayoutConstraint!
     private var launchWidth: NSLayoutConstraint!
     private let message = ChromeTextField(wrappingLabelWithString: "")
+    private let errorNotice = AppErrorNoticeView(frame: .zero)
     private let terminalRow = NSStackView()
     private let terminal = ActionButton("Open Terminal", symbol: "terminal", help: "Open Terminal and keep this session draft", action: {})
     private let locationPopover = NSPopover()
@@ -842,6 +895,9 @@ private final class ComposerPopoverBackground: NSView {
     var onAddProject: ((NSView) -> Void)?
     var onLocate: (() -> Void)?
     var onFocus: (() -> Void)?
+    var onRetryError: (() -> Void)?
+    var onUseLocal: (() -> Void)?
+    var onDismissError: (() -> Void)?
 
     init(tabID: UUID, imageDirectory: URL, modelCatalog: any ProviderModelDiscovering = ProviderModelCatalog.shared) {
         self.tabID = tabID; self.imageDirectory = imageDirectory; self.modelCatalog = modelCatalog
@@ -954,7 +1010,7 @@ private final class ComposerPopoverBackground: NSView {
         welcome.addArrangedSubview(mark); welcome.addArrangedSubview(heading)
         message.font = .systemFont(ofSize: SpookkyStyle.points(11)); message.textColor = SpookkyPalette.warning
         message.maximumNumberOfLines = 3
-        let stack = NSStackView(views: [welcome, message, card, context, terminalRow])
+        let stack = NSStackView(views: [welcome, message, errorNotice, card, context, terminalRow])
         stack.orientation = .vertical; stack.alignment = .centerX; stack.spacing = SpookkyStyle.points(8)
         stack.setCustomSpacing(SpookkyStyle.points(32), after: welcome)
         stack.setCustomSpacing(SpookkyStyle.points(16), after: context)
@@ -984,6 +1040,7 @@ private final class ComposerPopoverBackground: NSView {
             welcome.widthAnchor.constraint(equalTo: stack.widthAnchor), heading.widthAnchor.constraint(equalTo: welcome.widthAnchor),
             message.widthAnchor.constraint(equalTo: stack.widthAnchor)
         ])
+        errorNotice.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
         configureLocationPicker()
         locationOptions.compactComposer = true
     }
@@ -1185,21 +1242,38 @@ private final class ComposerPopoverBackground: NSView {
         folder.toolTip = folderTitle + "\n" + path
         folder.setAccessibilityLabel("Choose folder or project · " + folderTitle)
         locate.isHidden = !needsLocate
-        if let failure = tab.failure { message.stringValue = failure.message }
-        else if needsBranch { message.stringValue = "Choose an existing branch before starting." }
+        let operation = workspace.locationOperationID.flatMap { id in state.locations?.operations.first { $0.id == id } }
+        let worktreeFailure = operation.flatMap { op -> LocationOperation? in
+            workspace.locationDraft?.mode == .worktree && op.request.kind == .worktree &&
+                [.failed, .uncertain, .cancelled].contains(op.status) ? op : nil
+        }
+        let failure = tab.failure?.noticeDismissed == true || worktreeFailure?.noticeDismissed == true ? nil : tab.failure
+        if let worktreeFailure, worktreeFailure.noticeDismissed != true, failure != nil {
+            let detail = worktreeFailure.error ?? failure?.message ?? "Worktree creation failed."
+            let missingLFS = detail.contains("git-lfs: command not found")
+            let title = missingLFS ? "Couldn’t create worktree. Git LFS is unavailable." : "Couldn’t create worktree."
+            errorNotice.update(id: worktreeFailure.id.uuidString, title: title, detail: detail,
+                canRetry: worktreeFailure.status == .failed, canUseLocal: true,
+                retry: onRetryError, useLocal: onUseLocal, dismiss: onDismissError)
+        } else if let failure {
+            errorNotice.update(id: tab.id.uuidString + failure.message, title: "Couldn’t start session.",
+                detail: failure.message, canRetry: tab.isEditable,
+                retry: onRetryError, dismiss: onDismissError)
+        } else { errorNotice.update(id: nil) }
+        if needsBranch { message.stringValue = "Choose an existing branch before starting." }
         else {
             switch tab.status {
             case .preparing: message.stringValue = "Preparing location…"
             case .launching: message.stringValue = "Starting " + tab.draft.tool.displayName + "…"
             case .uncertain: message.stringValue = "Session status needs checking."
             case .unavailable: message.stringValue = "Session unavailable."
-            case .failed: message.stringValue = "Could not start session."
+            case .failed: message.stringValue = ""
             default: message.stringValue = ""
             }
         }
         message.isHidden = message.stringValue.isEmpty; message.toolTip = message.stringValue
         message.setAccessibilityLabel(message.stringValue)
-        message.textColor = tab.failure != nil || needsBranch || [.failed, .uncertain, .unavailable].contains(tab.status) ? SpookkyPalette.warning : SpookkyPalette.secondary
+        message.textColor = needsBranch || [.failed, .uncertain, .unavailable].contains(tab.status) ? SpookkyPalette.warning : SpookkyPalette.secondary
         configureFooter(); resizePrompt(); card.needsDisplay = true
         if modelChoices.isShown { updateModelChoices() }
         if choices.isShown && choices.anchor === location { choices.update(checkoutRows()) }
