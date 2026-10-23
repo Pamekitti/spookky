@@ -25,6 +25,10 @@ class CheckScopeTests(unittest.TestCase):
             scope = classify([path])
             self.assertTrue(scope["native"] and scope["website"])
 
+    def test_reorganized_sources_and_native_tests_select_native_job(self):
+        for path in ['App/Workspace/WorkspaceLaunchController.swift','Tests/SpookkyNativeTests/NativeScenarioTests.swift','Tests/NativeHarness/HarnessAppDelegate.swift','Tests/SpookkyIntegrationTests/Git/WorktreeTests.swift']:
+            self.assertTrue(classify([path])['native'])
+        self.assertFalse(classify(['Tests/Python/test_fixture_results.py'])['native'])
     def test_packaging_and_website_changes_select_their_checks(self):
         self.assertTrue(classify(["scripts/build_native.sh"])["native"])
         self.assertFalse(classify(["scripts/build_native.sh"])["website"])

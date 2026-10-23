@@ -1,12 +1,13 @@
 """Serialize native GUI fixtures across checkouts with a kernel-owned lock."""
+
 from contextlib import contextmanager
 import fcntl
 import os
 from pathlib import Path
-import tempfile
 import time
 
-LOCK = Path(tempfile.gettempdir()) / ('spookky-gui-' + str(os.getuid()) + '.lock')
+LOCK = Path("/tmp") / ("spookky-gui-" + str(os.getuid()) + ".lock")
+
 
 @contextmanager
 def gui_lock(*, path=LOCK, timeout=300):
@@ -19,7 +20,7 @@ def gui_lock(*, path=LOCK, timeout=300):
                 break
             except BlockingIOError:
                 if time.monotonic() >= deadline:
-                    raise TimeoutError('Another native fixture holds ' + str(path))
+                    raise TimeoutError("Another native fixture holds " + str(path))
                 time.sleep(min(0.1, max(0, deadline - time.monotonic())))
         yield
     finally:
