@@ -25,7 +25,7 @@ def quote(value):
 
 source_builds = []
 file_refs = []
-for path in sorted((ROOT / "App").glob("*.swift")):
+for path in sorted((ROOT / "App").rglob("*.swift")):
     relative = path.relative_to(ROOT)
     ref = obj(str(relative), f'isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = {quote(relative)}; sourceTree = SOURCE_ROOT;')
     file_refs.append(ref)
@@ -58,7 +58,7 @@ sources_phase = phase("sources", "PBXSourcesBuildPhase", source_builds)
 frameworks_phase = phase("frameworks", "PBXFrameworksBuildPhase", framework_builds)
 resources_phase = phase("resources", "PBXResourcesBuildPhase", resources)
 # Atomic replacement preserves executable inodes used by retained terminal processes.
-helper_script = 'set -eu\ncd "$SRCROOT"\n/usr/bin/swift build -c release --jobs 2 --product spookky-launch\n/usr/bin/swift build -c release --jobs 2 --product spookky-runtime-check\nfor helper in spookky-launch spookky-runtime-check; do\n  destination="$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/$helper"\n  cp ".build/release/$helper" "$destination.next"\n  mv -f "$destination.next" "$destination"\ndone\ntest -x .cache/runtime/bin/tmux\ndestination="$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/tmux"\ncp .cache/runtime/bin/tmux "$destination.next"\nmv -f "$destination.next" "$destination"\ncp -R .cache/runtime/share/terminfo/. "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/terminfo/"\n'
+helper_script = 'set -eu\ncd "$SRCROOT"\nhelper_configuration=release\nif [ "$CONFIGURATION" = Debug ]; then helper_configuration=debug; fi\n/usr/bin/swift build -c "$helper_configuration" --jobs 2 --product spookky-launch\n/usr/bin/swift build -c "$helper_configuration" --jobs 2 --product spookky-runtime-check\nfor helper in spookky-launch spookky-runtime-check; do\n  destination="$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/$helper"\n  cp ".build/$helper_configuration/$helper" "$destination.next"\n  mv -f "$destination.next" "$destination"\ndone\ntest -x .cache/runtime/bin/tmux\ndestination="$TARGET_BUILD_DIR/$EXECUTABLE_FOLDER_PATH/tmux"\ncp .cache/runtime/bin/tmux "$destination.next"\nmv -f "$destination.next" "$destination"\ncp -R .cache/runtime/share/terminfo/. "$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH/terminfo/"\n'
 helper_phase = obj("helper", f'isa = PBXShellScriptBuildPhase; alwaysOutOfDate = 1; buildActionMask = 2147483647; files = (); inputPaths = (); outputPaths = ("$(TARGET_BUILD_DIR)/$(EXECUTABLE_FOLDER_PATH)/spookky-launch"); runOnlyForDeploymentPostprocessing = 0; shellPath = /bin/sh; shellScript = {quote(helper_script)};')
 app_ref = obj("app", 'isa = PBXFileReference; explicitFileType = wrapper.application; path = "Spookky.app"; sourceTree = BUILT_PRODUCTS_DIR;')
 products_group = obj("products-group", f'isa = PBXGroup; name = Products; children = ({app_ref}); sourceTree = "<group>";')
@@ -67,7 +67,7 @@ main_group = obj("main-group", f'isa = PBXGroup; children = ({",".join(file_refs
 settings = {
     "MACOSX_DEPLOYMENT_TARGET": "14.0", "SDKROOT": "macosx", "ARCHS": "arm64",
     "SWIFT_VERSION": "5.0", "SWIFT_STRICT_CONCURRENCY": "minimal",
-    "PRODUCT_NAME": "Spookky", "PRODUCT_BUNDLE_IDENTIFIER": "dev.spookky.m0",
+    "SPOOKKY_INSTANCE_ID": "standalone", "PRODUCT_NAME": "Spookky", "PRODUCT_BUNDLE_IDENTIFIER": "dev.spookky.m0",
     "GENERATE_INFOPLIST_FILE": "NO", "INFOPLIST_FILE": "App/Info.plist",
     "ALWAYS_SEARCH_USER_PATHS": "NO",
     "INFOPLIST_KEY_NSHumanReadableCopyright": "Copyright © 2026 Pamekitti", "INFOPLIST_KEY_NSHighResolutionCapable": "YES", "CODE_SIGN_STYLE": "Automatic",
@@ -101,7 +101,37 @@ for name in ["Debug", "Release", "Distribution"]:
     configs.append(obj("config-" + name, f"isa = XCBuildConfiguration; name = {name}; buildSettings = {{{body}}};"))
 config_list = obj("configs", f"isa = XCConfigurationList; buildConfigurations = ({','.join(configs)}); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;")
 target = obj("target", f'isa = PBXNativeTarget; name = "Spookky"; productName = "Spookky"; productReference = {app_ref}; productType = "com.apple.product-type.application"; buildConfigurationList = {config_list}; buildPhases = ({sources_phase},{frameworks_phase},{resources_phase},{helper_phase}); buildRules = (); dependencies = (); packageProductDependencies = ({",".join(products)});')
-project = obj("project", f'isa = PBXProject; attributes = {{LastUpgradeCheck = 2700;}}; buildConfigurationList = {config_list}; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; knownRegions = (en,Base); mainGroup = {main_group}; productRefGroup = {products_group}; projectDirPath = ""; projectRoot = ""; targets = ({target}); packageReferences = ({package},{sparkle});')
+# The harness compiles shared production components plus private diagnostic drivers.
+def extra_sources(label, paths):
+    builds = []
+    for path in paths:
+        relative = path.relative_to(ROOT)
+        ref = obj(label + str(relative), f'isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = {quote(relative)}; sourceTree = SOURCE_ROOT;')
+        builds.append(obj(label + "build" + str(relative), f"isa = PBXBuildFile; fileRef = {ref};"))
+    return phase(label + "sources", "PBXSourcesBuildPhase", builds)
+
+def extra_configs(label, values):
+    result = []
+    for mode in ["Debug", "Release"]:
+        current = dict(settings, **values)
+        current["SWIFT_OPTIMIZATION_LEVEL"] = "-Onone" if mode == "Debug" else "-O"
+        body = " ".join(f"{key} = {quote(value)};" for key, value in current.items())
+        result.append(obj(label + mode, f"isa = XCBuildConfiguration; name = {mode}; buildSettings = {{{body}}};"))
+    return obj(label + "configs", f"isa = XCConfigurationList; buildConfigurations = ({','.join(result)}); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;")
+
+harness_sources = extra_sources("harness", sorted(p for p in (ROOT / "App").rglob("*.swift") if p.name != "AppDelegate.swift") + sorted((ROOT / "Tests/NativeHarness").glob("*.swift")))
+harness_configs = extra_configs("harness", dict(PRODUCT_NAME="SpookkyHarness", PRODUCT_MODULE_NAME="SpookkyHarness", PRODUCT_BUNDLE_IDENTIFIER="dev.spookky.harness.$(SPOOKKY_INSTANCE_ID)", SPOOKKY_DISPLAY_NAME="Spookky Harness", SWIFT_ACTIVE_COMPILATION_CONDITIONS="SPOOKKY_HARNESS", ENABLE_TESTABILITY="YES"))
+harness_ref = obj("harness-app", 'isa = PBXFileReference; explicitFileType = wrapper.application; path = "SpookkyHarness.app"; sourceTree = BUILT_PRODUCTS_DIR;')
+harness_target = obj("harness-target", f'isa = PBXNativeTarget; name = SpookkyHarness; productName = SpookkyHarness; productReference = {harness_ref}; productType = "com.apple.product-type.application"; buildConfigurationList = {harness_configs}; buildPhases = ({harness_sources},{frameworks_phase},{resources_phase},{helper_phase}); buildRules = (); dependencies = (); packageProductDependencies = ({",".join(products)});')
+test_sources = extra_sources("native-tests", sorted((ROOT / "Tests/SpookkyNativeTests").glob("*.swift")) + [ROOT / "Tests/Support/FixtureAssertions.swift"])
+test_configs = extra_configs("native-tests", dict(PRODUCT_NAME="SpookkyNativeTests", PRODUCT_MODULE_NAME="SpookkyNativeTests", PRODUCT_BUNDLE_IDENTIFIER="dev.spookky.native-tests.$(SPOOKKY_INSTANCE_ID)", GENERATE_INFOPLIST_FILE="YES", INFOPLIST_FILE="", TEST_HOST="$(BUILT_PRODUCTS_DIR)/SpookkyHarness.app/Contents/MacOS/SpookkyHarness", BUNDLE_LOADER="$(TEST_HOST)", LD_RUNPATH_SEARCH_PATHS="$(inherited) @loader_path/../Frameworks @executable_path/../Frameworks"))
+test_ref = obj("native-tests-bundle", 'isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = "SpookkyNativeTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR;')
+dependency = obj("harness-dependency", f"isa = PBXTargetDependency; target = {harness_target};")
+contract_ref = obj("native-contract", 'isa = PBXFileReference; lastKnownFileType = text.json; path = "Tests/Inventory/native-assertions.json"; sourceTree = SOURCE_ROOT;')
+contract_build = obj("native-contract-build", f"isa = PBXBuildFile; fileRef = {contract_ref};")
+test_resources = phase("native-test-resources", "PBXResourcesBuildPhase", [contract_build])
+test_target = obj("native-tests-target", f'isa = PBXNativeTarget; name = SpookkyNativeTests; productName = SpookkyNativeTests; productReference = {test_ref}; productType = "com.apple.product-type.bundle.unit-test"; buildConfigurationList = {test_configs}; buildPhases = ({test_sources},{test_resources}); buildRules = (); dependencies = ({dependency});')
+project = obj("project", f'isa = PBXProject; attributes = {{LastUpgradeCheck = 2700;}}; buildConfigurationList = {config_list}; compatibilityVersion = "Xcode 14.0"; developmentRegion = en; knownRegions = (en,Base); mainGroup = {main_group}; productRefGroup = {products_group}; projectDirPath = ""; projectRoot = ""; targets = ({target},{harness_target},{test_target}); packageReferences = ({package},{sparkle});')
 destination = ROOT / "Spookky.xcodeproj"
 destination.mkdir(exist_ok=True)
 content = '\n'.join(f"{key} = {{{body}}};" for key, body in objects.items())
@@ -115,5 +145,15 @@ scheme_dir.mkdir(parents=True, exist_ok=True)
   <BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries><BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="YES" buildForArchiving="YES" buildForAnalyzing="YES"><BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{target}" BuildableName="Spookky.app" BlueprintName="Spookky" ReferencedContainer="container:Spookky.xcodeproj"/></BuildActionEntry></BuildActionEntries></BuildAction>
   <LaunchAction buildConfiguration="Debug" selectedDebuggerIdentifier="Xcode.DebuggerFoundation.Debugger.LLDB" selectedLauncherIdentifier="Xcode.IDEFoundation.Launcher.LLDB" launchStyle="0" useCustomWorkingDirectory="NO" ignoresPersistentStateOnLaunch="NO" debugDocumentVersioning="YES" debugServiceExtension="internal" allowLocationSimulation="YES"><BuildableProductRunnable runnableDebuggingMode="0"><BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{target}" BuildableName="Spookky.app" BlueprintName="Spookky" ReferencedContainer="container:Spookky.xcodeproj"/></BuildableProductRunnable></LaunchAction>
   <ArchiveAction buildConfiguration="Distribution" revealArchiveInOrganizer="YES"/>
+</Scheme>
+''')
+
+reference = f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{harness_target}" BuildableName="SpookkyHarness.app" BlueprintName="SpookkyHarness" ReferencedContainer="container:Spookky.xcodeproj"/>'
+test_reference = f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{test_target}" BuildableName="SpookkyNativeTests.xctest" BlueprintName="SpookkyNativeTests" ReferencedContainer="container:Spookky.xcodeproj"/>'
+(scheme_dir / "SpookkyHarness.xcscheme").write_text(f'''<?xml version="1.0" encoding="UTF-8"?>
+<Scheme version="1.3">
+<BuildAction parallelizeBuildables="YES" buildImplicitDependencies="YES"><BuildActionEntries><BuildActionEntry buildForTesting="YES" buildForRunning="YES" buildForProfiling="NO" buildForArchiving="NO" buildForAnalyzing="YES">{reference}</BuildActionEntry></BuildActionEntries></BuildAction>
+<TestAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES"><Testables><TestableReference skipped="NO" parallelizable="NO">{test_reference}</TestableReference></Testables></TestAction>
+<LaunchAction buildConfiguration="Release" launchStyle="0" useCustomWorkingDirectory="NO"><BuildableProductRunnable runnableDebuggingMode="0">{reference}</BuildableProductRunnable></LaunchAction>
 </Scheme>
 ''')
