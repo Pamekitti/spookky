@@ -51,6 +51,18 @@ class FixtureResultsTests(unittest.TestCase):
 
 
 class RunnerDiscoveryTests(unittest.TestCase):
+    def test_compatibility_suite_counts_are_included_and_empty_reports_fail(self):
+        from native_runner import native_report_counts
+
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "summary.json"
+            counts = dict(passed=3, failed=0, skipped=0, excluded=1)
+            path.write_text(json.dumps(dict(counts=counts)))
+            self.assertEqual(native_report_counts(path), counts)
+            path.write_text(json.dumps(dict(counts=dict(counts, passed=0))))
+            with self.assertRaises(RuntimeError):
+                native_report_counts(path)
+
     def test_zero_discovery_fails(self):
         import importlib.util
 
@@ -294,3 +306,26 @@ class DebugCodeIdentityTests(unittest.TestCase):
             after = code_hashes(launcher)
             self.assertEqual(before["SpookkyHarness"], after["SpookkyHarness"])
             self.assertNotEqual(before, after)
+
+
+class PerformanceConfigurationTests(unittest.TestCase):
+    def test_harness_build_and_binary_use_selected_configuration(self):
+        import native_runner
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as temporary:
+            for configuration in ["debug", "release"]:
+                with (
+                    patch.object(native_runner.shutil, "which", return_value="xcodebuild"),
+                    patch.object(native_runner.os, "access", return_value=True),
+                    patch.object(Path, "exists", return_value=True),
+                    patch.object(native_runner, "run") as run,
+                ):
+                    command, binary = native_runner.prepare_harness(
+                        SimpleNamespace(configuration=configuration, output=temporary),
+                        testing=False,
+                    )
+                self.assertEqual(command[command.index("-configuration") + 1], configuration.title())
+                self.assertEqual(binary.parents[3].name, configuration.title())
+                self.assertEqual(run.call_args.args[0][-1], "build")

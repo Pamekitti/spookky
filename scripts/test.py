@@ -18,6 +18,7 @@ from native_runner import (
     run_native,
     native_selector,
     validate_native_counts,
+    prepare_harness,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -184,10 +185,13 @@ def main():
             results["performance-cases"] = swift_tests(
                 "performance", args.configuration
             )
+            _, binary = prepare_harness(args, testing=False)
             run(
                 [
                     sys.executable,
                     "scripts/benchmark_m1.py",
+                    "--binary",
+                    str(binary),
                     "--seconds",
                     "60",
                     "--output",
@@ -198,6 +202,8 @@ def main():
                 [
                     sys.executable,
                     "scripts/benchmark_m3.py",
+                    "--binary",
+                    str(binary),
                     "--mode",
                     "diff",
                     "--output",
@@ -208,6 +214,8 @@ def main():
                 [
                     sys.executable,
                     "scripts/benchmark_m4.py",
+                    "--binary",
+                    str(binary),
                     "--seconds",
                     str(args.workload_seconds),
                     "--background",

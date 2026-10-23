@@ -33,8 +33,13 @@ def validate_native_counts(counts):
         raise RuntimeError("Native required cases did not pass: " + json.dumps(counts))
 
 
-def native_tests(args):
-    import uuid
+def native_report_counts(path):
+    counts = json.loads(Path(path).read_text())["counts"]
+    validate_native_counts(counts)
+    return counts
+
+
+def prepare_harness(args, *, testing=True):
     import hashlib
     from runtime_paths import tmux_path
 
@@ -77,13 +82,25 @@ def native_tests(args):
         "-maximum-test-execution-time-allowance",
         "180",
     ]
-    run(command + ["build-for-testing"], evidence=output / "native-build.log")
+    run(
+        command + ["build-for-testing" if testing else "build"],
+        evidence=output / "native-build.log",
+    )
     binary = (
         ROOT
         / "DerivedData/Build/Products"
         / args.configuration.title()
         / "SpookkyHarness.app/Contents/MacOS/SpookkyHarness"
     )
+    return command, binary
+
+
+def native_tests(args):
+    import uuid
+    from runtime_paths import tmux_path
+
+    command, binary = prepare_harness(args)
+    output = Path(args.output).resolve()
     identity = code_hashes(binary)
     all_cases = []
     for source in sorted((ROOT / "Tests/SpookkyNativeTests").glob("*.swift")):
@@ -230,6 +247,8 @@ def legacy_native(name, arguments=None):
     if "--output" not in arguments:
         return
     destination = Path(arguments[arguments.index("--output") + 1])
+    if name == "check_supporting_previews.py":
+        return native_report_counts(destination / "summary.json")
     if not destination.is_file() or destination.suffix != ".json":
         return
     data = json.loads(destination.read_text())
@@ -299,6 +318,7 @@ def legacy_native(name, arguments=None):
         data.get("screenshots", [data["screenshot"]] if "screenshot" in data else []),
     )
     destination.write_text(json.dumps(data, indent=2) + "\n")
+    return native_report_counts(destination) if "counts" in data else None
 
 
 def run_native(args):
@@ -359,5 +379,7 @@ def run_native(args):
                 if driver == "check_supporting_previews.py"
                 else Path(driver).stem + "-" + str(index) + ".json"
             )
-            legacy_native(driver, arguments + ["--output", str(destination)])
+            results[destination.stem] = legacy_native(
+                driver, arguments + ["--output", str(destination)]
+            )
     return results
