@@ -54,13 +54,13 @@
 #spookky-app .project-name {overflow:hidden;text-overflow:ellipsis}
 #spookky-app .row-action {width:28px;height:28px;margin-right:4px;color:var(--faint);visibility:hidden}
 #spookky-app :is(.project-row,.workspace-row):is(:hover,:focus-within) .row-action {visibility:visible}
-#spookky-app :is(.row-action,[data-action="close-tab"],[data-action="add-terminal"],[data-action="add-project"]) {position:relative;background:none;padding:0}
-#spookky-app :is(.row-action,[data-action="close-tab"],[data-action="add-terminal"],[data-action="add-project"])::before {content:"";position:absolute;width:20px;height:20px;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:5px}
-#spookky-app :is(.row-action,[data-action="close-tab"],[data-action="add-terminal"],[data-action="add-project"]):hover {background:none}
-#spookky-app :is(.row-action,[data-action="close-tab"],[data-action="add-terminal"],[data-action="add-project"]):hover::before {background:var(--hover)}
-#spookky-app :is(.row-action,[data-action="close-tab"],[data-action="add-terminal"],[data-action="add-project"]) svg {position:relative;width:12px!important;height:12px!important}
-#spookky-app [data-action="close-tab"] {visibility:hidden;width:24px;height:24px;align-self:center}
-#spookky-app .tab-pair:is(:hover,:focus-within) [data-action="close-tab"] {visibility:visible}
+#spookky-app :is(.row-action,[data-action="close-tab"],[data-action="close-primary"],[data-action="close-support"],[data-action="add-terminal"],[data-action="add-project"]) {position:relative;background:none;padding:0}
+#spookky-app :is(.row-action,[data-action="close-tab"],[data-action="close-primary"],[data-action="close-support"],[data-action="add-terminal"],[data-action="add-project"])::before {content:"";position:absolute;width:20px;height:20px;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:5px}
+#spookky-app :is(.row-action,[data-action="close-tab"],[data-action="close-primary"],[data-action="close-support"],[data-action="add-terminal"],[data-action="add-project"]):hover {background:none}
+#spookky-app :is(.row-action,[data-action="close-tab"],[data-action="close-primary"],[data-action="close-support"],[data-action="add-terminal"],[data-action="add-project"]):hover::before {background:var(--hover)}
+#spookky-app :is(.row-action,[data-action="close-tab"],[data-action="close-primary"],[data-action="close-support"],[data-action="add-terminal"],[data-action="add-project"]) svg {position:relative;width:12px!important;height:12px!important}
+#spookky-app :is([data-action="close-tab"],[data-action="close-primary"],[data-action="close-support"]) {visibility:hidden;width:24px;height:24px;align-self:center}
+#spookky-app .tab-pair:is(:hover,:focus-within) :is([data-action="close-tab"],[data-action="close-primary"],[data-action="close-support"]) {visibility:visible}
 
 #spookky-app .workspace-row {margin:2px 0 2px 12px}
 #spookky-app .workspace-row.active {background:var(--selected)}

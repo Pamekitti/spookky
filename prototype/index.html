@@ -1382,13 +1382,13 @@ html&gt;body{padding:0}&lt;/style&gt;
 #spookky-app .project-name {overflow:hidden;text-overflow:ellipsis}
 #spookky-app .row-action {width:28px;height:28px;margin-right:4px;color:var(--faint);visibility:hidden}
 #spookky-app :is(.project-row,.workspace-row):is(:hover,:focus-within) .row-action {visibility:visible}
-#spookky-app :is(.row-action,[data-action=&quot;close-tab&quot;],[data-action=&quot;add-terminal&quot;],[data-action=&quot;add-project&quot;]) {position:relative;background:none;padding:0}
-#spookky-app :is(.row-action,[data-action=&quot;close-tab&quot;],[data-action=&quot;add-terminal&quot;],[data-action=&quot;add-project&quot;])::before {content:&quot;&quot;;position:absolute;width:20px;height:20px;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:5px}
-#spookky-app :is(.row-action,[data-action=&quot;close-tab&quot;],[data-action=&quot;add-terminal&quot;],[data-action=&quot;add-project&quot;]):hover {background:none}
-#spookky-app :is(.row-action,[data-action=&quot;close-tab&quot;],[data-action=&quot;add-terminal&quot;],[data-action=&quot;add-project&quot;]):hover::before {background:var(--hover)}
-#spookky-app :is(.row-action,[data-action=&quot;close-tab&quot;],[data-action=&quot;add-terminal&quot;],[data-action=&quot;add-project&quot;]) svg {position:relative;width:12px!important;height:12px!important}
-#spookky-app [data-action=&quot;close-tab&quot;] {visibility:hidden;width:24px;height:24px;align-self:center}
-#spookky-app .tab-pair:is(:hover,:focus-within) [data-action=&quot;close-tab&quot;] {visibility:visible}
+#spookky-app :is(.row-action,[data-action=&quot;close-tab&quot;],[data-action=&quot;close-primary&quot;],[data-action=&quot;close-support&quot;],[data-action=&quot;add-terminal&quot;],[data-action=&quot;add-project&quot;]) {position:relative;background:none;padding:0}
+#spookky-app :is(.row-action,[data-action=&quot;close-tab&quot;],[data-action=&quot;close-primary&quot;],[data-action=&quot;close-support&quot;],[data-action=&quot;add-terminal&quot;],[data-action=&quot;add-project&quot;])::before {content:&quot;&quot;;position:absolute;width:20px;height:20px;top:50%;left:50%;transform:translate(-50%,-50%);border-radius:5px}
+#spookky-app :is(.row-action,[data-action=&quot;close-tab&quot;],[data-action=&quot;close-primary&quot;],[data-action=&quot;close-support&quot;],[data-action=&quot;add-terminal&quot;],[data-action=&quot;add-project&quot;]):hover {background:none}
+#spookky-app :is(.row-action,[data-action=&quot;close-tab&quot;],[data-action=&quot;close-primary&quot;],[data-action=&quot;close-support&quot;],[data-action=&quot;add-terminal&quot;],[data-action=&quot;add-project&quot;]):hover::before {background:var(--hover)}
+#spookky-app :is(.row-action,[data-action=&quot;close-tab&quot;],[data-action=&quot;close-primary&quot;],[data-action=&quot;close-support&quot;],[data-action=&quot;add-terminal&quot;],[data-action=&quot;add-project&quot;]) svg {position:relative;width:12px!important;height:12px!important}
+#spookky-app :is([data-action=&quot;close-tab&quot;],[data-action=&quot;close-primary&quot;],[data-action=&quot;close-support&quot;]) {visibility:hidden;width:24px;height:24px;align-self:center}
+#spookky-app .tab-pair:is(:hover,:focus-within) :is([data-action=&quot;close-tab&quot;],[data-action=&quot;close-primary&quot;],[data-action=&quot;close-support&quot;]) {visibility:visible}
 
 #spookky-app .workspace-row {margin:2px 0 2px 12px}
 #spookky-app .workspace-row.active {background:var(--selected)}
