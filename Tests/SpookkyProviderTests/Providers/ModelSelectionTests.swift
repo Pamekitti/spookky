@@ -20,20 +20,3 @@ final class InstalledModelSelectionTests: XCTestCase {
         }
     }
 }
-
-private struct ModelFixtureResolver: ExecutableResolver {
-    func resolve(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec {
-        try LaunchSpec(tool: tool, executable: "/bin/false", directory: directory, initialPrompt: prompt)
-    }
-}
-
-private actor ModelFixtureConnection: CodexProjectConnection {
-    var pages: [String]
-    var methods: [String] = []
-    init(pages: [String]) { self.pages = pages }
-    func request(_ method: String, params: Data) throws -> Data {
-        methods.append(method)
-        guard !pages.isEmpty else { throw CodexProjectError.invalidResponse }
-        return Data(pages.removeFirst().utf8)
-    }
-}

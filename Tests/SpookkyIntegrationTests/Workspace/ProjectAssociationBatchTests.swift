@@ -1,3 +1,4 @@
+import SpookkyTestSupport
 import XCTest
 import SpookkyCore
 import SpookkyGit
@@ -113,8 +114,7 @@ final class ProjectAssociationBatchTests: XCTestCase {
         let root = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let one = try directory(root, "one/repo"), two = try directory(root, "two/repo")
         func git(_ path: String, _ arguments: [String]) throws {
-            let result = try ProcessRunner.run("/usr/bin/git", ["-C", path] + arguments)
-            XCTAssertEqual(result.status, 0, result.error)
+            try TestGit.run(path, arguments)
         }
         for path in [one.path, two.path] {
             try git(path, ["init", "-b", "main"])

@@ -1,3 +1,4 @@
+import SpookkyTestSupport
 import XCTest
 import GRDB
 import SpookkyCore
@@ -8,7 +9,14 @@ import SpookkyPersistence
 private actor ConcurrencyProbe {
     var active = 0
     var maximum = 0
-    func enter() { active += 1; maximum = max(maximum, active) }
+    let expected: Int
+    let ready = TestGate()
+    init(expected: Int) { self.expected = expected }
+    func waitForExpected() async { await ready.wait() }
+    func enter() async {
+        active += 1; maximum = max(maximum, active)
+        if maximum >= expected { await ready.signal() }
+    }
     func leave() { active -= 1 }
 }
 private actor RejectLocationSave: WorkspacePersistence {
@@ -19,20 +27,21 @@ private actor DiscoveryProbeExecutor: GitCommandExecutor {
     let path: String
     private var active = 0
     private(set) var maximum = 0
+    private let overlap = TestGate()
     init(path: String) { self.path = path }
     func execute(_ arguments: [String]) async throws -> GitResult {
         if arguments.contains("--show-toplevel") { return GitResult(status: 0, output: path + "\n") }
         active += 1; maximum = max(maximum, active)
         defer { active -= 1 }
-        try await Task.sleep(for: .milliseconds(30))
+        if active == 2 { await overlap.signal() }
+        await overlap.wait()
         return GitResult(status: 0, output: (arguments.contains("symbolic-ref") ? "dev" : path + "/.git") + "\n")
     }
 }
 
 final class GitFoundationTests: XCTestCase {
     func testDiscoveryOverlapsIndependentReadsWithinSchedulerLimit() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("spookky-discovery-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
+        let root = try TestDirectories.make(prefix: "spookky-discovery-")
         defer { try? FileManager.default.removeItem(at: root) }
         let path = root.resolvingSymlinksInPath().path
         let executor = DiscoveryProbeExecutor(path: path)
@@ -44,12 +53,13 @@ final class GitFoundationTests: XCTestCase {
         XCTAssertEqual(location.commonRepository, path + "/.git"); XCTAssertEqual(location.branch, "dev")
     }
     func testSchedulerLimitsReadsAndSerializesWrites() async throws {
-        let scheduler = GitScheduler(), reads = ConcurrencyProbe(), writes = ConcurrencyProbe()
+        let scheduler = GitScheduler(), reads = ConcurrencyProbe(expected: 2), writes = ConcurrencyProbe(expected: 1), release = TestGate()
         try await withThrowingTaskGroup(of: Void.self) { group in
             for _ in 0..<8 {
-                group.addTask { try await scheduler.read { await reads.enter(); try await Task.sleep(for: .milliseconds(15)); await reads.leave() } }
-                group.addTask { try await scheduler.write(repository: "same") { await writes.enter(); try await Task.sleep(for: .milliseconds(15)); await writes.leave() } }
+                group.addTask { try await scheduler.read { await reads.enter(); await release.wait(); await reads.leave() } }
+                group.addTask { try await scheduler.write(repository: "same") { await writes.enter(); await release.wait(); await writes.leave() } }
             }
+            await reads.waitForExpected(); await writes.waitForExpected(); await release.signal()
             try await group.waitForAll()
         }
         let maximumReads = await reads.maximum, maximumWrites = await writes.maximum
@@ -60,13 +70,18 @@ final class GitFoundationTests: XCTestCase {
         let output = try await executor.execute(["-c", "alias.fixture=!printf '%010000d' 0", "fixture"])
         XCTAssertEqual(output.output.utf8.count, 128); XCTAssertTrue(output.truncated)
         XCTAssertThrowsError(try output.checked())
-        let task = Task { try await executor.execute(["-c", "alias.fixture=!sleep 30", "fixture"]) }
-        try await Task.sleep(for: .milliseconds(100)); task.cancel()
+        let markerRoot = try TestDirectories.make(prefix: "spookky-git-cancel-")
+        defer { try? FileManager.default.removeItem(at: markerRoot) }
+        let marker = markerRoot.appendingPathComponent("started")
+        let task = Task { try await executor.execute(["-c", "alias.fixture=!touch "+marker.path+"; sleep 30", "fixture"]) }
+        let deadline = ContinuousClock.now.advanced(by: .seconds(3))
+        while !FileManager.default.fileExists(atPath: marker.path) && ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: marker.path))
+        task.cancel()
         do { _ = try await task.value; XCTFail("Cancellation must propagate") } catch is CancellationError { }
     }
     func testVersionOneMigrationPreservesStateAndBackup() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("spookky-m2-db-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let root = try TestDirectories.make(prefix: "spookky-m2-db-")
         defer { try? FileManager.default.removeItem(at: root) }
         let path = root.appendingPathComponent("state.sqlite").path
         var old = WorkspaceState(); old.version = 1
@@ -105,8 +120,7 @@ final class GitFoundationTests: XCTestCase {
         XCTAssertEqual(store.state.locations?.operations.count, 1)
     }
     @MainActor func testOldOperationCannotRebindChangedWorkspace() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("spookky-m2-scope-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let root = try TestDirectories.make(prefix: "spookky-m2-scope-")
         defer { try? FileManager.default.removeItem(at: root) }
         let old = root.appendingPathComponent("old"), new = root.appendingPathComponent("new")
         try FileManager.default.createDirectory(at: old, withIntermediateDirectories: false)
@@ -123,8 +137,7 @@ final class GitFoundationTests: XCTestCase {
         XCTAssertNil(store.state.selected?.locationOperationID)
     }
     @MainActor func testInterruptedIntentDoesNotRepeatAndCompletedReceiptCanRegister() async throws {
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent("spookky-m2-recovery-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let root = try TestDirectories.make(prefix: "spookky-m2-recovery-")
         defer { try? FileManager.default.removeItem(at: root) }
         let request = LocationRequest(kind: .create, destination: root.appendingPathComponent("not-created").path)
         var state = WorkspaceState(); state.recordOperation(LocationOperation(request))

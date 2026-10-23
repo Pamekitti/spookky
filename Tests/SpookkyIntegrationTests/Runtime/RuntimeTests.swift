@@ -6,9 +6,7 @@ import SpookkyRuntime
 
 final class RuntimeTests: XCTestCase {
     private func fixture() throws -> (TmuxRuntime, URL) {
-        let root = URL(fileURLWithPath: "/tmp/spookky-test-" + UUID().uuidString.prefix(8))
-        let helper = TestExecutables.launchHelper(bundle: Bundle(for: Self.self))
-        return (try TmuxRuntime(executable: PackagedRuntime.tmux(), helper: helper, root: root), root)
+        try TestRuntime.make(bundle: Bundle(for: Self.self))
     }
 
     func testShellRejectsAgentPrompt() throws {

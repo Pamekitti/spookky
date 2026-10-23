@@ -3,6 +3,7 @@ import SpookkyCore
 import SpookkyGit
 
 final class SidebarCheckoutTests: XCTestCase {
+    private let repository = GitHubRepositoryID(owner: "Owner", name: "Example")
     func testLocalCheckoutAndLinkedWorktreeAreVerifiedFromGit() async throws {
         let executor = NativeGitExecutor(timeout: 10)
         guard executor.isAvailable else { throw XCTSkip("Git is unavailable") }

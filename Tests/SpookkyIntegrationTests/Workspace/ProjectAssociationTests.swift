@@ -1,3 +1,4 @@
+import SpookkyTestSupport
 import XCTest
 import SpookkyCore
 import SpookkyGit
@@ -41,8 +42,7 @@ final class ProjectAssociationTests: XCTestCase {
         return root
     }
     private func git(_ root: URL, _ arguments: [String]) throws {
-        let result = try ProcessRunner.run("/usr/bin/git", ["-C", root.path] + arguments)
-        XCTAssertEqual(result.status, 0, result.error)
+        try TestGit.run(root.path, arguments)
     }
     private func repository(_ root: URL, _ name: String) throws -> URL {
         let repo = root.appendingPathComponent(name)

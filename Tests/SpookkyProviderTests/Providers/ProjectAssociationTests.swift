@@ -4,35 +4,7 @@ import SpookkyGit
 import SpookkyRuntime
 import SpookkyWorkspace
 
-private actor ProjectFixtureConnection: CodexProjectConnection {
-    let projects: [[String: String]]
-    let cwd: String
-    let returnedID: String
-    var projectID: String?
-    var writes = 0
-    var unsupported = false
-    init(projects: [[String: String]], cwd: String, id: String = "fixture-session", assigned: String? = nil, unsupported: Bool = false) {
-        self.projects = projects; self.cwd = cwd; returnedID = id; projectID = assigned; self.unsupported = unsupported
-    }
-    func request(_ method: String, params: Data) throws -> Data {
-        if unsupported { throw CodexProjectError.unsupported }
-        var result: [String: Any]
-        switch method {
-        case "project/list":
-            result = ["data": projects.map { ["id": $0["id"]!, "roots": [["path": $0["path"]!]]] }]
-        case "thread/read":
-            var thread: [String: Any] = ["id": returnedID, "cwd": cwd]
-            if let projectID { thread["projectId"] = projectID }
-            result = ["thread": thread]
-        case "thread/metadata/update":
-            let values = try JSONSerialization.jsonObject(with: params) as! [String: String]
-            XCTAssertEqual(Set(values.keys), ["projectId", "threadId"])
-            projectID = values["projectId"]; writes += 1; result = [:]
-        default: throw CodexProjectError.invalidResponse
-        }
-        return try JSONSerialization.data(withJSONObject: result)
-    }
-}
+
 
 final class InstalledProjectAssociationTests: XCTestCase {
     private func fixture() throws -> URL {

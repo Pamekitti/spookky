@@ -28,7 +28,7 @@ final class ConversationTitleTests: XCTestCase {
         XCTAssertEqual(state.selectedWorkspaceID, workspace)
     }
     func testSupportingSelectionTitlesAndActivityDoNotReplacePrimaryIdentity() throws {
-        var state = WorkspaceState(); conversation(&state, session: sessionA, title: "Primary conversation")
+        var state = WorkspaceState(); _ = conversation(&state, session: sessionA, title: "Primary conversation")
         let primary = state.primaryTerminalID!
         let shell = state.newTab()!
         state.renameTab(shell, "Tools shell")
@@ -108,7 +108,7 @@ final class ConversationTitleTests: XCTestCase {
         try state.validate()
     }
     func testObservedIdentityChangeRejectsOldCacheAndUpdates() throws {
-        var state = WorkspaceState(); conversation(&state, session: sessionA, title: "Old title")
+        var state = WorkspaceState(); _ = conversation(&state, session: sessionA, title: "Old title")
         let primary = state.primaryTerminalID!
         let spec = try LaunchSpec(tool: .codex, executable: "/bin/cat", directory: "/tmp")
         state.apply(.preparing, to: primary); state.apply(.intent(spec, .none), to: primary)

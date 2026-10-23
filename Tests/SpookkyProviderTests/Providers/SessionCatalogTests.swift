@@ -13,20 +13,8 @@ final class InstalledSessionCatalogTests: XCTestCase {
     }
 }
 
-private struct HistoryResolver: ExecutableResolver {
-    func resolve(_ tool: SessionTool, directory: String, prompt: String?) async throws -> LaunchSpec {
-        try LaunchSpec(tool: tool, executable: "/bin/cat", directory: directory)
-    }
-}
-private actor HistoryRuntime: SessionRuntime {
-    var specs: [LaunchSpec] = []
-    func launches() -> [LaunchSpec] { specs }
-    func create(_ spec: LaunchSpec) async throws -> SessionBinding { specs.append(spec); return SessionBinding(spec: spec) }
-    func inspect(_ binding: SessionBinding) async throws -> SessionObservation? { nil }
-    func list() async throws -> [SessionBinding] { [] }
-    func attachmentArguments(_ binding: SessionBinding) async throws -> [String] { [] }
-    func terminate(_ binding: SessionBinding) async throws {}
-}
+
+
 @MainActor final class HistoryResumeTests: XCTestCase {
 }
 

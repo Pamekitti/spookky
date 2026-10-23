@@ -2,18 +2,7 @@ import XCTest
 import SpookkyCore
 import SpookkyGit
 
-private actor PullRequestFixture: GitHubPullRequestLoading {
-    var calls = 0, active = 0, maximumActive = 0
-    let data: Data
-    let delay: Int
-    init(data: Data = Data("[]".utf8), delay: Int = 5) { self.data = data; self.delay = delay }
-    func load(_ query: GitHubPullRequestQuery) async throws -> Data {
-        calls += 1; active += 1; maximumActive = max(maximumActive, active)
-        defer { active -= 1 }
-        try await Task.sleep(for: .milliseconds(delay))
-        return data
-    }
-}
+
 
 final class InstalledSidebarStatusTests: XCTestCase {
     private let repository = GitHubRepositoryID(owner: "Owner", name: "Example")
