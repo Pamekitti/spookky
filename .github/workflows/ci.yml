@@ -31,8 +31,7 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
-      - run: python3 scripts/check_repo.py
-      - run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - run: python3 scripts/test.py source
       - run: python3 scripts/check_public.py --history
       - name: Cache Chromium download
         if: github.event_name == 'pull_request' && steps.scope.outputs.website == 'true'
@@ -49,7 +48,7 @@ jobs:
     needs: source
     if: (github.event_name == 'pull_request' && needs.source.outputs.native == 'true') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: macos-15
-    timeout-minutes: 15
+    timeout-minutes: 25
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.0.app/Contents/Developer
     steps:
@@ -80,7 +79,7 @@ jobs:
       - run: brew install cmake pkgconf
       - run: python3 scripts/build_runtime.py
       - if: github.event_name == 'pull_request'
-        run: swift test
+        run: python3 scripts/test.py unit && python3 scripts/test.py integration
       - if: steps.ghostty.outputs.cache-hit != 'true'
         run: python3 scripts/build_ghostty.py
       - name: Save compiled terminal dependency
@@ -96,3 +95,14 @@ jobs:
         run: sh scripts/build_native.sh Release
       - if: github.event_name == 'pull_request'
         run: python3 scripts/verify_bundle.py DerivedData/Build/Products/Release/Spookky.app
+      - name: Native behavior smoke suite
+        if: github.event_name == 'pull_request'
+        run: python3 scripts/test.py native-smoke --configuration release
+      - name: Preserve native test evidence
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: native-test-evidence
+          path: |
+            .cache/tests
+            .cache/fixture-failures

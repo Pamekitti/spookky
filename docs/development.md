@@ -13,31 +13,31 @@ The verified development host used macOS 26.6.2, Xcode 27, Swift 6.3.3, and tmux
 After the one-time dependency setup, an ordinary native change uses these commands:
 
 ```sh
-python3 scripts/check_repo.py
-swift test
+python3 scripts/test.py
 python3 scripts/dev.py run
 ```
 
 Test the changed interaction in that checkout's development app. Run relevant checks once, then repeat only after relevant changes or failures. CI checks the Release build.
 
-For new-session changes, build Release and run these targeted native fixtures sequentially:
+For new-session changes, build and check the Release harness, then run these targeted fixtures sequentially:
 
 ```sh
+python3 scripts/test.py native-smoke --configuration release
 python3 scripts/check_new_session.py --output .cache/composer/checks.json
 python3 scripts/check_prompt_images.py --output .cache/composer/images.json
 ```
 
 The first fixture exercises project/model inheritance, the persistent model/effort popover, Enter/Shift+Enter, the worktree switch, checkout selection and one disposable shell. Add `--hold 180` for native visual inspection after its assertions pass. The printed fixture root accepts a `finish-inspection` file to release the hold early. The second checks native clipboard images and retained previews. Both use private state. Catalog values are fixtures and no paid model request is sent.
 
-Documentation changes need the repository checker. Python script changes add `python3 -m unittest discover -s scripts -p 'test_*.py'`. Website changes use `npm test --prefix website` after website setup. Browser tests are headless and belong to website changes, not ordinary native development.
+Documentation changes need the repository checker. Python script changes add `python3 scripts/test.py python`. The previous unittest discovery command remains a compatibility entrypoint. Website changes use `python3 scripts/test.py website` after website setup. Browser tests are headless and belong to website changes, not ordinary native development.
 
 The complete commands remain available for setup and explicit verification:
 
 ```sh
 python3 scripts/build_runtime.py
-swift build --product spookky-launch
-swift build --product spookky-runtime-check
-swift test
+swift build --jobs 2 --product spookky-launch
+swift build --jobs 2 --product spookky-runtime-check
+python3 scripts/test.py
 .build/debug/spookky-runtime-check
 .build/debug/spookky-runtime-check --cycles
 python3 -m unittest discover -s scripts -p 'test_*.py'
@@ -70,7 +70,7 @@ Inspect the main flow in the browser at desktop and narrow widths. Check the bot
 
 ## State and ownership
 
-Open `Spookky.xcodeproj`, select the **Spookky** scheme, and run when using the debugger. Normal launch opens the workspace interface. `--terminal-harness` opens the diagnostic terminal harness. The launcher gives each checkout a distinct macOS bundle identity; Xcode's default identity remains the shared development identifier.
+Open `Spookky.xcodeproj`, select the **Spookky** scheme, and run when using the debugger. Normal launch opens the workspace interface. The normal app rejects diagnostic launch flags. Select **SpookkyHarness** for diagnostics; `--terminal-harness` opens its terminal fixture. The development launcher and canonical test runner give each checkout distinct bundle identities; Xcode's default development identity is shared.
 
 Workspace metadata defaults to `~/Library/Application Support/Spookky/Development/<checkout-id>`. The normal runtime root is `/tmp/spookky-dev-<uid>-<checkout-id>`. The terminal harness uses `/tmp/spookky-m0-<uid>-<checkout-id>`. `python3 scripts/dev.py info` prints the exact locations. `SPOOKKY_M1_ROOT`, `SPOOKKY_M1_DATA`, and `SPOOKKY_M0_ROOT` override these locations for owned fixtures. The normal launcher sets its own roots rather than inheriting fixture overrides.
 
@@ -85,8 +85,8 @@ The CLI resolver checks inherited PATH, a bounded login-shell PATH query, local/
 ## Agent activity checks
 
 ```sh
-swift build --product spookky-launch
-swift test --filter AgentActivityTests
+swift build --jobs 2 --product spookky-launch
+swift test --jobs 2 --filter AgentActivityTests
 python3 scripts/check_agent_hooks.py
 ```
 
@@ -121,9 +121,9 @@ Add `--activity-helper /path/to/Spookky.app/Contents/MacOS/spookky-launch` to ex
 
 ## Public website and releases
 
-PR CI always runs source/Python checks and the public audit. Native changes add one macOS 15 job with Swift tests, one Release build, and a bundle audit. Website changes add headless browser tests. Documentation changes skip both. Unknown paths and CI machinery changes select both areas. The source check and native check remain required; an intentionally skipped native job permits documentation PRs to merge.
+PR CI always runs source/Python checks and the public audit. Native changes add one macOS 15 job with Swift tests, a Release app build, a separate harness build, a bundle audit and the hosted native smoke suite. Website changes add headless browser tests. Documentation changes skip both. Unknown paths and CI machinery changes select both areas. The source check and native check remain required; an intentionally skipped native job permits documentation PRs to merge.
 
-After merge, main runs source checks only. It does not repeat native builds or browser tests. Dependency caches hold pinned tmux and Ghostty outputs, npm downloads, and Chromium. Keys include dependency recipes, architecture, and toolchain. Swift/Xcode build outputs and app state are not cached. Source jobs have a five-minute timeout; the native PR job has a 15-minute timeout. The actual warm native duration remains unmeasured.
+After merge, main runs source checks only. It does not repeat native builds or browser tests. Dependency caches hold pinned tmux and Ghostty outputs, npm downloads, and Chromium. Keys include dependency recipes, architecture, and toolchain. Swift/Xcode build outputs and app state are not cached. Source jobs have a five-minute timeout; the native PR job has a 25-minute timeout. The actual warm native duration remains unmeasured.
 
 PR-created caches are isolated by GitHub. To share native dependencies across PRs, run **Checks → Run workflow → main** once to warm the default-branch caches. This manual run builds dependencies only. Repeat when dependency or toolchain cache keys change; ordinary main pushes never trigger it.
 
@@ -152,7 +152,7 @@ Open [localhost:48766](http://127.0.0.1:48766/). Use another free port if occupi
 
 ## Native input and recovery checks
 
-Build Release before these isolated checks:
+Build the Release harness with `python3 scripts/test.py native-smoke --configuration release` before these isolated checks:
 
 ```sh
 python3 scripts/native_check.py self-test --output .cache/history.json
@@ -165,7 +165,7 @@ python3 scripts/check_terminal_selection.py --output .cache/terminal-selection.j
 python3 scripts/check_workspace_close.py --output .cache/workspace-close.json
 python3 scripts/check_sidebar.py --output .cache/sidebar.json
 python3 scripts/check_conversation_identity.py --output .cache/identity.json
-swift scripts/check_prototype.swift --output .cache/prototype-webkit.json
+python3 scripts/test.py native --configuration release --case PrototypeTests/testPrototypeNavigationAndNarrowLayouts
 python3 scripts/check_provider_continuity.py --output .cache/provider-interfaces.json
 ```
 
@@ -173,7 +173,7 @@ The prototype check uses an offscreen WebKit renderer with temporary website sto
 
 Input replay uses native events, briefly selects already-enabled keyboard layouts, and restores the original selection. It needs at least two enabled layouts for its source-switch assertion. It does not establish human typing or IME composition. Provider-interface probes send no model prompts and do not prove provider responses. The [local project history checks](session-history.md#verification) cover metadata discovery and exact-ID continuation without a model service.
 
-For hands-on input collection, omit `--replay`. The collector prints its private root and launches a disposable byte receiver. Create the printed root's `finish` file, or quit the owned fixture, to collect its report. Use test text only. With `--interactive-checks`, the harness provides clipboard fixtures and a Restore original clipboard action. Restore before finishing; a crash cannot guarantee clipboard restoration.
+For hands-on input collection, omit `--replay`. The collector prints its private root and launches a disposable byte receiver. Create the printed root's `finish` file, or quit the owned fixture, to collect its report. Use test text only. With `--interactive-checks`, the harness provides a private clipboard. It does not alter the system clipboard.
 
 The standalone byte fixture can also run inside a dedicated test terminal:
 
@@ -198,7 +198,7 @@ python3 scripts/benchmark_m4.py --output .cache/continuity.json
 python3 scripts/benchmark_m4.py --overnight --output .cache/overnight.json
 ```
 
-`benchmark_m1.py --binary /absolute/path/to/Spookky.app/Contents/MacOS/Spookky` measures a frozen build. Use the same runner, workload and observation duration for both builds.
+`benchmark_m1.py --binary /absolute/path/to/SpookkyHarness.app/Contents/MacOS/SpookkyHarness` measures a frozen harness build. Use the same runner, workload and observation duration for both builds. Ordinary app binaries are rejected with migration instructions.
 
 The default M4 fixture runs ten warm-ups, 100 measured lifecycle cycles, a 30-minute workload, and a 60-second idle observation. The overnight mode is eight hours. Run measurements separately with no builds in progress. Neither mode prevents or initiates sleep. Add `--background` to keep the automated fixture behind user windows without keyboard focus or mouse input. This mode measures programmatic native attachment and excludes physical typing.
 
@@ -206,17 +206,34 @@ The default M4 fixture runs ten warm-ups, 100 measured lifecycle cycles, a 30-mi
 
 The activity measurement compares clean shells against simulated provider states at 1, 5, and 10 terminals. Both include the activity receiver. A separate idle fake CLI measures the packaged waiting helper. It excludes real provider memory, callback bursts, and WindowServer costs. Each case records visibility, activation, process stability, and the binary hash. Run it separately from builds and tests.
 
+## Test organization
+
+`python3 scripts/test.py` runs repository checks, Python tooling tests, Swift unit tests and Swift integration tests. A selected suite with no discovered tests fails. Use `--configuration release` to check Release helpers.
+
+| Group | Responsibility |
+| --- | --- |
+| `source` | Repository and Python tooling checks |
+| `unit` | Value models and coordinators with injected services |
+| `integration` | Temporary files, SQLite, Git, helpers and private terminal processes |
+| `providers` | Explicit installed-provider probes; skipped prerequisites remain visible |
+| `native-smoke` | Hosted XCTest startup, attached-shell input, draft retention, switching and workspace crash recovery |
+| `native` | Hosted native matrix, browser restore, input, folders and restart drivers |
+| `website` | Playwright website checks |
+| `performance` | File scale, startup/switch timings, 60-second resource samples and bounded lifecycle workload |
+
+Run `python3 scripts/test.py native-smoke --configuration release` before using an inspection adapter. Native verification builds the **SpookkyHarness** scheme and its hosted XCTest bundle. The normal application excludes fixture sources in Debug, Release and Distribution. Legacy native script names remain adapters through the canonical runner; `--suite check_new_session.py` selects an inspection driver. Explicit `--binary` values must identify `SpookkyHarness`, not the normal app. GUI fixtures take a process-owned lock shared across worktrees. Failure evidence is copied before private state is removed. Hosted cases run in separate processes because AppKit and Ghostty services have process lifetime. A foreground interaction case fails if macOS does not grant focus. Run the full matrix while the desktop can remain on the harness.
+
+Swift functional tests use XCTest in unit, integration and provider targets. The performance target is opt-in. `performance --configuration release --workload-seconds 60` includes 100 lifecycle cycles after ten warm-ups. The dedicated benchmark script retains the explicit overnight option. Test-only helpers are not package products. Python tests live under `Tests/Python`; the previous unittest discovery command delegates to them through one compatibility loader. Website tests retain their own browser tooling. Production metadata and the installed app stay separate from harness state.
+
 ## Code layout
 
 | Path | Purpose |
 | --- | --- |
-| `App/` | Native workspace, file/diff interface, and Ghostty host |
-| `Sources/` | Core records, runtime, helpers, Git, files, syntax, workspaces, and persistence |
-| `Tests/SpookkyRuntimeTests/` | Model, launch, Git, ownership, persistence, and recovery fixtures |
-| `scripts/` | Build, prototype, test, and measurement tools |
-| `Dependencies/` | Pinned vendored code, dependency provenance, and notices |
-
-Terminal bytes stay inside the terminal stack. File scanning, Git, persistence, and bounded diagnostic writes run away from the main UI thread. See [architecture](architecture.md).
+| `App/` | Shared production UI, feature controllers, normal app entrypoint |
+| `Sources/` | Core records, runtime, Git, files, syntax, workspaces and persistence |
+| `Tests/` | Unit, integration, provider, native, tooling and coverage inventories |
+| `scripts/` | Build and validation entrypoints |
+| `Dependencies/` | Pinned dependencies, provenance and notices |
 
 ## Project association checks
 
@@ -226,14 +243,14 @@ See [project and checkout association](project-association.md) for metadata-only
 
 ```sh
 swift test --jobs 2 --filter ConversationWorkspaceTests
-python3 scripts/check_workspace_close.py --binary DerivedData/Build/Products/Debug/Spookky.app/Contents/MacOS/Spookky --output .cache/workspace-close.json
+python3 scripts/test.py native --case testClose
 ```
 
-The close fixture uses disposable metadata and a private runtime socket. It checks the browser-target shortcut seam, real shell input, retained closure and reattachment. Browser rendering is outside this fixture. Acquire the shared GUI verification lock before running it when coordinating several worktrees. Development builds now bound Xcode and Swift compiler jobs to two.
+The close fixture uses disposable metadata and a private runtime socket. It checks the browser-target shortcut seam, real shell input, retained closure and reattachment. Browser rendering is outside this fixture. The runner acquires the shared GUI verification lock. Development builds bound Xcode and Swift compiler jobs to two.
 
 ## Display regression checks
 
-Run `python3 scripts/check_sidebar.py --display --output .cache/display-checks.json` against the Release build for the light/dark zoom and hit-target matrix. Use disposable state and serialize native GUI fixtures. The matrix includes actual fullscreen transitions, Ghostty theme variants, recursive includes, invalid-config recovery and creation of a previously missing config directory. Live appearance changes must preserve the same surface, process and unsent input. It does not replace physical display-transition or provider visual-parity checks.
+Run `python3 scripts/test.py native --configuration release --case testDisplay` for the light/dark zoom and hit-target matrix. The runner uses disposable state and serializes native GUI fixtures. The matrix includes actual fullscreen transitions, Ghostty theme variants, recursive includes, invalid-config recovery and creation of a previously missing config directory. Live appearance changes must preserve the same surface, process and unsent input. It does not replace physical display-transition or provider visual-parity checks.
 
 ## Sidebar attention checks
 
@@ -262,3 +279,7 @@ python3 scripts/check_tmux_focus.py --source .cache/runtime-build/tmux/tmux-3.6b
 ```
 
 The probe uses disposable buffers and isolated server callbacks. It does not connect to a user socket or terminate a process. A dependency-cache hit retains the previously verified build fingerprint.
+
+The shared native assertion inventory is `Tests/Inventory/native-assertions.json`. Every selected report must contain its declared IDs and JSON boolean results. Build hashes are recorded separately. `Tests/Inventory/swift-cases.json` freezes the original 360 case names; a tooling check rejects a lost scenario.
+
+The normal entrypoint and harness use `ApplicationBootstrap` for database loading, interrupted-draft recovery and workspace construction. `WorkspaceHistoryController` owns discovery, paging, search and refresh generations. `WorkspaceSidebarCoordinator` owns row presentation, avatars and visible-row Git/PR work. `WorkspaceLaunchController` owns opening, launch preflight and startup deadlines. The window composes views and forwards actions to these owners. Composer input, picker menus, model footer controls and generic chrome have separate source files.
