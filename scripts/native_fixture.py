@@ -10,6 +10,8 @@ import shutil
 import subprocess
 import tempfile
 import time
+import json
+from binary_identity import code_hashes
 
 ROOT = Path(__file__).resolve().parents[1]
 NATIVE_BINARY = (
@@ -45,6 +47,7 @@ def validate_harness(binary):
 class NativeFixture:
     root: Path
     process: subprocess.Popen
+    started_at: float | None = None
 
     def wait_ready(self, timeout, failure_message, *, poll_interval=0.2):
         self.wait_for(
@@ -93,6 +96,7 @@ def _native_fixture(
     if not os.access(TMUX, os.X_OK):
         raise RuntimeError("Build the pinned runtime: python3 scripts/build_runtime.py")
     validate_harness(binary)
+    identity = code_hashes(binary)
     root = Path(tempfile.mkdtemp(prefix=prefix, dir="/tmp"))
     from fixture_environment import git_environment
 
@@ -110,14 +114,22 @@ def _native_fixture(
             launch_arguments = (
                 list(arguments) if workspace else ["--terminal-harness", *arguments]
             )
+            started_at = time.monotonic()
             process = subprocess.Popen(
                 [str(binary), *launch_arguments],
                 env=environment,
                 stdout=log,
                 stderr=log,
             )
-            fixture = NativeFixture(root, process)
+            fixture = NativeFixture(root, process, started_at)
+            (root / "binary-identity.json").write_text(
+                json.dumps(identity, indent=2) + "\n"
+            )
             yield fixture
+            if code_hashes(binary) != identity:
+                raise RuntimeError(
+                    "Fixture executable code changed during verification"
+                )
     except BaseException:
         if fixture is not None:
             fixture.preserve_evidence(

@@ -792,7 +792,11 @@ private struct HarnessSession {
     func applicationDidResignActive(_ notification: Notification) { workspaceController?.setFocus(false); if let app = engine?.app { ghostty_app_set_focus(app, false) } }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if let workspaceController { workspaceController.reopen(); return true }
+        if let workspaceController {
+            if NSClassFromString("XCTestCase") != nil { workspaceController.window.makeKeyAndOrderFront(nil) }
+            else { workspaceController.reopen() }
+            return true
+        }
         window?.makeKeyAndOrderFront(nil)
         if !busy, let id = selectedID, sessions.first(where: { $0.id == id })?.surface == nil {
             runSessionOperation { try await self.select(id) }

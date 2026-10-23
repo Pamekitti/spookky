@@ -108,6 +108,7 @@ class FixtureCleanupTests(unittest.TestCase):
             with (
                 patch.object(native_fixture, "gui_lock", return_value=nullcontext()),
                 patch.object(native_fixture, "validate_harness"),
+                patch.object(native_fixture, "code_hashes", return_value={}),
                 patch.object(native_fixture, "ROOT", parent),
                 patch.object(native_fixture.subprocess, "Popen", return_value=process),
                 patch.object(native_fixture.os, "access", return_value=True),
@@ -275,3 +276,21 @@ class NativePrerequisiteTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "full Xcode"):
                 native_runner.native_tests(SimpleNamespace(output="/unused"))
             run.assert_not_called()
+
+
+class DebugCodeIdentityTests(unittest.TestCase):
+    def test_changed_debug_dylib_changes_identity_when_launcher_is_unchanged(self):
+        from binary_identity import code_hashes
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            launcher = root / "SpookkyHarness"
+            launcher.write_text("unchanged launcher")
+            launcher.chmod(0o700)
+            dylib = root / "SpookkyHarness.debug.dylib"
+            dylib.write_text("before")
+            before = code_hashes(launcher)
+            dylib.write_text("after")
+            after = code_hashes(launcher)
+            self.assertEqual(before["SpookkyHarness"], after["SpookkyHarness"])
+            self.assertNotEqual(before, after)

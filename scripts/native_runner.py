@@ -11,6 +11,7 @@ import shutil
 from gui_lock import gui_lock
 from fixture_environment import git_environment
 from check_execution import run, require_discovered
+from binary_identity import code_hashes
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -77,6 +78,13 @@ def native_tests(args):
         "180",
     ]
     run(command + ["build-for-testing"], evidence=output / "native-build.log")
+    binary = (
+        ROOT
+        / "DerivedData/Build/Products"
+        / args.configuration.title()
+        / "SpookkyHarness.app/Contents/MacOS/SpookkyHarness"
+    )
+    identity = code_hashes(binary)
     all_cases = []
     for source in sorted((ROOT / "Tests/SpookkyNativeTests").glob("*.swift")):
         owner = re.search(r"class (\w+): XCTestCase", source.read_text())
@@ -185,7 +193,12 @@ def native_tests(args):
         / args.configuration.title()
         / "SpookkyHarness.app/Contents/MacOS/SpookkyHarness"
     )
+    identity_matches = code_hashes(binary) == identity
+    if not identity_matches:
+        counts["infrastructure_failures"] += 1
     report = dict(
+        binary_hashes=identity,
+        binary_identity_matches=identity_matches,
         suite=args.group,
         passed=not (
             counts["failed"] or counts["skipped"] or counts["infrastructure_failures"]
@@ -278,6 +291,8 @@ def legacy_native(name, arguments=None):
         data["counts"]["passed"] = len(data["behavioral_checks"])
     if "binarySHA256" in data:
         data["binary_sha256"] = data["binarySHA256"]
+    if "--binary" in arguments:
+        data["binary_hashes"] = code_hashes(arguments[arguments.index("--binary") + 1])
     data.setdefault("resources", {})
     data.setdefault(
         "evidence",

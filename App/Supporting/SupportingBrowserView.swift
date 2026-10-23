@@ -137,7 +137,8 @@ import SpookkyFiles
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) { failure(error) }
     private func failure(_ error: Error) {
         let cause = error as NSError
-        if externalURL != nil, cause.domain == WKError.errorDomain, cause.code == Int(WebKitErrorFrameLoadInterruptedByPolicyChange) { return }
+        // WKWebView still reports navigation-policy interruptions in this legacy domain.
+        if externalURL != nil, cause.domain == "WebKitErrorDomain", cause.code == Int(WebKitErrorFrameLoadInterruptedByPolicyChange) { return }
         if cause.code != NSURLErrorCancelled { failureMessage = "Could not load page: " + error.localizedDescription; status.stringValue = failureMessage! }
     }
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { failureMessage = "Page process ended. Reload to reopen; unsent page input may be unavailable."; status.stringValue = failureMessage! }

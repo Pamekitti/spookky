@@ -698,6 +698,8 @@ extension WorkspaceWindowController {
             await Task.yield()
             checks["revealed_row_accessory_accepts_keyboard_focus"] = accessory != nil && window.firstResponder === accessory && accessory?.isHidden == false
         }
+        conversationSidebar.focusItem(focusedID); conversationSidebar.layoutSubtreeIfNeeded()
+        await Task.yield()
         guard let menuAnchor = sidebarCellForFixture(focusedID) else { throw LaunchError.invalid("Menu refresh fixture anchor is unavailable.") }
         let refreshMenu = NSMenu(); refreshMenu.addItem(ClosureMenuItem("Retained history action") {})
         var menuOpened = false, menuEnded = false, refreshedDuringMenu = false
@@ -763,7 +765,16 @@ extension WorkspaceWindowController {
         surface.insertText("for i in {1..120}; do printf 'READ_CHECK_%s\\n' \"$i\"; done", replacementRange: NSRange(location: NSNotFound, length: 0))
         surface.keyDown(with: try key(36, "\r"))
         try await Task.sleep(for: .milliseconds(250))
-        try await surfaces.scrollFixtureHistory(shellID, offset: 25)
+        try await surfaces.scrollFixtureHistory(shellID, offset: 25, binding: store.state.tab(shellID)?.binding, runtime: launches.runtime)
+        func awaitAttentionViewport() async throws {
+            try await activate()
+            let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+            while ContinuousClock.now < deadline {
+                if agentTargetVisible(shellID), try await surfaces.viewportAtBottom(shellID) == true { return }
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            throw LaunchError.invalid("Acknowledgment fixture did not reach a visible terminal at the bottom viewport.")
+        }
         let invocation = UUID(), secret = UUID()
         func activityEvent(_ kind: AgentEventKind) -> AgentEvent {
             AgentEvent(bindingID: binding.id, invocationID: invocation, secret: secret, provider: .codex, kind: kind)
@@ -773,8 +784,8 @@ extension WorkspaceWindowController {
         let scrolledBottom = try await surfaces.viewportAtBottom(shellID)
         checks["completion_stays_unread_in_real_scrollback"] = store.state.tab(shellID)?.activity?.unread == true && scrolledBottom == false
         interactionDetails["observed_scrolled_bottom"] = String(describing: scrolledBottom)
-        try await surfaces.scrollFixtureHistory(shellID, offset: 0)
-        window.makeKeyAndOrderFront(nil); window.makeFirstResponder(surface); NSApp.activate(ignoringOtherApps: true)
+        try await surfaces.scrollFixtureHistory(shellID, offset: 0, binding: store.state.tab(shellID)?.binding, runtime: launches.runtime)
+        try await awaitAttentionViewport(); window.makeFirstResponder(surfaces.view(shellID))
         refreshAgentAttention()
         for _ in 0..<100 {
             if store.state.tab(shellID)?.activity?.unread == false { break }
@@ -790,6 +801,7 @@ extension WorkspaceWindowController {
             checks["background_completion_remains_unread"] = store.state.tab(shellID)?.activity?.unread == true
             store.update { $0.selectWorkspace(ownerID); $0.selectTab(shellID); $0.setSupportingLayout(.split) }
             if let renderTask { await renderTask.value }
+            try await awaitAttentionViewport()
             refreshAgentAttention()
             for _ in 0..<100 {
                 if store.state.tab(shellID)?.activity?.unread == false { break }
@@ -817,7 +829,7 @@ extension WorkspaceWindowController {
         }
         store.update { $0.resetAgent(shellID) }
         for task in Array(acknowledgmentTasks.values) { await task.value }
-        window.makeKeyAndOrderFront(nil); window.makeFirstResponder(surface); NSApp.activate(ignoringOtherApps: true)
+        try await activate(); window.makeFirstResponder(surface)
         for _ in 0..<100 {
             if agentTargetVisible(shellID), try await surfaces.viewportAtBottom(shellID) == true { break }
             try await Task.sleep(for: .milliseconds(20))
@@ -835,12 +847,13 @@ extension WorkspaceWindowController {
         let bottomAcknowledgment = acknowledgmentTasks[shellID]
         surface.onViewportInteraction?()
         checks["pending_scroll_keeps_viewport_unknown"] = try await surfaces.viewportAtBottom(shellID) == nil
-        try await surfaces.scrollFixtureHistory(shellID, offset: 25)
+        try await surfaces.scrollFixtureHistory(shellID, offset: 25, binding: store.state.tab(shellID)?.binding, runtime: launches.runtime)
         try await Task.sleep(for: .milliseconds(150))
         await viewportOwner.resume()
         await bottomAcknowledgment?.value
         for task in Array(acknowledgmentTasks.values) { await task.value }
         checks["scroll_during_bottom_query_retains_unread"] = store.state.tab(shellID)?.activity?.unread == true
+        try await activate(); window.makeFirstResponder(surface)
         await viewportOwner.holdViewport(after: 1)
         refreshAgentAttention()
         for _ in 0..<100 {
@@ -850,7 +863,7 @@ extension WorkspaceWindowController {
         guard await viewportOwner.isHeld else { throw LaunchError.invalid("Sidebar acknowledgment did not reach its delayed scrollback query.") }
         let scrollbackAcknowledgment = acknowledgmentTasks[shellID]
         surface.onViewportInteraction?()
-        try await surfaces.scrollFixtureHistory(shellID, offset: 0)
+        try await surfaces.scrollFixtureHistory(shellID, offset: 0, binding: store.state.tab(shellID)?.binding, runtime: launches.runtime)
         try await Task.sleep(for: .milliseconds(150))
         await viewportOwner.resume()
         await scrollbackAcknowledgment?.value
@@ -1625,7 +1638,7 @@ extension WorkspaceWindowController {
                 try await Task.sleep(for: .milliseconds(20))
             }
             guard outputReady else { throw LaunchError.invalid("Fixture command did not produce its expected terminal output.") }
-            try await surfaces.scrollFixtureHistory(id, offset: ApplicationArguments.values.contains("--workspace-benchmark-resize") ? nil : 25)
+            try await surfaces.scrollFixtureHistory(id, offset: ApplicationArguments.values.contains("--workspace-benchmark-resize") ? nil : 25, binding: store.state.tab(id)?.binding, runtime: launches.runtime)
             var marker: Int?
             for _ in 0..<100 {
                 marker = surfaces.fixtureHistoryMarker(id)
@@ -1674,7 +1687,7 @@ extension WorkspaceWindowController {
             if view.visibleText().contains("SPOOKKY_M4_RACE_150") { break }
             try await Task.sleep(for: .milliseconds(20))
         }
-        try await surfaces.scrollFixtureHistory(id)
+        try await surfaces.scrollFixtureHistory(id, binding: store.state.tab(id)?.binding, runtime: launches.runtime)
         try await store.flush()
         guard let binding = store.state.tab(id)?.binding else { throw LaunchError.invalid("Fixture binding is unavailable") }
         guard let before = try await launches.runtime.inspect(binding)?.processID else { throw LaunchError.invalid("Fixture process is missing") }

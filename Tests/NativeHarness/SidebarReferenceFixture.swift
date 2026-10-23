@@ -98,6 +98,11 @@ import SpookkyRuntime
                     checks["\(key)-more-alignment"] = cell("more:fixture")?.subviews.compactMap { $0 as? SidebarTitleField }.first.map { abs($0.frame.minX - 51 * zoom) < 0.5 } == true
                     checks["\(key)-row-height"] = cell("reference:0").map { abs($0.bounds.height - 31 * zoom) < 0.5 } == true
                     checks["\(key)-status-pill"] = cell("reference:1")?.subviews.compactMap { $0 as? SidebarActivityIndicator }.contains { !$0.isHidden && abs($0.bounds.height - 23 * zoom) < 0.5 } == true
+                    let ringDeadline = ContinuousClock.now.advanced(by: .seconds(2))
+                    while cell("reference:6")?.subviews.compactMap({ $0 as? SidebarActivityIndicator }).contains(where: { !$0.isHidden && $0.rotating }) != true && ContinuousClock.now < ringDeadline {
+                        try await activate(); content.layoutSubtreeIfNeeded(); window.displayIfNeeded()
+                        try await Task.sleep(for: .milliseconds(20))
+                    }
                     checks["\(key)-working-ring-rotates"] = cell("reference:6")?.subviews.compactMap { $0 as? SidebarActivityIndicator }.contains { !$0.isHidden && $0.rotating } == true
                     for index in [0, 1] {
                         let icon = cell("reference:\(index)")?.subviews.compactMap { $0 as? NSImageView }.first
