@@ -2,6 +2,16 @@
 
 Spookky is an early native macOS development preview. The terminal, workspace, project/worktree, file/diff, and metadata layers are implemented. Daily-use and distribution acceptance remain incomplete.
 
+## Test unification and app organization, 23 October 2026
+
+Swift cases now use XCTest in unit, integration, provider and performance targets. The default command is `python3 scripts/test.py`. All 360 original Swift scenarios remain in the inventory. Fixture reports reject missing, malformed, non-boolean and false assertions. A process-owned GUI lock serializes fixtures across worktrees. The separate SpookkyHarness target contains native scenarios, synthetic providers and benchmarks. Normal app builds reject diagnostic flags and exclude harness sources.
+
+History, sidebar enrichment and conversation launch each have a controller that owns its tasks and derived state. Shared application bootstrap handles normal and harness persistence and recovery. Production UI files are grouped by feature.
+
+Debug passed 80 unit and 276 integration cases. Release passed 276 integration cases and the explicit 50,000-file performance case. All 59 Python and eight Playwright cases passed. The complete Release native run passed 14 hosted XCTest cases, workspace recovery and the legacy interaction probes. Debug smoke and recovery also passed. Normal Debug and Release builds, the Release bundle audit and Distribution source-membership checks passed. A separate normal-app desktop check verified composer input, shortcuts, shell input/output, switching and quit behavior. [Verification and resource evidence](evidence/test-unification/README.md) record binary identities and limits.
+
+PR CI now includes Release native smoke after building the app and harness. It uploads native result bundles and failure evidence. Website selection remains conditional, and main pushes retain source checks only. Installed-provider requests, overnight workloads, physical typing/IME and spoken VoiceOver remain outside this pass. The installed app was not replaced.
+
 ## Model menu and launch access, 22 October 2026
 
 The model menu now opens above its control. Native fixture checks passed at 1120×760 and 650×450. The model list scrolls within a 320-point-wide menu; reasoning effort and Full access stay in its fixed footer. Search stays hidden for short catalogs. Full access is Off for a new session, remains on a retained draft, and resets when the provider changes. The selected mode stays visible in the closed control.
