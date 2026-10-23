@@ -5,6 +5,8 @@ import SpookkyRuntime
 @testable import SpookkyWorkspace
 
 private actor FixtureRuntime: SessionRuntime {
+    let createGate: TestGate?
+    init(createGate: TestGate? = nil) { self.createGate = createGate }
     var creates = 0
     var bindings: [SessionBinding] = []
     private var specs: [LaunchSpec] = []
@@ -23,7 +25,7 @@ private actor FixtureRuntime: SessionRuntime {
     func create(_ spec: LaunchSpec) async throws -> SessionBinding {
         creates += 1; specs.append(spec)
         createObserver?.resume(); createObserver = nil
-        try await Task.sleep(for: .milliseconds(30))
+        await createGate?.wait()
         if mode == .missingExecutable { throw LaunchError.invalid("Missing executable") }
         if mode == .missingFolder { throw LaunchError.folderUnavailable(spec.directory) }
         let binding = SessionBinding(spec: spec, phase: mode == .uncertainLaunch ? .starting : .attachedRuntime)
@@ -120,15 +122,16 @@ private actor FailedPersistence: WorkspacePersistence {
         XCTAssertEqual(store.state.selected?.title, title)
     }
     func testRepeatedLaunchAndWorkspaceSwitch() async throws {
-        let store = WorkspaceStore(), runtime = FixtureRuntime()
+        let gate = TestGate(), store = WorkspaceStore(), runtime = FixtureRuntime(createGate: gate)
         store.update { $0.newWorkspace(directory: "/tmp") }
         let tab = try XCTUnwrap(store.state.selectedTab?.id)
         let coordinator = LaunchCoordinator(store: store, runtime: runtime, resolver: FixtureResolver())
         let first = Task { await coordinator.launch(tab, tool: .shell) }
-        await Task.yield()
+        await runtime.waitForCreate()
         await coordinator.launch(tab, tool: .shell)
         store.update { $0.newWorkspace(directory: "/other") }
         let selected = store.state.selectedWorkspaceID
+        await gate.signal()
         await first.value
         XCTAssertEqual(store.state.selectedWorkspaceID, selected)
         XCTAssertEqual(store.state.tab(tab)?.status, .running)
@@ -454,7 +457,7 @@ private actor FailedPersistence: WorkspacePersistence {
         let count = await runtime.count(); XCTAssertEqual(count, 0)
     }
     func testLandingAgentPromotesAtIntentAndCancellationAfterCreateStillRecordsReceipt() async throws {
-        let store = WorkspaceStore(), runtime = FixtureRuntime()
+        let gate = TestGate(), store = WorkspaceStore(), runtime = FixtureRuntime(createGate: gate)
         store.update { $0.showLanding(homeDirectory: "/tmp"); $0.editDraft($0.primaryTerminalID!, tool: .claude, prompt: "Retain this instruction") }
         let id = try XCTUnwrap(store.state.primaryTerminalID), workspaceID = try XCTUnwrap(store.state.selectedWorkspaceID)
         let coordinator = LaunchCoordinator(store: store, runtime: runtime, resolver: FixtureResolver())
@@ -462,7 +465,7 @@ private actor FailedPersistence: WorkspacePersistence {
         await runtime.waitForCreate()
         XCTAssertFalse(store.state.selected?.isLanding == true)
         XCTAssertNotNil(store.state.tab(id)?.launch)
-        operation.cancel(); await operation.value
+        operation.cancel(); await gate.signal(); await operation.value
         XCTAssertEqual(store.state.tab(id)?.status, .running)
         XCTAssertNotNil(store.state.tab(id)?.binding)
         XCTAssertEqual(store.state.tab(id)?.promptDelivery, .suppliedToProcess)

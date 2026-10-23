@@ -1,16 +1,18 @@
 import XCTest
 import SpookkyCore
 import SpookkyGit
+import SpookkyTestSupport
 
 private actor PullRequestFixture: GitHubPullRequestLoading {
     var calls = 0, active = 0, maximumActive = 0
     let data: Data
-    let delay: Int
-    init(data: Data = Data("[]".utf8), delay: Int = 5) { self.data = data; self.delay = delay }
+    let gate: TestGate?
+    init(data: Data = Data("[]".utf8), gate: TestGate? = nil) { self.data = data; self.gate = gate }
     func load(_ query: GitHubPullRequestQuery) async throws -> Data {
         calls += 1; active += 1; maximumActive = max(maximumActive, active)
         defer { active -= 1 }
-        try await Task.sleep(for: .milliseconds(delay))
+        await gate?.wait()
+        try Task.checkCancellation()
         return data
     }
 }
@@ -160,27 +162,28 @@ final class SidebarStatusTests: XCTestCase {
         XCTAssertEqual(expiredCalls, 2)
     }
     func testLookupBoundsConcurrencyAndCache() async {
-        let loader = PullRequestFixture(), service = GitHubPullRequestService(loader: loader)
+        let gate = TestGate(), loader = PullRequestFixture(gate: gate), service = GitHubPullRequestService(loader: loader)
         let repository = repository, head = head
-        await withTaskGroup(of: Void.self) { group in
+        let requests = Task { await withTaskGroup(of: Void.self) { group in
             for index in 0..<140 {
                 group.addTask {
                     _ = await service.status(checkout: SidebarCheckoutInfo(repository: repository, branch: "branch-\(index)", headCommit: head, linkedWorktree: false))
                 }
             }
-        }
+        } }
+        await gate.waitForArrivals(2)
+        await gate.signal()
+        await requests.value
         let maximum = await loader.maximumActive, cached = await service.cacheCount, pending = await service.pendingCount
         XCTAssertEqual(maximum, 2); XCTAssertLessThanOrEqual(cached, 128); XCTAssertEqual(pending, 0)
     }
     func testCancelledLookupDoesNotPoisonVisibleRetry() async throws {
-        let loader = PullRequestFixture(delay: 100), service = GitHubPullRequestService(loader: loader)
+        let gate = TestGate(), loader = PullRequestFixture(gate: gate), service = GitHubPullRequestService(loader: loader)
         let checkout = checkout
         let request = Task { await service.status(checkout: checkout) }
-        for _ in 0..<100 {
-            if await loader.calls == 1 { break }
-            try await Task.sleep(for: .milliseconds(1))
-        }
+        await gate.waitForArrivals(1)
         await service.cancelPending()
+        await gate.signal()
         _ = await request.value
         let count = await service.cacheCount
         XCTAssertEqual(count, 0)

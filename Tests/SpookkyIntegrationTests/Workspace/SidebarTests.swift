@@ -4,6 +4,7 @@ import SpookkyGit
 import SpookkyPersistence
 import ImageIO
 import CoreGraphics
+import SpookkyTestSupport
 
 private actor AvatarFixture: AvatarDownloading {
     let data: Data
@@ -11,12 +12,14 @@ private actor AvatarFixture: AvatarDownloading {
     var calls = 0
     var active = 0
     var maximumActive = 0
+    var gate: TestGate?
     init(data: Data) { self.data = data }
+    func hold(_ gate: TestGate) { self.gate = gate }
     func setFailure() { fails = true }
     func download(owner: String) async throws -> Data {
         calls += 1; active += 1; maximumActive = max(maximumActive, active)
         defer { active -= 1 }
-        try await Task.sleep(for: .milliseconds(20))
+        await gate?.wait()
         if fails { throw URLError(.notConnectedToInternet) }
         return data
     }
@@ -78,10 +81,15 @@ final class SidebarTests: XCTestCase {
             for await data in group { XCTAssertNotNil(data) }
         }
         let calls = await downloader.calls; XCTAssertEqual(calls, 1)
-        await withTaskGroup(of: Data?.self) { group in
+        let gate = TestGate()
+        await downloader.hold(gate)
+        let requests = Task { await withTaskGroup(of: Data?.self) { group in
             for index in 0..<34 { group.addTask { await cache.image("owner\(index)") } }
             for await data in group { XCTAssertNotNil(data) }
-        }
+        } }
+        await gate.waitForArrivals(2)
+        await gate.signal()
+        await requests.value
         let maximum = await downloader.maximumActive; XCTAssertEqual(maximum, 2)
         try FileManager.default.removeItem(at: root.appendingPathComponent("same-owner.png"))
         let evicted = await cache.cached("same-owner"); XCTAssertNil(evicted)
