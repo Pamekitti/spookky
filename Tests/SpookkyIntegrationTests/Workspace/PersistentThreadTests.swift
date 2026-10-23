@@ -40,7 +40,7 @@ final class PersistentThreadTests: XCTestCase {
         let spec = try LaunchSpec(tool: .codex, executable: "/bin/cat", directory: "/tmp")
         state.apply(.preparing, to: terminal)
         state.apply(.intent(spec, .pending), to: terminal)
-        let binding = SessionBinding(spec: spec); state.apply(.observed(binding, dead: false, exitCode: nil, prompt: .none), to: terminal)
+        let binding = SessionBinding(spec: spec); state.apply(.observed(binding, dead: false, exitCode: nil, prompt: PromptDelivery.none), to: terminal)
         let landing = state.showLanding(homeDirectory: "/tmp")
         XCTAssertNotEqual(landing, original)
         XCTAssertFalse(try XCTUnwrap(state.workspaces.first { $0.id == original }).isLanding)
@@ -53,7 +53,7 @@ final class PersistentThreadTests: XCTestCase {
         let spec = try LaunchSpec(tool: .codex, executable: "/bin/cat", directory: "/tmp")
         state.apply(.preparing, to: terminal)
         state.apply(.intent(spec, .none), to: terminal)
-        let binding = SessionBinding(spec: spec); state.apply(.observed(binding, dead: false, exitCode: nil, prompt: .none), to: terminal)
+        let binding = SessionBinding(spec: spec); state.apply(.observed(binding, dead: false, exitCode: nil, prompt: PromptDelivery.none), to: terminal)
         let key = try XCTUnwrap(state.selected).threadKey
         state.editThread(key) { $0.pinnedAt = Date(); $0.archivedAt = Date() }
         XCTAssertTrue(state.selected?.isLanding == true)

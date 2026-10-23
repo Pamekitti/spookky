@@ -1,3 +1,4 @@
+import SpookkyTestSupport
 import Foundation
 import XCTest
 import SpookkyCore
@@ -110,7 +111,7 @@ final class CLIResolverTests: XCTestCase {
         XCTAssertEqual(spec.executable, link.path)
         XCTAssertEqual(spec.environment["PATH"]?.components(separatedBy: ":").first, link.deletingLastPathComponent().path)
         let runtime = try TmuxRuntime(executable: PackagedRuntime.tmux(),
-            helper: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/spookky-launch").path,
+            helper: TestExecutables.launchHelper(bundle: Bundle(for: Self.self)),
             root: fixture.root.appendingPathComponent("runtime"))
         let socket = await runtime.socket
         defer { _ = try? ProcessRunner.run(PackagedRuntime.tmux(), ["-S", socket, "kill-server"]) }

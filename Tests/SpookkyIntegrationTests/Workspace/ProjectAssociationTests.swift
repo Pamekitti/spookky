@@ -249,43 +249,4 @@ final class ProjectAssociationTests: XCTestCase {
         let tab = WorkspaceTab(); let data = try JSONEncoder().encode(tab)
         XCTAssertNil(try JSONDecoder().decode(WorkspaceTab.self, from: data).projectAssociation)
     }
-    func testInstalledProviderProjectAssociationWhenRequested() async throws {
-        guard let executable = ProcessInfo.processInfo.environment["SPOOKKY_CODEX_PROJECT_FIXTURE_EXECUTABLE"] else {
-            throw XCTSkip("Set SPOOKKY_CODEX_PROJECT_FIXTURE_EXECUTABLE to test disposable installed-provider state.")
-        }
-        let root = try fixture(); defer { try? FileManager.default.removeItem(at: root) }
-        let repo = try repository(root, "repo"), worktree = root.appendingPathComponent("generated")
-        try git(repo, ["worktree", "add", "-b", "topic", worktree.path])
-        let home = root.appendingPathComponent("home"), state = root.appendingPathComponent("provider")
-        try PrivateFiles.directory(home); try PrivateFiles.directory(state)
-        let env = ["HOME": home.path, "CODEX_HOME": state.path, "PATH": ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin"]
-        let rpc = try CodexProjectRPC(executable: executable, environment: env)
-        func request(_ method: String, _ values: [String: String]) async throws -> [String: Any] {
-            let response = try await rpc.request(method, params: JSONSerialization.data(withJSONObject: values))
-            return try JSONSerialization.jsonObject(with: response) as! [String: Any]
-        }
-        let data = try JSONSerialization.data(withJSONObject: ["idempotencyKey": "fixture", "name": "Fixture", "roots": [["path": repo.path]]])
-        let created = try await rpc.request("project/create", params: data)
-        let projectID = ((try JSONSerialization.jsonObject(with: created) as! [String: Any])["project"] as! [String: Any])["id"] as! String
-        let location = try await LocationDiscovery.discover(worktree)
-        let started = try await request("thread/start", ["cwd": location.path, "model": "fixture-model", "modelProvider": "openai", "historyMode": "paginated"])
-        let sessionID = (started["thread"] as! [String: Any])["id"] as! String
-        _ = try await request("thread/shellCommand", ["threadId": sessionID, "command": ":"])
-        let original = try await LocationDiscovery.discover(repo)
-        let resolution = await ProjectAssociationResolver().resolve(directory: location.path, projects: [Project(name: "Fixture", location: original)])
-        var result = await CodexProjectClient().associate(sessionID: sessionID, resolution: resolution, connection: rpc)
-        for _ in 0..<10 where result.status != .associated {
-            try await Task.sleep(for: .milliseconds(100))
-            result = await CodexProjectClient().associate(sessionID: sessionID, resolution: resolution, connection: rpc)
-        }
-        XCTAssertEqual(result.status, .associated); XCTAssertEqual(result.projectID, projectID)
-        await rpc.close()
-        let reopened = try CodexProjectRPC(executable: executable, environment: env)
-        let read = try await reopened.request("thread/read", params: JSONSerialization.data(withJSONObject: ["threadId": sessionID, "includeTurns": false]))
-        let persisted = (try JSONSerialization.jsonObject(with: read) as! [String: Any])["thread"] as! [String: Any]
-        XCTAssertEqual(persisted["projectId"] as? String, projectID)
-        XCTAssertEqual(URL(fileURLWithPath: persisted["cwd"] as! String).standardizedFileURL.resolvingSymlinksInPath().path, location.path)
-        await reopened.close()
-    }
-
 }

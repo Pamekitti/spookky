@@ -1,3 +1,4 @@
+import SpookkyTestSupport
 import XCTest
 import SpookkyCore
 import SpookkyRuntime
@@ -19,7 +20,7 @@ private struct CaptureResolver: ExecutableResolver {
         try "#!/bin/zsh -f\n/usr/bin/printf '%s\\0' \"$@\" >> received\n/usr/bin/touch finished\nexec /bin/cat\n".write(to: executable, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
         let runtime = try TmuxRuntime(executable: PackagedRuntime.tmux(),
-            helper: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/spookky-launch").path,
+            helper: TestExecutables.launchHelper(bundle: Bundle(for: Self.self)),
             root: root.appendingPathComponent("rt"))
         let socket = await runtime.socket
         defer { _ = try? ProcessRunner.run(PackagedRuntime.tmux(), ["-S", socket, "kill-server"]); try? FileManager.default.removeItem(at: root) }

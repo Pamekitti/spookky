@@ -1,3 +1,4 @@
+import SpookkyTestSupport
 import XCTest
 import SpookkyCore
 import SpookkyRuntime
@@ -234,7 +235,7 @@ private actor FailedPersistence: WorkspacePersistence {
     func testMissingFolderWithLivePrivateServerOffersLocateAndKeepsDraft() async throws {
         let root = URL(fileURLWithPath: "/tmp/spookky-polish-test-" + UUID().uuidString.prefix(8))
         let runtime = try TmuxRuntime(executable: PackagedRuntime.tmux(),
-            helper: FileManager.default.currentDirectoryPath + "/.build/debug/spookky-launch", root: root)
+            helper: TestExecutables.launchHelper(bundle: Bundle(for: Self.self)), root: root)
         let socket = await runtime.socket
         defer {
             _ = try? ProcessRunner.run(PackagedRuntime.tmux(), ["-S", socket, "kill-server"])
@@ -264,7 +265,7 @@ private actor FailedPersistence: WorkspacePersistence {
         let root = URL(fileURLWithPath: "/tmp/spookky-m4-test-" + UUID().uuidString.prefix(8))
         defer { try? FileManager.default.removeItem(at: root) }
         let runtime = try TmuxRuntime(executable: PackagedRuntime.tmux(),
-            helper: FileManager.default.currentDirectoryPath + "/.build/debug/spookky-launch", root: root)
+            helper: TestExecutables.launchHelper(bundle: Bundle(for: Self.self)), root: root)
         let store = WorkspaceStore()
         store.update { $0.newWorkspace(directory: "/tmp") }
         let id = try XCTUnwrap(store.state.selectedTab?.id)

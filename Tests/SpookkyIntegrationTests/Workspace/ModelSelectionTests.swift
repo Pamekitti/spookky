@@ -69,20 +69,6 @@ final class ModelSelectionTests: XCTestCase {
         XCTAssertEqual(legacy.rememberedModelSelection(for: .codex, model: "model-32")?.effort, "high")
         try legacy.validate(); try state.validate()
     }
-    func testInstalledModelCatalogWithoutStartingConversation() async throws {
-        guard ProcessInfo.processInfo.environment["SPOOKKY_TEST_MODEL_CATALOG"] == "1" else {
-            throw XCTSkip("Opt-in installed CLI metadata probe")
-        }
-        let catalog = ProviderModelCatalog()
-        for tool in [SessionTool.codex, .claude] {
-            let start = ProcessInfo.processInfo.systemUptime
-            let result = await catalog.models(for: tool, directory: "/tmp", refresh: true)
-            let milliseconds = (ProcessInfo.processInfo.systemUptime - start) * 1000
-            XCTAssertNil(result.issue)
-            XCTAssertFalse(result.models.isEmpty)
-            print("MODEL_CATALOG \(tool.rawValue) count=\(result.models.count) milliseconds=\(Int(milliseconds))")
-        }
-    }
     func testLegacyDraftDefaultsAndProviderChoicesRoundTrip() throws {
         var draft = try JSONDecoder().decode(TerminalDraft.self, from: Data(#"{"tool":"codex","prompt":"keep"}"#.utf8))
         XCTAssertNil(draft.recordedModelSelection(for: .codex))

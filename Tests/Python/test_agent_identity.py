@@ -8,7 +8,7 @@ import tempfile
 import unittest
 import uuid
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 HELPER = ROOT / '.build/debug/spookky-launch'
 
 

@@ -81,7 +81,7 @@ class LocalInstallerTests(unittest.TestCase):
             (root / ".not-found").write_text("private")
             (root / "private.txt").write_text("private")
             (root / "icon.png").symlink_to(root / "private.txt")
-            process = subprocess.Popen([sys.executable, str(Path(__file__).with_name("serve_local_download.py")),
+            process = subprocess.Popen([sys.executable, str(Path(__file__).resolve().parents[2] / "scripts/serve_local_download.py"),
                                         "--directory", str(root), "--port", "0"],
                                        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
             try:

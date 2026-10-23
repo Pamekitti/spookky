@@ -213,7 +213,7 @@ extension ConversationTitleTests {
         let terminal = state.primaryTerminalID!
         let spec = try LaunchSpec(tool: .codex, executable: "/usr/bin/true", directory: "/tmp/checkout")
         state.apply(.intent(spec, .none), to: terminal)
-        state.apply(.observed(SessionBinding(spec: spec), dead: false, exitCode: nil, prompt: .none), to: terminal)
+        state.apply(.observed(SessionBinding(spec: spec), dead: false, exitCode: nil, prompt: PromptDelivery.none), to: terminal)
         state.editThread("workspace:" + live.uuidString) { $0.pinnedAt = Date(timeIntervalSince1970: 100) }
         state.associateConversation(id, workspaceID: live)
         XCTAssertEqual(state.workspace(for: id)?.id, live)

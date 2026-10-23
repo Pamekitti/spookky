@@ -1,3 +1,4 @@
+import SpookkyTestSupport
 import XCTest
 import SpookkyCore
 import SpookkyGit
@@ -223,7 +224,7 @@ extension WorktreeTests {
         let executable = root.appendingPathComponent("capture")
         try "#!/bin/zsh -f\nout=$1; shift\n/usr/bin/printf '%s\\0' \"$@\" > \"$out\"\npwd > \"$out.cwd\"\n/usr/bin/touch \"$out.done\"\nexec /bin/cat\n".write(to: executable, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
-        let runtime = try TmuxRuntime(executable: PackagedRuntime.tmux(), helper: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/spookky-launch").path, root: root.appendingPathComponent("rt"))
+        let runtime = try TmuxRuntime(executable: PackagedRuntime.tmux(), helper: TestExecutables.launchHelper(bundle: Bundle(for: Self.self)), root: root.appendingPathComponent("rt"))
         let socket = await runtime.socket
         defer { _ = try? ProcessRunner.run(PackagedRuntime.tmux(), ["-S", socket, "kill-server"]); try? FileManager.default.removeItem(at: root) }
         let plain = fixture.root.appendingPathComponent("plain")

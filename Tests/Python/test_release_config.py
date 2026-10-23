@@ -8,7 +8,7 @@ from release_plan import metadata
 
 class ReleaseConfigTests(unittest.TestCase):
     def setUp(self):
-        self.config = json.loads((Path(__file__).resolve().parents[1] / "release.json").read_text())
+        self.config = json.loads((Path(__file__).resolve().parents[2] / "release.json").read_text())
         self.config.update(version="0.1.0", channel="preview", build=100)
 
     def test_merge_release_has_a_unique_build_tag_and_requires_increasing_build(self):

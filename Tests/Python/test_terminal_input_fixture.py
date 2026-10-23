@@ -22,7 +22,7 @@ class TerminalInputFixtureTests(unittest.TestCase):
         try:
             with tempfile.TemporaryDirectory(prefix="spookky-byte-check-") as root:
                 output = Path(root) / "bytes.json"
-                script = Path(__file__).with_name("terminal_input_fixture.py")
+                script = Path(__file__).resolve().parents[2] / "scripts/terminal_input_fixture.py"
                 process = subprocess.Popen([sys.executable, str(script), "--output", str(output)], stdin=slave, stdout=slave, stderr=slave)
                 screen = b""
                 deadline = time.monotonic() + 5

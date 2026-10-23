@@ -1,3 +1,4 @@
+import SpookkyTestSupport
 import XCTest
 import SpookkyCore
 import SpookkyRuntime
@@ -6,7 +7,7 @@ final class ViewportTests: XCTestCase {
     func testWrappedAnchorDuringOutputAndReturnToLivePrompt() async throws {
         let root = URL(fileURLWithPath: "/tmp/spookky-m1-stream-" + UUID().uuidString.prefix(8))
         let runtime = try TmuxRuntime(executable: PackagedRuntime.tmux(),
-            helper: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/spookky-launch").path, root: root)
+            helper: TestExecutables.launchHelper(bundle: Bundle(for: Self.self)), root: root)
         let socket = await runtime.socket
         defer { _ = try? ProcessRunner.run(PackagedRuntime.tmux(), ["-S", socket, "kill-server"]); try? FileManager.default.removeItem(at: root) }
         let gate = root.appendingPathComponent("start-output")
@@ -49,7 +50,7 @@ final class ViewportTests: XCTestCase {
     func testOwnerViewportRestoresWithoutNewProcess() async throws {
         let root = URL(fileURLWithPath: "/tmp/spookky-m1-viewport-" + UUID().uuidString.prefix(8))
         let runtime = try TmuxRuntime(executable: PackagedRuntime.tmux(),
-            helper: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/spookky-launch").path, root: root)
+            helper: TestExecutables.launchHelper(bundle: Bundle(for: Self.self)), root: root)
         let socket = await runtime.socket
         defer {
             _ = try? ProcessRunner.run(PackagedRuntime.tmux(), ["-S", socket, "kill-server"])
@@ -94,7 +95,7 @@ final class ViewportTests: XCTestCase {
         FileManager.default.createFile(atPath: file.path, contents: Data())
         let before = try FileManager.default.attributesOfItem(atPath: file.path)[.modificationDate] as? Date
         let runtime = try TmuxRuntime(executable: PackagedRuntime.tmux(),
-            helper: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/spookky-launch").path,
+            helper: TestExecutables.launchHelper(bundle: Bundle(for: Self.self)),
             root: root, eventFile: file)
         let socket = await runtime.socket
         defer { _ = try? ProcessRunner.run(PackagedRuntime.tmux(), ["-S", socket, "kill-server"]); try? FileManager.default.removeItem(at: root) }
@@ -116,7 +117,7 @@ final class ViewportTests: XCTestCase {
         let file = root.appendingPathComponent("runtime-event")
         FileManager.default.createFile(atPath: file.path, contents: Data())
         let before = try FileManager.default.attributesOfItem(atPath: file.path)[.modificationDate] as? Date
-        let helper = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/spookky-launch").path
+        let helper = TestExecutables.launchHelper(bundle: Bundle(for: Self.self))
         let old = try TmuxRuntime(executable: PackagedRuntime.tmux(), helper: helper, root: root)
         let socket = await old.socket
         defer { _ = try? ProcessRunner.run(PackagedRuntime.tmux(), ["-S", socket, "kill-server"]); try? FileManager.default.removeItem(at: root) }

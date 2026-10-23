@@ -1,3 +1,4 @@
+import SpookkyTestSupport
 import XCTest
 import SpookkyCore
 import SpookkyWorkspace
@@ -35,7 +36,7 @@ final class PersistenceTests: XCTestCase {
     func testRealRuntimeRestoresSameBinding() async throws {
         let root = URL(fileURLWithPath: "/tmp/spookky-m1-" + UUID().uuidString.prefix(8))
         defer { try? FileManager.default.removeItem(at: root) }
-        let helper = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/spookky-launch").path
+        let helper = TestExecutables.launchHelper(bundle: Bundle(for: Self.self))
         let runtime = try TmuxRuntime(executable: PackagedRuntime.tmux(), helper: helper, root: root.appendingPathComponent("rt"))
         let socket = await runtime.socket
         defer { _ = try? ProcessRunner.run(PackagedRuntime.tmux(), ["-S", socket, "kill-server"]) }
