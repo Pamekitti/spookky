@@ -1,30 +1,66 @@
 #!/usr/bin/env python3
 """Select PR checks from changed paths, with full coverage for unknown inputs."""
+
 import argparse
 import json
 from pathlib import Path
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE_TOOLS = {"scripts/check_repo.py", "scripts/check_public.py",
-                "scripts/render_prototype.py"}
+SOURCE_TOOLS = {
+    "scripts/check_repo.py",
+    "scripts/check_public.py",
+    "scripts/render_prototype.py",
+}
+NATIVE_TOOLS = {
+    "scripts/native_runner.py",
+    "scripts/native_fixture.py",
+    "scripts/gui_lock.py",
+    "scripts/fixture_results.py",
+    "scripts/fixture_environment.py",
+}
 WEB_TOOLS = {"scripts/build_website.py", "scripts/serve_website.py"}
 
 
 def classify(paths, *, unknown_base=False):
     result = {"native": unknown_base, "website": unknown_base}
     for path in paths:
-        if path.startswith(("App/", "Sources/", "Tests/", "Dependencies/", "Spookky.xcodeproj/")) or path in {"Package.swift", "Package.resolved"}:
+        if path.startswith("Tests/Python/") or path == "scripts/test_compatibility.py":
+            continue
+        elif path.startswith(
+            ("App/", "Sources/", "Tests/", "Dependencies/", "Spookky.xcodeproj/")
+        ) or path in {"Package.swift", "Package.resolved"}:
             result["native"] = True
-        elif path.startswith("website/") or path in WEB_TOOLS or path == ".github/workflows/pages.yml":
+        elif (
+            path.startswith("website/")
+            or path in WEB_TOOLS
+            or path == ".github/workflows/pages.yml"
+        ):
             result["website"] = True
-        elif path.startswith("docs/") or ("/" not in path and path.endswith(".md")) or path.startswith("prototype/"):
+        elif (
+            path.startswith("docs/")
+            or ("/" not in path and path.endswith(".md"))
+            or path.startswith("prototype/")
+        ):
             continue
-        elif path.startswith((".agents/skills/", ".claude/skills/")) and (path.endswith((".md", ".yaml", ".yml")) or len(Path(path).parts) == 3):
+        elif path.startswith((".agents/skills/", ".claude/skills/")) and (
+            path.endswith((".md", ".yaml", ".yml")) or len(Path(path).parts) == 3
+        ):
             continue
-        elif path in SOURCE_TOOLS or (path.startswith("scripts/test_") and path.endswith(".py")):
+        elif path in SOURCE_TOOLS or (
+            path.startswith("scripts/test_") and path.endswith(".py")
+        ):
             continue
-        elif path.startswith("scripts/build_") or path in {"scripts/dev.py", "scripts/verify_bundle.py", "scripts/runtime_paths.py", "scripts/create_xcode_project.py", "scripts/collect_notices.py", "scripts/merge_macos_archives.py"}:
+        elif path in NATIVE_TOOLS:
+            result["native"] = True
+        elif path.startswith("scripts/build_") or path in {
+            "scripts/dev.py",
+            "scripts/verify_bundle.py",
+            "scripts/runtime_paths.py",
+            "scripts/create_xcode_project.py",
+            "scripts/collect_notices.py",
+            "scripts/merge_macos_archives.py",
+        }:
             result["native"] = True
         elif path.startswith(".github/") or path == "scripts/check_scope.py":
             # Changed CI machinery must exercise its native and website jobs.
@@ -36,12 +72,19 @@ def classify(paths, *, unknown_base=False):
 
 def changed_paths(base, *, root=ROOT):
     def git(*arguments):
-        return subprocess.check_output(["/usr/bin/git", "-c", "trace2.eventTarget=0", *arguments], cwd=root)
+        return subprocess.check_output(
+            ["/usr/bin/git", "-c", "trace2.eventTarget=0", *arguments], cwd=root
+        )
+
     unknown = not base or base.startswith("-") or set(base) == {"0"}
     paths = set()
     if not unknown:
         try:
-            paths.update(git("diff", "--no-renames", "--name-only", "-z", base + "...HEAD").decode().split("\0"))
+            paths.update(
+                git("diff", "--no-renames", "--name-only", "-z", base + "...HEAD")
+                .decode()
+                .split("\0")
+            )
         except subprocess.CalledProcessError:
             unknown = True
     return sorted(paths - {""}), unknown
@@ -56,7 +99,9 @@ def main():
     base = args.base
     if args.event:
         event = json.loads(args.event.read_text())
-        base = event.get("pull_request", {}).get("base", {}).get("sha") or event.get("before")
+        base = event.get("pull_request", {}).get("base", {}).get("sha") or event.get(
+            "before"
+        )
     paths, unknown = changed_paths(base)
     scope = classify(paths, unknown_base=unknown)
     print(json.dumps({"files": paths, "unknownBase": unknown, **scope}, indent=2))

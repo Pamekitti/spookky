@@ -49,9 +49,9 @@ Native development requires full Xcode with the Metal toolchain, Swift, Python 3
 
 ```sh
 python3 scripts/build_runtime.py
-swift build --product spookky-launch
-swift build --product spookky-runtime-check
-swift test
+swift build --jobs 2 --product spookky-launch
+swift build --jobs 2 --product spookky-runtime-check
+python3 scripts/test.py
 python3 scripts/build_ghostty.py
 sh scripts/build_native.sh
 ```

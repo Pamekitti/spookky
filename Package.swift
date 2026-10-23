@@ -29,6 +29,10 @@ let package = Package(
         .target(name: "SpookkyPersistence", dependencies: ["SpookkyCore", "SpookkyWorkspace", .product(name: "GRDB", package: "GRDB.swift")]),
         .executableTarget(name: "SpookkyLaunch", dependencies: ["SpookkyCore", "SpookkyRuntime"]),
         .executableTarget(name: "SpookkyRuntimeCheck", dependencies: ["SpookkyCore", "SpookkyRuntime"]),
-        .testTarget(name: "SpookkyRuntimeTests", dependencies: ["SpookkyCore", "SpookkyRuntime", "SpookkyWorkspace", "SpookkyPersistence", "SpookkyGit", "SpookkyFiles", "SpookkySyntax"])
+        .target(name: "SpookkyTestSupport", dependencies: ["SpookkyCore", "SpookkyRuntime"], path: "Tests/Support"),
+        .testTarget(name: "SpookkyPerformanceTests", dependencies: ["SpookkyFiles"]),
+        .testTarget(name: "SpookkyUnitTests", dependencies: ["SpookkyCore", "SpookkyRuntime", "SpookkyWorkspace", "SpookkyPersistence", "SpookkyGit", "SpookkyFiles", "SpookkySyntax", "SpookkyTestSupport"]),
+        .testTarget(name: "SpookkyIntegrationTests", dependencies: ["SpookkyCore", "SpookkyRuntime", "SpookkyWorkspace", "SpookkyPersistence", "SpookkyGit", "SpookkyFiles", "SpookkySyntax", "SpookkyTestSupport"]),
+        .testTarget(name: "SpookkyProviderTests", dependencies: ["SpookkyCore", "SpookkyRuntime", "SpookkyWorkspace", "SpookkyPersistence", "SpookkyGit", "SpookkyFiles", "SpookkySyntax", "SpookkyTestSupport"])
     ]
 )

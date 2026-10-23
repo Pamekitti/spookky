@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+from gui_lock import gui_lock
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -42,10 +43,13 @@ def build_app(config, build):
     if executables.intersection(line.strip() for line in processes):
         raise ValueError("Quit this worktree's development app before rebuilding. Choose Keep sessions running to retain its terminals.")
     environment = dict(os.environ, DEVELOPER_DIR=developer)
-    subprocess.run(["xcodebuild", "-jobs", "2", "-project", "Spookky.xcodeproj", "-scheme", "Spookky",
-                    "-configuration", build, "-derivedDataPath", "DerivedData", "ARCHS=arm64",
-                    "PRODUCT_BUNDLE_IDENTIFIER=" + config["bundleID"],
-                    "SPOOKKY_DISPLAY_NAME=" + config["name"], "OTHER_SWIFT_FLAGS=$(inherited) -j2", "build"], cwd=ROOT, env=environment, check=True)
+    (ROOT / ".cache").mkdir(exist_ok=True)
+    with gui_lock(path=ROOT / ".cache/build.lock"):
+        subprocess.run(["xcodebuild", "-jobs", "2", "-project", "Spookky.xcodeproj", "-scheme", "Spookky",
+                        "-configuration", build, "-derivedDataPath", "DerivedData", "ARCHS=arm64",
+                        "PRODUCT_BUNDLE_IDENTIFIER=" + config["bundleID"],
+                        "SPOOKKY_DISPLAY_NAME=" + config["name"], "OTHER_SWIFT_FLAGS=$(inherited) -j2", "build"], cwd=ROOT, env=environment, check=True)
+
 
 
 def main():

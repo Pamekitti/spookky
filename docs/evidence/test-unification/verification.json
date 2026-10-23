@@ -1,0 +1,184 @@
+{
+  "date": "2026-10-23",
+  "baseline_revision": "bb99ae9",
+  "production_source_revision": "d8bb0fb",
+  "inventory": {
+    "baseline_swift_cases": 360,
+    "baseline_swift_passed": 354,
+    "baseline_swift_skipped": 6,
+    "baseline_python_passed": 36,
+    "baseline_python_skipped": 2,
+    "retained_swift_scenarios": 360,
+    "captured_native_assertion_templates": 408
+  },
+  "checks": {
+    "swift_debug": {
+      "unit": 80,
+      "integration": 276,
+      "failed": 0,
+      "skipped": 0,
+      "excluded_provider": 6,
+      "excluded_performance": 1
+    },
+    "swift_release": {
+      "integration": 276,
+      "performance": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    "python": {
+      "passed": 62,
+      "failed": 0,
+      "skipped": 0
+    },
+    "native_release": {
+      "passed": 14,
+      "failed": 0,
+      "skipped": 0,
+      "excluded": 0,
+      "infrastructure_failures": 0
+    },
+    "native_debug_smoke": {
+      "passed": 1,
+      "workspace_recovery_assertions": 9,
+      "failed": 0,
+      "skipped": 0
+    },
+    "website": {
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    "normal_builds": {
+      "Debug": "passed",
+      "Release": "passed"
+    },
+    "normal_flag_and_identity_rejection": {
+      "Debug": {
+        "rejects_fixture_flags": true,
+        "rejects_harness_identity": true
+      },
+      "Release": {
+        "rejects_fixture_flags": true,
+        "rejects_harness_identity": true
+      }
+    },
+    "distribution_source_membership": "passed",
+    "normal_release_bundle_audit": "passed",
+    "normal_gui": {
+      "observed": [
+        "normal app startup",
+        "typed composer draft",
+        "Cmd+T retained draft and opened supporting start page",
+        "real shell returned SPOOKKY_NORMAL_GUI_READY",
+        "Cmd+N retained composer draft",
+        "sidebar switch retained terminal output",
+        "quit offered process-retention choices",
+        "End terminals and quit closed the owned app"
+      ],
+      "owned_app_exited": true,
+      "private_root_cleaned": true
+    },
+    "native_adapters": {
+      "check_m0_input-4.json": {
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "excluded": 0
+      },
+      "check_m0_input-5.json": {
+        "passed": 11,
+        "failed": 0,
+        "skipped": 0,
+        "excluded": 0
+      },
+      "check_m0_input-6.json": {
+        "passed": 11,
+        "failed": 0,
+        "skipped": 0,
+        "excluded": 0
+      },
+      "check_m0_recovery-0.json": {
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0,
+        "excluded": 0
+      },
+      "check_sidebar_restart-2.json": {
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "excluded": 0
+      },
+      "native_check-3.json": {
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "excluded": 0
+      },
+      "browser": {
+        "passed": 52,
+        "failed": 0,
+        "skipped": 0,
+        "excluded": 0
+      }
+    },
+    "matched_lifecycle": {
+      "before": {
+        "measured_cycles": 100,
+        "warmups": 10,
+        "failed": 0
+      },
+      "after": {
+        "measured_cycles": 100,
+        "warmups": 10,
+        "failed": 0
+      }
+    },
+    "diff": {
+      "observations": 30,
+      "selection_cycles": 100,
+      "assertions_passed": 24,
+      "failed": 0
+    },
+    "python_release_helpers": {
+      "passed": 62,
+      "failed": 0,
+      "skipped": 0
+    },
+    "release_callback_fixtures": {
+      "passed": 12,
+      "failed": 0,
+      "real_provider_requests": 0
+    }
+  },
+  "binary_hashes": {
+    "hosted_release_harness": {
+      "SpookkyHarness": "f597a1b2e646a3d31fa164cb4d66a272f383910ae77ab8f84751cfabb2bfd4c4",
+      "spookky-launch": "a42cf91fb5674738020989ea892673940697c46fee74b23c1b86c99cc18a0329",
+      "spookky-runtime-check": "eff0a4796a8bc8896a09aeee96e8d59447d729e5dc69753c30ed0c18b96727e1",
+      "tmux": "16f6810ff3660fe67679dbc8e388b468884eb94bebc90d89d4aad98fb20044ba"
+    },
+    "normal_debug": {
+      "Spookky": "a2b47615e88e4684142b0839e0f0eb476c15fb0899bde782e101d1c4e5e7087a",
+      "Spookky.debug.dylib": "97344896f8695e0f6103f023fcc44f978244dbe1d361c241ea08e0bb967c46a1",
+      "__preview.dylib": "71cf75f43f519f7d7ad974df2928282603e20bd548702b8bec880e250b089922",
+      "spookky-launch": "8344081809c6c20ac531b97b41d1693ffb482aaf9a614dfd2d508c22d36fad9a",
+      "spookky-runtime-check": "af5c4a5b6832b2a37247b444d16b696fd4a76545f1269dd1508a7e81f87e9d98",
+      "tmux": "16f6810ff3660fe67679dbc8e388b468884eb94bebc90d89d4aad98fb20044ba"
+    },
+    "normal_release": {
+      "Spookky": "bd1337bd9f4f17d8897ed839d7e7c794de61edcbeade38681ff5cb040c4ef4a4",
+      "spookky-launch": "a42cf91fb5674738020989ea892673940697c46fee74b23c1b86c99cc18a0329",
+      "spookky-runtime-check": "eff0a4796a8bc8896a09aeee96e8d59447d729e5dc69753c30ed0c18b96727e1",
+      "tmux": "16f6810ff3660fe67679dbc8e388b468884eb94bebc90d89d4aad98fb20044ba"
+    }
+  },
+  "excluded": [
+    "Installed-provider probes and paid requests",
+    "Overnight workloads",
+    "Physical typing and IME composition",
+    "Spoken VoiceOver",
+    "Installed-app replacement and release delivery"
+  ]
+}

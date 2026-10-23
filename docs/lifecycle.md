@@ -8,7 +8,7 @@ Use the installed Spookky app to work on Spookky. Test changes in a development 
 | --- | --- | --- | --- |
 | Daily Spookky in Applications | A tested main build | Production database and private terminal socket | Local replacement now; Sparkle after signed delivery is verified |
 | Spookky Dev for a worktree | That worktree, including its edits | Separate database and terminal socket for that checkout | Rebuild that checkout explicitly |
-| Disposable native fixture | Chosen test build | Explicit fixture overrides | Never replaces the daily app |
+| Disposable native fixture | Separate SpookkyHarness target | Explicit fixture overrides | Never replaces the daily app |
 
 The daily app remains open while development apps run. Each worktree keeps its own DerivedData and Swift build outputs. No shared mutable build directory is configured.
 
@@ -20,7 +20,7 @@ The daily app remains open while development apps run. Each worktree keeps its o
 
    ```sh
    python3 scripts/check_repo.py
-   swift test
+   python3 scripts/test.py
    python3 scripts/dev.py run
    ```
 

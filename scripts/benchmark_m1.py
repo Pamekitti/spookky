@@ -35,13 +35,12 @@ def request_cpu(fixture):
 def startup(*, binary=NATIVE_BINARY):
     samples = []
     for _ in range(30):
-        started = time.monotonic()
         with native_fixture(["--workspace", "--workspace-measure", "--workspace-benchmark-count", "0"],
                             prefix="spookky-m1-start-", binary=binary, workspace=True) as fixture:
             fixture.wait_ready(90, "Empty workspace startup did not become ready.", poll_interval=0.005)
-            samples.append((time.monotonic() - started) * 1000)
+            samples.append((time.monotonic() - fixture.started_at) * 1000)
     return {**summarize(samples), "failure_count": 0,
-            "boundary": "Fresh process and private fixture setup through empty workspace readiness. Excludes first rendered frame, provider discovery and first interactive CLI; filesystem caches may be warm."}
+            "boundary": "Process creation through empty workspace readiness. Excludes fixture setup and code hashing. Excludes first rendered frame, provider discovery and first interactive CLI; filesystem caches may be warm."}
 
 
 def resources(count, seconds, split=False, foreground=False, conversations=False, *, binary=NATIVE_BINARY):
@@ -141,7 +140,7 @@ def timing(resize=False, *, binary=NATIVE_BINARY, extra_arguments=(), prepare=No
             raise RuntimeError("The pre-crash native viewport marker is unavailable.")
         expected = visible_before
         fixture.process.kill(); fixture.process.wait()
-        environment = dict(os.environ, SPOOKKY_M1_ROOT=str(fixture.root), SPOOKKY_M1_DATA=str(fixture.root / "metadata"))
+        environment = dict(os.environ, SPOOKKY_M0_ROOT=str(fixture.root), SPOOKKY_M1_ROOT=str(fixture.root), SPOOKKY_M1_DATA=str(fixture.root / "metadata"))
         with (fixture.root / "app.log").open("a") as log:
             fixture.process = subprocess.Popen([str(binary), "--workspace", "--workspace-measure", "--workspace-benchmark-restoring", *extra_arguments], env=environment, stdout=log, stderr=log)
             deadline = time.monotonic() + 30
