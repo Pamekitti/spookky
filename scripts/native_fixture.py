@@ -23,6 +23,21 @@ from runtime_paths import tmux_path
 TMUX = tmux_path()
 
 
+def save_fixture_evidence(root, output, patterns):
+    root, output = Path(root), Path(output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    destination = Path(
+        tempfile.mkdtemp(prefix=output.stem + "-failure-", dir=output.parent)
+    )
+    for pattern in patterns:
+        for source in root.rglob(pattern):
+            if source.is_file() and not source.is_symlink():
+                target = destination / source.relative_to(root)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+    return destination
+
+
 def validate_harness(binary):
     import plistlib
 
@@ -77,16 +92,7 @@ class NativeFixture:
         return read_checks(self.root / name, contracts[name])
 
     def preserve_evidence(self, output, patterns):
-        output = Path(output)
-        output.parent.mkdir(parents=True, exist_ok=True)
-        destination = Path(
-            tempfile.mkdtemp(prefix=output.stem + "-failure-", dir=output.parent)
-        )
-        for pattern in patterns:
-            for source in self.root.glob(pattern):
-                if source.is_file():
-                    shutil.copy2(source, destination / source.name)
-        return destination
+        return save_fixture_evidence(self.root, output, patterns)
 
 
 @contextmanager
@@ -131,10 +137,9 @@ def _native_fixture(
                     "Fixture executable code changed during verification"
                 )
     except BaseException:
-        if fixture is not None:
-            fixture.preserve_evidence(
-                ROOT / ".cache/fixture-failures", ["*.json", "*.png", "*.log"]
-            )
+        save_fixture_evidence(
+            root, ROOT / ".cache/fixture-failures", ["*.json", "*.png", "*.log"]
+        )
         raise
     finally:
         if fixture is not None:

@@ -96,6 +96,81 @@ class TestInventoryTests(unittest.TestCase):
 
 
 class FixtureCleanupTests(unittest.TestCase):
+    def test_prepare_failure_preserves_evidence_before_any_app_launch(self):
+        import native_fixture
+        from contextlib import nullcontext
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as temporary:
+            parent = Path(temporary)
+            owned_roots = []
+
+            def prepare(root):
+                owned_roots.append(root)
+                (root / "prepare.json").write_text('{"prepared":false}')
+                raise RuntimeError("prepare failed")
+
+            with (
+                patch.object(native_fixture, "ROOT", parent),
+                patch.object(native_fixture, "gui_lock", return_value=nullcontext()),
+                patch.object(native_fixture, "validate_harness"),
+                patch.object(native_fixture, "code_hashes", return_value={}),
+                patch.object(native_fixture.os, "access", return_value=True),
+                patch.object(native_fixture.subprocess, "Popen") as launch,
+            ):
+                with self.assertRaisesRegex(RuntimeError, "prepare failed"):
+                    with native_fixture.native_fixture(
+                        [], prefix="spookky-prepare-", binary=parent / "SpookkyHarness", prepare=prepare
+                    ):
+                        self.fail("Preparation failure must stop the fixture")
+            launch.assert_not_called()
+            self.assertFalse(owned_roots[0].exists())
+            self.assertEqual(len(list((parent / ".cache").rglob("prepare.json"))), 1)
+
+    def test_crashed_host_evidence_survives_runner_cleanup(self):
+        import native_runner
+        from contextlib import nullcontext
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "Tests/SpookkyNativeTests"
+            source.mkdir(parents=True)
+            (source / "NativeScenarioTests.swift").write_text(
+                "class NativeScenarioTests: XCTestCase { func testSmoke() {} }"
+            )
+            output = root / "evidence"
+            output.mkdir()
+            private_roots = []
+
+            def run(command, **kwargs):
+                if command[0] == "xcrun":
+                    return json.dumps(dict(totalTestCount=0))
+                private = Path(kwargs["env"]["SPOOKKY_M1_ROOT"])
+                private_roots.append(private)
+                case = private / "case-crashed"
+                case.mkdir()
+                (case / "crash.json").write_text('{"owned":true}')
+                raise subprocess.CalledProcessError(65, command)
+
+            with (
+                patch.object(native_runner, "ROOT", root),
+                patch.object(native_runner, "prepare_harness", return_value=(["xcodebuild"], root / "SpookkyHarness")),
+                patch.object(native_runner, "code_hashes", return_value={}),
+                patch.object(native_runner, "gui_lock", return_value=nullcontext()),
+                patch.object(native_runner, "run", side_effect=run),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "No tests discovered"):
+                    native_runner.native_tests(SimpleNamespace(
+                        configuration="release", output=str(output), group="native-smoke", case=None
+                    ))
+            self.assertEqual(len(private_roots), 1)
+            self.assertFalse(private_roots[0].exists())
+            saved = list(output.rglob("crash.json"))
+            self.assertEqual(len(saved), 1)
+            self.assertEqual(json.loads(saved[0].read_text()), {"owned": True})
+
     def test_failure_preserves_evidence_and_cleans_only_owned_files(self):
         from unittest.mock import patch
         import native_fixture

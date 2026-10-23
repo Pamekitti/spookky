@@ -98,6 +98,7 @@ def prepare_harness(args, *, testing=True):
 def native_tests(args):
     import uuid
     from runtime_paths import tmux_path
+    from native_fixture import save_fixture_evidence
 
     command, binary = prepare_harness(args)
     output = Path(args.output).resolve()
@@ -159,6 +160,7 @@ def native_tests(args):
             )
             result_paths.append(str(result))
             with gui_lock():
+                case_passed = False
                 try:
                     command_failed = False
                     try:
@@ -196,12 +198,25 @@ def native_tests(args):
                     counts["passed"] += summary.get("passedTests", 0)
                     counts["failed"] += summary.get("failedTests", 0)
                     counts["skipped"] += summary.get("skippedTests", 0)
+                    case_passed = (
+                        not command_failed
+                        and summary.get("result") == "Passed"
+                        and not summary.get("failedTests", 0)
+                        and not summary.get("skippedTests", 0)
+                    )
                 finally:
-                    for socket in Path(private).rglob("socket"):
-                        subprocess.run(
-                            [tmux_path(), "-S", str(socket), "kill-server"],
-                            capture_output=True,
-                        )
+                    try:
+                        if not case_passed:
+                            evidence = save_fixture_evidence(
+                                private, output / "host", ["*.json", "*.png", "*.log"]
+                            )
+                            print("Native host failure evidence: " + str(evidence), flush=True)
+                    finally:
+                        for socket in Path(private).rglob("socket"):
+                            subprocess.run(
+                                [tmux_path(), "-S", str(socket), "kill-server"],
+                                capture_output=True,
+                            )
     import hashlib
 
     binary = (
