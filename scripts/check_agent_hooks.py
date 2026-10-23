@@ -13,9 +13,7 @@ import tempfile
 import threading
 import time
 import uuid
-
-ROOT = Path(__file__).resolve().parents[1]
-HELPER = ROOT / ".build/debug/spookky-launch"
+from runtime_paths import launch_helper_path
 
 FAKE_CLI = r'''
 import json, os, re, subprocess, sys, tomllib
@@ -66,7 +64,8 @@ def private_json(path, value):
     path.chmod(0o600)
 
 
-def run(provider, *, real=False, failure=False, mode="normal", helper=HELPER):
+def run(provider, *, real=False, failure=False, mode="normal", helper=None):
+    helper = helper or launch_helper_path()
     with tempfile.TemporaryDirectory(prefix="spookky-hook-", dir="/tmp") as directory:
         root = Path(directory)
         binding, secret = str(uuid.uuid4()).upper(), str(uuid.uuid4()).upper()
@@ -168,11 +167,12 @@ def run(provider, *, real=False, failure=False, mode="normal", helper=HELPER):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--real", action="store_true", help="Send one minimal turn to each installed provider using its existing configuration")
-    parser.add_argument("--helper", type=Path, default=HELPER)
+    parser.add_argument("--helper", type=Path)
+    parser.add_argument("--configuration", choices=["debug", "release"])
     args = parser.parse_args()
-    args.helper = args.helper.resolve()
+    args.helper = (args.helper or launch_helper_path(args.configuration)).resolve()
     if not args.helper.is_file():
-        parser.error("Build spookky-launch first")
+        parser.error("Missing launch helper: " + str(args.helper) + ". Build the selected configuration or pass --helper.")
     cases = [run(provider, real=args.real, failure=failure, helper=args.helper)
              for provider in ["codex", "claude"] for failure in ([False] if args.real else [False, True])]
     if not args.real:

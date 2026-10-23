@@ -208,7 +208,7 @@ The activity measurement compares clean shells against simulated provider states
 
 ## Test organization
 
-`python3 scripts/test.py` runs repository checks, Python tooling tests, Swift unit tests and Swift integration tests. A selected suite with no discovered tests fails. Use `--configuration release` to check Release helpers.
+`python3 scripts/test.py` runs repository checks, Python tooling tests, Swift unit tests and Swift integration tests. A selected suite with no discovered tests fails. Use `--configuration release` to check Release helpers in both Swift and Python suites. Callback probes accept `check_agent_hooks.py --configuration release`; `--helper` selects an explicit frozen helper.
 
 | Group | Responsibility |
 | --- | --- |

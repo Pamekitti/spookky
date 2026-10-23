@@ -115,6 +115,7 @@ def main():
     )
     parser.add_argument("--output", default=".cache/tests")
     args, extra = parser.parse_known_args()
+    os.environ["SPOOKKY_TEST_CONFIGURATION"] = args.configuration
     if args.case and args.group not in ["native", "native-smoke"]:
         parser.error("--case selects a hosted native XCTest case")
     if args.case and args.suite:

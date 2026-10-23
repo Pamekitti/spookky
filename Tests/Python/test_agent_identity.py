@@ -7,9 +7,9 @@ import sys
 import tempfile
 import unittest
 import uuid
+from runtime_paths import launch_helper_path
 
-ROOT = Path(__file__).resolve().parents[2]
-HELPER = ROOT / '.build/debug/spookky-launch'
+HELPER = launch_helper_path()
 
 
 @unittest.skipUnless(HELPER.is_file(), 'Build spookky-launch first')

@@ -12,7 +12,7 @@ This verification ran on 23 October 2026. The baseline is `bb99ae9`. The product
 | Swift Debug integration | 276 passed |
 | Swift Release integration | 276 passed |
 | Explicit Release file-scale case | 1 passed, 50,000 files, cancellation and 1,000-result cap |
-| Python tooling | 61 passed, zero skips |
+| Python tooling | 62 passed, zero skips |
 | Release hosted native matrix | 14 passed, zero skips or infrastructure failures |
 | Debug hosted smoke | 1 passed, plus 9 workspace-recovery assertions |
 | Website Playwright | 8 passed |
@@ -27,7 +27,7 @@ Recovery checks retained the same shell process, one private session and one att
 
 Debug and Release normal binaries rejected diagnostic flags with exit status 64. Fixture runners rejected those same binaries with harness migration instructions. Packaging regressions reject harness identities and XCTest artifacts. Source-membership tests cover Debug, Release and Distribution.
 
-Regression coverage rejects empty, hash-only, incomplete, malformed, non-boolean and false fixture reports. It also covers zero-test selection, native exit failures, Debug dylib identity, configuration selection, cleanup isolation, crashed-host evidence retention, lock contention and release after owner exit. The operating-system GUI lock is shared across worktrees. Cleanup uses fixture-owned roots, sockets, processes and pasteboards.
+Regression coverage rejects empty, hash-only, incomplete, malformed, non-boolean and false fixture reports. It also covers zero-test selection, native exit failures, Debug dylib identity, configuration selection for Swift and Python helpers, cleanup isolation, crashed-host evidence retention, lock contention and release after owner exit. The operating-system GUI lock is shared across worktrees. Cleanup uses fixture-owned roots, sockets, processes and pasteboards.
 
 ## Application organization
 

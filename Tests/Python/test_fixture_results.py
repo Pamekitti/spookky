@@ -384,6 +384,21 @@ class DebugCodeIdentityTests(unittest.TestCase):
 
 
 class PerformanceConfigurationTests(unittest.TestCase):
+    def test_python_helpers_follow_configuration_and_explicit_override(self):
+        import os
+        import runtime_paths
+        from unittest.mock import patch
+
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(runtime_paths.launch_helper_path().parent.name, "debug")
+            self.assertEqual(runtime_paths.launch_helper_path("release").parent.name, "release")
+            with patch.dict(os.environ, SPOOKKY_TEST_CONFIGURATION="release"):
+                self.assertEqual(runtime_paths.launch_helper_path().parent.name, "release")
+            with patch.dict(os.environ, SPOOKKY_LAUNCH_HELPER="/fixture/selected-helper"):
+                self.assertEqual(runtime_paths.launch_helper_path(), Path("/fixture/selected-helper"))
+            with self.assertRaises(ValueError):
+                runtime_paths.launch_helper_path("unknown")
+
     def test_harness_build_and_binary_use_selected_configuration(self):
         import native_runner
         from types import SimpleNamespace
